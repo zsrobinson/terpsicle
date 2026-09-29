@@ -8,6 +8,12 @@ import {
   courseIndexTermOrder,
   courseSearchRow,
 } from "~/core/catalog";
+import {
+  historyCoursesFromChunk,
+  historySourceCounts,
+  mergeHistoryTerm,
+  patchHistoryDept,
+} from "~/core/history";
 import { buildReviewsDepts } from "~/core/reviews";
 import { buildPlanetTerpIndex } from "~/core/reviews/planetterp-index";
 import {
@@ -23,6 +29,9 @@ import {
   deptChunkKey,
   GEO_MANIFEST_KEY,
   type GeoManifest,
+  HISTORY_MANIFEST_KEY,
+  historyDeptKey,
+  historyTermKey,
   type Manifest,
   manifestKey,
   PLANETTERP_MANIFEST_KEY,
@@ -39,6 +48,7 @@ import {
   type TermId,
   TRAVEL_MODES,
 } from "~/core/schema";
+import type { HistoryDept, HistoryManifest } from "~/core/schema/history";
 import { FIXTURE_NOW, fixtureTermId } from "../builders";
 import { mockCatalog, mockDepartmentNames } from "./catalog";
 import { mockChanges } from "./changes";
@@ -168,6 +178,48 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     departments: indexDepartments,
   };
   put(COURSE_INDEX_MANIFEST_KEY, jsonBytes(courseIndexManifest));
+
+  // The instructor history, built by the same code the history job runs.
+  const historyTerms: HistoryManifest["terms"] = [];
+  const historyDepts = new Map<string, HistoryDept | null>();
+  for (const termId of Object.keys(mockCatalog).sort()) {
+    const chunks = mockCatalog[termId] ?? [];
+    const term = mergeHistoryTerm(
+      null,
+      termId,
+      chunks.flatMap((chunk) => historyCoursesFromChunk(chunk.courses)),
+    );
+    historyTerms.unshift({
+      termId,
+      hash: await putHashed((h) => historyTermKey(termId, h), term),
+      courses: historySourceCounts(term),
+    });
+    for (const chunk of chunks)
+      historyDepts.set(
+        chunk.dept,
+        patchHistoryDept(
+          historyDepts.get(chunk.dept) ?? null,
+          chunk.dept,
+          termId,
+          term.courses,
+        ),
+      );
+  }
+  const historyManifest: HistoryManifest = {
+    schemaVersion: 1,
+    generatedAt: "2026-09-25T06:41:00.000Z",
+    terms: historyTerms,
+    departments: [],
+  };
+  for (const [code, file] of [...historyDepts].sort(([a], [b]) =>
+    a < b ? -1 : 1,
+  ))
+    if (file)
+      historyManifest.departments.push({
+        code,
+        hash: await putHashed((h) => historyDeptKey(code, h), file),
+      });
+  put(HISTORY_MANIFEST_KEY, jsonBytes(historyManifest));
 
   const ptDepartments: PlanetTerpManifest["departments"] = [];
   for (const dept of mockPlanetTerpDepts)

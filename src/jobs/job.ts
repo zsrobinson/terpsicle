@@ -15,6 +15,7 @@ export type Job = (context: JobContext) => Promise<void>;
 export type JobName =
   | "seats"
   | "catalog"
+  | "history"
   | "planetterp"
   | "calendar-buildings"
   | "daily"

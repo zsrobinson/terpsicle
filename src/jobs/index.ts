@@ -1,6 +1,7 @@
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
 import { runDailyJob } from "./daily";
+import { runHistoryJob } from "./history";
 import type { Job, JobName } from "./job";
 import { runModerationJob } from "./moderation";
 import { runNotificationsJob } from "./notifications";
@@ -19,6 +20,7 @@ export const CRON_JOBS: Readonly<Record<string, { name: JobName; run: Job }>> =
       run: allOf(runSeatsJob, runModerationJob, runNotificationsJob),
     },
     "0 */6 * * *": { name: "catalog", run: runCatalogJob },
+    "41 */6 * * *": { name: "history", run: runHistoryJob },
     "17 5 * * *": { name: "planetterp", run: runPlanetTerpJob },
     "23 6 * * 1": { name: "calendar-buildings", run: runCalendarBuildingsJob },
     "37 * * * *": { name: "reviews-publish", run: runReviewsPublishJob },

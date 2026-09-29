@@ -3,6 +3,7 @@ import { runBuildings } from "~/ingest/buildings";
 import { runCalendar } from "~/ingest/calendar";
 import { runCatalog } from "~/ingest/catalog";
 import { publishCourseIndex } from "~/ingest/course-index";
+import { snapshotHistory } from "~/ingest/history";
 import { createHttpClient } from "~/ingest/http";
 import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { consoleLogger } from "~/ingest/publish";
@@ -14,6 +15,7 @@ import { createR2S3BlobStore } from "./r2-s3-blob-store";
 export const PIPELINE_JOBS = [
   "catalog",
   "courses",
+  "history",
   "seats",
   "planetterp",
   "calendar",
@@ -62,6 +64,13 @@ export async function runPipelineJob(
     case "courses":
       // The course index alone, from the catalog already in the store.
       result = { ...(await publishCourseIndex(common)) };
+      break;
+    case "history":
+      // The instructor history, from the catalog already in the store.
+      // --force copies chunks held back for a sharp drop in sections.
+      result = {
+        ...(await snapshotHistory({ ...common, force: options.force })),
+      };
       break;
     case "seats":
       result = {

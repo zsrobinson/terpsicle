@@ -31,6 +31,11 @@ import {
   type TimedMeeting,
 } from "~/core/schema";
 import {
+  HistoryDeptSchema,
+  HistoryManifestSchema,
+  HistoryTermSchema,
+} from "~/core/schema/history";
+import {
   archivedFixtureTermId,
   buildMockDataFiles,
   CANCELLED_SECTION_KEY,
@@ -106,6 +111,9 @@ describe("the mock bucket", () => {
       [/^courses\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, CourseIndexDeptSchema],
       [/^reviews\/manifest\.json$/, ReviewsManifestSchema],
       [/^reviews\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, ReviewsDeptSchema],
+      [/^history\/manifest\.json$/, HistoryManifestSchema],
+      [/^history\/term\/\d{6}\.[0-9a-f]{16}\.json$/, HistoryTermSchema],
+      [/^history\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, HistoryDeptSchema],
     ];
     expect(files.size).toBeGreaterThan(100);
     for (const [key, bytes] of files) {

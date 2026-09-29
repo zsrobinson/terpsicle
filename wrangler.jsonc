@@ -118,6 +118,7 @@
     "crons": [
       "*/5 * * * *", // seats
       "0 */6 * * *", // catalog
+      "41 */6 * * *", // history: who taught what, copied from the catalog
       "17 5 * * *", // planetterp
       "23 6 * * 1", // calendar + buildings
       "37 * * * *", // reviews-publish: Terpsicle reviews' numbers to R2

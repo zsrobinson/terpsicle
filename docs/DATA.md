@@ -47,6 +47,9 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 | `courses/manifest.json` (v3) | `CourseIndexManifestSchema` | catalog job (6 h), when the index changed | fixed |
 | `courses/search.<hash>.json` (v3) | `CourseSearchFileSchema`: every course as `[code, title, creditsMin, creditsMax, genEdCodes]`, sorted by code | catalog job | hashed |
 | `courses/dept/<DEPT>.<hash>.json` (v3) | `CourseIndexDeptSchema`: per course the title, credits, GenEd groups, prerequisite, corequisite and restriction text, cross-listings, parsed prerequisites and the terms it was offered in (§3.4) | catalog job | hashed |
+| `history/manifest.json` (v3) | `HistoryManifestSchema`: the index, every term on record (newest first, with its file's hash and courses per source) and each department's hash | history job (6 h), backfill script | fixed |
+| `history/term/<term>.<hash>.json` (v3) | `HistoryTermSchema`: the permanent record of one term, every course with its title, credits, source and each section's instructors (§3.5) | history job, backfill script | hashed |
+| `history/dept/<DEPT>.<hash>.json` (v3) | `HistoryDeptSchema`: the read path, every term of every course in the department, newest first | history job, backfill script | hashed |
 | `planetterp/manifest.json` | `PlanetTerpManifestSchema` | PlanetTerp job (daily) | fixed |
 | `planetterp/dept/<DEPT>.<hash>.json` | `PlanetTerpDeptSchema` | PlanetTerp job | hashed |
 | `planetterp/index.<hash>.json` | `PlanetTerpIndexSchema` | PlanetTerp job | hashed |
@@ -69,7 +72,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - A hashed key is never overwritten with different bytes.
 
 ### 2.3 Schema versions
-- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, (v3) `courses` and (v2) `reviews`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
+- `SCHEMA_VERSIONS` has one integer per family: `catalog`, `planetterp`, `geo`, `calendar`, (v3) `courses`, (v2) `reviews` and (v3) `history`. Every JSON file has `schemaVersion: <literal>`. The routes binary has its own header version (`ROUTES_BINARY_VERSION`); share links have `v` (`SHARE_PAYLOAD_VERSION`).
 - **Readers strip unknown keys** (plain `z.object`). So adding an optional field is not a bump: older clients ignore it. Bump only for breaking changes: a field removed, renamed, retyped, made required, or its meaning changed.
 - Clients parse `WireEnvelopeSchema` first:
   - data version > client's → the open tab is stale; keep using the cache and reload the app at the next visibility change;
@@ -82,7 +85,7 @@ All keys are built by helpers in `src/core/schema/keys.ts`; never concatenate th
 - Write order: every new hashed file first, the manifest last. A manifest never points at a file that doesn't exist yet.
 - **Two jobs write `catalog/<term>/manifest.json`** (catalog: `departments`, `catalogCrawledAt`; seats: `seats`, `changes`). Each does read → change only its own fields → set `generatedAt` → `put` with `onlyIf: { etagMatches }`; on a failed precondition it re-reads and retries (up to 5 times). `geo/manifest.json` follows the same rule (buildings job vs routes script).
 - Department chunks include section fields (meetings, instructors, notes), so a section change seen by the seats job rewrites that department's chunk in the same run as the `changes` entry that reports it. The catalog and the changes file never disagree for longer than one run.
-- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`, and the reviews-publish job under `reviews/`.
+- Garbage collection: the catalog job deletes hashed files under a term that no current manifest references and that are older than 24 h. The 24 h grace keeps a client's in-flight diff working. It does the same under `courses/`, the reviews-publish job under `reviews/`, and the history job (and backfill) under `history/`.
 
 ### 2.5 Serving `/data/*`
 The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys.ts`). A `null` policy means 404. Every response carries an ETag, and `If-None-Match` gets a 304.
@@ -91,7 +94,7 @@ The Worker maps `/data/<key>` to R2 and applies `dataCachePolicy(key)` (in `keys
 |---|---|---|
 | hashed (`*.<16hex>.json\|bin`) | `public, max-age=31536000, immutable` | 1 year |
 | `catalog/terms.json`, `catalog/<term>/manifest.json` | `public, no-cache` (revalidate with ETag) | 60 s |
-| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json`, `reviews/manifest.json` | `public, no-cache` | 1 h |
+| `planetterp/manifest.json`, `geo/manifest.json`, `courses/manifest.json`, `reviews/manifest.json`, `history/manifest.json` | `public, no-cache` | 1 h |
 | `calendar/<term>.json` | `max-age=3600` | 1 h |
 | `geo/route/*.json` | `max-age=86400` | 1 day |
 | `geo/tiles.pmtiles` | `max-age=604800`, Range requests | 1 week |
@@ -107,6 +110,9 @@ The jobs' memory between runs. Everything here can be rebuilt by running the job
 | `_jobs/catalog/building-rooms.json` | catalog | every building code seen, with one room, for the buildings job's popup lookups |
 | `_jobs/reviews/state.json` | reviews-publish | when each unreferenced `reviews/` file was first seen, for the 24 h grace |
 | `_jobs/courses/state.json` | catalog | per department, the `<term>:<chunk hash>` list its course-index file was built from (an unchanged list skips the rebuild), and when each unreferenced `courses/` file was first seen |
+| `_jobs/history/state.json` | history | per term, the chunk hash each department was last copied from and its section count, so a run reads only changed chunks and holds back a sharp drop |
+| `_jobs/history/orphans.json` | history, backfill | when each unreferenced `history/` file was first seen, for the 24 h grace |
+| `_jobs/history/backfill.json` | backfill script | the courses already backfilled from PlanetTerp, so a rerun carries on where one stopped. Not rebuildable by a cron, but only a resume cursor: deleting it makes the next run ask PlanetTerp again, and the merge is idempotent |
 | `_jobs/buildings/discovered.json` | buildings | codes joined (or not) since the checked-in seed, with why; failures retry after 30 days |
 | `_jobs/planetterp/grades.json` | PlanetTerp | per course, grades summed per PlanetTerp professor name, and when they were fetched (the rotation order). A course's rows are never replaced by an empty answer (§4.1) |
 | `_jobs/planetterp/unmatched.json` | PlanetTerp | Testudo instructor names with no PlanetTerp match, and how many names each matching rule joined |
@@ -169,6 +175,23 @@ The scheduler's catalog is per term and covers only the terms Testudo lists. The
 - **Mock mode** builds the index from the fixtures' catalog with the same functions (`src/fixtures/mock/data-source.ts`).
 - `pnpm tsx scripts/ingest.ts courses` rebuilds the index alone from the catalog already in the store (after a `courses` bump, say).
 
+### 3.5 Instructor history (v3, `history/`)
+
+Testudo lists only the last few terms (in Fall 2026, back to Summer 2026), and the catalog's own files for an archived term stop being readable after a `catalog` schema bump. So we keep our own permanent record of who taught which course in each term, for Reviews ("taught Fall 2026", "you took it with …") and Plan. Schemas: `~/core/schema/history` (outside the barrel). Logic: `src/core/history`. Publishing: `src/ingest/history.ts`.
+- **Sources.** `terpsicle`: the history job (`41 */6 * * *`, `src/jobs/history.ts`), 41 minutes after each catalog crawl, copies every department chunk in `terms.json` (active terms first, then archived ones) whose hash changed since it last copied it (`_jobs/history/state.json`). Nothing is crawled. At most `MAX_HISTORY_CHUNKS` (600) chunks a run, so a first run spreads over a few. A chunk whose section count (the catalog manifest's `sectionCount`) is under `MIN_SECTION_SHARE` (75%) of what it had when last copied is held back: not copied, not recorded, and reported as an error each run, until its count recovers or someone who checked runs `pnpm tsx scripts/ingest.ts history --force`. `planetterp`: the one-off backfill (`scripts/backfill-history.ts`) from PlanetTerp's grade rows, which name the professor of every section that reported grades, back to Spring 2012 and through Spring 2025. PlanetTerp writes some section numbers without leading zeros (`"101"`); the backfill pads them (`"0101"`), and a professor whose section still doesn't read is kept on the course.
+- **What a term records.** Per course: `code`, `title`, `credits` (null when the source didn't say), `source`, `instructors` (everyone who taught it that term) and `sections` (`{code, instructors}`). Names are as the source spells them, sorted and unique; an empty list is TBA. Nothing else from the catalog (meetings, seats, notes) is kept.
+- **Merge rules** (`mergeHistoryCourse`, tested in `src/core/history/merge.test.ts`):
+  - append-only by course: a term never loses a course once recorded, and a term is never removed;
+  - ours beats PlanetTerp's, whichever arrives first;
+  - from the same source, the newer sighting's sections win (a section Testudo stopped listing was cancelled, so it goes), but a section's names never go back to TBA, and a course with no sections never replaces one that has them (a truncated sections answer publishes `sections: []`, §4.1's "never replace good data with empty data");
+  - a title or credits the new sighting lacks are kept.
+  So a term is final as of the last sighting before Testudo dropped it.
+- **Publishing** (`publishHistory`): merges each term's new sightings into its file, patches the department files those courses are in (`patchHistoryDept`: that term's offerings replaced, others kept; a course's title follows the newest term that names it), then rewrites the manifest when a hash changed, hashed files first. A term or department file the manifest names but that won't read is left alone and reported, and the job copies those chunks again next run. **A manifest that won't read stops everything** (`HistoryUnreadableError`): it's the only index of a record nothing can rebuild. A run that finds the manifest changed under it (the backfill and the job at once) throws and merges again next time. A missing manifest while `history/term/` has files stops everything too: starting empty would orphan every term, and the 24 h collection would delete them. A `history` schema bump must rewrite the files as new hashed files, manifest last (§2.2, §2.4), from the old files; a job must never rebuild from the catalog, which no longer has the old terms.
+- **Read path** (`src/state/query/history.ts`): `historyManifestQuery`, `historyDeptQuery`, `whoTaughtQuery(source, manifest, course, term)` (the department file selected down to one term's record) and `taughtByQuery(source, manifest, depts, names)` (every course and term in those departments where any of the names appears, by `instructorNameKey`; pass Testudo's and PlanetTerp's spellings). The per-term files are the record, not a read path: no client reads them.
+- **Backfill** (owner, once): `pnpm tsx scripts/backfill-history.ts --target r2`. Start with `--course CMSC351 --dry-run` (prints the records per term, writes nothing). It lists PlanetTerp's courses (`/courses`, about 120 pages; `--dept` narrows it), then asks `/grades` for each course one at a time, a second apart (`--delay-ms`), about 3–4 hours in all. It merges every 400 courses (`--flush-every`) and records what's done in `_jobs/history/backfill.json`, so a rerun of the same command carries on and retries the courses that failed. Only PlanetTerp's 400 "course not found" counts as no grades; an empty list is reported and stays to do (§4.1). A list page that fails, or comes back short with more after it (each short page is checked by asking for the next), is reported (`listingComplete: false`), and a rerun lists again. Never run from CI.
+- **Mock mode** builds the history from the fixtures' catalog with the same functions (`src/fixtures/mock/data-source.ts`).
+- `pnpm tsx scripts/ingest.ts history` runs the job alone against the catalog already in the store.
+
 ---
 
 ## 4. Reference data
@@ -182,7 +205,7 @@ The scheduler's catalog is per term and covers only the terms Testudo lists. The
   Everything is keyed by **slug**, never by name: PlanetTerp names collide (two "Douglas Hamilton"s). When two slugs share a Testudo name, ingest picks the one whose `courses` includes the course.
 
   The join (`src/ingest/planetterp/names.ts`) tries, in order: exact name; the hand-checked `aliases.json`; names equal once accents, apostrophes, punctuation, spacing, parentheticals and suffixes are ignored; then nicknames, extra middle names or surname parts, shortened given names and initials. Those last four need course evidence (two shared courses, or one that few PlanetTerp people taught or from someone who mostly teaches in the instructor's departments), never take the slug of someone teaching under that exact name, and match nobody on a tie. A wrong rating is worse than none.
-- PlanetTerp grade rows carry section numbers that aren't always zero-padded (`"501"`); we only store per-course and per-instructor sums, so sections never reach our files.
+- PlanetTerp grade rows carry section numbers that aren't always zero-padded (`"501"`); the grade files only store per-course and per-instructor sums, so sections never reach them. The instructor history's backfill pads them (§3.5).
 - **Never replace good data with empty data.** PlanetTerp looks unmaintained (reviews stopped in May 2026, grades end in Spring 2025), so the job assumes it can fail in ways that still parse:
   - **Sanity floors** (`src/ingest/planetterp/source.ts`). A run whose professor list is empty, or has more than 10% fewer professors or reviews than the last good run (`_jobs/planetterp/state.json`), is a source failure. So is a list that doesn't arrive at all. The job then publishes nothing new: the department files and the manifest's `departments` stay as they were, the manifest's `source.status` becomes `stale` (`gone` after 30 days without a good run), the reason goes in the job state, and the cron reports `cron_job_failed` with the reason as `firstError` (`docs/ANALYTICS.md`).
   - **Grades never go from something to nothing.** `/grades` answers 400 `{"error":"course not found"}` for a course it doesn't know; only that 400 means "no grades", and any other error keeps the stored rows. An empty answer for a course that had rows keeps the old rows too; only a course with no stored rows may stay empty.

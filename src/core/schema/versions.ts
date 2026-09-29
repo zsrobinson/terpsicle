@@ -8,6 +8,7 @@ export const SchemaFamilySchema = z.enum([
   "calendar",
   "courses",
   "reviews",
+  "history",
 ]);
 export type SchemaFamily = z.infer<typeof SchemaFamilySchema>;
 
@@ -25,6 +26,7 @@ export const SCHEMA_VERSIONS = {
   calendar: 1,
   courses: 1,
   reviews: 1,
+  history: 1,
 } as const satisfies Record<SchemaFamily, number>;
 
 /**

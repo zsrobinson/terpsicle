@@ -76,6 +76,8 @@ const GradeRowApiSchema = z.object({
   course: z.string(),
   professor: z.string().nullable(),
   semester: z.string(),
+  /** Not always zero-padded ("101"); only the instructor history reads it. */
+  section: z.string().nullable().catch(null),
   ...Object.fromEntries(GRADE_KEYS.map((k) => [k, count])),
 });
 type GradeRowApi = z.infer<typeof GradeRowApiSchema> & Record<string, unknown>;

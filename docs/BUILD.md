@@ -44,6 +44,7 @@ Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
 │                   8am pushes and the owner's urgent alerts (src/jobs/notifications.ts)│
 │   0 */6 * * *     catalog: SOC term list → terms.json; per term: depts + courses +     │
 │                   sections → per-dept chunks + manifest; archive terms Testudo dropped │
+│   41 */6 * * *    history: changed dept chunks → who taught what, per term (R2 only)   │
 │   17 5 * * *      PlanetTerp: ratings, reviews metadata, grades                        │
 │   23 6 * * 1      academic calendar; buildings join                                   │
 │   37 * * * *      reviews-publish: published reviews' numbers (D1) → reviews/ in R2   │
