@@ -172,9 +172,9 @@ export function AppBar({
       {heading && tabbed ? (
         // A phone's bar has no product menu to be the page's heading: the
         // tab bar shows where you are, and this says it.
-        <h1 className="sr-only md:hidden">
+        <Brand className="sr-only md:hidden">
           {PRODUCTS.find((p) => p.id === current)?.label ?? "Terpsicle"}
-        </h1>
+        </Brand>
       ) : null}
       {context ? (
         <>

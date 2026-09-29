@@ -85,9 +85,15 @@ async function emptyPoint(page: Page, day: string) {
   const column = calendar(page).locator(`[data-day="${day}"]`);
   const point = await column.evaluate((el) => {
     const box = el.getBoundingClientRect();
+    // Empty around the point too (a short drag's end): the hint floats over
+    // the grid's top, and a press that ends on it isn't a press on the day.
     for (let y = box.top + 6; y < box.bottom - 6; y += 8) {
       const x = box.left + box.width / 2;
-      if (document.elementFromPoint(x, y) === el) return { x, y };
+      if (
+        document.elementFromPoint(x, y) === el &&
+        document.elementFromPoint(x + 4, y + 8) === el
+      )
+        return { x, y };
     }
     return null;
   });
