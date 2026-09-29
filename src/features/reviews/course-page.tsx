@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
+import { ViewWords } from "~/components/brand/view-words";
 import { PanelNote } from "~/components/panel";
 import { termLabel } from "~/core/catalog/terms";
 import { formatGpa } from "~/core/grades/grades";
-import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {
   type CourseInstructorRow,
   type CoursePageData,
@@ -23,9 +23,10 @@ import {
   instructorNameKey,
   type MyReview,
   type PageReviews,
+  type ReviewSort,
 } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
-import { crossLinkClicked, viewWords } from "~/lib/cross-link";
+import { crossLinkClicked } from "~/lib/cross-link";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -53,17 +54,24 @@ import {
   useClassesTaken,
   WriteReviewButton,
 } from "./review-box";
-import { ReviewList, useMine, useReloadOnChange } from "./reviews-section";
+import {
+  ReviewList,
+  ReviewsTitle,
+  SortControl,
+  useMine,
+  useReloadOnChange,
+} from "./reviews-section";
 import { SignInPrompt } from "./sign-in-prompt";
 
-// /reviews/<course> (V2 §1.1), in two columns (owner, 2026-09-29). The wide
-// one reads top to bottom: the course, its rating from every review of it,
-// the box to review it yourself, then the reviews, ours and PlanetTerp's
-// about every instructor, never filtered to one (owner, 2026-09-29: as on
-// PlanetTerp). The narrow one holds who taught it, by term, each a link to
-// their reviews in this course, and its grades. On a phone
-// it's one column, the wide one first, with who teaches it now under the
-// title. The route's loader read it all, so the server's HTML has it.
+// /reviews/<course> (V2 §1.1), in two columns from the top (owner,
+// 2026-09-29). The wide one: the course, its rating from every review of
+// it, then the reviews, ours and PlanetTerp's about every instructor, never
+// filtered to one (as on PlanetTerp), in the order `?sort=` asks. The
+// narrow one: the box to review it yourself, who taught it term by term
+// (each a link to their reviews in this course), and its grades. On a
+// phone: the course, who teaches it now, the box, the reviews, then who
+// taught it and the grades. No back link (owner). The route's loader read
+// it all, so the server's HTML has it.
 
 type Row = CourseInstructorRow;
 
@@ -75,11 +83,14 @@ export function CoursePage({
   data,
   reviews,
   write,
+  sort = "latest",
 }: {
   data: CoursePageData;
   reviews: PageReviews;
   /** `?write=<name>`: open the form for who taught you. */
   write: string | null;
+  /** `?sort=`: the reviews' order. */
+  sort?: ReviewSort;
 }) {
   const { code, title, term, grades } = data;
   const level = useReviewsLevel();
@@ -94,7 +105,6 @@ export function CoursePage({
   const boxRef = useRef<HTMLDivElement>(null);
   useBringFormIn(boxRef, writing);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
-  const freshness = planetTerpFreshnessWords(data.source);
   const today = newYorkClock(Date.now()).date;
   const teaching = rows.filter((r) => r.teaching);
 
@@ -169,155 +179,156 @@ export function CoursePage({
       />
     );
 
+  const box = (
+    <div ref={boxRef} className="scroll-mt-20">
+      {composer ?? (
+        <ReviewBox
+          state={boxState}
+          question={
+            <>
+              Took <span className="ident">{code}</span>?
+            </>
+          }
+          write={
+            rows.length === 0 ? null : took?.instructor ? (
+              <WriteReviewButton
+                tooltip={`Review ${took.instructor} in ${code}`}
+                onClick={() => setWriting({ name: took.instructor ?? "" })}
+              />
+            ) : (
+              <WriteMenu
+                code={code}
+                rows={rows}
+                term={term && hasTermStarted(term.id, today) ? term.name : null}
+                onWrite={(name) => setWriting({ name })}
+              />
+            )
+          }
+          onEdit={setWriting}
+        />
+      )}
+    </div>
+  );
+  // Who taught it and its grades: the narrow column's end.
+  const more = (
+    <>
+      <PageSection
+        size="side"
+        title="Who taught it"
+        aside={rows.length > 0 ? rows.length : undefined}
+      >
+        {rows.length === 0 ? (
+          <PanelNote className={PAGE_NOTE}>
+            We don't know who's taught {code} yet.
+          </PanelNote>
+        ) : (
+          <div className="flex flex-col gap-6">
+            {courseTermGroups(data).map((group) => (
+              <TermGroup
+                key={group.termId ?? "earlier"}
+                group={group}
+                code={code}
+                now={group.termId !== null && group.termId === term?.id}
+              />
+            ))}
+          </div>
+        )}
+        {rows.some((r) => r.overallGpa !== null) ? (
+          <p className="text-faint text-sm">
+            Each GPA is the average across all their courses.
+          </p>
+        ) : null}
+      </PageSection>
+      <PageSection size="side" title="Grades">
+        {grades ? (
+          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
+        ) : (
+          <PanelNote className={PAGE_NOTE}>
+            PlanetTerp has no grades for {code} yet.
+          </PanelNote>
+        )}
+      </PageSection>
+    </>
+  );
+
   return (
     <ReviewsFrame page="course" wide>
-      <PageHeader
-        size="display"
-        back={{ label: "Reviews", to: "/reviews" }}
-        eyebrow="Course"
-        title={
-          // One box the row you opened it from grows into
-          // (~/lib/view-transition); a wrapped inline one can't be.
-          <span className="block" data-vt-course={code}>
-            <span className="ident">{code}</span>
-            {title ? ` ${title}` : null}
-          </span>
-        }
-        status={
-          term ? (
-            <>
-              Offered in {term.name} ·{" "}
-              <WithTooltip label={`${code}'s sections in ${term.name}`}>
-                <Link
-                  to="/schedule/course/$code"
-                  params={{ code }}
-                  onClick={() => crossLinkClicked("reviews", "schedule")}
-                  className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
-                >
-                  {viewWords("schedule")}
-                </Link>
-              </WithTooltip>
-            </>
-          ) : (
-            "Not offered this term"
-          )
-        }
-        views={
-          term && teaching.length > 0 ? (
-            // A phone's way to who teaches it: the side's list comes last there.
-            <div className="lg:hidden">
-              <TeachingNow term={term.name} code={code} rows={teaching} />
-            </div>
-          ) : undefined
-        }
-      />
       <SplitLayout
         size="display"
-        main={
+        top={
           <>
-            <RatingSummary combined={combined} freshness={null} />
-            <div ref={boxRef} className="scroll-mt-20">
-              {composer ?? (
-                <ReviewBox
-                  state={boxState}
-                  question={
-                    <>
-                      Took <span className="ident">{code}</span>?
-                    </>
-                  }
-                  write={
-                    rows.length === 0 ? null : took?.instructor ? (
-                      <WriteReviewButton
-                        tooltip={`Review ${took.instructor} in ${code}`}
-                        onClick={() =>
-                          setWriting({ name: took.instructor ?? "" })
-                        }
-                      />
-                    ) : (
-                      <WriteMenu
-                        code={code}
-                        rows={rows}
-                        term={
-                          term && hasTermStarted(term.id, today)
-                            ? term.name
-                            : null
-                        }
-                        onWrite={(name) => setWriting({ name })}
-                      />
-                    )
-                  }
-                  onEdit={setWriting}
-                />
-              )}
-            </div>
-            <PageSection size="display" title="Reviews">
-              <ReviewList
-                reviews={reviews}
-                query={{ instructorId: null, course: code }}
-                level={level}
-                showCourse={false}
-                hideId={
-                  writing !== null && "id" in writing ? writing.id : undefined
-                }
-                onEdit={setWriting}
-                about={(id) => (
-                  <AboutInstructor
-                    id={id}
-                    code={code}
-                    name={nameOf.get(id) ?? null}
-                  />
-                )}
-                empty={`No reviews of ${code} yet.`}
-              />
-            </PageSection>
+            <PageHeader
+              size="display"
+              eyebrow="Course"
+              title={
+                // One box the row you opened it from grows into
+                // (~/lib/view-transition); a wrapped inline one can't be.
+                <span className="block" data-vt-course={code}>
+                  <span className="ident">{code}</span>
+                  {title ? ` ${title}` : null}
+                </span>
+              }
+              status={
+                term ? (
+                  <>
+                    Offered in {term.name} ·{" "}
+                    <WithTooltip label={`${code}'s sections in ${term.name}`}>
+                      <Link
+                        to="/schedule/course/$code"
+                        params={{ code }}
+                        onClick={() => crossLinkClicked("reviews", "schedule")}
+                        className="inline-flex items-center gap-1 text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
+                      >
+                        <ViewWords to="schedule" size={16} />
+                      </Link>
+                    </WithTooltip>
+                  </>
+                ) : (
+                  "Not offered this term"
+                )
+              }
+              views={
+                term && teaching.length > 0 ? (
+                  // A phone's way to who teaches it: the full list comes after the reviews there.
+                  <div className="lg:hidden">
+                    <TeachingNow term={term.name} code={code} rows={teaching} />
+                  </div>
+                ) : undefined
+              }
+            />
+            <RatingSummary combined={combined} />
           </>
         }
-        sideProps={{ "aria-label": `More about ${code}` }}
-        side={
-          <>
-            <PageSection
-              title="Who taught it"
-              aside={rows.length > 0 ? rows.length : undefined}
-            >
-              {rows.length === 0 ? (
-                <PanelNote className={PAGE_NOTE}>
-                  We don't know who's taught {code} yet.
-                </PanelNote>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {courseTermGroups(data).map((group) => (
-                    <TermGroup
-                      key={group.termId ?? "earlier"}
-                      group={group}
-                      code={code}
-                      now={group.termId !== null && group.termId === term?.id}
-                    />
-                  ))}
-                </div>
-              )}
-              {/* About the numbers beside each name, which are PlanetTerp's. */}
-              {rows.some((r) => r.overallGpa !== null) || freshness ? (
-                <p className="text-faint text-sm">
-                  {rows.some((r) => r.overallGpa !== null)
-                    ? "Each GPA is the average across all their courses. "
-                    : ""}
-                  {freshness}
-                </p>
-              ) : null}
-            </PageSection>
-            <PageSection title="Grades">
-              {grades ? (
-                <GradesBlock
-                  record={grades}
-                  gradesThrough={data.gradesThrough}
+        sideProps={{ "aria-label": `More about ${code}`, className: "lg:pt-8" }}
+        side={box}
+        // Beside the reviews on a wide screen; after them on a phone.
+        after={more}
+        main={
+          <PageSection
+            size="display"
+            title={<ReviewsTitle count={combined.reviewCount} />}
+            aside={<SortControl sort={sort} />}
+          >
+            <ReviewList
+              reviews={reviews}
+              query={{ instructorId: null, course: code }}
+              sort={sort}
+              level={level}
+              showCourse={false}
+              hideId={
+                writing !== null && "id" in writing ? writing.id : undefined
+              }
+              onEdit={setWriting}
+              about={(id) => (
+                <AboutInstructor
+                  id={id}
+                  code={code}
+                  name={nameOf.get(id) ?? null}
                 />
-              ) : (
-                <PanelNote className={PAGE_NOTE}>
-                  PlanetTerp has no grades for {code} yet.
-                </PanelNote>
               )}
-            </PageSection>
-          </>
+              empty={`No reviews of ${code} yet.`}
+            />
+          </PageSection>
         }
       />
     </ReviewsFrame>
@@ -488,9 +499,16 @@ function TermGroup({
   const label = group.termId ? termLabel(group.termId) : "Earlier";
   return (
     <div className="flex flex-col gap-1">
-      <h3 className="emph-label flex items-baseline gap-2 text-sm">
-        {label}
-        {now ? <span className="text-muted">Teaching now</span> : null}
+      {/* The term over its names, a rule filling the rest of its line, so
+          one term reads apart from the next (owner, 2026-09-29). */}
+      <h3 className="emph-heading flex items-center gap-3 text-lg">
+        <span className="shrink-0">{label}</span>
+        {now ? (
+          <span className="shrink-0 font-normal text-muted text-sm">
+            Teaching now
+          </span>
+        ) : null}
+        <span aria-hidden="true" className="h-px flex-1 bg-hairline" />
       </h3>
       <ul aria-label={`Taught ${code} in ${label}`}>
         {group.rows.map((row) => (

@@ -93,8 +93,10 @@ test("the search's results open over the page, and the keys move through them", 
   // address. (While the results are open, Base UI hides the rest of the
   // page from screen readers, as a combobox's popup does, so it's found by
   // its text here.)
-  await expect(page.locator("h2", { hasText: "Most reviewed" })).toBeVisible();
-  await expect(page.locator("h2", { hasText: "Departments" })).toHaveCount(1);
+  await expect(page.locator("h2", { hasText: "Most taken" })).toBeVisible();
+  await expect(page.locator("h2", { hasText: "Recent reviews" })).toHaveCount(
+    1,
+  );
   await expect(page).toHaveURL(/\/reviews$/);
 
   // ↓ and ↑ move through the results.
@@ -240,7 +242,7 @@ test("the front door's narrow column lists the classes you took", async ({
     // Beside the page's own lists, not under them.
     const side = await yours.boundingBox();
     const main = await page
-      .getByRole("heading", { name: "Most reviewed" })
+      .getByRole("heading", { name: "Most taken" })
       .boundingBox();
     expect(side?.x ?? 0).toBeGreaterThan((main?.x ?? 0) + 400);
   }

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import { Star } from "lucide-react";
 import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import { LENGTH_LIMITS } from "~/core/moderation";
@@ -27,6 +26,7 @@ import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
 import { Textarea } from "~/ui/input";
+import { RatingInput } from "~/ui/rating-input";
 import {
   Select,
   SelectContent,
@@ -199,7 +199,7 @@ export function Composer({
           </p>
         </div>
 
-        <RatingPicker value={rating} onChange={setRating} />
+        <RatingInput value={rating} onChange={setRating} />
 
         <div className="flex flex-wrap gap-3">
           <OptionalPick
@@ -358,51 +358,6 @@ const OptionalPick = memo(function OptionalPick({
           ))}
         </SelectContent>
       </Select>
-    </div>
-  );
-});
-
-const RatingPicker = memo(function RatingPicker({
-  value,
-  onChange,
-}: {
-  value: number | null;
-  onChange: (rating: number) => void;
-}) {
-  const [hover, setHover] = useState<number | null>(null);
-  const shown = hover ?? value ?? 0;
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        role="radiogroup"
-        aria-label="Rating"
-        className="flex"
-        onMouseLeave={() => setHover(null)}
-      >
-        {[1, 2, 3, 4, 5].map((n) => (
-          <WithTooltip key={n} label={`Rate it ${n} of 5`}>
-            {/* biome-ignore lint/a11y/useSemanticElements: star buttons, one per rating */}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={value === n}
-              aria-label={`${n} star${n === 1 ? "" : "s"}`}
-              onClick={() => onChange(n)}
-              onMouseEnter={() => setHover(n)}
-              className="flex size-8 items-center justify-center rounded-md transition-colors hover:bg-hover"
-            >
-              <Star
-                size={18}
-                aria-hidden="true"
-                className={n <= shown ? "fill-current text-warn" : "text-faint"}
-              />
-            </button>
-          </WithTooltip>
-        ))}
-      </div>
-      <span className="text-muted text-sm">
-        {value === null ? "Your rating" : `${value} of 5`}
-      </span>
     </div>
   );
 });

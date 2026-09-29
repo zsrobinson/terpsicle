@@ -41,7 +41,23 @@ export const ReviewIdSchema = z
   .regex(/^[A-Za-z0-9_-]{22}$/, "Expected a 22-char review id");
 export type ReviewId = z.infer<typeof ReviewIdSchema>;
 
-export const ReviewRatingSchema = z.number().int().min(1).max(5);
+/**
+ * A rating: 1 to 5 in half stars (owner, 2026-09-29: "users should be able
+ * to rate professors by increments of half stars"). PlanetTerp's are whole.
+ * D1's `rating INTEGER` column keeps 4.5 as a REAL (SQLite's type affinity
+ * only converts a value that fits losslessly), and its CHECK is a range, so
+ * halves need no migration; `store.test.ts` checks the round trip.
+ */
+export const ReviewRatingSchema = z.number().min(1).max(5).multipleOf(0.5);
+
+/**
+ * How a page's reviews are ordered (owner, 2026-09-29: "sortable, both by
+ * rating highest/lowest and latest/oldest"). `latest` is the default; ties
+ * in rating go newest first.
+ */
+export const REVIEW_SORTS = ["latest", "oldest", "highest", "lowest"] as const;
+export const ReviewSortSchema = z.enum(REVIEW_SORTS);
+export type ReviewSort = z.infer<typeof ReviewSortSchema>;
 
 /**
  * The body as sent. The 40–2,000 character rule is stage 0's (`precheck`),
@@ -355,12 +371,11 @@ export const PlanetTerpReviewSchema = z.strictObject({
 export type PlanetTerpReview = z.infer<typeof PlanetTerpReviewSchema>;
 
 /** Where the next page of PlanetTerp reviews starts: `<created>|<id>`. */
-export const PlanetTerpCursorSchema = z
-  .string()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}T[\d:.]+Z\|[0-9a-f]{16}$/,
-    "Expected a PlanetTerp cursor",
-  );
+export const PlanetTerpCursorSchema = z.string().regex(
+  // `<rating>|` leads when the page is sorted by rating.
+  /^(?:[1-5]\|)?\d{4}-\d{2}-\d{2}T[\d:.]+Z\|[0-9a-f]{16}$/,
+  "Expected a PlanetTerp cursor",
+);
 export type PlanetTerpCursor = z.infer<typeof PlanetTerpCursorSchema>;
 
 /** PlanetTerp reviews per page. */
@@ -387,6 +402,8 @@ export const ReviewsPageInputSchema = z
      * from PlanetTerp once by this name and stores them.
      */
     planetTerpName: z.string().min(1).max(120).optional(),
+    /** Absent reads as `latest`. */
+    sort: ReviewSortSchema.optional(),
   })
   .refine(hasTarget, "Name an instructor or a course");
 export type ReviewsPageInput = z.infer<typeof ReviewsPageInputSchema>;
@@ -442,6 +459,8 @@ export const PlanetTerpReviewsInputSchema = z
   .strictObject({
     ...pageTarget,
     cursor: PlanetTerpCursorSchema.nullable(),
+    /** The page's order; the cursor must come from the same one. */
+    sort: ReviewSortSchema.optional(),
     limit: z
       .number()
       .int()

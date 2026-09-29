@@ -1,4 +1,5 @@
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { ViewWords } from "~/components/brand/view-words";
 import { MetaSep } from "~/components/panel";
 import { formatGpa, formatRating, gradeSummary } from "~/core/grades";
 import { combinedRatingWords, combineRatings } from "~/core/reviews";
@@ -11,10 +12,11 @@ import {
   planetTerpUrl,
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { crossLinkClicked, viewWords } from "~/lib/cross-link";
+import { crossLinkClicked } from "~/lib/cross-link";
 import { deptOf } from "~/state/catalog-store";
 import { useTerpsicleReviews } from "~/state/data-hooks";
 import { terpsicleInstructor } from "~/state/query/review-numbers";
+import { StarMark } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
 
@@ -94,11 +96,7 @@ export function InstructorMeta({
       {rating?.rating && parts ? (
         <WithTooltip label={parts}>
           <span className="inline-flex h-5 shrink-0 items-center gap-0.5">
-            <Star
-              size={11}
-              aria-hidden="true"
-              className="fill-current text-warn"
-            />
+            <StarMark />
             {/* "★ 4.2 (61)" on screen; "rated 4.2 of 5, 61 reviews" read out. */}
             <span className="sr-only">
               {` rated ${rating.rating} of 5, ${combined?.reviewCount} reviews`}
@@ -175,7 +173,7 @@ export function ReadThem({
           onClick={() => crossLinkClicked("schedule", "reviews")}
           className={link}
         >
-          {viewWords("reviews")}
+          <ViewWords to="reviews" size={12} />
           <ArrowRight size={12} aria-hidden="true" />
         </a>
       </WithTooltip>

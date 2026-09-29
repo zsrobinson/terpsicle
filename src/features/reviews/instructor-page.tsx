@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { cn } from "cn";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
+import { ViewWords } from "~/components/brand/view-words";
 import { PanelNote } from "~/components/panel";
 import { addGradeCounts, formatGpa, gradeSummary } from "~/core/grades/grades";
-import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {
   type CombinedRating,
   combinedRatingWords,
@@ -23,8 +24,9 @@ import type {
   InstructorId,
   MyReview,
   PageReviews,
+  ReviewSort,
 } from "~/core/schema";
-import { crossLinkClicked, viewWords } from "~/lib/cross-link";
+import { crossLinkClicked } from "~/lib/cross-link";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -35,18 +37,9 @@ import {
 } from "~/ui/dropdown-menu";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/ui/select";
 import { SplitLayout } from "~/ui/split-layout";
 import { WithTooltip } from "~/ui/tooltip";
-import { type View, ViewSwitch } from "~/ui/view-switch";
 import { Composer, type ComposerTarget } from "./composer";
-import { FilterRow } from "./filter-list";
 import { PAGE_NOTE, ReviewsFrame } from "./frame";
 import { useSignedIn } from "./level";
 import { GradesBlock } from "./planetterp-blocks";
@@ -61,19 +54,16 @@ import {
 import { type Composing, ReviewsSection, useMine } from "./reviews-section";
 import { SignInPrompt } from "./sign-in-prompt";
 
-// /reviews/<instructor> (V2 §1.1), in two columns (owner, 2026-09-29). The
-// wide one reads top to bottom: who they are, their combined rating, the
-// box to review them yourself, then the reviews, ours and PlanetTerp's. The
-// narrow one holds what goes with them: their courses (each a view of the
-// page, `?course=`) and their grades. On a phone it's one
-// column, the wide one first, with the courses as the header's switch. The
-// route's loader read it all, so the server's HTML has it.
+// /reviews/<instructor> (V2 §1.1), in two columns from the top (owner,
+// 2026-09-29: "having the 2/3 1/3 thing extend all the way to the top").
+// The wide one: who they are, their rating, then the reviews, ours and
+// PlanetTerp's, in the order `?sort=` asks. The narrow one: the box to
+// review them yourself, their courses as chips (each a view of the page,
+// `?course=`, with an arrow to the course's own page), then their grades.
+// On a phone it's the name and rating, the narrow column, the reviews, then
+// the grades. No back link: where it went changed in ways you wouldn't
+// expect (owner). The route's loader read it all, so the server's HTML has it.
 
-/**
- * Courses a phone's switch holds, besides "All courses": the kit's switch
- * is two to seven views. Past that, the choice is a list.
- */
-const SWITCH_COURSES = 6;
 /** Courses the status line names. */
 const STATUS_COURSES = 3;
 
@@ -82,11 +72,14 @@ export function InstructorPage({
   data,
   reviews,
   write,
+  sort = "latest",
 }: {
   data: InstructorPageData;
   reviews: PageReviews;
-  /** `?write`: open the form (from "Review your instructors"). */
+  /** `?write`: open the form (from "Review your classes"). */
   write: boolean;
+  /** `?sort=`: the reviews' order. */
+  sort?: ReviewSort;
 }) {
   const { id, course } = data;
   const signedIn = useSignedIn();
@@ -120,7 +113,6 @@ export function InstructorPage({
     },
     ...(ours ? [ours] : []),
   ]);
-  const freshness = planetTerpFreshnessWords(data.source);
   const taught = data.courses.slice(0, STATUS_COURSES).map((c) => c.code);
 
   // What the box knows: your class with them you haven't reviewed, else
@@ -194,98 +186,83 @@ export function InstructorPage({
       />
     );
 
+  const box = (
+    <div ref={boxRef} className="scroll-mt-20">
+      {composer ?? (
+        <ReviewBox
+          state={boxState}
+          who={name}
+          question={
+            course ? (
+              <>
+                Took <span className="ident">{course}</span> with {name}?
+              </>
+            ) : (
+              <>Took a class with {name}?</>
+            )
+          }
+          write={
+            target ? (
+              <WriteReviewButton
+                tooltip={`Review ${target.reviewedName} in ${target.course}`}
+                onClick={() => setComposing("new")}
+              />
+            ) : courseList.length > 0 ? (
+              <CoursePickMenu id={id} courses={courseList} />
+            ) : null
+          }
+          onEdit={setComposing}
+        />
+      )}
+    </div>
+  );
+
   return (
     <ReviewsFrame page="instructor" wide>
-      <PageHeader
-        size="display"
-        back={
-          course
-            ? {
-                label: course,
-                to: "/reviews/$slug",
-                params: { slug: courseSlug(course) },
-              }
-            : { label: "Reviews", to: "/reviews" }
-        }
-        eyebrow={data.ta ? "Teaching assistant" : "Instructor"}
-        title={name}
-        status={
-          taught.length > 0 ? (
-            <span>
-              Taught{" "}
-              {taught.map((c, i) => (
-                <span key={c}>
-                  {i > 0 ? (i === taught.length - 1 ? " and " : ", ") : ""}
-                  <span className="ident">{c}</span>
-                </span>
-              ))}
-              {data.courses.length > STATUS_COURSES ? " and more" : ""}
-            </span>
-          ) : undefined
-        }
-        views={
-          courseList.length > 0 ? (
-            // A phone's filter: under the name, over the reviews it filters.
-            <div className="lg:hidden">
-              <CourseSwitch id={id} courses={courseList} current={course} />
-            </div>
-          ) : undefined
-        }
-      />
       <SplitLayout
         size="display"
-        main={
+        top={
           <>
-            <RatingSummary combined={combined} freshness={freshness} />
-            <div ref={boxRef} className="scroll-mt-20">
-              {composer ?? (
-                <ReviewBox
-                  state={boxState}
-                  who={name}
-                  question={
-                    course ? (
-                      <>
-                        Took <span className="ident">{course}</span> with {name}
-                        ?
-                      </>
-                    ) : (
-                      <>Took a class with {name}?</>
-                    )
-                  }
-                  write={
-                    target ? (
-                      <WriteReviewButton
-                        tooltip={`Review ${target.reviewedName} in ${target.course}`}
-                        onClick={() => setComposing("new")}
-                      />
-                    ) : courseList.length > 0 ? (
-                      <CoursePickMenu id={id} courses={courseList} />
-                    ) : null
-                  }
-                  onEdit={setComposing}
-                />
-              )}
-            </div>
-            <ReviewsSection
-              instructorId={id}
-              course={course}
-              reviews={reviews}
-              count={course ? null : combined.reviewCount}
-              composing={composing}
-              onEdit={setComposing}
+            <PageHeader
+              size="display"
+              eyebrow={data.ta ? "Teaching assistant" : "Instructor"}
+              title={name}
+              status={
+                taught.length > 0 ? (
+                  <span>
+                    Taught{" "}
+                    {taught.map((c, i) => (
+                      <span key={c}>
+                        {i > 0
+                          ? i === taught.length - 1
+                            ? " and "
+                            : ", "
+                          : ""}
+                        <span className="ident">{c}</span>
+                      </span>
+                    ))}
+                    {data.courses.length > STATUS_COURSES ? " and more" : ""}
+                  </span>
+                ) : undefined
+              }
             />
+            <RatingSummary combined={combined} />
           </>
         }
-        sideProps={{ "aria-label": `More about ${name}` }}
+        sideProps={{
+          "aria-label": `More about ${name}`,
+          className: SIDE_START,
+        }}
         side={
           <>
+            {box}
             {courseList.length > 0 ? (
               <PageSection
+                size="side"
                 title="Courses"
                 aside={courseList.length}
-                className="max-lg:hidden"
               >
-                <CourseList
+                <CourseChips
                   id={id}
                   name={name}
                   courses={courseList}
@@ -297,8 +274,20 @@ export function InstructorPage({
                 />
               </PageSection>
             ) : null}
-            <InstructorGrades data={data} name={name} />
           </>
+        }
+        // Beside the reviews on a wide screen; after them on a phone.
+        after={<InstructorGrades data={data} name={name} />}
+        main={
+          <ReviewsSection
+            instructorId={id}
+            course={course}
+            reviews={reviews}
+            count={course ? null : combined.reviewCount}
+            sort={sort}
+            composing={composing}
+            onEdit={setComposing}
+          />
         }
       />
     </ReviewsFrame>
@@ -330,6 +319,7 @@ function InstructorGrades({
   if (course)
     return (
       <PageSection
+        size="side"
         title={
           <>
             Grades in <span className="ident">{course}</span>
@@ -341,9 +331,9 @@ function InstructorGrades({
               to="/schedule/course/$code"
               params={{ code: course }}
               onClick={() => crossLinkClicked("reviews", "schedule")}
-              className="text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+              className="inline-flex items-center gap-1 text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
             >
-              {viewWords("schedule")}
+              <ViewWords to="schedule" size={13} />
             </Link>
           </WithTooltip>
         }
@@ -370,6 +360,7 @@ function InstructorGrades({
   };
   return (
     <PageSection
+      size="side"
       title="Grades"
       aside={
         data.courses.length === 1
@@ -388,8 +379,12 @@ function InstructorGrades({
   );
 }
 
-/** The side's filter: all their courses, then each, with its GPA. */
-function CourseList({
+/**
+ * The side's filter (owner, 2026-09-29: "selectable chips rather than a
+ * long list, since some professors have a lot"): all their courses, then
+ * each, a view of this page, fused with an arrow to the course's own page.
+ */
+function CourseChips({
   id,
   name,
   courses,
@@ -404,51 +399,81 @@ function CourseList({
 }) {
   const slug = instructorSlug(id);
   return (
-    <ul aria-label="Courses">
-      <FilterRow
-        current={current === null}
-        label="All courses"
-        tooltip={`Reviews of ${name} in every course`}
-        link={{ to: "/reviews/$slug", params: { slug }, search: {} }}
-      />
+    <ul aria-label="Courses" className="flex flex-wrap gap-2">
+      <li>
+        <WithTooltip label={`Reviews of ${name} in every course`}>
+          <Link
+            to="/reviews/$slug"
+            params={{ slug }}
+            search={{}}
+            aria-current={current === null ? "page" : undefined}
+            className={cn(CHIP, "rounded-md", chipState(current === null))}
+          >
+            All courses
+          </Link>
+        </WithTooltip>
+      </li>
       {courses.map((c) => {
         const gpa = gpaOf(c);
+        const on = current === c;
         return (
-          <FilterRow
-            key={c}
-            current={current === c}
-            label={<span className="ident">{c}</span>}
-            trail={
-              gpa !== null ? (
-                <span className="text-muted">GPA {formatGpa(gpa)}</span>
-              ) : undefined
-            }
-            tooltip={`${name}'s reviews and grades in ${c}`}
-            link={{
-              to: "/reviews/$slug",
-              params: { slug },
-              search: { course: c },
-            }}
-          />
+          <li key={c} className="flex">
+            <WithTooltip
+              label={`${name}'s reviews and grades in ${c}${gpa !== null ? ` (GPA ${formatGpa(gpa)})` : ""}`}
+            >
+              <Link
+                to="/reviews/$slug"
+                params={{ slug }}
+                search={{ course: c }}
+                aria-current={on ? "page" : undefined}
+                className={cn(CHIP, "ident rounded-l-md", chipState(on))}
+              >
+                {c}
+              </Link>
+            </WithTooltip>
+            <WithTooltip label={`${c}'s page: every instructor's reviews`}>
+              <Link
+                to="/reviews/$slug"
+                params={{ slug: courseSlug(c) }}
+                aria-label={`${c}'s page`}
+                className={cn(
+                  CHIP,
+                  "-ml-px rounded-r-md px-2 max-md:px-3",
+                  chipState(on),
+                )}
+              >
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </WithTooltip>
+          </li>
         );
       })}
     </ul>
   );
 }
 
+/** A course chip's box: a 36px target (44 on phones), the code at a reading size. */
+const CHIP =
+  "inline-flex h-9 items-center border px-3 text-base transition-colors max-md:h-11";
+
+/** The chip you're on fills in, as the kit's chips do. */
+const chipState = (on: boolean) =>
+  on
+    ? "border-fg bg-fg text-bg hover:bg-fg/85"
+    : "border-hairline-strong text-fg hover:bg-hover";
+
+/** The narrow column starts level with the name, past the header's top space. */
+const SIDE_START = "lg:pt-8";
+
 /**
- * The big number, with its math written out beside it, on the product's
- * soft purple: the one thing on the page that should stand out.
+ * The big number, its stars filled to it, and how many reviews it's from,
+ * on the product's soft purple: the one thing on the page that should
+ * stand out. Where the reviews come from is on each review, and the math
+ * is in the tooltip (owner, 2026-09-29: no notice or source here).
  */
-export function RatingSummary({
-  combined,
-  freshness,
-}: {
-  combined: CombinedRating;
-  /** "No new PlanetTerp reviews since …", when PlanetTerp has stopped. */
-  freshness: string | null;
-}) {
+export function RatingSummary({ combined }: { combined: CombinedRating }) {
   const words = combinedRatingWords(combined);
+  const count = combined.reviewCount;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-product-reviews-soft px-6 py-6">
       {combined.rating === null ? (
@@ -456,24 +481,22 @@ export function RatingSummary({
       ) : (
         <>
           <WithTooltip label={words}>
-            <span className="tnum font-semibold text-4xl text-product-reviews-text">
+            <span className="tnum font-semibold text-5xl text-product-reviews-text">
               {formatStars(combined.rating)}
             </span>
           </WithTooltip>
           <div className="flex min-w-0 flex-col gap-1">
-            <Stars rating={Math.round(combined.rating)} size={18} />
+            <Stars rating={combined.rating} size={22} />
             <span
               className="tnum text-base text-muted"
               data-testid="rating-math"
             >
-              {words.replace(/^\d\.\d /, "")}
+              from {count.toLocaleString("en-US")} review
+              {count === 1 ? "" : "s"}
             </span>
           </div>
         </>
       )}
-      {freshness ? (
-        <p className="w-full text-muted text-sm">{freshness}</p>
-      ) : null}
     </div>
   );
 }
@@ -519,77 +542,5 @@ function CoursePickMenu({
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/** A phone's filter: "All courses" or one of theirs, each a URL (`?course=`). */
-function CourseSwitch({
-  id,
-  courses,
-  current,
-}: {
-  id: InstructorId;
-  courses: readonly CourseCode[];
-  current: CourseCode | null;
-}) {
-  const navigate = useNavigate();
-  const slug = instructorSlug(id);
-  if (courses.length <= SWITCH_COURSES) {
-    const views: View[] = [
-      {
-        id: "all",
-        label: "All courses",
-        hint: "Reviews from every course they've taught",
-        to: "/reviews/$slug",
-        params: { slug },
-        search: {},
-      },
-      ...courses.map((c) => ({
-        id: c,
-        label: c,
-        hint: `Only ${c}`,
-        to: "/reviews/$slug" as const,
-        params: { slug },
-        search: { course: c },
-      })),
-    ];
-    return (
-      <ViewSwitch
-        views={views}
-        current={current ?? "all"}
-        label="Courses"
-        className={
-          // Codes read as codes; the scroll keeps a long row on a phone.
-          "overflow-x-auto [&>a:not(:first-child)]:ident"
-        }
-      />
-    );
-  }
-  // Too many for a switch: the same URLs, from a list.
-  return (
-    <Select
-      value={current ?? "all"}
-      onValueChange={(value) =>
-        void navigate({
-          to: "/reviews/$slug",
-          params: { slug },
-          search: value === "all" ? {} : { course: value },
-        })
-      }
-    >
-      <WithTooltip label="Show one course's grades and reviews">
-        <SelectTrigger aria-label="Courses" className="w-48">
-          <SelectValue />
-        </SelectTrigger>
-      </WithTooltip>
-      <SelectContent align="start" className="max-h-72">
-        <SelectItem value="all">All courses</SelectItem>
-        {courses.map((c) => (
-          <SelectItem key={c} value={c} className="ident">
-            {c}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

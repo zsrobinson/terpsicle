@@ -22,8 +22,12 @@ export function PageSection({
   aside?: ReactNode;
   /** `h2` under a page's `h1`; `h3` inside another section. */
   headingLevel?: 2 | 3;
-  /** `display`: a public reading page's section, set larger and roomier. */
-  size?: "page" | "display";
+  /**
+   * `display`: a public reading page's section, set larger and roomier.
+   * `side`: its narrow column's, a step down from `display` and up from
+   * `page`, so what's inside (a term, a name, a count) still reads smaller.
+   */
+  size?: "page" | "display" | "side";
   children: ReactNode;
   className?: string;
 }) {
@@ -35,7 +39,7 @@ export function PageSection({
         // right under a page header, has the header's rule (or its
         // container's edge) above it already.
         "flex flex-col border-hairline border-t first:border-t-0 first:pt-0 [[data-slot=page-header]+&]:border-t-0 [[data-slot=page-header]+&]:pt-0",
-        size === "display" ? "gap-4 pt-6" : "gap-2 pt-3",
+        size === "page" ? "gap-2 pt-3" : "gap-4 pt-6",
         className,
       )}
     >
@@ -51,7 +55,9 @@ export function PageSection({
           className={
             size === "display"
               ? "emph-title text-2xl"
-              : "emph-heading text-base"
+              : size === "side"
+                ? "emph-title text-xl"
+                : "emph-heading text-base"
           }
         >
           {title}
@@ -59,7 +65,7 @@ export function PageSection({
         {aside ? (
           <div
             className={
-              size === "display" ? "emph-secondary text-base" : "emph-meta"
+              size === "page" ? "emph-meta" : "emph-secondary text-base"
             }
           >
             {aside}

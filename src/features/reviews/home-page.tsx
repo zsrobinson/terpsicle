@@ -33,20 +33,13 @@ import { YourReviewsColumn } from "./to-review";
 // two columns (owner, 2026-09-29). The wide one: Terpsicle Reviews by name,
 // one search, whose results open over the page, finding instructors and
 // courses alike, as equals; the numbers, counting up; the newest reviews;
-// the most-reviewed instructors beside the most-taken courses; grades
-// across every course; and every department. Like PlanetTerp's front page
-// (owner, 2026-09-29), so it's familiar to anyone who's used it. `?q=`
-// lists every match under the search. The narrow one is yours: your
-// classes to review, and what you've reviewed.
+// the most-taken courses. Like PlanetTerp's front page (owner, 2026-09-29),
+// so it's familiar to anyone who's used it. `?q=` lists every match under
+// the search. The narrow one: yours (your classes to review, what you've
+// reviewed), then grades across UMD and the most-reviewed professors.
 
 /** Rows each of the two lists shows. */
 const SHOWN = 10;
-
-/**
- * The two lists side by side start level: neither draws the rule a section
- * draws between it and the one before, which only the first would skip.
- */
-const SIDE_BY_SIDE = "border-t-0 pt-0";
 
 export function ReviewsHomePage({
   data,
@@ -115,8 +108,13 @@ export function ReviewsHomePage({
             <Browse data={data} />
           </>
         }
-        sideProps={{ "aria-label": "Yours" }}
-        side={<YourReviewsColumn />}
+        sideProps={{ "aria-label": "More on Reviews" }}
+        side={
+          <>
+            <YourReviewsColumn />
+            <HomeSide data={data} />
+          </>
+        }
       />
       {/* Under both columns, in the wide one's width: on a phone, what's
           yours comes before the fine print. */}
@@ -216,120 +214,76 @@ function Browse({ data }: { data: ReviewsHomeData }) {
         </PageSection>
       ) : null}
 
-      {/* Instructors and courses as equals, side by side. min-w-0: long
-          titles truncate instead of widening a column. */}
-      <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 [&>*]:min-w-0">
-        {data.mostReviewed.length > 0 ? (
-          <PageSection
-            size="display"
-            title="Most reviewed"
-            className={SIDE_BY_SIDE}
-          >
-            <ul>
-              {data.mostReviewed
-                .slice(0, SHOWN)
-                .map(([id, name, count, rating]) => (
-                  <ListRow
-                    key={id}
-                    as="li"
-                    className={cn(PAGE_ROW, "relative")}
-                    trail={
-                      <CombinedRatingBadge
-                        combined={combineRatings([
-                          { source: "planetterp", rating, reviewCount: count },
-                        ])}
-                      />
-                    }
-                  >
-                    <InstructorLink id={id} name={name} />
-                  </ListRow>
-                ))}
-            </ul>
-            <p className="text-faint text-sm">
-              Instructors with the most reviews on PlanetTerp.
-            </p>
-          </PageSection>
-        ) : null}
+      {data.mostTaken.length > 0 ? (
+        <PageSection size="display" title="Most taken">
+          <ul>
+            {data.mostTaken.slice(0, SHOWN).map(([code, title, students]) => (
+              <ListRow
+                key={code}
+                as="li"
+                className={cn(PAGE_ROW, "relative")}
+                trail={
+                  <span className="tnum text-muted">
+                    {students.toLocaleString("en-US")}
+                  </span>
+                }
+              >
+                <CourseLink code={code} title={title} />
+              </ListRow>
+            ))}
+          </ul>
+          <p className="text-faint text-sm">
+            Courses offered now, by how many students PlanetTerp's grade data
+            counts.
+          </p>
+        </PageSection>
+      ) : null}
+    </>
+  );
+}
 
-        {data.mostTaken.length > 0 ? (
-          <PageSection
-            size="display"
-            title="Most taken"
-            className={SIDE_BY_SIDE}
-          >
-            <ul>
-              {data.mostTaken.slice(0, SHOWN).map(([code, title, students]) => (
-                <ListRow
-                  key={code}
-                  as="li"
-                  className={cn(PAGE_ROW, "relative")}
-                  trail={
-                    <span className="tnum text-muted">
-                      {students.toLocaleString("en-US")}
-                    </span>
-                  }
-                >
-                  <CourseLink code={code} title={title} />
-                </ListRow>
-              ))}
-            </ul>
-            <p className="text-faint text-sm">
-              Courses offered now, by how many students PlanetTerp's grade data
-              counts.
-            </p>
-          </PageSection>
-        ) : null}
-      </div>
-
+/**
+ * The narrow column's browsing (owner, 2026-09-29: "move the UMD global
+ * grades to the 1/3 … move the most rated thing to the 1/3, below
+ * grades"): grades across every course, then the most-reviewed professors.
+ */
+function HomeSide({ data }: { data: ReviewsHomeData }) {
+  return (
+    <>
       {data.totals && data.totals.grades > 0 ? (
-        <PageSection size="display" title="Grades across UMD">
+        <PageSection size="side" title="Grades across UMD">
           <GradesBlock
-            record={{
-              counts: data.totals.counts,
-              semesters: 0,
-            }}
+            record={{ counts: data.totals.counts, semesters: 0 }}
             gradesThrough={data.gradesThrough}
             courses={data.totals.courses}
           />
         </PageSection>
       ) : null}
-
-      {data.departments.length > 0 ? (
-        <PageSection
-          size="display"
-          title="Departments"
-          aside={
-            data.term
-              ? `${data.departments.length} in ${data.term.name}`
-              : data.departments.length
-          }
-        >
-          <ul className="gap-x-6 sm:columns-2">
-            {data.departments.map((d) => (
-              <ListRow
-                key={d.code}
-                as="li"
-                density="compact"
-                className={cn(PAGE_ROW, "relative break-inside-avoid")}
-              >
-                <WithTooltip label={`Every ${d.code} course`}>
-                  <Link
-                    to="/reviews"
-                    search={{ q: d.code }}
-                    className={cn(
-                      ROW_LINK,
-                      "flex min-w-0 items-baseline gap-2 text-base hover:underline",
-                    )}
-                  >
-                    <span className="ident w-12 shrink-0 font-medium">
-                      {d.code}
-                    </span>
-                    <span className="truncate text-muted">{d.name}</span>
-                  </Link>
-                </WithTooltip>
-              </ListRow>
-            ))}
+      {data.mostReviewed.length > 0 ? (
+        <PageSection size="side" title="Most reviewed">
+          <ul>
+            {data.mostReviewed
+              .slice(0, SHOWN)
+              .map(([id, name, count, rating]) => (
+                <ListRow
+                  key={id}
+                  as="li"
+                  className={cn(PAGE_ROW, "relative")}
+                  trail={
+                    <CombinedRatingBadge
+                      combined={combineRatings([
+                        { source: "planetterp", rating, reviewCount: count },
+                      ])}
+                    />
+                  }
+                >
+                  <InstructorLink id={id} name={name} />
+                </ListRow>
+              ))}
           </ul>
+          <p className="text-faint text-sm">
+            Instructors with the most reviews on PlanetTerp.
+          </p>
         </PageSection>
       ) : null}
     </>

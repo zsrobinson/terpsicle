@@ -9,6 +9,7 @@ import {
   LatestReviewsSchema,
   type MyReview,
   PageReviewsSchema,
+  PlanetTerpReviewsResultSchema,
   PublicReviewSchema,
   QueueListResultSchema,
   ReportCreateResultSchema,
@@ -162,6 +163,25 @@ describe("writing and reading", () => {
     });
     // Both models read it, once each.
     expect(ai.run).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a half-star rating as written, and refuses a third of one", async () => {
+    // D1's rating column is INTEGER, which keeps 4.5 as a REAL (type
+    // affinity), and its CHECK is a range: no migration for halves.
+    const result = await author.submit(aReviewSubmitInput({ rating: 4.5 }));
+    expect(result.status).toBe("published");
+    expect((await list()).reviews[0]?.rating).toBe(4.5);
+    const numbers = reviewsServerData(env.DB);
+    expect(await numbers.courseNumbers("CMSC351")).toEqual({
+      rating: 4.5,
+      reviewCount: 1,
+    });
+    const odd = await call(
+      "reviews/submit",
+      aReviewSubmitInput({ rating: 4.3, body: BODY_2 }),
+      author.cookie,
+    );
+    expect(odd.status).toBe(400);
   });
 
   it("filters by course and pages newest first", async () => {
@@ -373,6 +393,58 @@ describe("numbers and the newest reviews", () => {
       ).json(),
     );
     expect(instructor.planetTerpCourse).toBeUndefined();
+  });
+
+  it("pages through PlanetTerp's in each order, a page at a time", async () => {
+    // Ratings 1–5, a day apart, the newest the highest; two share a 3.
+    const days = [
+      ["bbbb000000000001", 1, "2026-01-01"],
+      ["bbbb000000000002", 3, "2026-01-02"],
+      ["bbbb000000000003", 3, "2026-01-03"],
+      ["bbbb000000000004", 4, "2026-01-04"],
+      ["bbbb000000000005", 5, "2026-01-05"],
+    ] as const;
+    await env.DB.batch(
+      replacePlanetTerpReviews(
+        env.DB,
+        "brandt",
+        days.map(([id, rating, day]) => ({
+          id,
+          course: "CMSC351",
+          rating,
+          expectedGrade: null,
+          body: "Hard but fair.",
+          created: `${day}T12:00:00.000Z`,
+        })),
+        "hash-sorted",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+    );
+    const read = async (sort: string) => {
+      const ids: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const page = PlanetTerpReviewsResultSchema.parse(
+          await (
+            await call("planetterp/reviews", {
+              instructorId: "brandt",
+              course: null,
+              cursor,
+              sort,
+              limit: 2,
+            })
+          ).json(),
+        );
+        ids.push(...page.reviews.map((r) => r.id.slice(-1)));
+        cursor = page.next;
+      } while (cursor);
+      return ids.join("");
+    };
+    expect(await read("latest")).toBe("54321");
+    expect(await read("oldest")).toBe("12345");
+    // The two 3s, newest first.
+    expect(await read("highest")).toBe("54321");
+    expect(await read("lowest")).toBe("13245");
   });
 });
 

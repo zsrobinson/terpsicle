@@ -20,7 +20,7 @@ import { routeHead } from "~/features/reviews/route-head";
 // unknown address is a real 404, with "Did you mean…".
 export const Route = createFileRoute("/reviews/$slug")({
   validateSearch: ReviewsPageSearchSchema,
-  loaderDeps: ({ search }) => ({ course: search.course }),
+  loaderDeps: ({ search }) => ({ course: search.course, sort: search.sort }),
   // The loader's data code is its own chunk, like the page: nothing of
   // Reviews loads with other pages (scripts/check-bundle.ts).
   // Picking a course changes `?course=` and runs the loader again: the page
@@ -30,7 +30,12 @@ export const Route = createFileRoute("/reviews/$slug")({
   pendingMs: Number.POSITIVE_INFINITY,
   codeSplitGroupings: [["loader"], ["component"], ["notFoundComponent"]],
   loader: async ({ params, deps, serverContext }) => {
-    const page = await loadReviewsPage(params.slug, deps.course, serverContext);
+    const page = await loadReviewsPage(
+      params.slug,
+      deps.course,
+      serverContext,
+      deps.sort,
+    );
     // One address per page: /reviews/CMSC351 and /reviews/goldman_aaron move.
     if (page.kind === "moved")
       throw redirect({
@@ -65,13 +70,14 @@ export const Route = createFileRoute("/reviews/$slug")({
 
 function ReviewsSlugRoute() {
   const page = Route.useLoaderData();
-  const { write } = Route.useSearch();
+  const { write, sort } = Route.useSearch();
   return page.kind === "course" ? (
     <CoursePage
       key={page.course.code}
       data={page.course}
       reviews={page.reviews}
       write={write ?? null}
+      sort={sort}
     />
   ) : (
     <InstructorPage
@@ -79,6 +85,7 @@ function ReviewsSlugRoute() {
       data={page.instructor}
       reviews={page.reviews}
       write={write !== undefined}
+      sort={sort}
     />
   );
 }

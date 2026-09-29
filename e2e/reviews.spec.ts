@@ -105,10 +105,14 @@ test("anyone can find a course or an instructor and read their reviews", async (
     page.getByRole("heading", { name: "Keiko Ashdown", level: 1 }),
   ).toBeVisible();
   // PlanetTerp's 142, and ours from the published numbers (the mock bucket
-  // has some for her) while the page shows one course.
+  // has some for her) while the page shows one course: the count, with no
+  // source named (owner, 2026-09-29), and stars filled to the number.
   await expect(page.getByTestId("rating-math")).toContainText(
-    /(3\.1 from 142|142 reviews) on PlanetTerp/,
+    /^from 1\d\d reviews$/,
   );
+  await expect(
+    page.getByRole("img", { name: /^3\.\d out of 5 stars$/ }).first(),
+  ).toBeVisible();
   // PlanetTerp's reviews are here, each marked and linking to PlanetTerp.
   const theirs = page.locator('article[data-source="planetterp"]');
   await expect(theirs.first()).toBeVisible();
@@ -131,7 +135,12 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
 
   await page.getByRole("button", { name: "Write a review" }).click();
   const form = page.getByRole("form", { name: "Write a review" });
-  await form.getByRole("radio", { name: "4 stars" }).click();
+  // Half stars: the slider's arrow keys move by a half.
+  const rating = form.getByRole("slider", { name: "Rating" });
+  await rating.focus();
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowLeft");
+  await expect(rating).toHaveAttribute("aria-valuetext", "4.5 out of 5 stars");
   // The newest term in the list (after "Rather not say").
   await form.getByLabel("When you took it").click();
   await page.getByRole("option").nth(1).click();
@@ -167,6 +176,9 @@ test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   await expect(mine).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Keiko Ashdown" })).toBeVisible();
   await expect(mine.getByText("Held")).toBeVisible();
+  await expect(
+    mine.getByRole("img", { name: "4.5 out of 5 stars" }),
+  ).toBeVisible();
   await expect(mine.getByText(HELD)).toBeVisible();
   await expect(
     mine.getByText(/^Took it (Spring|Summer|Fall|Winter) \d{4}$/),

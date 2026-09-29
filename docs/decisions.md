@@ -182,7 +182,7 @@ Revisit if: moderation needs to tell that two reports came from one deleted pers
 
 ### A product's part inside another wears its mark
 2026-09-29 · owner · app-wide
-Where one product shows a piece of another (Reviews' preview in Schedule's course details, first), the control that opens it carries that product's mark, as the family bar's tabs do, so people learn which product they're reaching into.
+Where one product shows a piece of another (Reviews' preview in Schedule's course details, first), the control that opens it carries that product's mark, as the family bar's tabs do, so people learn which product they're reaching into. Every "View …" link into another product does too ("remember my note about wanting to have the icon of the page you're switching to"): `ViewWords` (`src/components/brand/view-words.tsx`) writes the mark and the words together, and a test keeps "View …" words from being written anywhere else. Home's sections are the exception, since each title already wears its product's mark.
 Revisit if: a product's mark gets in the way where space is tight.
 
 ### LLMs only in moderation
@@ -469,6 +469,21 @@ Revisit if: transcripts start carrying instructors.
 2026-09-29 · agent · one feature
 The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
 Revisit if: PlanetTerp asks us not to call its API from page loads.
+
+### Reviews pages: two columns from the top, no back link
+2026-09-29 · owner · one feature
+"having the 2/3 1/3 thing extend all the way to the top, with the 1/3 starting with that similar outline box to review them, followed by courses (which could really be selectable chips rather than a long list …), followed by grades." The wide column is the name, the rating box and the reviews; the narrow one is the review box, the courses as chips (each fused with an arrow to the course's own page), then grades (`SplitLayout`'s `top` and `after`; on a phone the grades come after the reviews). The rating box shows the number, the stars and the count, with no PlanetTerp notice or source ("we don't need the notice about planetterp or mention which site the review aggregate is from"); the math stays in its tooltip. No back link on any Reviews page: "the back location switches in ways you wouldn't expect". A course page's "Who taught it" draws a rule after each term's label, and the narrow column's type steps down: section, term, name, meta.
+Revisit if: the narrow column crowds on a laptop screen.
+
+### Reviews sort, and rate in half stars
+2026-09-29 · owner · one feature
+"reviews should likely be sortable, both by rating highest/lowest and latest/oldest … on the same line as reviews, aligned to the right. the count of reviews can be next to the word reviews itself." `?sort=latest|oldest|highest|lowest` (absent is latest) is a page the server renders; a rating order breaks ties newest first, and PlanetTerp's pages come from D1 in the same order. "users should be able to rate professors by increments of half stars using an intuitive and accessible input method": ratings are 1 to 5 in halves (`ReviewRatingSchema`), set with a slider over five stars (a star's left half is its half; the arrow keys move by a half). D1's `rating INTEGER` keeps 4.5 as a REAL, so there's no migration. Stars show fractions ("so 4.6 actually shows 4.6 stars colored in") in a gold that reads on paper (`--star`, `--star-line`), not the old brown.
+Revisit if: people want to sort by course or by expected grade.
+
+### /reviews: grades and the most reviewed in the narrow column
+2026-09-29 · owner · one feature
+"the 'courses in your plans' section isn't needed. move the UMD global grades to the 1/3. department listing isn't necessary, remove. move the most rated thing to the 1/3, below grades." The wide column is the search, the counts, recent reviews and the most taken; the narrow one is yours, then grades across UMD, then the most reviewed. A department is still browsable from search (`?q=CMSC`).
+Revisit if: people miss browsing by department.
 
 ### Search markup never borrows PlanetTerp's ratings
 2026-09-26 · agent · one feature

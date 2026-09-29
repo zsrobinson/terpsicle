@@ -30,6 +30,7 @@ import {
   type PlanetTerpDept,
   type PlanetTerpIndex,
   type PlanetTerpTotals,
+  type ReviewSort,
   type TermId,
 } from "~/core/schema";
 import { suggestCourses, suggestInstructors } from "~/core/seo";
@@ -38,7 +39,6 @@ import {
   loadCourseEntry,
   loadCourseSearch,
   loadCurrentCourse,
-  loadCurrentTerm,
   loadHistoryDept,
   loadOurNumbers,
   loadPlanetTerp,
@@ -230,6 +230,7 @@ export async function loadReviewsPage(
   slug: string,
   course: string | undefined,
   serverContext?: PageRequestContext,
+  sort: ReviewSort = "latest",
 ): Promise<ReviewsPageLoad> {
   const code = courseFromSlug(slug);
   if (code) {
@@ -238,7 +239,7 @@ export async function loadReviewsPage(
     const [data, reviews] = await Promise.all([
       loadCoursePage(code, serverContext),
       readerFor(serverContext).then((r) =>
-        r.pageReviews({ instructorId: null, course: code }),
+        r.pageReviews({ instructorId: null, course: code, sort }),
       ),
     ]);
     return data
@@ -253,7 +254,7 @@ export async function loadReviewsPage(
   const reader = await readerFor(serverContext);
   const [data, first] = await Promise.all([
     loadInstructorPage(id, course, serverContext),
-    reader.pageReviews({ instructorId: id, course: courseCode }),
+    reader.pageReviews({ instructorId: id, course: courseCode, sort }),
   ]);
   if (!data) return { kind: "missing", what: "instructor" };
   // PlanetTerp has reviews of them that the nightly job hasn't stored yet
@@ -272,6 +273,7 @@ export async function loadReviewsPage(
             instructorId: id,
             course: null,
             planetTerpName: data.name,
+            sort,
           })
           .catch(() => first)
       : first;
@@ -302,9 +304,6 @@ async function resolveInstructor(
 export const SEARCH_RESULTS = 8;
 
 export interface ReviewsHomeData {
-  /** The term the scheduler would open. */
-  term: { id: string; name: string } | null;
-  departments: { code: DeptCode; name: string; courseCount: number }[];
   /** [code, title, students], offered now. */
   mostTaken: [CourseCode, string, number][];
   /** [id, name, reviews, rating]: the professors most reviewed on PlanetTerp. */
@@ -368,8 +367,7 @@ export async function loadReviewsHome(
   serverContext?: PageRequestContext,
 ): Promise<ReviewsHomeData> {
   const reader = await readerFor(serverContext);
-  const [current, index, latest, planetTerp, rows] = await Promise.all([
-    loadCurrentTerm(reader).catch(() => null),
+  const [index, latest, planetTerp, rows] = await Promise.all([
     loadPlanetTerpIndex(reader).catch(() => null),
     loadLatest(reader, serverContext),
     loadPlanetTerp(reader, "").catch(() => null),
@@ -380,12 +378,6 @@ export async function loadReviewsHome(
     index?.totals ??
     (await loadTotals(reader, serverContext).catch(() => null));
   return {
-    term: current ? { id: current.term.id, name: current.term.name } : null,
-    departments: (current?.manifest.departments ?? []).map((d) => ({
-      code: d.code,
-      name: d.name,
-      courseCount: d.courseCount,
-    })),
     mostTaken: index?.mostTaken ?? [],
     mostReviewed: index?.mostReviewed ?? [],
     latest: mergeReviews(latest.terpsicle ?? [], latest.planetTerp, true)

@@ -195,7 +195,7 @@ export function ReviewBox({
       aria-labelledby={id}
       data-review-box={shown.kind}
       className={cn(
-        "flex flex-col gap-3 border border-hairline-strong p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6",
+        "flex flex-col gap-4 border border-hairline-strong p-6",
         // Your class: the box wears the product's color. A question about
         // one (was it with them?) doesn't claim it.
         shown.kind === "took" &&

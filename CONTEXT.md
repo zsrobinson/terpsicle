@@ -321,7 +321,7 @@ The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **m
 _Avoid_: popular, top-rated
 
 **Review your classes**:
-The quiet list in `/reviews`' narrow column, signed in, of the classes you took and haven't reviewed, newest first, each one tap from the form: from the four-year plan's past terms (the course only) and from Schedule's main plans for terms the Schedule of Classes still lists (the course and its instructors). A class without its instructor opens the course's page, which asks who taught you. Under it, your reviews, newest first, then "Courses in your plans". Signed out it's "Classes you took", to read about, with a line on signing in. Never a banner.
+The quiet list in `/reviews`' narrow column, signed in, of the classes you took and haven't reviewed, newest first, each one tap from the form: from the four-year plan's past terms (the course only) and from Schedule's main plans for terms the Schedule of Classes still lists (the course and its instructors). A class without its instructor opens the course's page, which asks who taught you. Under it, your reviews, newest first. Signed out it's "Classes you took", to read about, with a line on signing in. Never a banner.
 _Avoid_: Review your instructors (the old name)
 
 **Review box**:
@@ -331,6 +331,17 @@ _Avoid_: banner, nudge (in copy)
 **Who taught it**:
 A course's page's side column: each term, newest first, with everyone who taught the course then, from our instructor history (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course.
 _Avoid_: Instructors (the old heading)
+
+**Course chips**:
+On an instructor's page, their courses as chips in the narrow column: "All courses", then each code, a view of the page (`?course=`), fused with an arrow that opens the course's own page.
+_Avoid_: course list, course switch
+
+**Review order**:
+How a page's reviews are sorted, beside "Reviews" at the right: Latest first (the default), Oldest first, Highest rated, Lowest rated. `?sort=` in the address. Code says `ReviewSort`.
+_Avoid_: filter (it hides nothing)
+
+**Half stars**:
+A rating is 1 to 5 in halves, written with the rating slider (a star's left half is its half; the arrow keys move by a half) and shown as stars filled to the number (4.6 fills four and three fifths).
 
 **Recent reviews**:
 The newest reviews anywhere, ours and PlanetTerp's, on `/reviews`, each saying who and which course it's about.

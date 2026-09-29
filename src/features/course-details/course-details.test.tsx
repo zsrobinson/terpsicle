@@ -647,7 +647,7 @@ describe("Course details", () => {
       expect(keiko).toHaveTextContent("3.1");
       expect(keiko).toHaveTextContent(/In CMSC351, \d+% got an A or B/);
       expect(
-        within(keiko).getByRole("img", { name: "4 of 5 stars" }),
+        within(keiko).getByRole("img", { name: "4 out of 5 stars" }),
       ).toBeVisible();
       expect(
         within(keiko).getByRole("link", { name: "Read them on PlanetTerp" }),

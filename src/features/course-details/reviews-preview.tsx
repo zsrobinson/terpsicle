@@ -1,6 +1,5 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { Star } from "lucide-react";
 import { useState } from "react";
 import { Mark } from "~/components/brand/mark";
 import { formatGpa, formatShare, gradeSummary } from "~/core/grades";
@@ -22,6 +21,7 @@ import { useInstructors, usePlanetTerpStatus } from "~/state/data-hooks";
 import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { Skeleton } from "~/ui/skeleton";
+import { Stars } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
 import { ReadThem, useCombinedRating } from "./reviews";
@@ -248,7 +248,7 @@ export function ReviewsPreview({
               className="flex flex-col gap-1 border-hairline border-t py-2 first:border-t-0 first:pt-0"
             >
               <span className="flex items-center gap-2 text-muted text-xs">
-                <SmallStars rating={r.review.rating} />
+                <Stars size={11} rating={r.review.rating} />
                 <span className="tnum">
                   {formatMonthYear(r.review.createdMonth)}
                 </span>
@@ -278,27 +278,5 @@ export function ReviewsPreview({
         </p>
       ) : null}
     </div>
-  );
-}
-
-/** A review's stars, read out as "4 of 5 stars". */
-function SmallStars({ rating }: { rating: number }) {
-  return (
-    <span
-      role="img"
-      aria-label={`${rating} of 5 stars`}
-      className="inline-flex items-center gap-0.5"
-    >
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star
-          key={n}
-          size={11}
-          aria-hidden="true"
-          className={
-            n <= rating ? "fill-current text-warn" : "text-hairline-strong"
-          }
-        />
-      ))}
-    </span>
   );
 }

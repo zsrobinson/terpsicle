@@ -127,6 +127,16 @@ async function course() {
   );
 }
 
+/** Rates it in the form's half-star slider, from the keyboard. */
+async function rate(
+  user: ReturnType<typeof userEvent.setup>,
+  form: HTMLElement,
+  stars: number,
+) {
+  within(form).getByRole("slider", { name: "Rating" }).focus();
+  await user.keyboard(`{End}${"{ArrowLeft}".repeat((5 - stars) * 2)}`);
+}
+
 /** reviews/page's answer: ours, then PlanetTerp's first page. */
 const answer =
   (
@@ -153,9 +163,20 @@ describe("an instructor's page", () => {
       await screen.findByRole("heading", { name: "Ada Brandt" }),
     ).toBeInTheDocument();
     // (4.2 × 61 + 5) / 62 = 4.21
+    // The count shows; the sources and their math are in the tooltip.
     expect(await screen.findByTestId("rating-math")).toHaveTextContent(
-      "from 62 reviews: 4.2 from 61 on PlanetTerp, 5.0 from 1 on Terpsicle",
+      /^from 62 reviews$/,
     );
+    expect(
+      screen.getByRole("img", { name: "4.2 out of 5 stars" }),
+    ).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.hover(screen.getByText("4.2"));
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "4.2 from 62 reviews: 4.2 from 61 on PlanetTerp, 5.0 from 1 on Terpsicle",
+      }),
+    ).toBeInTheDocument();
     // Grades come after the reviews, and are PlanetTerp's, credited.
     expect(screen.getByText(/from PlanetTerp\.$/)).toBeInTheDocument();
   });
@@ -235,6 +256,7 @@ describe("an instructor's page", () => {
       instructorId: "brandt",
       course: "CMSC351",
       cursor: "2025-12-01T00:00:00.000Z|0123456789abcdef",
+      sort: "latest",
     });
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
@@ -287,27 +309,75 @@ describe("an instructor's page", () => {
     expect(screen.getByRole("button", { name: "Report" })).toBeInTheDocument();
   });
 
-  it("has the kit's header: Back to the course, and a view per course", async () => {
+  it("has no back link, and each course is a chip with a way to its page", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient();
     await instructor();
     expect(
       await screen.findByRole("heading", { name: "Ada Brandt", level: 1 }),
     ).toBeInTheDocument();
-    // Back, named for the course it goes back to.
+    // No back link: where it went changed in ways you wouldn't expect.
+    expect(screen.queryByRole("link", { name: /^Back/ })).toBeNull();
+    // Each course is a view of this page, and a URL; the arrow beside it
+    // opens the course's own page.
+    const chips = screen.getByRole("list", { name: "Courses" });
     expect(
-      screen
-        .getAllByRole("link", { name: "CMSC351" })
-        .map((link) => link.getAttribute("href")),
-    ).toContain("/reviews/cmsc351");
-    // Each course is a view, and a URL.
-    const views = screen.getByRole("navigation", { name: "Courses" });
-    expect(
-      within(views).getByRole("link", { name: "CMSC351" }),
+      within(chips).getByRole("link", { name: "CMSC351" }),
     ).toHaveAttribute("aria-current", "page");
     expect(
-      within(views).getByRole("link", { name: "All courses" }),
+      within(chips).getByRole("link", { name: "CMSC351's page" }),
+    ).toHaveAttribute("href", "/reviews/cmsc351");
+    expect(
+      within(chips).getByRole("link", { name: "All courses" }),
     ).toHaveAttribute("href", "/reviews/brandt");
+  });
+
+  it("sorts the reviews from the address, and asks for more in that order", async () => {
+    setAccount({ reviews: "on" });
+    const client = fakeReviewsClient({
+      page: answer(
+        [aPageReview({ rating: 2, body: "Ours, a two." })],
+        [
+          aPlanetTerpReview({ rating: 5, body: "Theirs, a five." }),
+          aPlanetTerpReview({
+            id: "fedcba9876543210",
+            rating: 3,
+            body: "Theirs, a three.",
+          }),
+        ],
+      ),
+    });
+    const page = await loadReviewsPage(
+      "brandt",
+      "CMSC351",
+      undefined,
+      "highest",
+    );
+    if (page.kind !== "instructor") throw new Error("no brandt");
+    expect(client.reviews.page).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "highest" }),
+    );
+    const { container } = await renderPage(
+      <InstructorPage
+        data={page.instructor}
+        reviews={page.reviews}
+        write={false}
+        sort="highest"
+      />,
+    );
+    await screen.findByText("Theirs, a five.");
+    const bodies = [...container.querySelectorAll("article[data-review]")].map(
+      (a) => a.querySelector("[data-private]")?.textContent,
+    );
+    expect(bodies).toEqual([
+      "Theirs, a five.",
+      "Theirs, a three.",
+      "Ours, a two.",
+    ]);
+    // "Reviews" and the sort share a line.
+    expect(
+      screen.getByRole("combobox", { name: "Sort reviews" }),
+    ).toHaveTextContent("Highest rated");
   });
 
   it("opens the form when the address asks (Review your instructors)", async () => {
@@ -355,7 +425,7 @@ describe("writing a review", () => {
       await screen.findByRole("button", { name: /Write a review/ }),
     );
     const form = screen.getByRole("form", { name: "Write a review" });
-    await user.click(within(form).getByRole("radio", { name: "4 stars" }));
+    await rate(user, form, 4);
     await user.type(
       within(form).getByLabelText("Your review"),
       `${BODY} Notes at https://example.com/cmsc351`,
@@ -404,7 +474,7 @@ describe("writing a review", () => {
       await screen.findByRole("button", { name: /Write a review/ }),
     );
     const form = screen.getByRole("form", { name: "Write a review" });
-    await user.click(within(form).getByRole("radio", { name: "4 stars" }));
+    await rate(user, form, 4);
     await user.type(within(form).getByLabelText("Your review"), BODY);
     await user.click(within(form).getByRole("button", { name: "Post review" }));
 
@@ -478,7 +548,7 @@ describe("writing a review", () => {
       await screen.findByRole("button", { name: /Write a review/ }),
     );
     const form = screen.getByRole("form", { name: "Write a review" });
-    await user.click(within(form).getByRole("radio", { name: "5 stars" }));
+    await rate(user, form, 5);
     await user.type(within(form).getByLabelText("Your review"), BODY);
     await user.click(within(form).getByRole("button", { name: "Post review" }));
     expect(
@@ -507,7 +577,7 @@ describe("your own review", () => {
     await user.click(screen.getByRole("button", { name: "Edit" }));
     const form = screen.getByRole("form", { name: "Edit your review" });
     expect(within(form).getByLabelText("Your review")).toHaveValue(mine.body);
-    await user.click(within(form).getByRole("radio", { name: "5 stars" }));
+    await rate(user, form, 5);
     await user.click(
       within(form).getByRole("button", { name: "Save changes" }),
     );
@@ -888,23 +958,26 @@ describe("/reviews", () => {
     expect(
       within(recent).getByRole("link", { name: /Ada Brandt\s*in\s*CMSC351/ }),
     ).toHaveAttribute("href", "/reviews/brandt?course=CMSC351");
+    // Grades across UMD, then the most reviewed, in the narrow column.
+    const side = screen.getByLabelText("More on Reviews");
     expect(
-      screen.getByRole("heading", { name: "Grades across UMD" }),
+      within(side).getByRole("heading", { name: "Grades across UMD" }),
+    ).toBeInTheDocument();
+    expect(
+      within(side).getByRole("heading", { name: "Most reviewed" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /CMSC351\s*Algorithms/ }),
     ).toHaveAttribute("href", "/reviews/cmsc351");
     expect(screen.getByText("13,592")).toBeInTheDocument();
-    // Instructors and courses as equals.
     const most = screen
       .getByRole("heading", { name: "Most reviewed", level: 2 })
       .closest("section") as HTMLElement;
     expect(
       within(most).getByRole("link", { name: "Ada Brandt" }),
     ).toHaveAttribute("href", "/reviews/brandt");
-    expect(
-      screen.getByRole("link", { name: /CMSC\s*Computer Science/ }),
-    ).toHaveAttribute("href", "/reviews?q=CMSC");
+    // No department listing, and no "Courses in your plans" (owner).
+    expect(screen.queryByRole("heading", { name: "Departments" })).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Where this comes from" }),
     ).toBeInTheDocument();

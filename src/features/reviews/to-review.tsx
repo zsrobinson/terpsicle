@@ -12,15 +12,10 @@ import {
   reviewsByRecency,
   type TookHere,
 } from "~/core/reviews";
-import {
-  type CourseCode,
-  type InstructorId,
-  instructorNameKey,
-} from "~/core/schema";
+import { type InstructorId, instructorNameKey } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
 import { useAccount } from "~/features/auth/account-store";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
-import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { PageSection } from "~/ui/page-section";
 import { WithTooltip } from "~/ui/tooltip";
@@ -29,7 +24,6 @@ import { ROW_LINK } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { useClassesTaken, useMineSettled } from "./review-box";
 import { useMine } from "./reviews-section";
-import { readPlanCourses } from "./your-classes";
 
 // The narrow column of /reviews (owner, 2026-09-29: "a list of recent
 // professors you haven't reviewed, and below that a list of ones you
@@ -37,9 +31,9 @@ import { readPlanCourses } from "./your-classes";
 // took.ts): the four-year plan's past terms, and Schedule's for terms the
 // Schedule of Classes still lists, newest first, each a step from the
 // form. A class whose instructor your plans don't name goes to its
-// course's page, which asks who. Then your reviews, newest first; then the
-// courses in your plans. Signed out, the classes are there to read about,
-// with one quiet line on signing in. Quiet rows and notes, never a banner.
+// course's page, which asks who. Then your reviews, newest first. Signed
+// out, the classes are there to read about, with one quiet line on signing
+// in. Quiet rows and notes, never a banner.
 
 /** Rows each list shows: the newest first. */
 const SHOWN = 6;
@@ -83,15 +77,6 @@ function useYourClasses(reviewed: ReadonlySet<string> | null): Row[] | null {
   return rows;
 }
 
-/** Every course in your plans, for "Courses in your plans". */
-function useYourCourses(): CourseCode[] {
-  const [codes, setCodes] = useState<CourseCode[]>([]);
-  useEffect(() => {
-    void readPlanCourses().then(setCodes);
-  }, []);
-  return codes;
-}
-
 export function YourReviewsColumn() {
   const signedIn = useSignedIn();
   const level = useReviewsLevel();
@@ -110,11 +95,11 @@ export function YourReviewsColumn() {
         );
   const rows = useYourClasses(reviewed);
   const planListed = useAccount((s) => s.flags.plan);
-  const courses = useYourCourses();
   const yours = signedIn === true ? reviewsByRecency(mine) : [];
   return (
     <>
       <PageSection
+        size="side"
         title={
           writing && signedIn === true
             ? "Review your classes"
@@ -170,6 +155,7 @@ export function YourReviewsColumn() {
 
       {yours.length > 0 ? (
         <PageSection
+          size="side"
           title="Your reviews"
           aside={
             <WithTooltip label="Everything you've written, and where each stands">
@@ -206,31 +192,6 @@ export function YourReviewsColumn() {
                   </Link>
                 </WithTooltip>
               </ListRow>
-            ))}
-          </ul>
-        </PageSection>
-      ) : null}
-
-      {courses.length > 0 ? (
-        <PageSection
-          title="Courses in your plans"
-          // Signed in, plan sync keeps every device's plans here too.
-          aside="From your plans"
-        >
-          <ul className="flex flex-wrap gap-2">
-            {courses.map((code) => (
-              <li key={code}>
-                <WithTooltip label={`Reviews and grades for ${code}`}>
-                  <Button variant="outline" size="sm" className="ident" asChild>
-                    <Link
-                      to="/reviews/$slug"
-                      params={{ slug: courseSlug(code) }}
-                    >
-                      {code}
-                    </Link>
-                  </Button>
-                </WithTooltip>
-              </li>
             ))}
           </ul>
         </PageSection>

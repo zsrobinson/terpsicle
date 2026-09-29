@@ -36,4 +36,51 @@ describe("SplitLayout", () => {
     );
     expect(screen.getByLabelText("Main")).toHaveClass("gap-8");
   });
+
+  it("starts the narrow column beside a head, and after it on a phone", () => {
+    render(
+      <SplitLayout
+        size="display"
+        top={<h1>Clyde Kruskal</h1>}
+        mainProps={{ "aria-label": "Reviews" }}
+        sideProps={{ "aria-label": "More" }}
+        main={<p>Every review</p>}
+        side={<p>Review them</p>}
+      />,
+    );
+    const head = screen.getByRole("heading", { name: "Clyde Kruskal" });
+    const side = screen.getByLabelText("More");
+    const main = screen.getByLabelText("Reviews");
+    // DOM (and phone) order: the head, the narrow column, the reviews.
+    expect(
+      head.compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      side.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(side).toHaveClass("lg:row-span-2", "lg:col-start-3");
+    expect(main).toHaveClass("lg:row-start-2", "lg:col-span-2");
+  });
+
+  it("puts the narrow column's end after the wide column on a phone, under its start on a wide screen", () => {
+    render(
+      <SplitLayout
+        size="display"
+        top={<h1>CMSC351</h1>}
+        mainProps={{ "aria-label": "Reviews" }}
+        main={<p>Every review</p>}
+        side={<p>Review it</p>}
+        after={<h2>Grades</h2>}
+      />,
+    );
+    const main = screen.getByLabelText("Reviews");
+    const after = screen.getByRole("heading", { name: "Grades" }).parentElement;
+    expect(
+      main.compareDocumentPosition(after as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(after).toHaveClass("lg:col-start-3", "lg:row-start-3");
+    expect(main).toHaveClass("lg:row-span-2");
+    expect(main.parentElement).toHaveClass("lg:grid-rows-[auto_auto_1fr]");
+  });
 });
