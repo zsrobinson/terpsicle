@@ -89,6 +89,10 @@ function Select({
         open={open}
         defaultOpen={defaultOpen}
         onOpenChange={handleOpenChange}
+        // Not modal, as the kit's menus aren't. A modal select keeps
+        // blocking the page while its list fades out, so a press on the
+        // next field in a form (Ends, right after Starts) went nowhere.
+        modal={false}
         {...props}
       >
         {children}

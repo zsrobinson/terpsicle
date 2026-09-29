@@ -62,6 +62,27 @@ describe("Select", () => {
     expect(trigger()).toHaveFocus();
   });
 
+  it("leaves the page usable while open: a press outside closes it and lands", async () => {
+    // Not modal (as the kit's menus). The fade that made a modal select
+    // swallow the next field's press doesn't run here; e2e/plan-tabs.spec.ts
+    // ("add a block from the Blocks form") catches that in a browser.
+    let pressed = 0;
+    render(
+      <>
+        <Term />
+        <button type="button" onClick={() => pressed++}>
+          Ends
+        </button>
+      </>,
+    );
+    const user = userEvent.setup();
+    await user.click(trigger());
+    await screen.findByRole("listbox");
+    await user.click(screen.getByRole("button", { name: "Ends" }));
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    expect(pressed).toBe(1);
+  });
+
   it("works from the keyboard", async () => {
     render(<Term />);
     const user = userEvent.setup();
