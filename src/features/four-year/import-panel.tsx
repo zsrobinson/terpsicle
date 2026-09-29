@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
 import { X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
@@ -27,7 +28,6 @@ import { countWords } from "~/core/words";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
 import { modKey } from "~/lib/shortcuts";
-import { useCourseIndex } from "~/state/course-index-store";
 import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
@@ -35,7 +35,7 @@ import { Input, Textarea } from "~/ui/input";
 import { SegmentedControl } from "~/ui/segmented-control";
 import { WithTooltip } from "~/ui/tooltip";
 import { importTranscript } from "./actions";
-import { currentCourseLookup } from "./data";
+import { loadCourseLookup, loadCourseSearch, useCourseSearch } from "./data";
 import {
   chooseGenEd,
   mapRow,
@@ -80,12 +80,7 @@ const cr = (n: number) => `${n} cr`;
 
 /** Every course's search row by code: the one file the check step reads. */
 function useSearchRows(): ReadonlyMap<string, CourseSearchRow> | null {
-  const rows = useCourseIndex((s) => s.search);
-  const ensure = useCourseIndex((s) => s.ensureSearch);
-  const connected = useCourseIndex((s) => s.source !== null);
-  useEffect(() => {
-    if (connected) void ensure();
-  }, [connected, ensure]);
+  const { rows } = useCourseSearch();
   return useMemo(
     () => (rows ? new Map(rows.map((r) => [r[0], r])) : null),
     [rows],
@@ -503,6 +498,7 @@ export function ImportPanel() {
   const pending = pendingChoices(rows, checks);
   const replacing = doc.entries.some((e) => statusOf(e.term) !== "planned");
 
+  const client = useQueryClient();
   const run = async () => {
     setImportStatus(true, null);
     // Importing is the moment the plan learns the codes: load their
@@ -512,16 +508,21 @@ export function ImportPanel() {
       const code = rowCode(r, checks);
       if (code) depts.add(code.slice(0, 4));
     }
-    await useCourseIndex
-      .getState()
-      .ensureDepts([...depts])
-      .catch(() => undefined);
+    // And the course list: "Counts as" only a course Testudo lists (the
+    // field says so as you type). Both before the doc is read again below.
+    const [lookup, listed] = await Promise.all([
+      loadCourseLookup(client, [...depts]).catch(() => null),
+      loadCourseSearch(client),
+    ]);
+    if (!lookup)
+      return setImportStatus(
+        false,
+        "We couldn't reach terpsicle.com to look up these courses. Check your connection and try again.",
+      );
     const current = activeDoc(useFourYear.getState());
     // The terms to replace were worked out for this doc: if another opened
     // while departments loaded, stop rather than replace the wrong ones.
     if (current?.id !== doc.id) return setImportStatus(false, null);
-    // "Counts as" only a course Testudo lists (the field says so as you type).
-    const listed = useCourseIndex.getState().search;
     const known = listed ? new Set(listed.map((r) => r[0])) : null;
     const mappings = Object.fromEntries(
       Object.entries(checks.mappings).filter(
@@ -531,7 +532,7 @@ export function ImportPanel() {
     const { entries, grades } = buildTranscriptImport(
       rows,
       { ...checks, mappings },
-      { lookup: currentCourseLookup(), newId: newLocalId },
+      { lookup, newId: newLocalId },
     );
     const done = importTranscript(current, {
       replace: importReplaceTerms(columns, statusOf),

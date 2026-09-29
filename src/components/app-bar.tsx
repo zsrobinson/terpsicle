@@ -111,7 +111,8 @@ export function AppBar({
       // Which product's bar this is ("site" off the products), for tests.
       data-bar={current ?? "site"}
       className={cn(
-        "flex h-12 shrink-0 items-center border-hairline border-b",
+        // 48px under whatever the status bar or the notch covers.
+        "flex h-[calc(--spacing(12)+var(--safe-top))] shrink-0 items-center border-hairline border-b pt-(--safe-top)",
         borderOnScroll && !scrolled && "border-b-transparent",
         compact ? "gap-1 px-2" : "gap-2 px-3",
       )}

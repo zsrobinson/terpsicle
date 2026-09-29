@@ -61,12 +61,16 @@ export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const chat = useAccount((s) => s.flags.chat);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const app = status === "signed-in" && chat !== "off";
+  const fitted = app || status === "loading";
   return (
     <div
+      // The app fits the screen, like the workbench: its page never scrolls
+      // or rubber-bands, only its panes do (styles.css).
+      data-app-shell={fitted ? "" : undefined}
       className={cn(
         "flex flex-col bg-bg text-fg",
         // The app's panes scroll inside; the front door scrolls as a page.
-        app || status === "loading" ? "h-dvh" : "min-h-dvh",
+        fitted ? "h-dvh" : "min-h-dvh",
       )}
     >
       <AppBar

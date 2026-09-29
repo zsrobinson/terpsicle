@@ -18,7 +18,7 @@ import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
 import { WithTooltip } from "~/ui/tooltip";
 import { Board } from "./board";
-import { startFourYear, useDocDepts } from "./data";
+import { startFourYear } from "./data";
 import { GenEdPanel, GenEdStatus } from "./gen-ed-panel";
 import {
   PlanModelProvider,
@@ -104,7 +104,6 @@ function Shared({ share }: { share: FourYearShare }) {
       cancelled = true;
     };
   }, []);
-  useDocDepts(doc);
   const model = usePlanModel(doc, useToday(), undefined);
 
   return (

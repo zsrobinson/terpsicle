@@ -14,6 +14,7 @@ export function PlanShare() {
       link={() => fourYearShareUrl(window.location.origin, doc)}
       note="The link holds a copy of this four-year plan in the URL itself, so it won't change when you edit the plan later. Grades from your transcript aren't in it."
       onCopied={() => track("share_link_copied", { product: "plan" })}
+      onShared={() => track("share_link_shared", { product: "plan" })}
     />
   );
 }

@@ -15,8 +15,11 @@ function Toaster(props: ToasterProps) {
       duration={NOTE_MS}
       // Above a workbench drawer on a phone, at rest or half open, not over
       // its tabs or panel: styles.css sets --toast-lift while one is there.
-      offset={{ bottom: "var(--toast-lift, 24px)" }}
-      mobileOffset={{ bottom: "var(--toast-lift, 16px)" }}
+      // Elsewhere, clear of the home indicator and Safari's toolbar.
+      offset={{ bottom: "var(--toast-lift, calc(24px + var(--safe-bottom)))" }}
+      mobileOffset={{
+        bottom: "var(--toast-lift, calc(16px + var(--safe-bottom)))",
+      }}
       toastOptions={{
         classNames: {
           toast:

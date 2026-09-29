@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decodeShare, SHARE_PARAM } from "~/core/share";
 import { renderPlanTab } from "~/features/courses/testing";
 import { fixtureTermId } from "~/fixtures";
@@ -61,6 +61,85 @@ describe("Share, over the calendar", () => {
     expect(track).toHaveBeenCalledWith("share_link_copied", {
       product: "schedule",
     });
+  });
+
+  describe("on a touch screen with a share sheet", () => {
+    const share = vi.fn<(data: ShareData) => Promise<void>>();
+
+    beforeEach(() => {
+      share.mockReset().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "share", {
+        value: share,
+        configurable: true,
+      });
+      vi.spyOn(window, "matchMedia").mockImplementation(
+        (query) =>
+          ({
+            matches: query === "(hover: none) and (pointer: coarse)",
+            media: query,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+          }) as unknown as MediaQueryList,
+      );
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, "share");
+      vi.restoreAllMocks();
+    });
+
+    it("hands the plan's link to the sheet, with no popover", async () => {
+      const { user } = await renderPlanTab([], "courses");
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      await vi.waitFor(() =>
+        expect(track).toHaveBeenCalledWith("share_link_shared", {
+          product: "schedule",
+        }),
+      );
+      const url = new URL(share.mock.calls[0]?.[0].url ?? "");
+      expect(url.pathname).toBe("/schedule");
+      expect(url.searchParams.get(SHARE_PARAM)).toBeTruthy();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("does nothing more when the sheet is closed", async () => {
+      share.mockRejectedValue(new DOMException("Canceled", "AbortError"));
+      const { user } = await renderPlanTab([], "courses");
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      await vi.waitFor(() => expect(share).toHaveBeenCalledOnce());
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(track).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the popover when the browser refuses the sheet", async () => {
+      share.mockRejectedValue(new DOMException("No", "NotAllowedError"));
+      const { user } = await renderPlanTab([], "courses");
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      const popover = await screen.findByRole("dialog", {
+        name: "Share Plan A",
+      });
+      expect(
+        within(popover).getByRole("button", { name: "Copy link" }),
+      ).toBeVisible();
+    });
+  });
+
+  it("keeps the popover where a mouse points, even with a share sheet", async () => {
+    const share = vi.fn();
+    Object.defineProperty(navigator, "share", {
+      value: share,
+      configurable: true,
+    });
+    try {
+      const { user } = await renderPlanTab([], "courses");
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      expect(
+        await screen.findByRole("dialog", { name: "Share Plan A" }),
+      ).toBeVisible();
+      expect(share).not.toHaveBeenCalled();
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+    }
   });
 
   it("says so when the clipboard is blocked, leaving the link to copy by hand", async () => {

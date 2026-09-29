@@ -7,19 +7,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { copyText } from "./clipboard";
+import { openShareSheet, prefersShareSheet } from "./native-share";
 
 // Share (CONTEXT.md): the outlined "Share" button at the top left of a
 // workbench's canvas, the same in Schedule and Plan. It opens a popover
 // right below it: the link in a read-only field, "Copy link", and one
 // sentence saying the link is a copy of the plan, held in the URL itself,
 // so it won't follow later edits. The link is made when the popover opens,
-// from the plan as it is then.
+// from the plan as it is then. On a phone or tablet, the same press opens the
+// system's share sheet with the link instead (./native-share), and the
+// popover is the fallback where there's none.
 
 export function ShareButton({
   link,
   title,
   note,
   onCopied,
+  onShared,
   shrink = false,
   className,
 }: {
@@ -31,6 +35,8 @@ export function ShareButton({
   note: ReactNode;
   /** After a copy that worked: count it. */
   onCopied?: () => void;
+  /** After the share sheet sent the link somewhere: count it. */
+  onShared?: () => void;
   /**
    * A hint shares the canvas bar: in a narrow bar (a phone, a tablet with
    * the sidebar open) the word gives way and the icon stays, still named
@@ -54,8 +60,21 @@ export function ShareButton({
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (next) setUrl(link());
-        setOpen(next);
+        if (!next) {
+          setOpen(false);
+          return;
+        }
+        const made = link();
+        setUrl(made);
+        if (!prefersShareSheet(made)) {
+          setOpen(true);
+          return;
+        }
+        // Still inside the press, which the share sheet needs.
+        void openShareSheet(made).then((result) => {
+          if (result === "shared") onShared?.();
+          else if (result === "failed") setOpen(true);
+        });
       }}
     >
       <WithTooltip label="Share a link to this plan">

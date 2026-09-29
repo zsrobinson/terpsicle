@@ -42,7 +42,7 @@ import { readSidebarWidth } from "~/state/sidebar-width-pref";
 import { PageSkeleton } from "~/ui/skeleton";
 import { createDocForImport, createDocForTemplates } from "./actions";
 import { Board, PhoneBoard } from "./board";
-import { fourYearDb, startFourYear, useDocDepts } from "./data";
+import { fourYearDb, startFourYear, useReloadWhenIndexStale } from "./data";
 import { ImportCheck, useImportRecognized } from "./import-panel";
 import { resetTranscriptImport } from "./import-state";
 import {
@@ -235,7 +235,7 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
   const sidebarOpen = usePlanWorkbench((s) => s.sidebarOpen);
   const sidebarWidth = usePlanWorkbench((s) => s.sidebarWidth);
   const setSidebarWidth = usePlanWorkbench((s) => s.setSidebarWidth);
-  useDocDepts(doc);
+  useReloadWhenIndexStale();
   useSidebarWidth();
   useWorkbenchFollowsUrl(nav);
   const preload = usePreloadView();

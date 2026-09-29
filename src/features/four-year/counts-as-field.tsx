@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   searchFourYearCourses,
   searchRowCredits,
@@ -6,12 +6,12 @@ import {
 import { fitsEquivalentPattern } from "~/core/four-year/transcript";
 import type { CourseCode, CourseSearchRow } from "~/core/schema";
 import { NO_FILTERS } from "~/core/search/filters";
-import { useCourseIndex } from "~/state/course-index-store";
 import { useSearchEngine } from "~/state/search-engine";
 import { Button } from "~/ui/button";
 import { CourseResultRow, CourseSearchField } from "~/ui/course-search";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
+import { useCourseSearch } from "./data";
 
 // "Counts as" (V3 §2.8, §2.10): the UMD course a course Testudo can't match
 // stands for, picked with the kit's course search (the box, keys, engine and
@@ -22,13 +22,7 @@ import { WithTooltip } from "~/ui/tooltip";
 const SHOWN = 5;
 
 function useSearchRows(): readonly CourseSearchRow[] | null {
-  const rows = useCourseIndex((s) => s.search);
-  const ensure = useCourseIndex((s) => s.ensureSearch);
-  const connected = useCourseIndex((s) => s.source !== null);
-  useEffect(() => {
-    if (connected) void ensure();
-  }, [connected, ensure]);
-  return rows;
+  return useCourseSearch().rows;
 }
 
 export function CountsAsField({

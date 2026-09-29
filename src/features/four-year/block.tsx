@@ -24,7 +24,6 @@ import {
 } from "~/core/schema/four-year";
 import { useAccount } from "~/features/auth/account-store";
 import { crossLinkClicked, viewWords } from "~/lib/cross-link";
-import { useCourseIndex } from "~/state/course-index-store";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -348,11 +347,9 @@ function CountsAsLine({ code }: { code: string | null }) {
 
 /** The second line: the catalog's title, or what we know instead. */
 function CourseTitle({ entry }: { entry: FourYearCourseEntry }) {
-  const { lookup } = useModel();
+  const { lookup, deptsFailed } = useModel();
   const { code } = entry;
-  const failed = useCourseIndex(
-    (s) => s.deptsState[code.slice(0, 4)] === "error",
-  );
+  const failed = deptsFailed.has(code.slice(0, 4));
   const course = lookup.courses.get(code);
   if (course)
     return (
