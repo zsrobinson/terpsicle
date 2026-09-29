@@ -13,7 +13,11 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { DrawerSnap } from "~/core/schema";
-import { PEEK_HEIGHT, snapHeights } from "~/lib/drawer-heights";
+import {
+  PEEK_HEIGHT,
+  type SafeInsets,
+  snapHeights,
+} from "~/lib/drawer-heights";
 import { WithTooltip } from "~/ui/tooltip";
 
 // A workbench on a phone (SPEC §2): the same sidebar, in a bottom drawer
@@ -145,6 +149,34 @@ function useSnapOnRoot(snap: DrawerSnap) {
 }
 
 /**
+ * The status bar's and the home indicator's insets (`--safe-top` and
+ * `--safe-bottom`, styles.css), in pixels, off a probe padded by them: full
+ * stops that much lower, under the family bar, and peek rests that much
+ * higher, with its panel ending above the indicator. They change as the
+ * phone turns.
+ */
+function useSafeInsets(): [SafeInsets, (probe: HTMLElement | null) => void] {
+  const [insets, setInsets] = useState<SafeInsets>({ top: 0, bottom: 0 });
+  const measure = useCallback((probe: HTMLElement | null) => {
+    if (!probe) return;
+    const read = () => {
+      const style = getComputedStyle(probe);
+      const top = Number.parseFloat(style.paddingTop) || 0;
+      const bottom = Number.parseFloat(style.paddingBottom) || 0;
+      setInsets((was) =>
+        was.top === top && was.bottom === bottom ? was : { top, bottom },
+      );
+    };
+    read();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(read);
+    observer.observe(probe, { box: "border-box" });
+    return () => observer.disconnect();
+  }, []);
+  return [insets, measure];
+}
+
+/**
  * Transitions only once the first place has been painted: arriving (the
  * chunk loads after the page), the drawer appears where it rests rather
  * than sliding there.
@@ -184,7 +216,8 @@ export function WorkbenchDrawer({
   children: ReactNode;
 }) {
   const viewport = useViewportHeight();
-  const heights = snapHeights(viewport);
+  const [safe, measureSafeInsets] = useSafeInsets();
+  const heights = snapHeights(viewport, safe);
   const keyboardUp = useKeyboardUp();
   const painted = usePainted();
   const popup = useRef<HTMLDivElement>(null);
@@ -287,6 +320,11 @@ export function WorkbenchDrawer({
       // they sent Shift+Tab from its first control round to its last.
       className="contents [&_[data-base-ui-focus-guard]]:hidden [&>[aria-owns]]:hidden"
     >
+      <span
+        ref={measureSafeInsets}
+        aria-hidden="true"
+        className="pointer-events-none invisible fixed bottom-0 left-0 h-0 w-px pt-(--safe-top) pb-(--safe-bottom)"
+      />
       <div ref={setHost} className="contents" />
       {/* Its own provider: the page's (the sheet indent) counts open
           drawers to scale the page back, and this one is always open. */}
@@ -322,7 +360,7 @@ export function WorkbenchDrawer({
               <Drawer.Viewport
                 // Under the top bar: full is all of it. It lets taps through
                 // to the calendar; only the drawer itself takes them.
-                className="pointer-events-none fixed inset-x-0 top-12 bottom-0 z-40"
+                className="pointer-events-none fixed inset-x-0 top-[calc(--spacing(12)+var(--safe-top))] bottom-0 z-40"
               >
                 <Drawer.Popup
                   ref={popup}
@@ -356,11 +394,12 @@ export function WorkbenchDrawer({
                     ref={content}
                     className="flex flex-col"
                     // The drawer is full height and slides down; size the
-                    // inside to what's showing so its scroll area ends at the
-                    // screen's edge, or at the keyboard's when it's up. Never
-                    // less than the header.
+                    // inside to what's showing so its scroll area ends above
+                    // the home indicator, or at the keyboard when it's up
+                    // (the paper runs on under both). Never less than the
+                    // header.
                     style={{
-                      height: `max(calc(${heights[snap]}px - var(--drawer-keyboard-inset, 0px)), ${Math.min(heights[snap], PEEK_HEIGHT)}px)`,
+                      height: `max(calc(${heights[snap]}px - max(var(--drawer-keyboard-inset, 0px), ${safe.bottom}px)), ${Math.min(heights[snap], PEEK_HEIGHT)}px)`,
                     }}
                   >
                     <Grabber snap={snap} onSnap={setSnap} />

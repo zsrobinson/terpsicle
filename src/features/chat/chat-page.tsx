@@ -1,7 +1,15 @@
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
 import { CalendarDays, Search, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AppBar } from "~/components/app-bar";
 import { Mark } from "~/components/brand/mark";
 import { PanelNote } from "~/components/panel";
@@ -29,7 +37,6 @@ import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
-import { Sheet, SheetTitle } from "~/ui/sheet";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, useChatHome } from "./chat-home";
@@ -50,11 +57,16 @@ import { ChatTermMenu } from "./term-menu";
 // room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
 // a new sidebar). On a phone (SPEC §2) one thing at a time: the room slides
 // in over the list, which stays mounted underneath, so Back finds it where
-// you left it; room info is a bottom drawer. Everything is plain text and
+// you left it; room info is the kit's sheet. Everything is plain text and
 // tokens; there are no sparkles anywhere in Chat.
 
 /** How often the list's unread counts refresh while /chat is open. */
 const UNREAD_EVERY_MS = 60_000;
+
+/** Room info's phone sheet, in its own chunk: phones only (./room-info-sheet). */
+const RoomInfoSheet = lazy(() =>
+  import("./room-info-sheet").then((m) => ({ default: m.RoomInfoSheet })),
+);
 
 export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const status = useAccount((s) => s.status);
@@ -505,20 +517,15 @@ function CourseRoom({
         </aside>
       ) : null}
       {mobile ? (
-        <Sheet open={infoOpen} onOpenChange={setInfoOpen}>
-          <PageHeader
-            size="panel"
-            title={
-              <SheetTitle asChild>
-                <span>Room info</span>
-              </SheetTitle>
-            }
+        <Suspense fallback={null}>
+          <RoomInfoSheet
+            open={infoOpen}
+            onOpenChange={setInfoOpen}
             actions={closeInfo}
-          />
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+          >
             {info}
-          </div>
-        </Sheet>
+          </RoomInfoSheet>
+        </Suspense>
       ) : null}
     </>
   );

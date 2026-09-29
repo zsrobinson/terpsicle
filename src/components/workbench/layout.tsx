@@ -11,6 +11,9 @@ import { PEEK_HEIGHT } from "~/lib/drawer-heights";
 import { ChunkLoadError, PanelLoadBoundary } from "../panel-load-boundary";
 import { SidebarResizeHandle } from "./sidebar-resize";
 
+/** The drawer at peek: its strip, then the home indicator's inset. */
+const PEEK_CSS = `calc(${PEEK_HEIGHT}px + var(--safe-bottom))`;
+
 // The workbench (CONTEXT.md; docs/COHESION.md §4): a product laid out like
 // the scheduler. The family bar; a rail of the product's views, one sidebar
 // panel and a canvas that fills the rest; on phones (≤ 768px) the same
@@ -57,7 +60,8 @@ export function Workbench({
         mobile ? "min-h-0 flex-1 outline-none" : "min-w-0 flex-1 outline-none",
         canvasClassName,
       )}
-      style={mobile ? { paddingBottom: PEEK_HEIGHT } : undefined}
+      // The drawer at peek, over the home indicator.
+      style={mobile ? { paddingBottom: PEEK_CSS } : undefined}
     >
       {canvas}
     </main>
@@ -124,7 +128,7 @@ function DrawerPlaceholder() {
     <div
       aria-hidden="true"
       className="fixed inset-x-0 bottom-0 z-40 border-keyline border-t bg-bg shadow-drawer"
-      style={{ height: PEEK_HEIGHT }}
+      style={{ height: PEEK_CSS }}
     />
   );
 }

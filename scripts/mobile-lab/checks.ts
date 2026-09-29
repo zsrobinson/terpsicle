@@ -63,6 +63,10 @@ export interface Probe {
     rect: Rect | null;
     transform: string;
     contentHeight: number | null;
+    /** The status bar's inset (`--safe-top`), which full stops under. */
+    safeTop?: number;
+    /** The home indicator's inset (`--safe-bottom`), which peek sits above. */
+    safeBottom?: number;
   } | null;
   activeElement: {
     describe: string;
@@ -112,15 +116,15 @@ export function visibleBand(p: Probe): { top: number; bottom: number } {
 }
 
 /**
- * The drawer's snap heights, as `snapHeights` in src/features/schedule/mobile-drawer.tsx
+ * The drawer's snap heights, as `snapHeights` in src/lib/drawer-heights.ts
  * computes them (restated: scripts don't import the app).
  */
 export function expectedDrawerTop(p: Probe): number | null {
   const snap = p.drawer?.snap;
   const h = p.innerHeight;
-  const full = h - 48;
+  const full = h - 48 - (p.drawer?.safeTop ?? 0);
   const heights: Record<string, number> = {
-    peek: 124,
+    peek: 124 + (p.drawer?.safeBottom ?? 0),
     half: h < 480 ? full : Math.round(h * 0.5),
     full,
   };
