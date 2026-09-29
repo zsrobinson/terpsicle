@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -174,6 +174,15 @@ describe("the story", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
+    // The first move of the mouse brings the tooltips' code, and each
+    // control is made anew inside its tooltip (marketing/lazy-tooltip.tsx),
+    // so the controls are found after it.
+    await user.hover(document.body);
+    await waitFor(() =>
+      expect(
+        document.querySelector("[data-slot=tooltip-trigger]"),
+      ).not.toBeNull(),
+    );
     const steps = screen.getByRole("navigation", { name: "Steps" });
     const reviews = within(steps).getByRole("button", { name: "Reviews" });
     expect(reviews).toHaveAttribute("aria-pressed", "false");

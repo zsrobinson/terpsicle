@@ -3,8 +3,8 @@ import { Mark } from "~/components/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
 import { CLOSING, CONNECT } from "./copy";
+import { LazyTooltip } from "./lazy-tooltip";
 import { NAME, VIEW } from "./products";
 
 // After the story: how the five hand off to each other, then the way in.
@@ -42,11 +42,11 @@ export function ConnectSection() {
               </span>
               <p className="flex-1 text-base">{link.text}</p>
               <div>
-                <WithTooltip label={`Open Terpsicle ${NAME[link.to]}`}>
+                <LazyTooltip label={`Open Terpsicle ${NAME[link.to]}`}>
                   <a href={VIEW[link.to].to} className="mk-link text-sm">
                     {VIEW[link.to].label}
                   </a>
-                </WithTooltip>
+                </LazyTooltip>
               </div>
             </li>
           ))}
@@ -70,11 +70,11 @@ export function ClosingSection() {
         <p className="mk-body">
           {status === "signed-in" ? CLOSING.bodySignedIn : CLOSING.body}
         </p>
-        <WithTooltip label="No account needed">
+        <LazyTooltip label="No account needed">
           <Button asChild className="mk-cta">
             <a href={SCHEDULE_PATH}>View schedule</a>
           </Button>
-        </WithTooltip>
+        </LazyTooltip>
       </div>
     </section>
   );

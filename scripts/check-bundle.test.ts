@@ -5,6 +5,7 @@ import {
   forbiddenModules,
   forbiddenText,
   linkedCss,
+  MARKETING_NEVER_EAGER,
   SCHEDULE_NEVER_EAGER,
 } from "./check-bundle";
 
@@ -98,6 +99,53 @@ describe("bundle check", () => {
       "assets/s.js: src/core/search/search.ts",
       "assets/s.js: node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
       "assets/s.js: src/features/schedule/mobile-drawer.tsx",
+    ]);
+  });
+
+  it("keeps the app's frame, menus, tooltips and toasts out of the marketing page's first load", () => {
+    const base = "node_modules/.pnpm/x/node_modules";
+    const eager: BundleGraph = {
+      "assets/m.js": chunk(
+        [],
+        [
+          // What `/` carries: its page, the account's status, the chip, the
+          // tooltips' shared delay, and the query client.
+          "src/features/marketing/frame.tsx",
+          "src/features/marketing/lazy-tooltip.tsx",
+          "src/features/auth/account-store.ts",
+          "src/components/early-access.tsx",
+          "src/components/ui/tooltip-provider.tsx",
+          `${base}/@base-ui/react/tooltip/provider/TooltipProvider.mjs`,
+          `${base}/@tanstack/query-core/build/modern/queryClient.js`,
+          // What it loads on first use.
+          "src/components/app-bar.tsx",
+          "src/features/site/route-states.tsx",
+          "src/features/site/not-found-page.tsx",
+          "src/features/notifications/bell.tsx",
+          "src/features/auth/account-button.tsx",
+          "src/components/ui/tooltip.tsx",
+          `${base}/@base-ui/react/tooltip/root/TooltipRoot.mjs`,
+          `${base}/@floating-ui/dom/dist/floating-ui.dom.mjs`,
+          `${base}/sonner/dist/index.mjs`,
+          `${base}/@tanstack/query-core/build/modern/queryObserver.js`,
+        ],
+      ),
+    };
+    expect(
+      forbiddenModules(eager, ["assets/m.js"], MARKETING_NEVER_EAGER).map((p) =>
+        p.split(" (")[0]?.replace(`${base}/`, ""),
+      ),
+    ).toEqual([
+      "assets/m.js: src/components/app-bar.tsx",
+      "assets/m.js: src/features/site/route-states.tsx",
+      "assets/m.js: src/features/site/not-found-page.tsx",
+      "assets/m.js: src/features/notifications/bell.tsx",
+      "assets/m.js: src/features/auth/account-button.tsx",
+      "assets/m.js: src/components/ui/tooltip.tsx",
+      "assets/m.js: @base-ui/react/tooltip/root/TooltipRoot.mjs",
+      "assets/m.js: @floating-ui/dom/dist/floating-ui.dom.mjs",
+      "assets/m.js: sonner/dist/index.mjs",
+      "assets/m.js: @tanstack/query-core/build/modern/queryObserver.js",
     ]);
   });
 

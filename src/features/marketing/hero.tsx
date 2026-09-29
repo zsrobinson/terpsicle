@@ -2,8 +2,8 @@ import { cn } from "cn";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
 import { HERO } from "./copy";
+import { LazyTooltip } from "./lazy-tooltip";
 import { Misprint } from "./misprint";
 import { PAINT } from "./products";
 
@@ -24,13 +24,13 @@ export function HeroWords() {
       <p className="mk-lead">{HERO.lead}</p>
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <WithTooltip label="No account needed">
+          <LazyTooltip label="No account needed">
             <Button asChild className="mk-cta">
               <a href={SCHEDULE_PATH}>View schedule</a>
             </Button>
-          </WithTooltip>
+          </LazyTooltip>
           {signedIn ? null : (
-            <WithTooltip label="UMD accounts only: umd.edu or terpmail.umd.edu">
+            <LazyTooltip label="UMD accounts only: umd.edu or terpmail.umd.edu">
               <a
                 href="/signin"
                 className={cn(
@@ -40,7 +40,7 @@ export function HeroWords() {
               >
                 Sign in with UMD
               </a>
-            </WithTooltip>
+            </LazyTooltip>
           )}
         </div>
         <p

@@ -6,8 +6,8 @@ import { Wordmark } from "~/components/brand/wordmark";
 import { TABS } from "~/features/schedule/tabs";
 import { TONE_FILL } from "~/lib/emphasis";
 import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
 import { SCREEN_CAPTION } from "../copy";
+import { LazyTooltip } from "../lazy-tooltip";
 import { NAME, PRODUCT_ORDER } from "../products";
 import { CREDITS, type DemoState, problemsOf, problemWords } from "./plan-a";
 import { STEP_PRODUCT, type Stage } from "./stages";
@@ -49,7 +49,7 @@ export function Screen({
           const step = (i + 1) as Exclude<Stage, 0>;
           const current = stage === step;
           return (
-            <WithTooltip
+            <LazyTooltip
               key={product}
               label={`Step ${step} of 5: ${NAME[STEP_PRODUCT[step]]}`}
             >
@@ -69,7 +69,7 @@ export function Screen({
                 <Mark id={product} size={14} />
                 <span className="truncate">{NAME[product]}</span>
               </button>
-            </WithTooltip>
+            </LazyTooltip>
           );
         })}
       </nav>
@@ -98,7 +98,7 @@ export function Screen({
               <span className="mk-bar-wide tnum text-muted">
                 <span className="font-medium text-fg">{CREDITS}</span> credits
               </span>
-              <WithTooltip label="See what needs attention">
+              <LazyTooltip label="See what needs attention">
                 <button
                   type="button"
                   onClick={() => onGo(1)}
@@ -119,7 +119,7 @@ export function Screen({
                     </span>
                   </span>
                 </button>
-              </WithTooltip>
+              </LazyTooltip>
             </span>
           </div>
           <div className="flex">
@@ -132,12 +132,12 @@ export function Screen({
       <div className="mk-caption flex items-start gap-3 text-muted text-sm">
         <p className="flex-1">{SCREEN_CAPTION}</p>
         {changed ? (
-          <WithTooltip label="Put Plan A back the way it started">
+          <LazyTooltip label="Put Plan A back the way it started">
             <Button variant="ghost" size="sm" onClick={onReset}>
               <RotateCcw aria-hidden="true" />
               Start over
             </Button>
-          </WithTooltip>
+          </LazyTooltip>
         ) : null}
       </div>
     </div>

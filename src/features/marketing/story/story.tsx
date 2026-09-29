@@ -9,9 +9,9 @@ import {
 } from "react";
 import { Mark } from "~/components/brand/mark";
 import { useMediaQuery } from "~/hooks/use-media-query";
-import { WithTooltip } from "~/ui/tooltip";
 import { STEPS } from "../copy";
 import { HeroWords } from "../hero";
+import { LazyTooltip } from "../lazy-tooltip";
 import { Misprint } from "../misprint";
 import { NAME, PAINT, PRODUCT_ORDER, VIEW } from "../products";
 import { type DemoState, START } from "./plan-a";
@@ -208,14 +208,14 @@ function Step({
       </ul>
       <p className="mk-try text-muted text-sm">{step.tryIt}</p>
       <div>
-        <WithTooltip label={`Open Terpsicle ${NAME[product]}`}>
+        <LazyTooltip label={`Open Terpsicle ${NAME[product]}`}>
           <a
             href={VIEW[product].to}
             className={`mk-link font-semibold text-base ${paint.text}`}
           >
             {VIEW[product].label}
           </a>
-        </WithTooltip>
+        </LazyTooltip>
       </div>
     </section>
   );

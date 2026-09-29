@@ -25,11 +25,55 @@ import { isMain, ROOT } from "./lib/source-files";
 export const EAGER_BUDGET = 345 * 1024;
 
 /**
- * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this
- * was set (v2 routes), mostly React, the router and the route tree's search
- * schemas, plus about 10% headroom. Same rule for raising it.
+ * Gzipped JS + CSS for the other entry pages (/settings, /signin, /privacy),
+ * in bytes: 193 KB when this was set (v2 routes, for `/` too), mostly React,
+ * the router and the route tree's search schemas, plus about 10% headroom.
+ * Same rule for raising it.
  */
 export const LANDING_BUDGET = 215 * 1024;
+
+/**
+ * Gzipped JS + CSS for / (the marketing page, whose first load is its search
+ * ranking), in bytes: MEASURED when this was set (v3/landing-bundle; 305 KB
+ * before it), plus about 3% headroom: React, the router with the route
+ * tree's search schemas, the query client, the account's status and the
+ * page itself. Same rule for raising it.
+ */
+export const MARKETING_BUDGET = 0 * 1024;
+
+/**
+ * What `/` loads on first use, never up front (docs/BUILD.md §5): the page
+ * shows none of the app's frame, and its only popup is a tooltip.
+ */
+export const MARKETING_NEVER_EAGER: readonly {
+  pattern: RegExp;
+  why: string;
+}[] = [
+  {
+    pattern:
+      /^src\/(components\/(app-bar|product-menu|panel|panel-load-boundary)|features\/site\/(route-states|not-found-page|site-page))\.tsx$/,
+    why: "the family bar, and the router's loading, failure and 404 states with it, load on first navigation (site/lazy-route-states.ts)",
+  },
+  {
+    pattern:
+      /^src\/features\/(notifications\/bell|coffee\/|feedback\/feedback-button)/,
+    why: "the family bar's controls load with it",
+  },
+  {
+    pattern: /^src\/features\/auth\/(account-button|sign-in-panel)\.tsx$/,
+    why: "the account menu loads when a signed-in visitor at /?stay sees it (marketing/frame.tsx)",
+  },
+  {
+    pattern:
+      /^src\/components\/ui\/(tooltip|dropdown-menu|popover|dialog|sheet|select|context-menu)\.tsx$|(^|\/)@radix-ui\/react-(tooltip|menu|popover|dialog)\/|(^|\/)@base-ui\/react\/(tooltip\/(?!provider\/)|menu\/|popover\/|dialog\/)|(^|\/)@floating-ui\//,
+    why: "tooltips load on first pointer or key use (marketing/lazy-tooltip.tsx); / has no other popup",
+  },
+  { pattern: /(^|\/)sonner\//, why: "toasts load after the page (__root.tsx)" },
+  {
+    pattern: /(^|\/)@tanstack\/query-core\/build\/modern\/queryObserver\./,
+    why: "nothing on / reads a query up front: only the client, for the router's context",
+  },
+];
 
 /**
  * Gzipped JS + CSS for /chat/, in bytes: 279 KB when this was set (v2 chat
@@ -321,7 +365,17 @@ export const ROUTE_BUDGETS: readonly {
     budget: HOME_BUDGET,
     never: [...REVIEWS_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   },
-  ...["/", "/settings", "/signin", "/privacy"].map((route) => ({
+  {
+    route: "/",
+    budget: MARKETING_BUDGET,
+    never: [
+      ...LANDING_NEVER_EAGER,
+      ...MARKETING_NEVER_EAGER,
+      ADMIN_NEVER_EAGER,
+      PLAN_NEVER_EAGER,
+    ],
+  },
+  ...["/settings", "/signin", "/privacy"].map((route) => ({
     route,
     budget: LANDING_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],

@@ -1,13 +1,22 @@
+import { lazy, Suspense } from "react";
 import { Logo } from "~/components/brand/logo";
 import { EarlyAccessChip } from "~/components/early-access";
 import { SCHEDULE_PATH, STAY_PARAM } from "~/core/routing";
-import { AccountButton } from "~/features/auth/account-button";
 import { useAccount } from "~/features/auth/account-store";
 import { ContactEmail } from "~/features/site/contact-email";
 import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
+import { LazyTooltip } from "./lazy-tooltip";
 
 // The marketing page's header and footer.
+
+// Only a signed-in visitor at `/?stay` sees the account menu, so its code
+// (the menu, the avatar, sync's status) loads when they do, not with the
+// page (scripts/check-bundle.ts).
+const AccountButton = lazy(() =>
+  import("~/features/auth/account-button").then((m) => ({
+    default: m.AccountButton,
+  })),
+);
 
 /**
  * Signed in, the header offers the way back in and the account, never "Sign
@@ -19,38 +28,46 @@ export function MarketingHeader() {
   return (
     <header className="mk-wrap flex h-14 items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-2">
-        <WithTooltip label="About Terpsicle">
+        <LazyTooltip label="About Terpsicle">
           {/* ?stay: returning visitors would otherwise skip to the scheduler. */}
           <a href={`/?${STAY_PARAM}`} className="flex">
             <Logo />
           </a>
-        </WithTooltip>
-        <EarlyAccessChip />
+        </LazyTooltip>
+        <EarlyAccessChip Tooltip={LazyTooltip} />
       </div>
       <nav aria-label="Account" className="flex items-center gap-1">
         {status === "signed-in" ? (
-          <>
-            <WithTooltip label="Back to your schedule">
+          // "Sign in" holds the place, unseen, until the menu's code is
+          // here, so the way back in and the avatar arrive together.
+          <Suspense fallback={<SignInLink hidden />}>
+            <LazyTooltip label="Back to your schedule">
               <Button variant="ghost" size="sm" asChild>
                 <a href={SCHEDULE_PATH}>Open Terpsicle</a>
               </Button>
-            </WithTooltip>
+            </LazyTooltip>
             <AccountButton />
-          </>
+          </Suspense>
         ) : (
-          <WithTooltip label="UMD accounts only: umd.edu or terpmail.umd.edu">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className={status === "loading" ? "invisible" : undefined}
-            >
-              <a href="/signin">Sign in</a>
-            </Button>
-          </WithTooltip>
+          <SignInLink hidden={status === "loading"} />
         )}
       </nav>
     </header>
+  );
+}
+
+function SignInLink({ hidden }: { hidden: boolean }) {
+  return (
+    <LazyTooltip label="UMD accounts only: umd.edu or terpmail.umd.edu">
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        className={hidden ? "invisible" : undefined}
+      >
+        <a href="/signin">Sign in</a>
+      </Button>
+    </LazyTooltip>
   );
 }
 
@@ -61,23 +78,23 @@ export function MarketingFooter() {
         <span className="text-fg">
           <Logo />
         </span>
-        <WithTooltip label="What Terpsicle keeps about you, and why">
+        <LazyTooltip label="What Terpsicle keeps about you, and why">
           <a href="/privacy" className="mk-link hover:text-fg">
             Privacy
           </a>
-        </WithTooltip>
+        </LazyTooltip>
         <span>
           Course data from Testudo. Reviews and grades from{" "}
-          <WithTooltip label="PlanetTerp, where the grade data and many reviews come from">
+          <LazyTooltip label="PlanetTerp, where the grade data and many reviews come from">
             <a href="https://planetterp.com" className="mk-link hover:text-fg">
               PlanetTerp
             </a>
-          </WithTooltip>
+          </LazyTooltip>
           .
         </span>
         <span>Not affiliated with the University of Maryland.</span>
         <span className="inline-flex flex-wrap items-center gap-2">
-          Contact: <ContactEmail />
+          Contact: <ContactEmail Tooltip={LazyTooltip} />
         </span>
       </div>
     </footer>

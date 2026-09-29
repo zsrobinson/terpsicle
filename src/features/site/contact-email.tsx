@@ -1,6 +1,6 @@
 import { Mail } from "lucide-react";
 import { Button } from "~/ui/button";
-import { WithTooltip } from "~/ui/tooltip";
+import type { WithTooltip } from "~/ui/tooltip";
 
 // The public contact address, kept away from scrapers: it never appears
 // whole in the HTML or the JS bundle. The page shows it in words, with
@@ -24,12 +24,16 @@ export function contactEmailAddress(): string {
   return [user, [domain, tld].join(".")].join(String.fromCharCode(64));
 }
 
-/** The address in words, then an "Email us" button that opens a mailto:. */
-export function ContactEmail() {
+/**
+ * The address in words, then an "Email us" button that opens a mailto:.
+ * `Tooltip` is the kit's `WithTooltip`, or the marketing page's stand-in
+ * that loads it on first use (so `/` doesn't carry it up front).
+ */
+export function ContactEmail({ Tooltip }: { Tooltip: typeof WithTooltip }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <span>{contactEmailText()}</span>
-      <WithTooltip label="Open a new message in your email app">
+      <Tooltip label="Open a new message in your email app">
         <Button
           variant="outline"
           size="sm"
@@ -40,7 +44,7 @@ export function ContactEmail() {
           <Mail aria-hidden="true" />
           Email us
         </Button>
-      </WithTooltip>
+      </Tooltip>
     </span>
   );
 }

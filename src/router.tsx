@@ -4,7 +4,10 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import type { PageRequestContext } from "~/core/routing";
 import { CSP_NONCE_HEADER } from "~/core/schema";
-import { RouteError, RoutePending } from "~/features/site/route-states";
+import {
+  preloadRouteStates,
+  routeStates,
+} from "~/features/site/lazy-route-states";
 import { createQueryClient } from "~/lib/query-client";
 import { routeTree } from "./routeTree.gen";
 
@@ -23,6 +26,7 @@ export function getRouter() {
   const nonce = cspNonce();
   // One per server render (never shared between requests) and one per page.
   const queryClient = createQueryClient();
+  const { RoutePending, RouteError } = routeStates();
   const router = createRouter({
     routeTree,
     context: { queryClient },
@@ -44,6 +48,14 @@ export function getRouter() {
   // Streams what a server render's queries fetched into the page, hydrates
   // it in the browser, and wraps the app in QueryClientProvider.
   setupRouterSsrQueryIntegration({ router, queryClient });
+  if (!router.isServer) {
+    // The loading and failure states load on their own (they carry the
+    // family bar). A page the Worker drew as loading (`ssr: false`) needs
+    // them to hydrate, so fetch them now anywhere but `/`, the marketing
+    // page, which has its own frame; there, as soon as anything navigates.
+    if (window.location.pathname !== "/") void preloadRouteStates();
+    router.subscribe("onBeforeNavigate", () => void preloadRouteStates());
+  }
   return router;
 }
 

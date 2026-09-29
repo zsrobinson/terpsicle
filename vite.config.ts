@@ -55,6 +55,19 @@ export default defineConfig(({ command, mode }) => ({
   envDir: "env",
   define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   resolve: { tsconfigPaths: true },
+  environments: {
+    client: {
+      build: {
+        rolldownOptions: {
+          treeshake: {
+            moduleSideEffects: [
+              { test: /\/src\/.*\.tsx?$/, sideEffects: false },
+            ],
+          },
+        },
+      },
+    },
+  },
   plugins: [
     // First, so the Worker never sees the marker path.
     checkoutMarker(),
