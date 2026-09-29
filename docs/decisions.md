@@ -94,6 +94,11 @@ Revisit if: never on its own.
 The disk copy is TanStack's per-query persister (`experimental_createQueryPersister`) over its own IndexedDB database, `terpsicle-query`, one row per query, busted per schema family. Only published-file factories opt in; nothing per person is written (Todo never is). The whole-client persister would rewrite about a megabyte of catalog on every change.
 Revisit if: the persister's API leaves `experimental_`, or something per person needs to work offline.
 
+### Our modules have no side effects on import, in the browser's build
+2026-09-29 · agent · app-wide
+The client build tells Rolldown that every module under `src/` has no side effects when imported (`vite.config.ts`, `treeshake.moduleSideEffects`), so a module none of whose exports is used is left out: a barrel like `~/core/schema` no longer brings every schema along. It cut every page, `/` by about 9 KB. Code that must run on import (a registration, a listener) lives in a module whose exports are used, as `activity-log-boot.tsx` does; never in one imported only for its effect.
+Revisit if: something needs a bare `import "~/…"` for its effect.
+
 ### Back and Forward undo navigation
 2026-09-26 · owner · app-wide
 Whatever a person expects Back to undo (the open course, the tab, a filter, a chat room, a settings page) lives in the path or search params and pushes a history entry. Transient UI never pushes, and typing in search replaces. The browser's Back and the in-app Back are one thing.
@@ -351,6 +356,11 @@ Revisit if: the owner asks for another round, or a product's own UI moves far fr
 2026-09-28 · owner · one feature
 The electron-orbit "atom" is rejected ("i don't like the atom idea even one bit"), and the detangle hero it followed is gone with its inline script. The strands concept stays out of the page's motion; motion is the screen gathering the products.
 Revisit if: the owner brings the strands back.
+
+### The marketing page loads its tooltips on first use
+2026-09-29 · agent · one feature
+`/` shows no popup but tooltips, so its controls get the kit's tooltip once a mouse moves, a key is pressed or something takes focus (`marketing/lazy-tooltip.tsx`); a finger never opens one. Each control is made anew inside its tooltip when the code arrives, after any press ends, keeping focus. About 30 KB of the first load (docs/BUILD.md §5).
+Revisit if: the kit's tooltip gets small enough to carry, or someone notices the swap.
 
 ### Install prompt after key moments
 2026-09-26 · owner · one feature

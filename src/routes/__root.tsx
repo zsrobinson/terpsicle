@@ -39,7 +39,16 @@ const Toaster = lazy<ComponentType>(() =>
 
 function Toasts() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Once the browser is idle, so its code isn't parsed while the page is
+  // still getting ready to answer a tap.
+  useEffect(() => {
+    if (typeof requestIdleCallback !== "function") {
+      const timer = setTimeout(() => setMounted(true), 1);
+      return () => clearTimeout(timer);
+    }
+    const idle = requestIdleCallback(() => setMounted(true), { timeout: 2000 });
+    return () => cancelIdleCallback(idle);
+  }, []);
   if (!mounted) return null;
   return (
     <Suspense fallback={null}>

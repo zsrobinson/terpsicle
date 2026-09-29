@@ -34,12 +34,13 @@ export const LANDING_BUDGET = 215 * 1024;
 
 /**
  * Gzipped JS + CSS for / (the marketing page, whose first load is its search
- * ranking), in bytes: MEASURED when this was set (v3/landing-bundle; 305 KB
+ * ranking), in bytes: 232 KB when this was set (v3/landing-bundle; 330 KB
  * before it), plus about 3% headroom: React, the router with the route
- * tree's search schemas, the query client, the account's status and the
- * page itself. Same rule for raising it.
+ * tree's search schemas, the query client, the account's status, the app's
+ * stylesheet and the page itself. Same rule for raising it; the 215 KB the
+ * other entry pages aim for is the goal.
  */
-export const MARKETING_BUDGET = 0 * 1024;
+export const MARKETING_BUDGET = 240 * 1024;
 
 /**
  * What `/` loads on first use, never up front (docs/BUILD.md §5): the page

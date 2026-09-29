@@ -175,7 +175,17 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 | Route | Guide | When set |
 |---|---|---|
 | `/schedule` (and `/schedule/courses`, `/schedule/course/$code` with it) | 345 KB | 335 KB (`perf/schedule-bundle`; 378 KB before it); 348 KB for `/schedule/courses` once each view was a route (`v2/schedule-routes`; 362 KB before it) |
-| `/` and the other entry pages | 215 KB | 193 KB (v2 routes) |
+| `/` (the marketing page) | 240 KB | 232 KB (`v3/landing-bundle`; 330 KB before it) |
+| `/settings`, `/signin`, `/privacy` | 215 KB | 193 KB (v2 routes) |
+
+What `/` loads on first use, not up front (each has a rule in `MARKETING_NEVER_EAGER`). Its first load is its search ranking, and it shows none of the app's frame:
+- **The router's loading, failure and 404 states**, which draw the family bar with its menus, the bell and Feedback (`src/features/site/lazy-route-states.tsx`). The server renders them from a static import; the browser fetches them at once on any other page, and on `/` when a navigation starts.
+- **The account menu**, for a signed-in visitor at `/?stay`; "Sign in" holds its place, unseen, until it's here (`marketing/frame.tsx`).
+- **Tooltips**, on the first mouse move, key press or focus (`marketing/lazy-tooltip.tsx`; the root carries only their shared delay, `~/ui/tooltip-provider`). A finger never opens one, so on a phone they only arrive later, with the demos and the toasts.
+- **Toasts** (sonner), mounted after the page (`src/routes/__root.tsx`).
+- No query observers: `/` has the query client, for router context, and reads nothing with it up front.
+
+The browser's build treats every module under `src/` as free of side effects on import (`vite.config.ts`), so a barrel brings only what's used from it: `~/core/schema` no longer carries every schema. Code that must run on import belongs in a module whose exports are used (docs/decisions.md).
 
 What the scheduler loads on first use, not up front (each has a rule in `SCHEDULE_NEVER_EAGER`, so it can't drift back):
 - **Every tab and drill-in**, each its own route whose component the router splits into a chunk (`src/routes/schedule.*.tsx`): Travel, Blocks, Generate and Export with what only they use (the generator's Comlink client, `.ics`, Base UI's Select) have rules; Courses, Search, Problems and course details load with the first view that shows them (`/schedule/courses` on a first visit, `/schedule/course/$code` from an email), which `check:bundle` measures with `/schedule`. Hovering or focusing a rail tab (a touch on a drawer tab, hovering a travel pill) preloads the route, so it's usually there by the click; until then the panel's skeleton shows, and a chunk that can't load says so in the panel, with Reload.

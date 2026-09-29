@@ -15,8 +15,10 @@ import type { WithTooltip } from "~/ui/tooltip";
 // same way (e2e/tooltips.spec.ts). Only for the marketing page: a tooltip
 // is the only popup there, and its code (the positioning, the hover and
 // focus logic) is too big for a page whose first load is its search ranking
-// (docs/BUILD.md §5). A finger never opens one, so a phone never loads it at
-// all. Every other page carries the kit up front and uses `WithTooltip`.
+// (docs/BUILD.md §5). A finger never opens one, so on a phone the controls
+// stay as they are (the code still arrives later, with the demos and the
+// toasts, which use it too). Every other page carries the kit up front and
+// uses `WithTooltip`.
 //
 // Wrapping a control in its tooltip makes the control anew, so the swap
 // waits until no key or pointer is held (a press that started on the old

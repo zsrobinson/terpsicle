@@ -58,10 +58,19 @@ export default defineConfig(({ command, mode }) => ({
   environments: {
     client: {
       build: {
+        // Our modules do nothing on import but define things, so one whose
+        // exports go unused is left out, and a barrel (`~/core/schema`)
+        // brings only what's used from it. Code that must run on import
+        // lives in a module whose exports are used (docs/decisions.md, "Our
+        // modules have no side effects on import"). The Worker's build is
+        // left as it was.
         rolldownOptions: {
           treeshake: {
             moduleSideEffects: [
-              { test: /\/src\/.*\.tsx?$/, sideEffects: false },
+              {
+                test: /^(?!.*\/node_modules\/).*\/src\/.*\.tsx?$/,
+                sideEffects: false,
+              },
             ],
           },
         },
