@@ -2,6 +2,7 @@ import { cn } from "cn";
 import type { CourseCode } from "~/core/schema";
 import { tintStyle } from "~/features/calendar/tint";
 import { todoCourseColors } from "./course-colors";
+import { DAY_SHADES } from "./day-shade";
 
 // The front door's picture of Todo (V3 §3.9): a made-up week, drawn like the
 // real one, so someone signed out sees what they'd get. Nothing in it can be
@@ -49,6 +50,10 @@ const DAYS: readonly { name: string; items: readonly SampleItem[] }[] = [
 
 const WEEKEND = new Set(["Sat", "Sun"]);
 
+/** Shaded as the real week is (./day-shade); the sample has no today. */
+const shadeOf = (name: string) =>
+  DAY_SHADES[WEEKEND.has(name) ? "weekend" : "weekday"];
+
 const COLORS = todoCourseColors(["CMSC216", "ENGL101", "MATH240"], {});
 
 function Card({ item }: { item: SampleItem }) {
@@ -91,11 +96,15 @@ export function SamplePreview() {
             key={day.name}
             className={cn(
               "min-h-40 min-w-0 border-hairline border-r border-b",
-              // Shaded as the real week's weekend is.
-              WEEKEND.has(day.name) && "bg-panel",
+              shadeOf(day.name).body.className,
             )}
           >
-            <p className="emph-label border-hairline border-b px-2 py-1.5 text-sm">
+            <p
+              className={cn(
+                "emph-label border-hairline border-b px-2 py-1.5 text-sm",
+                shadeOf(day.name).head.className,
+              )}
+            >
               {day.name}
             </p>
             <ul className="space-y-1 p-1">

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COURSE_COLORS } from "~/core/schema";
+import { DAY_SHADES, type Shade } from "~/features/todo/day-shade";
 import { readTokens, type Theme } from "~/lib/brand/css-tokens";
 import { hasKeyline, MARK_IDS } from "~/lib/brand/marks";
 import { PEEK_HEIGHT, snapHeights, TAB_BAR_HEIGHT } from "~/lib/drawer-heights";
@@ -678,5 +679,34 @@ describe("the palette", () => {
       return gap < 20 ? [`${c.id}–${next.id} ${gap.toFixed(0)}°`] : [];
     });
     expect(close).toEqual([]);
+  });
+
+  it("heads each of Todo's days darker than its body, and hovers between them", () => {
+    // Darker means further from the paper: more contrast, in either theme.
+    for (const mode of MODES) {
+      const t = THEMES[mode];
+      const paper = t.bg ?? "";
+      const fill = (under: string, shade: Shade) =>
+        shade.token === "bg"
+          ? under
+          : over(t[shade.token] ?? "", shade.alpha, under);
+      for (const [kind, s] of Object.entries(DAY_SHADES)) {
+        const body = fill(paper, s.body);
+        const hovered = fill(body, s.hover);
+        const head = fill(paper, s.head);
+        const at = `${mode} ${kind}`;
+        expect(contrast(head, paper), at).toBeGreaterThan(
+          contrast(body, paper),
+        );
+        expect(contrast(hovered, paper), at).toBeGreaterThan(
+          contrast(body, paper),
+        );
+        expect(contrast(hovered, paper), at).toBeLessThan(
+          contrast(head, paper),
+        );
+        // At most half a step over the body.
+        expect(s.hover.alpha, at).toBeLessThanOrEqual(0.5);
+      }
+    }
   });
 });

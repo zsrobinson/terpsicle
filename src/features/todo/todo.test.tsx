@@ -581,7 +581,7 @@ describe("the week", () => {
     expect(screen.getAllByTestId("todo-chip")).toHaveLength(4);
   });
 
-  it("shades the weekend, and today's heading but not its day", async () => {
+  it("heads every day a step darker than its body, and hovers under the heading", async () => {
     fakeClient({ items });
     signedIn();
     renderTodo();
@@ -593,16 +593,22 @@ describe("the week", () => {
     };
     const head = (date: string) =>
       within(day(date)).getByRole("heading", { level: 2 });
-    // One step of gray for Saturday and Sunday, heading and all.
+    const add = (date: string) =>
+      within(day(date)).getByRole("button", { name: /^Add a task on / });
+    // A weekday: one step on its heading, none on its body.
+    expect(head("2026-09-29")).toHaveClass("bg-panel");
+    expect(day("2026-09-29")).not.toHaveClass("bg-panel", "bg-hover");
+    expect(add("2026-09-29")).toHaveClass("hover:bg-panel/50");
+    // The weekend: two steps over one.
     for (const date of ["2026-10-03", "2026-10-04"]) {
+      expect(head(date)).toHaveClass("bg-hover");
       expect(day(date)).toHaveClass("bg-panel");
-      expect(head(date)).toHaveClass("bg-panel");
+      expect(add(date)).toHaveClass("hover:bg-hover/40");
     }
-    // Today (Monday, Sep 28): two steps on its heading, none on its day.
+    // Today (Monday, Sep 28): two steps on its heading, none on its body.
     expect(head("2026-09-28")).toHaveClass("bg-hover");
-    expect(day("2026-09-28")).not.toHaveClass("bg-panel");
-    expect(day("2026-09-28")).not.toHaveClass("bg-hover");
-    expect(head("2026-09-29")).toHaveClass("bg-bg");
+    expect(day("2026-09-28")).not.toHaveClass("bg-panel", "bg-hover");
+    expect(day("2026-09-28")).toHaveAttribute("data-day", "today");
   });
 
   it("moves a week at a time with outline links in the bar, so each week is a URL", async () => {

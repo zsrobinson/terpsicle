@@ -10,7 +10,6 @@ import {
   dueTimeLabel,
   dueWords,
   isElmsUrl,
-  isWeekend,
   shortDayLabel,
   taskFieldsOf,
   weekDates,
@@ -20,9 +19,11 @@ import {
 import { tintStyle } from "~/features/calendar/tint";
 import { DAY_HEADER_HEIGHT } from "~/features/calendar/week-frame";
 import { Button } from "~/ui/button";
+import { SECTION_BAND } from "~/ui/list-row";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 import { startTask } from "./composer";
+import { dayKind, dayShade } from "./day-shade";
 import { TaskEditor } from "./task-form";
 import { CourseTag, SOURCE_WORDS, TodoCheckbox } from "./todo-item";
 import { type CheckedVia, Rows, TaskMenu, type ViewProps } from "./todo-lists";
@@ -47,10 +48,13 @@ function byDate(items: readonly TodoItem[]): Map<IsoDate, TodoItem[]> {
 /** "+" on a day: starts a task there. Fills what's left of the day on a desktop. */
 function AddOnDay({
   date,
+  hover,
   className,
   children,
 }: {
   date: IsoDate;
+  /** Half a step over the day's body at most (./day-shade). */
+  hover: string;
   className?: string;
   children?: ReactNode;
 }) {
@@ -62,7 +66,8 @@ function AddOnDay({
         aria-label={label}
         onClick={() => startTask(date)}
         className={cn(
-          "group flex w-full items-start gap-1 text-muted text-sm transition-colors hover:bg-hover hover:text-fg",
+          "group flex w-full items-start gap-1 text-muted text-sm transition-colors hover:text-fg",
+          hover,
           className,
         )}
       >
@@ -240,18 +245,9 @@ function WeekCard({ item, props }: { item: TodoItem; props: ViewProps }) {
   );
 }
 
-/**
- * How a day is shaded, as on Schedule's week: the weekend one step of gray,
- * today's heading two, and today's body left as paper, so its cards read
- * as they do on any other day (the owner, 2026-09-29).
- */
-function dayShade(date: IsoDate, today: IsoDate) {
-  const weekend = isWeekend(date);
-  return {
-    head: date === today ? "bg-hover" : weekend ? "bg-panel" : "bg-bg",
-    body: weekend ? "bg-panel" : undefined,
-  };
-}
+/** Today's date, marked in Todo's color on its heading. */
+const TODAY_MARK =
+  "bg-product-todo-soft px-1 text-product-todo-text shadow-[inset_0_-2px_0_var(--product-todo-line)]";
 
 /** What a screen reader hears for a day's heading: its whole date and what's due. */
 function DayWords({
@@ -294,12 +290,12 @@ function DayHead({
         "sticky top-0 z-10 flex shrink-0 items-center gap-1.5 border-hairline border-b px-2 text-sm",
         // A day's name heads its column: Label, and today Heading.
         isToday ? "emph-heading" : "emph-label",
-        dayShade(date, today).head,
+        dayShade(date, today).head.className,
       )}
       style={{ height: DAY_HEADER_HEIGHT }}
     >
       <span aria-hidden="true">{weekdayShort(date)}</span>
-      <span aria-hidden="true" className="tnum">
+      <span aria-hidden="true" className={cn("tnum", isToday && TODAY_MARK)}>
         {Number(date.slice(8))}
       </span>
       <DayWords date={date} today={today} count={count} />
@@ -324,16 +320,16 @@ export function WeekGrid({
     <section aria-label="The week" className="grid flex-1 grid-cols-7">
       {dates.map((date, i) => {
         const items = due.get(date) ?? [];
+        const shade = dayShade(date, props.today);
         return (
           <div
             key={date}
             id={`day-${date}`}
-            data-weekend={isWeekend(date) || undefined}
-            data-today={date === props.today || undefined}
+            data-day={dayKind(date, props.today)}
             className={cn(
               "flex min-w-0 flex-col",
               i > 0 && "border-hairline border-l",
-              dayShade(date, props.today).body,
+              shade.body.className,
             )}
           >
             <DayHead date={date} today={props.today} count={items.length} />
@@ -344,7 +340,11 @@ export function WeekGrid({
                 ))}
               </ul>
             ) : null}
-            <AddOnDay date={date} className="min-h-10 flex-1" />
+            <AddOnDay
+              date={date}
+              hover={shade.hover.className}
+              className="min-h-10 flex-1"
+            />
           </div>
         );
       })}
@@ -377,15 +377,13 @@ export function WeekAgenda({
           <section
             key={date}
             id={`day-${date}`}
+            data-day={dayKind(date, props.today)}
             aria-labelledby={`todo-day-${date}`}
-            className={cn("border-hairline border-b", shade.body)}
+            className={shade.body.className}
           >
-            <div
-              className={cn(
-                "flex h-11 items-center gap-2 border-hairline border-b pr-1 pl-4",
-                shade.head,
-              )}
-            >
+            {/* The sidebars' section band (~/ui/list-row), shaded as the
+                desktop's day names are. */}
+            <div className={cn(SECTION_BAND, "pr-1", shade.head.className)}>
               <h2
                 id={`todo-day-${date}`}
                 className={cn(
@@ -394,7 +392,11 @@ export function WeekAgenda({
                 )}
               >
                 {dayLabel(date, props.today)}
-                {date === props.today || date === addDays(props.today, 1) ? (
+                {date === props.today ? (
+                  <span className={cn("emph-meta tnum", TODAY_MARK)}>
+                    {shortDayLabel(date)}
+                  </span>
+                ) : date === addDays(props.today, 1) ? (
                   <span className="emph-meta">{shortDayLabel(date)}</span>
                 ) : null}
               </h2>
