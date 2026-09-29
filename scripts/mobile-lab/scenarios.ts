@@ -296,10 +296,14 @@ export const SCENARIOS: Scenario[] = [
       await snapTo(lab, "peek");
       await lab.step("peek", { settled: true });
       const h = await lab.device.evaluate<number>("innerHeight");
+      // Peek rests on the tab bar (src/lib/drawer-heights.ts).
+      const bar = await lab.device.evaluate<number>(
+        "parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tab-bar-height')) || 0",
+      );
       const legs: { to: Snap; dy: number }[] = [
-        { to: "half", dy: -(Math.round(h * 0.5) - 124) },
+        { to: "half", dy: -(Math.round(h * 0.5) - 124 - bar) },
         { to: "full", dy: -(h - 48 - Math.round(h * 0.5)) },
-        { to: "peek", dy: h - 48 - 124 },
+        { to: "peek", dy: h - 48 - 124 - bar },
       ];
       for (const leg of legs) {
         const from = await drawerTop(lab);

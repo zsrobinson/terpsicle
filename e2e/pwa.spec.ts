@@ -339,7 +339,7 @@ test.describe("install prompt", () => {
     isMobile,
   }) => {
     await page.goto("/schedule");
-    await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+    await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
     // Phones: the drawer is a lazy chunk. Opened before it mounts, a menu
     // sits under the drawer's layer, which takes Esc, so the menu stays open
     // and the second press of "Sign in" below closes it instead.

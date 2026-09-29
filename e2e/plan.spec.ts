@@ -129,9 +129,10 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
     .getByRole("button", { name: "Add CMSC4XX to Spring 2027", exact: true })
     .click();
   await expect(spring.getByText("Any CMSC 400-level")).toBeVisible();
-  // The bar's credits on a desktop; over the semesters on a phone.
+  // The bar's credits: its status on a desktop, under the plan's name on a
+  // phone (nothing sits under the bar).
   await expect(
-    page.getByRole(isMobile ? "main" : "banner").getByText("6 of 120 credits"),
+    page.getByRole("banner").getByText("6 of 120 credits"),
   ).toBeVisible();
 
   // Move CMSC351 with the keyboard alone: its menu, Move to…, Fall 2027.

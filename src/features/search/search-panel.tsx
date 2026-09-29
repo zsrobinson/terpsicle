@@ -43,19 +43,16 @@ import {
 } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import {
+  ActionMenu,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+  usePhoneMenus,
+} from "~/ui/action-menu";
+import {
   COURSE_SEARCH_TIP,
   CourseResultRow,
   CourseSearchField,
 } from "~/ui/course-search";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItemText,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { FilterChips, type FilterName, TOKEN_CHIP } from "~/ui/filter-chips";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -282,6 +279,7 @@ function SortMenu({
       : rated.loaded === 0
         ? "Ratings load as you open courses"
         : `Ratings for ${rated.loaded} of ${rated.total} departments so far`;
+  const phone = usePhoneMenus();
   const hints: Record<SearchSort, string | null> = {
     relevance: null,
     code: null,
@@ -289,36 +287,35 @@ function SortMenu({
     seats: seatsLoaded ? null : "Seats are still loading",
   };
   return (
-    <DropdownMenu>
-      <WithTooltip label="Sort the results">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Sort: ${SORT_NAMES[sort]}`}
-            className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
-          >
-            Sort: {SORT_NAMES[sort]}
-            <ChevronDown size={10} aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={sort}
-          onValueChange={(v) => onSort(v as SearchSort)}
+    <ActionMenu
+      title="Sort by"
+      tooltip="Sort the results"
+      align="end"
+      className="w-64"
+      trigger={
+        <button
+          type="button"
+          aria-label={`Sort: ${SORT_NAMES[sort]}`}
+          className="-mr-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg"
         >
-          {(Object.keys(SORT_NAMES) as SearchSort[]).map((s) => (
-            <DropdownMenuRadioItem key={s} value={s}>
-              <DropdownMenuItemText
-                label={SORT_NAMES[s]}
-                hint={hints[s] ?? undefined}
-              />
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          Sort: {SORT_NAMES[sort]}
+          <ChevronDown size={10} aria-hidden="true" />
+        </button>
+      }
+    >
+      <ActionMenuRadioGroup
+        // A phone's sheet is headed by the title already.
+        label={phone ? undefined : "Sort by"}
+        value={sort}
+        onValueChange={(v) => onSort(v as SearchSort)}
+      >
+        {(Object.keys(SORT_NAMES) as SearchSort[]).map((s) => (
+          <ActionMenuRadioItem key={s} value={s} hint={hints[s] ?? undefined}>
+            {SORT_NAMES[s]}
+          </ActionMenuRadioItem>
+        ))}
+      </ActionMenuRadioGroup>
+    </ActionMenu>
   );
 }
 const NO_COURSES: readonly Course[] = [];

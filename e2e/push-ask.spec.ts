@@ -229,7 +229,7 @@ test.describe("on iPhone", () => {
     // A new tab of the app: it asked its once.
     const next = await page.context().newPage();
     await next.goto("/schedule");
-    await expect(next.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+    await expect(next.locator('[data-slot="app-bar"]')).toBeVisible();
     await next.waitForTimeout(1500);
     await expect(
       next.getByRole("dialog", { name: "Turn on notifications" }),

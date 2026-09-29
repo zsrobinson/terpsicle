@@ -49,7 +49,7 @@ const accountButton = (page: Page) =>
 
 async function openScheduler(page: Page, path = "/schedule") {
   await page.goto(path);
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 }
 
 /** The demo's plans, saved in this browser while signed out. */

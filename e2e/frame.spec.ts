@@ -188,18 +188,14 @@ test.describe("Share", () => {
       ),
     );
 
+  /** An icon in the family bar, at every width (docs/decisions.md, "One bar at the top"). */
+  const shareButton = (page: Page) =>
+    page.getByRole("banner").getByRole("button", { name: "Share" });
+
   async function openSchedule(page: Page) {
     await page.goto("/schedule/courses?demo=1");
-    await expect(
-      page.getByRole("navigation", { name: "Plans" }).getByRole("button", {
-        name: "Plan A",
-        exact: true,
-      }),
-    ).toBeVisible();
+    await expect(shareButton(page)).toBeVisible();
   }
-
-  const shareButton = (page: Page) =>
-    page.locator("[data-share-button]").filter({ visible: true });
 
   test("a phone hands the link to the share sheet; a desktop keeps the popover", async ({
     page,

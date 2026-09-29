@@ -17,6 +17,7 @@ import { CalendarRegion } from "./calendar-region";
 import { CatalogError, useCatalogFailure } from "./catalog-error";
 import { useDocumentTitle } from "./document-title";
 import { PlanTabs } from "./plan-tabs";
+import { PlansMenu } from "./plans-menu";
 import { Rail } from "./rail";
 import { useScheduleNavigation } from "./schedule-nav";
 import { useScheduleView } from "./schedule-view";
@@ -91,8 +92,14 @@ function Shell({
     <CalendarRegion />
   );
 
+  // A phone's bar has one control for the term and the plan (./plans-menu),
+  // unless a shared plan's pill is there instead.
   const topBar = (
-    <TopBar compact={mobile} term={<TermSwitcher />} plans={shared.plans} />
+    <TopBar
+      compact={mobile}
+      term={shared.pill || !mobile ? <TermSwitcher /> : null}
+      plans={shared.plans}
+    />
   );
 
   return (
@@ -269,9 +276,13 @@ function useSharedLink(
       }}
     />
   ) : termId ? (
-    <PlanTabs termId={termId} maxVisible={mobile ? 1 : 5} />
+    mobile ? (
+      <PlansMenu termId={termId} />
+    ) : (
+      <PlanTabs termId={termId} maxVisible={5} />
+    )
   ) : (
     <Skeleton className="h-4 w-16" />
   );
-  return { plans };
+  return { plans, pill: shared !== null };
 }

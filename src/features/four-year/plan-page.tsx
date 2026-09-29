@@ -10,7 +10,6 @@ import {
   useState,
 } from "react";
 import { ChunkLoadError } from "~/components/panel-load-boundary";
-import { CanvasBar } from "~/components/workbench/canvas-bar";
 import {
   lazyDrawer,
   Workbench,
@@ -55,13 +54,11 @@ import {
 } from "./model";
 import { PlanBar } from "./plan-bar";
 import {
-  CreditsSummary,
   DegreeAuditNote,
   PLAN_SIDEBAR_FRAME_ID,
   PLAN_SIDEBAR_ID,
   PlanSidebarContent,
 } from "./plan-sidebar";
-import { PlanShare } from "./share";
 import { useActiveFourYear, useFourYear } from "./store";
 import { PlanToasts } from "./toasts";
 import { clickRailView, openView } from "./view-nav";
@@ -307,24 +304,10 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           drawer={<PlanDrawer view={view} onPreload={preload} />}
           canvas={
             <>
-              {/* Share at the top left, as over the scheduler's calendar. A
-                  phone has no bar: Share sits beside the credits instead,
-                  so the semester below keeps its room above the drawer
-                  (an add shows its course without lowering Search). */}
-              {mobile ? null : (
-                <CanvasBar
-                  className="sticky top-0 z-10"
-                  start={<PlanShare />}
-                />
-              )}
+              {/* Share and the credits are in the family bar: nothing sits
+                  under it (docs/decisions.md, "One bar at the top"). */}
               {mobile ? (
                 <div className="space-y-4 px-4 pt-3 pb-4">
-                  <div className="flex items-start gap-3">
-                    <PlanShare />
-                    <div className="min-w-0 flex-1">
-                      <CreditsSummary />
-                    </div>
-                  </div>
                   <PhoneBoard selected={model.target} />
                   <DegreeAuditNote />
                 </div>

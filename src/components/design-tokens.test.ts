@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { COURSE_COLORS } from "~/core/schema";
 import { readTokens, type Theme } from "~/lib/brand/css-tokens";
 import { hasKeyline, MARK_IDS } from "~/lib/brand/marks";
-import { PEEK_HEIGHT, snapHeights } from "~/lib/drawer-heights";
+import { PEEK_HEIGHT, snapHeights, TAB_BAR_HEIGHT } from "~/lib/drawer-heights";
 
 // The design system as a test (docs/UX-REVIEW.md §2): every UI file uses the
 // type scale, the spacing rhythm and the color tokens, so a panel built next
@@ -503,12 +503,17 @@ describe("the palette", () => {
     expect(used.filter((name) => SONNER.includes(name ?? ""))).toEqual([]);
   });
 
-  it("lifts toasts just above a workbench drawer's resting strip, and the home indicator", () => {
+  it("lifts toasts just above a workbench drawer's resting strip, the tab bar and the home indicator", () => {
     const lift =
-      /--toast-lift:\s*calc\((\d+)px \+ var\(--safe-bottom\)\);/.exec(
+      /--toast-lift:\s*calc\((\d+)px \+ var\(--tab-bar-height\) \+ var\(--safe-bottom\)\);/.exec(
         STYLES,
       )?.[1];
     expect(Number(lift)).toBe(PEEK_HEIGHT + 8);
+  });
+
+  it("sizes the tab bar in CSS as the drawer's heights do", () => {
+    const bar = /--tab-bar-height:\s*([1-9]\d*)px;/.exec(STYLES)?.[1];
+    expect(Number(bar)).toBe(TAB_BAR_HEIGHT);
   });
 
   it("lifts toasts just above a half-open drawer, where half is half the screen", () => {

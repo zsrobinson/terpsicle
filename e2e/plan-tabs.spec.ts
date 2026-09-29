@@ -197,7 +197,11 @@ test.describe("register", () => {
 
   test("copy the share link from Share, then open it", async ({ page }) => {
     await openDemo(page);
-    await calendar(page).getByRole("button", { name: "Share" }).click();
+    // An icon in the family bar (docs/decisions.md, "One bar at the top").
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: "Share" })
+      .click();
     const popover = page.getByRole("dialog", { name: "Share Plan A" });
     await expect(popover).toContainText("in the URL itself");
     await popover.getByRole("button", { name: "Copy link" }).click();

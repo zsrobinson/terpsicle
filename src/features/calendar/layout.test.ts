@@ -1045,4 +1045,22 @@ describe("ghostScrollDelta", () => {
       ghostScrollDelta([{ top: 900, bottom: 950 }], { top: 100, bottom: 100 }),
     ).toBe(0);
   });
+
+  it("brings a section just added all the way out from under the drawer", () => {
+    // Its top peeks above the drawer at half: a ghost counts as seen, a
+    // section just added doesn't.
+    const peeking = [{ top: 401, bottom: 449 }];
+    expect(ghostScrollDelta(peeking, view)).toBe(0);
+    expect(ghostScrollDelta(peeking, view, { whole: true })).toBe(
+      449 - 420 + 8,
+    );
+    // Wholly in view already: nothing moves.
+    expect(
+      ghostScrollDelta([{ top: 300, bottom: 360 }], view, { whole: true }),
+    ).toBe(0);
+    // Taller than the band: its top comes just under the band's top.
+    expect(
+      ghostScrollDelta([{ top: 500, bottom: 900 }], view, { whole: true }),
+    ).toBe(500 - 100 - 8);
+  });
 });

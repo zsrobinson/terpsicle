@@ -1,3 +1,4 @@
+import { ActionMenuText } from "~/ui/action-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import { useSyncStatus } from "./status";
 
@@ -56,15 +57,14 @@ export function SyncStatusLine() {
   if (status === "off" || !look) return null;
   const { icon, label, tooltip } = look[status];
   return (
-    <WithTooltip label={tooltip} side="left">
-      <p
-        data-sync-status={status}
-        className="flex items-center gap-2 px-2 py-1.5 text-muted text-sm"
-      >
-        <Glyph paths={icon} size={14} />
-        {label}
-      </p>
-    </WithTooltip>
+    <ActionMenuText>
+      <WithTooltip label={tooltip} side="left">
+        <p data-sync-status={status} className="flex items-center gap-2">
+          <Glyph paths={icon} size={14} />
+          {label}
+        </p>
+      </WithTooltip>
+    </ActionMenuText>
   );
 }
 

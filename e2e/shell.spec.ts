@@ -27,7 +27,7 @@ test.afterEach(() => {
 
 async function open(page: Page, path = "/schedule") {
   await page.goto(path);
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 }
 
 const planTabs = (page: Page) =>
@@ -47,6 +47,10 @@ test.describe("desktop", () => {
     // The Courses tab is headed by the plan it lists.
     await expect(page.getByRole("heading", { name: "Plan A" })).toBeVisible();
     await expect(page.getByTestId("first-visit")).toBeVisible();
+    // The bar's credits show from 1536px; narrower, Share has their room and
+    // the Courses panel's header says them.
+    await expect(page.getByText("0 credits", { exact: true })).toBeHidden();
+    await page.setViewportSize({ width: 1600, height: 900 });
     await expect(page.getByText("0 credits", { exact: true })).toBeVisible();
     await expect(
       page

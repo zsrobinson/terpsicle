@@ -315,7 +315,7 @@ function PlanTab({
 }
 
 /** Inline rename: Enter or clicking away saves, Esc cancels. */
-function RenameInput({
+export function RenameInput({
   plan,
   onDone,
 }: {

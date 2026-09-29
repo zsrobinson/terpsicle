@@ -45,7 +45,13 @@ export function ProductPage(props: ProductPageProps) {
   const { width, children, className } = props;
   if (width === "full")
     return (
-      <main className={cn("flex min-h-0 flex-1 flex-col", className)}>
+      <main
+        className={cn(
+          // A phone's panes end above the tab bar (styles.css).
+          "flex min-h-0 flex-1 flex-col pb-(--tab-bar-space)",
+          className,
+        )}
+      >
         {children}
       </main>
     );
@@ -54,8 +60,8 @@ export function ProductPage(props: ProductPageProps) {
       ? (props.footer ?? true)
       : false;
   return (
-    // The page's end scrolls up clear of the home indicator.
-    <div className="flex min-h-0 flex-1 flex-col pb-(--safe-bottom)">
+    // The page's end scrolls up clear of the tab bar and the home indicator.
+    <div className="flex min-h-0 flex-1 flex-col pb-[max(var(--safe-bottom),var(--tab-bar-space))]">
       <main
         className={cn(
           "mx-auto flex w-full flex-1 flex-col gap-4 px-4 pt-4 pb-8",

@@ -57,7 +57,10 @@ function subscribe(onChange: () => void) {
   return () => media.removeEventListener("change", onChange);
 }
 
-/** Whether menus are sheets here. The kit reads the width itself (it imports only core). */
+/**
+ * Whether menus are sheets here: below `md`, where the phone's tab bar is.
+ * The kit reads the width itself (it imports only core).
+ */
 function usePhoneMenus(): boolean {
   return useSyncExternalStore(
     subscribe,
@@ -89,6 +92,7 @@ function ActionMenu({
   align = "start",
   open: controlledOpen,
   onOpenChange,
+  finalFocus,
   className,
   children,
 }: {
@@ -104,6 +108,12 @@ function ActionMenu({
   align?: "start" | "center" | "end";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Where focus goes as it closes, when not back to the trigger: a field an
+   * item just put in the trigger's place (a rename), or `false` to leave it
+   * where an item sent it.
+   */
+  finalFocus?: () => HTMLElement | false | null;
   /** Classes for the desktop menu's card (a width, say). */
   className?: string;
   children: ReactNode;
@@ -152,7 +162,7 @@ function ActionMenu({
               // trigger's tooltip over what was just picked.
               finalFocus={() => {
                 quietTooltips();
-                return true;
+                return finalFocus?.() ?? true;
               }}
               className={cn(MENU_POPUP, className)}
             >
@@ -192,7 +202,7 @@ function ActionMenu({
           }
           finalFocus={() => {
             quietTooltips();
-            return triggerRef.current ?? true;
+            return finalFocus?.() ?? triggerRef.current ?? true;
           }}
         >
           <div className="shrink-0 px-4 pt-1.5 pb-2">
@@ -282,12 +292,33 @@ const sheetItemClass =
   "relative flex min-h-11 w-full select-none items-center gap-3 px-4 py-2 text-left text-base outline-none active:bg-hover focus-visible:bg-hover aria-disabled:opacity-40 [-webkit-tap-highlight-color:transparent] [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0";
 
 /** The label, with an optional muted line under it. */
-function ItemText({ label, hint }: { label: ReactNode; hint?: ReactNode }) {
+function ItemText({
+  label,
+  hint,
+  note,
+}: {
+  label: ReactNode;
+  hint?: ReactNode;
+  /**
+   * A sheet's line for an item's tooltip: it describes the item (the
+   * caller's `aria-describedby`) rather than naming it, as the tooltip did.
+   */
+  note?: { id: string; text: string };
+}) {
   return (
     <span className="min-w-0 flex-1">
       <span className="block truncate">{label}</span>
       {hint ? (
         <span className="block truncate text-muted text-sm">{hint}</span>
+      ) : null}
+      {note ? (
+        <span
+          id={note.id}
+          aria-hidden="true"
+          className="block text-muted text-sm leading-snug"
+        >
+          {note.text}
+        </span>
       ) : null}
     </span>
   );
@@ -308,6 +339,12 @@ type ItemProps = {
   children: ReactNode;
   /** A muted line under the label ("5 courses · 16 credits"). */
   hint?: ReactNode;
+  /**
+   * More about an item whose label doesn't say enough ("Your plans stay on
+   * this device"): its tooltip in the menu (side left), and in the sheet,
+   * where nothing hovers, its muted line.
+   */
+  tooltip?: string;
   icon?: ReactNode;
   /** Shown in the desktop menu; phones have no keyboard. */
   shortcut?: string;
@@ -316,50 +353,81 @@ type ItemProps = {
   variant?: "default" | "destructive";
 };
 
-/** An action. The menu closes as it runs. */
+/** An action. The menu closes as it runs, unless it's `keepOpen`. */
 function ActionMenuItem({
   children,
   hint,
+  tooltip,
   icon,
   shortcut,
   disabled,
   variant = "default",
+  keepOpen = false,
   onSelect,
-}: ItemProps & { onSelect?: () => void }) {
+}: ItemProps & {
+  onSelect?: () => void;
+  /** Stays open after it runs, to say how it went (a sign-out that failed). */
+  keepOpen?: boolean;
+}) {
   const shape = useContext(ShapeContext);
+  const noteId = useId();
   const tone = variant === "destructive" && "text-error";
   if (shape.kind === "menu")
     return (
-      <Menu.Item
-        disabled={disabled}
-        onClick={() => onSelect?.()}
-        data-variant={variant}
-        className={cn(menuItemClass, tone)}
-      >
-        {icon}
-        <ItemText label={children} hint={hint} />
-        <Shortcut keys={shortcut} />
-        {/* A choice ticks; a destructive one stays silent (its Undo ticks). */}
-        {variant === "destructive" ? null : <HapticTap />}
-      </Menu.Item>
+      <ItemTooltip label={tooltip}>
+        <Menu.Item
+          disabled={disabled}
+          closeOnClick={!keepOpen}
+          onClick={() => onSelect?.()}
+          data-variant={variant}
+          className={cn(menuItemClass, tone)}
+        >
+          {icon}
+          <ItemText label={children} hint={hint} />
+          <Shortcut keys={shortcut} />
+          {/* A choice ticks; a destructive one stays silent (its Undo ticks). */}
+          {variant === "destructive" ? null : <HapticTap />}
+        </Menu.Item>
+      </ItemTooltip>
     );
   return (
     <button
       type="button"
       role="menuitem"
       aria-disabled={disabled || undefined}
+      aria-describedby={tooltip ? noteId : undefined}
       data-variant={variant}
       onClick={() => {
         if (disabled) return;
         onSelect?.();
-        shape.close();
+        if (!keepOpen) shape.close();
       }}
       className={cn(sheetItemClass, tone)}
     >
       {icon}
-      <ItemText label={children} hint={hint} />
+      <ItemText
+        label={children}
+        hint={hint}
+        note={tooltip ? { id: noteId, text: tooltip } : undefined}
+      />
       {variant === "destructive" ? null : <HapticTap />}
     </button>
+  );
+}
+
+/** An item's tooltip in the desktop menu (docs/decisions.md, "Tooltips on controls, not on menu options"). */
+function ItemTooltip({
+  label,
+  children,
+}: {
+  label: string | undefined;
+  children: ReactElement;
+}) {
+  if (!label) return children;
+  return (
+    <WithTooltip label={label} side="left">
+      {children}
+    </WithTooltip>
   );
 }
 
@@ -370,21 +438,28 @@ function ActionMenuItem({
 function ActionMenuLinkItem({
   children,
   hint,
+  tooltip,
   icon,
   shortcut,
   href,
   render,
   current,
+  currentClassName,
 }: Omit<ItemProps, "disabled" | "variant"> & {
   href?: string;
   render?: ReactElement;
   current?: boolean;
+  /** The current page's fill in place of the kit's accent-soft (a product's soft color). */
+  currentClassName?: string;
 }) {
   const shape = useContext(ShapeContext);
+  const noteId = useId();
+  const note =
+    shape.kind === "sheet" && tooltip ? { id: noteId, text: tooltip } : null;
   const content = (
     <>
       {icon}
-      <ItemText label={children} hint={hint} />
+      <ItemText label={children} hint={hint} note={note ?? undefined} />
       {current ? (
         <Check className={cn(shape.kind === "sheet" && "size-4")} />
       ) : null}
@@ -394,20 +469,24 @@ function ActionMenuLinkItem({
   );
   if (shape.kind === "menu")
     return (
-      <Menu.LinkItem
-        href={href}
-        render={render}
-        aria-current={current ? "page" : undefined}
-        className={menuItemClass}
-      >
-        {content}
-      </Menu.LinkItem>
+      <ItemTooltip label={tooltip}>
+        <Menu.LinkItem
+          href={href}
+          render={render}
+          aria-current={current ? "page" : undefined}
+          className={cn(menuItemClass, current && currentClassName)}
+        >
+          {content}
+        </Menu.LinkItem>
+      </ItemTooltip>
     );
   return (
     <SheetLink
       href={href}
       render={render}
       current={current}
+      currentClassName={currentClassName}
+      describedBy={note?.id}
       onPick={shape.close}
     >
       {content}
@@ -419,12 +498,16 @@ function SheetLink({
   href,
   render,
   current,
+  currentClassName = "bg-accent-soft",
+  describedBy,
   onPick,
   children,
 }: {
   href?: string;
   render?: ReactElement;
   current?: boolean;
+  currentClassName?: string;
+  describedBy?: string;
   onPick: () => void;
   children: ReactNode;
 }) {
@@ -436,8 +519,9 @@ function SheetLink({
         role: "menuitem",
         href,
         "aria-current": current ? "page" : undefined,
+        "aria-describedby": describedBy,
         onClick: onPick,
-        className: cn(sheetItemClass, current && "bg-accent-soft"),
+        className: cn(sheetItemClass, current && currentClassName),
       },
       { children },
     ),
@@ -624,6 +708,31 @@ function GroupLabel({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
+/**
+ * Words in the menu that aren't an item (who's signed in, a note), padded
+ * as the items are in either shape.
+ */
+function ActionMenuText({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const shape = useContext(ShapeContext);
+  return (
+    <div
+      className={cn(
+        "text-muted text-sm",
+        shape.kind === "menu" ? "px-2 py-1.5" : "px-4 py-2",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 function ActionMenuSeparator() {
   const shape = useContext(ShapeContext);
   if (shape.kind === "menu")
@@ -640,4 +749,6 @@ export {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuText,
+  usePhoneMenus,
 };

@@ -85,9 +85,15 @@ async function emptyPoint(page: Page, day: string) {
   const column = calendar(page).locator(`[data-day="${day}"]`);
   const point = await column.evaluate((el) => {
     const box = el.getBoundingClientRect();
+    // Empty around the point too (a short drag's end): the hint floats over
+    // the grid's top, and a press that ends on it isn't a press on the day.
     for (let y = box.top + 6; y < box.bottom - 6; y += 8) {
       const x = box.left + box.width / 2;
-      if (document.elementFromPoint(x, y) === el) return { x, y };
+      if (
+        document.elementFromPoint(x, y) === el &&
+        document.elementFromPoint(x + 4, y + 8) === el
+      )
+        return { x, y };
     }
     return null;
   });
@@ -180,4 +186,31 @@ test("travel pills step aside while a course's sections show", async ({
   await expect(pills).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(pills.first()).toBeVisible();
+});
+
+test("a class's right-click menu is its row's, and Remove has Undo", async ({
+  page,
+}) => {
+  // A long press on a phone opens the same menu (the kit's ContextMenu).
+  await calendar(page)
+    .getByRole("button", { name: /^ECON200 0101/ })
+    .first()
+    .click({ button: "right" });
+  const menu = page.getByRole("menu");
+  await expect(
+    menu.getByRole("menuitem", { name: "See sections and details" }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Bookmark instead" }),
+  ).toBeVisible();
+  await menu.getByRole("menuitem", { name: "Remove from plan" }).click();
+  await expect(
+    calendar(page).getByRole("button", { name: /^ECON200 0101/ }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(
+    calendar(page)
+      .getByRole("button", { name: /^ECON200 0101/ })
+      .first(),
+  ).toBeVisible();
 });
