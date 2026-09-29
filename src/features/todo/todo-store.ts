@@ -69,7 +69,7 @@ export interface TodoState {
   load: (today: IsoDate, now: number) => Promise<void>;
   /** Asks ELMS now (the refresh control). */
   refresh: () => Promise<void>;
-  /** Loads the dates a week or month shows, if the list doesn't hold them yet. */
+  /** Loads the dates a week shows, if the list doesn't hold them yet. */
   ensureRange: (want: DateRange) => Promise<void>;
   /** Marks an item done or not; false when the server didn't take it. */
   setDone: (uid: string, done: boolean) => Promise<boolean>;

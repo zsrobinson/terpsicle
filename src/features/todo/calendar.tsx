@@ -10,16 +10,15 @@ import {
   dueTimeLabel,
   dueWords,
   isElmsUrl,
-  monthOf,
-  monthWeeks,
-  NO_DATE,
+  isWeekend,
   shortDayLabel,
   taskFieldsOf,
   weekDates,
-  weekdayNames,
+  weekdayShort,
   weekStartOf,
 } from "~/core/todo";
-import { dotStyle, tintStyle } from "~/features/calendar/tint";
+import { tintStyle } from "~/features/calendar/tint";
+import { DAY_HEADER_HEIGHT } from "~/features/calendar/week-frame";
 import { Button } from "~/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
@@ -28,11 +27,10 @@ import { TaskEditor } from "./task-form";
 import { CourseTag, SOURCE_WORDS, TodoCheckbox } from "./todo-item";
 import { type CheckedVia, Rows, TaskMenu, type ViewProps } from "./todo-lists";
 
-// Todo's calendar (docs/V3.md §3.9): the week, seven days side by side,
-// each item a card in its course's tint; the month, a grid of days with the
-// first few items in each. A click on a day's empty space starts a task on
-// that day. Phones get the week as a day-by-day agenda, and the month as a
-// grid of dots over the day picked.
+// Todo's week (docs/V3.md §3.9): seven days side by side, edge to edge and
+// shaded as Schedule's week is, each item a card in its course's tint. A
+// click on a day's empty space starts a task on that day. Phones get the
+// same week as its days, one under another.
 
 /** The items due on each date, soonest first. */
 function byDate(items: readonly TodoItem[]): Map<IsoDate, TodoItem[]> {
@@ -242,76 +240,77 @@ function WeekCard({ item, props }: { item: TodoItem; props: ViewProps }) {
   );
 }
 
-/** Own tasks with no date, under the calendar, since no day holds them. */
-function Undated({ props }: { props: ViewProps }) {
-  const undated = props.items
-    .filter((i) => i.dueDate === null && !props.done.has(i.uid))
-    .sort(compareItems);
-  if (undated.length === 0) return null;
+/**
+ * How a day is shaded, as on Schedule's week: the weekend one step of gray,
+ * today's heading two, and today's body left as paper, so its cards read
+ * as they do on any other day (the owner, 2026-09-29).
+ */
+function dayShade(date: IsoDate, today: IsoDate) {
+  const weekend = isWeekend(date);
+  return {
+    head: date === today ? "bg-hover" : weekend ? "bg-panel" : "bg-bg",
+    body: weekend ? "bg-panel" : undefined,
+  };
+}
+
+/** What a screen reader hears for a day's heading: its whole date and what's due. */
+function DayWords({
+  date,
+  today,
+  count,
+}: {
+  date: IsoDate;
+  today: IsoDate;
+  count: number;
+}) {
+  const label = dayLabel(date, today);
   return (
-    <section aria-labelledby="todo-no-date" className="mt-6">
-      <h2
-        id="todo-no-date"
-        className="emph-heading border-hairline border-b pb-1 text-base"
-      >
-        {NO_DATE}
-      </h2>
-      <ul>
-        <Rows items={undated} done={false} props={props} />
-      </ul>
-    </section>
+    <span className="sr-only">
+      {label}
+      {label.includes(",") ? "" : `, ${shortDayLabel(date)}`}:{" "}
+      {count === 0 ? "nothing due" : `${count} due`}
+    </span>
   );
 }
 
 /**
- * The day's heading over its column: the weekday, then its date, today
- * marked in Todo's color. A screen reader hears the whole date and what's due.
- * An h2, as the phone's days: each day is a section of the page's h1.
+ * The day's heading over its column, in the week's row of day names, the
+ * height of Schedule's. An h2: each day is a section of the page's h1.
  */
 function DayHead({
   date,
-  name,
   today,
   count,
-  className,
 }: {
   date: IsoDate;
-  name: string;
   today: IsoDate;
   count: number;
-  className?: string;
 }) {
   const isToday = date === today;
   return (
     <h2
       className={cn(
-        // A day's name heads its column of tasks: Label, and today Heading.
-        "flex items-baseline gap-1.5 px-2 py-1.5 text-sm",
+        // Pinned while the week scrolls, as Schedule's day names are.
+        "sticky top-0 z-10 flex shrink-0 items-center gap-1.5 border-hairline border-b px-2 text-sm",
+        // A day's name heads its column: Label, and today Heading.
         isToday ? "emph-heading" : "emph-label",
-        className,
+        dayShade(date, today).head,
       )}
+      style={{ height: DAY_HEADER_HEIGHT }}
     >
-      <span aria-hidden="true">{name}</span>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "tnum",
-          isToday &&
-            "bg-product-todo-soft px-1 text-product-todo-text shadow-[inset_0_-2px_0_var(--product-todo-line)]",
-        )}
-      >
+      <span aria-hidden="true">{weekdayShort(date)}</span>
+      <span aria-hidden="true" className="tnum">
         {Number(date.slice(8))}
       </span>
-      <span className="sr-only">
-        {dayLabel(date, today)}
-        {dayLabel(date, today).includes(",") ? "" : `, ${shortDayLabel(date)}`}:{" "}
-        {count === 0 ? "nothing due" : `${count} due`}
-      </span>
+      <DayWords date={date} today={today} count={count} />
     </h2>
   );
 }
 
-/** Desktop: the week as seven columns. */
+/**
+ * Desktop: the week as seven columns, edge to edge under the bar, as
+ * Schedule's week is.
+ */
 export function WeekGrid({
   anchor,
   props,
@@ -319,51 +318,44 @@ export function WeekGrid({
   anchor: IsoDate;
   props: ViewProps;
 }) {
-  const dates = weekDates(weekStartOf(anchor, props.weekStart));
-  const names = weekdayNames(props.weekStart);
+  const dates = weekDates(weekStartOf(anchor));
   const due = byDate(props.items);
   return (
-    <>
-      <section
-        aria-label="The week"
-        className="grid min-h-[420px] flex-1 grid-cols-7 border-hairline border-t border-l"
-      >
-        {dates.map((date, i) => {
-          const items = due.get(date) ?? [];
-          return (
-            <div
-              key={date}
-              id={`day-${date}`}
-              className={cn(
-                "flex min-w-0 flex-col border-hairline border-r border-b",
-                date === props.today && "bg-panel",
-              )}
-            >
-              <DayHead
-                date={date}
-                name={names[i] ?? ""}
-                today={props.today}
-                count={items.length}
-                className="border-hairline border-b"
-              />
-              {items.length > 0 ? (
-                <ul className="space-y-1 p-1">
-                  {items.map((item) => (
-                    <WeekCard key={item.uid} item={item} props={props} />
-                  ))}
-                </ul>
-              ) : null}
-              <AddOnDay date={date} className="min-h-10 flex-1" />
-            </div>
-          );
-        })}
-      </section>
-      <Undated props={props} />
-    </>
+    <section aria-label="The week" className="grid flex-1 grid-cols-7">
+      {dates.map((date, i) => {
+        const items = due.get(date) ?? [];
+        return (
+          <div
+            key={date}
+            id={`day-${date}`}
+            data-weekend={isWeekend(date) || undefined}
+            data-today={date === props.today || undefined}
+            className={cn(
+              "flex min-w-0 flex-col",
+              i > 0 && "border-hairline border-l",
+              dayShade(date, props.today).body,
+            )}
+          >
+            <DayHead date={date} today={props.today} count={items.length} />
+            {items.length > 0 ? (
+              <ul className="space-y-1 p-1">
+                {items.map((item) => (
+                  <WeekCard key={item.uid} item={item} props={props} />
+                ))}
+              </ul>
+            ) : null}
+            <AddOnDay date={date} className="min-h-10 flex-1" />
+          </div>
+        );
+      })}
+    </section>
   );
 }
 
-/** Phones: the week as a list of its days, each with its items and "+ Add". */
+/**
+ * Phones: the week as its days, one under another, each under a heading
+ * shaded as the desktop's are, with its rows and a + to add a task there.
+ */
 export function WeekAgenda({
   anchor,
   props,
@@ -371,256 +363,64 @@ export function WeekAgenda({
   anchor: IsoDate;
   props: ViewProps;
 }) {
-  const dates = weekDates(weekStartOf(anchor, props.weekStart));
+  const dates = weekDates(weekStartOf(anchor));
   const due = byDate(props.items);
   return (
-    <div className="space-y-4">
+    <section aria-label="The week">
       {dates.map((date) => {
         const items = due.get(date) ?? [];
         const open = items.filter((i) => !props.done.has(i.uid));
         const done = items.filter((i) => props.done.has(i.uid));
+        const shade = dayShade(date, props.today);
+        const add = `Add a task on ${shortDayLabel(date)}`;
         return (
           <section
             key={date}
             id={`day-${date}`}
             aria-labelledby={`todo-day-${date}`}
-            className="scroll-mt-4"
+            className={cn("border-hairline border-b", shade.body)}
           >
-            <h2
-              id={`todo-day-${date}`}
+            <div
               className={cn(
-                // Every day is a heading, today or not: never dimmed.
-                "emph-heading flex items-baseline gap-2 border-hairline border-b pb-1 text-base",
+                "flex h-11 items-center gap-2 border-hairline border-b pr-1 pl-4",
+                shade.head,
               )}
             >
-              {dayLabel(date, props.today)}
-              {date === props.today || date === addDays(props.today, 1) ? (
-                <span className="emph-meta">{shortDayLabel(date)}</span>
-              ) : null}
-            </h2>
+              <h2
+                id={`todo-day-${date}`}
+                className={cn(
+                  "flex min-w-0 flex-1 items-baseline gap-2 text-sm",
+                  date === props.today ? "emph-heading" : "emph-label",
+                )}
+              >
+                {dayLabel(date, props.today)}
+                {date === props.today || date === addDays(props.today, 1) ? (
+                  <span className="emph-meta">{shortDayLabel(date)}</span>
+                ) : null}
+              </h2>
+              <WithTooltip label={add} shortcut="Q">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={add}
+                  onClick={() => startTask(date)}
+                >
+                  <Plus aria-hidden="true" />
+                </Button>
+              </WithTooltip>
+            </div>
             {items.length === 0 ? (
-              <p className="emph-secondary py-2 text-sm">Nothing due</p>
+              <p className="emph-secondary px-4 py-3 text-sm">Nothing due</p>
             ) : (
-              <ul>
+              <ul className="px-4">
                 <Rows items={open} done={false} props={props} />
                 <Rows items={done} done props={props} />
               </ul>
             )}
-            <AddOnDay date={date} className="h-11 items-center">
-              <Plus size={14} aria-hidden="true" className="ml-0.5" />
-              Add a task
-            </AddOnDay>
           </section>
         );
       })}
-      <Undated props={props} />
-    </div>
-  );
-}
-
-/** How many items a month's day shows before "+2 more". */
-const MONTH_SHOWN = 3;
-
-/** One item in a month's day: its course's dot and its title. */
-function MonthChip({ item, props }: { item: TodoItem; props: ViewProps }) {
-  const done = props.done.has(item.uid);
-  const { color } = props.look(item);
-  return (
-    <li data-testid="todo-chip">
-      <WithDetails item={item} props={props} via="month">
-        {({ label }) => (
-          <button
-            type="button"
-            aria-label={label}
-            className="flex min-h-6 w-full min-w-0 items-center gap-1.5 px-1 text-left text-xs hover:bg-hover"
-          >
-            <span
-              aria-hidden="true"
-              className={cn("size-2 shrink-0", !color && "bg-muted")}
-              style={color && !done ? dotStyle(color) : undefined}
-            />
-            <span
-              data-private=""
-              className={cn(
-                "min-w-0 truncate",
-                done ? "text-muted line-through" : "text-fg",
-              )}
-            >
-              {item.title}
-            </span>
-          </button>
-        )}
-      </WithDetails>
-    </li>
-  );
-}
-
-/** Desktop: the month as a grid of days. */
-export function MonthGrid({
-  anchor,
-  props,
-  weekLink,
-}: {
-  anchor: IsoDate;
-  props: ViewProps;
-  /** "+2 more" opens that day's week. */
-  weekLink: (date: IsoDate, more: number) => ReactNode;
-}) {
-  const weeks = monthWeeks(anchor, props.weekStart);
-  const month = monthOf(anchor);
-  const names = weekdayNames(props.weekStart);
-  const due = byDate(props.items);
-  return (
-    <>
-      <section
-        aria-label="The month"
-        // Fills the page under the bar, as the week does: its weeks share
-        // the height.
-        className="flex flex-1 flex-col border-hairline border-t border-l"
-      >
-        <div aria-hidden="true" className="grid grid-cols-7">
-          {names.map((name) => (
-            <div
-              key={name}
-              className="border-hairline border-r border-b px-2 py-1 text-muted text-xs"
-            >
-              {name}
-            </div>
-          ))}
-        </div>
-        {weeks.map((week) => (
-          <div key={week[0]} className="grid flex-1 grid-cols-7">
-            {week.map((date) => {
-              const items = due.get(date) ?? [];
-              const inMonth = monthOf(date) === month;
-              const more = items.length - MONTH_SHOWN;
-              return (
-                <div
-                  key={date}
-                  id={`day-${date}`}
-                  className={cn(
-                    "flex min-h-28 min-w-0 flex-col border-hairline border-r border-b",
-                    !inMonth && "bg-panel",
-                  )}
-                >
-                  <DayHead
-                    date={date}
-                    name=""
-                    today={props.today}
-                    count={items.length}
-                    className={cn("py-1", !inMonth && "text-muted")}
-                  />
-                  {items.length > 0 ? (
-                    <ul className="space-y-0.5 px-0.5">
-                      {items.slice(0, MONTH_SHOWN).map((item) => (
-                        <MonthChip key={item.uid} item={item} props={props} />
-                      ))}
-                    </ul>
-                  ) : null}
-                  {more > 0 ? weekLink(date, more) : null}
-                  <AddOnDay date={date} className="min-h-4 flex-1" />
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </section>
-      <Undated props={props} />
-    </>
-  );
-}
-
-/**
- * Phones: the month as a grid of days with a dot for what's due, and the
- * day picked (`?date`) listed under it.
- */
-export function MonthPicker({
-  anchor,
-  props,
-  dayLink,
-}: {
-  anchor: IsoDate;
-  props: ViewProps;
-  /** A day in the grid: picks it (`?date`). */
-  dayLink: (date: IsoDate, children: ReactNode, label: string) => ReactNode;
-}) {
-  const weeks = monthWeeks(anchor, props.weekStart);
-  const month = monthOf(anchor);
-  const names = weekdayNames(props.weekStart);
-  const due = byDate(props.items);
-  const picked = anchor;
-  const items = due.get(picked) ?? [];
-  const open = items.filter((i) => !props.done.has(i.uid));
-  const done = items.filter((i) => props.done.has(i.uid));
-  return (
-    <div className="space-y-4">
-      <nav aria-label="Days of the month">
-        <div aria-hidden="true" className="grid grid-cols-7">
-          {names.map((name) => (
-            <div key={name} className="py-1 text-center text-muted text-xs">
-              {name.slice(0, 2)}
-            </div>
-          ))}
-        </div>
-        {weeks.map((week) => (
-          <div key={week[0]} className="grid grid-cols-7">
-            {week.map((date) => {
-              const count = (due.get(date) ?? []).filter(
-                (i) => !props.done.has(i.uid),
-              ).length;
-              const inMonth = monthOf(date) === month;
-              return (
-                <div key={date} className="flex justify-center">
-                  {dayLink(
-                    date,
-                    <span
-                      className={cn(
-                        "flex size-11 flex-col items-center justify-center gap-0.5 text-sm",
-                        !inMonth && "text-muted",
-                        date === picked && "bg-accent-soft font-semibold",
-                        date === props.today &&
-                          "text-product-todo-text shadow-[inset_0_-2px_0_var(--product-todo-line)]",
-                      )}
-                    >
-                      <span className="tnum">{Number(date.slice(8))}</span>
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "size-1 rounded-full",
-                          count > 0 ? "bg-fg" : "bg-transparent",
-                        )}
-                      />
-                    </span>,
-                    `${shortDayLabel(date)}, ${count === 0 ? "nothing due" : `${count} due`}`,
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </nav>
-      <section aria-labelledby="todo-picked-day">
-        <h2
-          id="todo-picked-day"
-          className="emph-heading border-hairline border-b pb-1 text-base"
-        >
-          {dayLabel(picked, props.today)}
-        </h2>
-        {items.length === 0 ? (
-          <p className="emph-secondary py-2 text-sm">Nothing due</p>
-        ) : (
-          <ul>
-            <Rows items={open} done={false} props={props} />
-            <Rows items={done} done props={props} />
-          </ul>
-        )}
-        <AddOnDay date={picked} className="h-11 items-center">
-          <Plus size={14} aria-hidden="true" className="ml-0.5" />
-          Add a task
-        </AddOnDay>
-      </section>
-      <Undated props={props} />
-    </div>
+    </section>
   );
 }
 

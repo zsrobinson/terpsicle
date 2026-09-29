@@ -130,62 +130,38 @@ function shift(date: string, days: number): string {
 /** New York's date today. */
 const today = () => newYorkClock(Date.now()).date;
 
-/** The bar's panels: a popover on a desktop, a sheet on a phone. */
-const taskPanel = (page: Page) =>
-  page.getByRole("dialog", { name: "Add a task" });
-const coursesPanel = (page: Page) =>
-  page.getByRole("dialog", { name: "Courses and ELMS" });
-
-/** Opens the courses' weeks, ELMS and the week's start, from the bar. */
-async function openPanel(page: Page) {
-  if (await coursesPanel(page).isVisible()) return;
-  await page
-    .getByRole("banner")
-    .getByRole("button", { name: "Courses and ELMS" })
-    .click();
-  await expect(coursesPanel(page)).toBeVisible();
-}
-
-/** Closes it, so the page behind is the page again. */
-async function closePanel(page: Page) {
-  if (!(await coursesPanel(page).isVisible())) return;
-  await page.keyboard.press("Escape");
-  await expect(coursesPanel(page)).toBeHidden();
-}
+/** ELMS's line at the top of the sidebar (the drawer's, on a phone). */
+const elms = (page: Page) => page.getByRole("region", { name: "ELMS" });
 
 /**
- * Week, Month or List: the bar's view switch on a desktop, its calendar
- * sheet on a phone.
+ * Opens ELMS's settings: the line's settings icon, or Connect while there's
+ * no link. A popover on a desktop, a sheet on a phone.
  */
-async function showView(page: Page, isMobile: boolean, name: string) {
-  if (isMobile) {
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Views and dates" })
-      .click();
-    await page
-      .getByRole("menuitemradio", { name: new RegExp(`^${name}`) })
-      .click();
-    return;
-  }
-  await page
-    .getByRole("navigation", { name: "Todo views" })
-    .getByRole("link", { name })
-    .click();
+async function openElms(page: Page) {
+  const settings = elms(page).getByRole("button", {
+    name: /^(ELMS settings|Connect)$/,
+  });
+  await settings.click();
+  const dialog = page.getByRole("dialog", {
+    name: /^(ELMS settings|Connect ELMS)$/,
+  });
+  await expect(dialog).toBeVisible();
+  return dialog;
 }
 
-/** Ahead a week: the bar's arrow on a desktop, its calendar sheet on a phone. */
-async function aheadAWeek(page: Page, isMobile: boolean) {
-  if (isMobile) {
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Views and dates" })
-      .click();
-    await page.getByRole("menuitem", { name: /^Ahead a week/ }).click();
-    return;
-  }
-  await page.getByRole("link", { name: "Ahead a week" }).click();
+/** On a phone, raises the drawer to half, where the sidebar's sections show. */
+async function raiseDrawer(page: Page, isMobile: boolean) {
+  if (!isMobile) return;
+  const drawer = page.locator("[data-workbench-drawer]");
+  await expect(drawer).toBeVisible({ timeout: 20_000 });
+  if ((await drawer.getAttribute("data-snap")) !== "peek") return;
+  await page.getByRole("button", { name: "Raise the panel" }).tap();
+  await expect(drawer).toHaveAttribute("data-snap", "half");
 }
+
+/** The whole week's bar: the sidebar's, or the drawer's strip on a phone. */
+const weekBar = (page: Page) =>
+  page.getByRole("progressbar", { name: /, every course$/ });
 
 test("signed out, /todo is the front door", async ({ page }) => {
   await page.goto("/todo");
@@ -206,50 +182,52 @@ test("signed out, /todo is the front door", async ({ page }) => {
   await axe(page, "front door");
 });
 
-test("connect ELMS, check things off on the week, move around, disconnect with Undo", async ({
+test("connect ELMS, check things off on the week as its bars fill, move around, disconnect with Undo", async ({
   page,
   isMobile,
 }) => {
   test.setTimeout(120_000);
   await signIn(page, isMobile);
 
-  // The first visit: what Todo does, its two ways in, and the week it fills.
-  await expect(
-    page.getByRole("heading", { name: "Your deadlines, on a calendar" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Connect ELMS" }),
-  ).toHaveAttribute("href", "/todo/connect");
+  // The first visit: the empty week, what lands there, and its two ways in.
+  await expect(page.getByText(/^Your deadlines, on a calendar/)).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ – /);
+  await expect(elms(page)).toContainText("Connect ELMS to fill in your week");
   await axe(page, "first visit");
 
-  await openPanel(page);
-  const link = page.getByLabel("ELMS calendar link");
-  const connect = page.getByRole("button", { name: "Connect ELMS" });
+  // The first visit's Connect ELMS opens the sidebar's paste.
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "Connect ELMS" })
+    .click();
+  const connect = page.getByRole("dialog", { name: "Connect ELMS" });
+  await expect(connect).toBeVisible();
+  const link = connect.getByLabel("ELMS calendar link");
+  const submit = connect.getByRole("button", { name: "Connect ELMS" });
   // Once the popover's pop-in has settled.
   await expect
     .poll(async () => (await link.boundingBox())?.height ?? 0)
     .toBeGreaterThanOrEqual(isMobile ? 44 : 32);
+  await axe(page, "connect ELMS");
   await link.fill("https://elms.umd.edu/calendar");
-  await connect.click();
+  await submit.click();
   await expect(
-    page.getByText(/That isn't an ELMS calendar link/),
+    connect.getByText(/That isn't an ELMS calendar link/),
   ).toBeVisible();
 
   await link.fill(testFeedLink(TEST_FEED_TOKENS.gone));
-  await connect.click();
+  await submit.click();
   // Test mode's gone link answers 404: the reset-link sentence.
   await expect(
-    page.getByText(/^ELMS doesn't know that link anymore/),
+    connect.getByText(/^ELMS doesn't know that link anymore/),
   ).toBeVisible();
   await expect(link).toHaveValue("");
 
   await link.fill(testFeedLink(TEST_FEED_TOKENS.calendar));
-  await connect.click();
-
-  // The fixture feed: six items from two days ago to six days ahead.
-  const status = page.getByText(/^6 open · ELMS feed checked/);
-  await expect(status).toBeVisible();
+  await submit.click();
+  // Connected: it closes, and the sidebar says when ELMS last synced.
+  await expect(connect).toBeHidden();
+  await expect(elms(page)).toContainText(/ELMS synced (just now|1 minute ago)/);
   await expect(page.locator("body")).not.toContainText(
     TEST_FEED_TOKENS.calendar,
   );
@@ -266,59 +244,62 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   const box = await page.locator("label", { has: project }).boundingBox();
   if (isMobile) expect(box?.height).toBeGreaterThanOrEqual(44);
 
+  // The week's bar fills by one as it's checked off.
+  const bar = weekBar(page);
+  await expect(bar).toHaveAttribute("aria-valuenow", "0");
+  const total = Number(await bar.getAttribute("aria-valuemax"));
+  expect(total).toBeGreaterThanOrEqual(2);
   await project.click();
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
+  await expect(bar).toHaveAttribute("aria-valuenow", "1");
+  await expect(bar).toHaveAttribute("aria-valuetext", `1 of ${total} done`);
   // A check has Undo, like every change: it comes back, then goes again.
   await expect(page.getByText("Marked Project 2 done")).toBeVisible();
   await liveToasts(page).getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByText(/^6 open · /)).toBeVisible();
+  await expect(bar).toHaveAttribute("aria-valuenow", "0");
   await expect(project).not.toBeChecked();
   await project.click();
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
+  await expect(bar).toHaveAttribute("aria-valuenow", "1");
 
   // Done marks are the server's: they survive a reload.
   await page.reload();
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
   await expect(project).toBeChecked();
+  await expect(weekBar(page)).toHaveAttribute("aria-valuenow", "1");
 
-  // Each view, and each week, is a URL that Back and a copied link keep.
-  await showView(page, isMobile, "Month");
-  await expect(page).toHaveURL(/view=month/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    /^[A-Z][a-z]+ \d{4}$/,
-  );
-  await axe(page, "month");
-  await showView(page, isMobile, "List");
-  await expect(page).toHaveURL(/view=list/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Everything due" }),
-  ).toBeVisible();
-  await axe(page, "list");
-  await showView(page, isMobile, "Week");
-  await expect(page).toHaveURL(/view=week/);
+  // Each week is a URL that Back and a copied link keep.
   const title = await page.getByRole("heading", { level: 1 }).textContent();
-  await aheadAWeek(page, isMobile);
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "Ahead a week" })
+    .click();
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(
     title ?? "",
   );
   await page.goBack();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(title ?? "");
   if (!isMobile) {
-    // Keys: M for the month, T for today's, W back to the week.
+    // Keys: N ahead, T back to today's week.
+    // On a day's name, not the space under it (that starts a task).
     await page.locator("main").click({ position: { x: 5, y: 5 } });
-    await page.keyboard.press("m");
-    await expect(page).toHaveURL(/view=month/);
-    await page.keyboard.press("w");
-    await expect(page).toHaveURL(/view=week/);
+    await page.keyboard.press("n");
+    await expect(page).toHaveURL(/date=/);
+    await page.keyboard.press("t");
+    await expect(page).toHaveURL(/\/todo$/);
   }
+
+  // An old link to the month or the list opens the week.
+  await page.goto("/todo?view=month");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ – /);
+  await expect(page.getByRole("checkbox").first()).toBeVisible();
 
   // ?day= opens that day's week (the due-tomorrow push links there).
   await page.goto(`/todo?day=${today()}`);
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
+  await expect(elms(page)).toContainText("ELMS synced");
 
   // Disconnect: at once, Undo in the toast, no dialog.
-  await openPanel(page);
-  await page.getByRole("link", { name: "ELMS link" }).click();
+  const settings = await openElms(page);
+  await settings
+    .getByRole("link", { name: "Disconnect or add a file" })
+    .click();
   await expect(page).toHaveURL(/\/todo\/connect$/);
   await expect(
     page.getByRole("heading", { name: "ELMS link", level: 1 }),
@@ -347,15 +328,47 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   await expect(
     page.getByText("Added 6 deadlines from the file."),
   ).toBeVisible();
-  await page.goto("/todo?view=list");
-  await expect(page.getByText("From a file").first()).toBeVisible();
-  await expect(page.getByText(/^6 open$/)).toBeVisible();
-  await openPanel(page);
-  await expect(page.getByText(/Some deadlines came from a file/)).toBeVisible();
+  await page.goto(`/todo?date=${shift(today(), 1)}`);
+  await expect(page.getByText("Project 2")).toBeVisible();
+  await expect(elms(page)).toContainText("Connect ELMS to fill in your week");
+  const offer = await openElms(page);
+  await expect(
+    offer.getByText(/Some deadlines came from a file/),
+  ).toBeVisible();
   expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
 });
 
-test("each course's week, and hiding a course with Undo", async ({
+test("ELMS's settings sync now and take a new link", async ({
+  page,
+  isMobile,
+}) => {
+  await signIn(page, isMobile);
+  expect(
+    await post(page, "todo/connect", {
+      url: testFeedLink(TEST_FEED_TOKENS.calendar),
+    }),
+  ).toBe(200);
+  await page.reload();
+  await expect(elms(page)).toContainText("ELMS synced");
+  const settings = await openElms(page);
+  await expect(settings.getByText(/^Synced /)).toBeVisible();
+  await axe(page, "ELMS settings");
+  // Just connected: ELMS was read moments ago, and says so.
+  await settings.getByRole("button", { name: "Sync now" }).click();
+  await expect(
+    settings.getByText("ELMS was synced in the last 5 minutes."),
+  ).toBeVisible();
+  // The same link again, as a new one: it takes it, and closes.
+  await settings
+    .getByLabel("ELMS calendar link")
+    .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
+  await settings.getByRole("button", { name: "Save the new link" }).click();
+  await expect(settings).toBeHidden();
+  await expect(elms(page)).toContainText("ELMS synced");
+  expect(await post(page, "todo/disconnect")).toBe(200);
+});
+
+test("each course's bar for the week, and hiding a course with Undo", async ({
   page,
   isMobile,
 }) => {
@@ -366,39 +379,40 @@ test("each course's week, and hiding a course with Undo", async ({
       url: testFeedLink(TEST_FEED_TOKENS.calendar),
     }),
   ).toBe(200);
-  await page.goto("/todo");
-  await expect(page.getByText(/^6 open · /)).toBeVisible();
-  await openPanel(page);
+  // The week Reading response 3 (ENGL101, in three days) is in.
+  await page.goto(`/todo?date=${shift(today(), 3)}`);
+  await expect(page.getByText("Reading response 3").first()).toBeVisible();
+  await raiseDrawer(page, isMobile);
 
-  // The chart: every course, its week in words, and its last four weeks.
+  // Each course: its words and its bar, in its color.
   const courses = page.getByRole("list", { name: "Courses" });
   const engl = courses.getByRole("listitem", { name: "ENGL101" });
-  await expect(engl).toBeVisible();
+  await expect(engl.getByText("0 of 1 done")).toBeVisible();
   await expect(
-    courses.getByRole("img", { name: /^CMSC216 by week: week of / }),
-  ).toBeVisible();
-  await axe(page, "the courses' weeks");
+    engl.getByRole("progressbar", { name: "ENGL101 this week" }),
+  ).toHaveAttribute("aria-valuetext", "0 of 1 done");
+  await axe(page, "the week's bars");
 
   // Hide a course from its row: its items go, with Undo.
+  const before = Number(await weekBar(page).getAttribute("aria-valuemax"));
   await engl.getByRole("button", { name: "Hide ENGL101" }).click();
   await expect(engl.getByText("Hidden everywhere in Todo")).toBeVisible();
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
+  await expect(weekBar(page)).toHaveAttribute(
+    "aria-valuemax",
+    String(before - 1),
+  );
   await liveToasts(page).getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByText(/^6 open · /)).toBeVisible();
+  await expect(weekBar(page)).toHaveAttribute("aria-valuemax", String(before));
 
   // Hidden again, it stays hidden: it's the account's, like done marks.
-  await openPanel(page);
   await engl.getByRole("button", { name: "Hide ENGL101" }).click();
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
-  await page.goto("/todo?view=list");
-  await expect(page.getByText(/^5 open · /)).toBeVisible();
+  await expect(engl.getByText("Hidden everywhere in Todo")).toBeVisible();
+  await page.reload();
+  await raiseDrawer(page, isMobile);
+  await expect(engl.getByText("Hidden everywhere in Todo")).toBeVisible();
   await expect(page.getByText("Reading response 3")).toHaveCount(0);
-  await openPanel(page);
-  await courses
-    .getByRole("listitem", { name: "ENGL101" })
-    .getByRole("button", { name: "Show ENGL101" })
-    .click();
-  await expect(page.getByText("Reading response 3")).toBeVisible();
+  await engl.getByRole("button", { name: "Show ENGL101" }).click();
+  await expect(page.getByText("Reading response 3").first()).toBeVisible();
   expect(await post(page, "todo/disconnect")).toBe(200);
 });
 
@@ -409,7 +423,7 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   test.setTimeout(120_000);
   await signIn(page, isMobile);
 
-  // Without ELMS, the first visit's "Add a task" opens the bar's composer.
+  // Without ELMS, the first visit's "Add a task" focuses the sidebar's composer.
   await page
     .getByRole("main")
     .getByRole("button", { name: "Add a task", exact: true })
@@ -418,24 +432,10 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(composer).toBeFocused();
   await composer.fill("Email my advisor");
   await composer.press("Enter");
-  // It closes on the add, to show the task.
-  await expect(taskPanel(page)).toBeHidden();
-  await expect(page.getByRole("heading", { name: "No date" })).toBeVisible();
-  await expect(page.getByText("Email my advisor")).toBeVisible();
-
-  // The bar's + opens it again, and Q. On a desktop + closes it too (a
-  // phone's sheet covers the bar, and closes with a swipe or Esc).
-  const plus = page.getByRole("banner").getByRole("button", {
-    name: "Add a task",
-  });
-  await plus.click();
-  await expect(composer).toBeFocused();
-  if (isMobile) await page.keyboard.press("Escape");
-  else await plus.click();
-  await expect(taskPanel(page)).toBeHidden();
-  if (isMobile) await plus.click();
-  else await page.keyboard.press("q");
-  await expect(composer).toBeFocused();
+  // No date: under No date, right under the composer, which is ready again.
+  const noDate = page.getByRole("region", { name: "No date" });
+  await expect(noDate.getByText("Email my advisor")).toBeVisible();
+  await expect(composer).toHaveValue("");
 
   // The date and time read from the words, marked, and shown as chips.
   await composer.fill("Office hours tomorrow 3pm");
@@ -444,39 +444,46 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(page.locator("mark")).toHaveText(["tomorrow", "3pm"]);
   await axe(page, "the composer");
   await composer.press("Enter");
-  await expect(taskPanel(page)).toBeHidden();
 
-  await page.goto("/todo?view=list");
-  const tomorrow = page.getByRole("region", { name: "Tomorrow" });
-  await expect(tomorrow.getByText("Office hours")).toBeVisible();
-  await expect(tomorrow.getByText("3pm")).toBeVisible();
+  // It lands on tomorrow, in tomorrow's week.
+  const tomorrow = shift(today(), 1);
+  await page.goto(`/todo?date=${tomorrow}`);
+  const day = page.locator(`#day-${tomorrow}`);
+  await expect(day.getByText("Office hours")).toBeVisible();
 
-  if (!isMobile) {
-    // An empty day on the week starts a task there.
-    const day = shift(today(), 2);
-    await page.goto(`/todo?date=${day}`);
-    const add = page.getByRole("button", {
-      name: new RegExp(`^Add a task on .+ ${Number(day.slice(8))}$`),
-    });
-    await add.click();
-    await expect(page.getByRole("textbox", { name: "New task" })).toBeFocused();
-    await expect(page.getByLabel("Due date")).toHaveValue(day);
-    await page.goto("/todo?view=list");
+  // A day's + (a desktop's empty space under its cards) starts a task there.
+  const other = shift(today(), 2);
+  await page.goto(`/todo?date=${other}`);
+  await page
+    .getByRole("button", {
+      name: new RegExp(`^Add a task on .+ ${Number(other.slice(8))}$`),
+    })
+    .click();
+  await expect(composer).toBeFocused();
+  await expect(chips).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // Change it from its details: a new title, and no date.
+  await page.goto(`/todo?date=${tomorrow}`);
+  if (isMobile)
+    await day.getByRole("button", { name: "Office hours options" }).click();
+  else {
+    await day.getByRole("button", { name: "Office hours, details" }).click();
+    await page.getByRole("button", { name: "Office hours options" }).click();
   }
-
-  // Change it in place: a new title, and no date.
-  await page.getByRole("button", { name: "Office hours options" }).click();
   await page.getByRole("menuitem", { name: "Edit" }).click();
-  const title = page.getByRole("textbox", { name: "Title" });
+  // In the row's place on a phone, in the details on a desktop.
+  const editor = isMobile ? day : page.getByRole("dialog");
+  const title = editor.getByRole("textbox", { name: "Title" });
   await expect(title).toBeFocused();
   await title.fill("Office hours, bring Project 2");
-  await page.getByLabel("Due date").last().fill("");
-  await page.getByRole("button", { name: "Save" }).click();
-  const noDate = page.getByRole("region", { name: "No date" });
+  await editor.getByLabel("Due date").fill("");
+  await editor.getByRole("button", { name: "Save" }).click();
+  await raiseDrawer(page, isMobile);
   await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
 
   // Delete: at once, no dialog, and Undo puts it back.
-  await page
+  await noDate
     .getByRole("button", { name: "Office hours, bring Project 2 options" })
     .click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
@@ -486,39 +493,67 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(
     liveToasts(page).getByText("Deleted Office hours, bring Project 2"),
   ).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // No dialog (a phone's drawer is one, and stays).
+  await expect(
+    page.locator('[role="dialog"]:not([data-workbench-drawer])'),
+  ).toHaveCount(0);
   await liveToasts(page).getByRole("button", { name: "Undo" }).click();
   await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Office hours, bring Project 2")).toBeVisible();
+  await raiseDrawer(page, isMobile);
+  await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
   await deleteOwnTasks(page);
 });
 
-test("weeks start on Monday, or Sunday by the setting", async ({
+test("weeks start on Monday, whatever an account saved before", async ({
   page,
   isMobile,
 }) => {
   await signIn(page, isMobile);
-  // A Wednesday, so both starts are in the same week.
+  // A Wednesday.
   await page.goto("/todo?date=2026-09-30");
-  const heading = page.getByRole("heading", { level: 1 });
-  await openPanel(page);
-  // From Monday, the default, whatever an earlier run left on the account:
-  // Sunday first, so a press changes it even before the account's prefs
-  // are read (Monday shows until then).
-  await page.getByRole("radio", { name: "Sunday" }).click();
-  await page.getByRole("radio", { name: "Monday" }).click();
-  await closePanel(page);
-  await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
-  await openPanel(page);
-  await page.getByRole("radio", { name: "Sunday" }).click();
-  await closePanel(page);
-  await expect(heading).toHaveText(/^Sep 27 – Oct 3/);
-  // A pref, kept for next time.
-  await page.reload();
-  await expect(heading).toHaveText(/^Sep 27 – Oct 3/);
-  await openPanel(page);
-  await page.getByRole("radio", { name: "Monday" }).click();
-  await closePanel(page);
-  await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Sep 28 – Oct 4/,
+  );
+  await expect(page.getByRole("radio", { name: "Sunday" })).toHaveCount(0);
+});
+
+test.describe("the sidebar", () => {
+  test.skip(({ isMobile }) => isMobile, "Phones have the drawer");
+
+  test("is resizable like Schedule's and Plan's, and keeps its width", async ({
+    page,
+    isMobile,
+  }) => {
+    await signIn(page, isMobile);
+    const aside = page.getByRole("complementary", { name: "Sidebar" });
+    await expect(aside).toBeVisible();
+    const handle = page.getByRole("separator", { name: "Sidebar width" });
+    await handle.dblclick();
+    await expect(handle).toHaveAttribute("aria-valuenow", "360");
+    const start = (await aside.boundingBox())?.width ?? 0;
+    expect(Math.round(start)).toBe(360);
+    // Dragged 60px wider.
+    const box = await handle.boundingBox();
+    if (!box) throw new Error("no handle");
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, y, { steps: 6 });
+    await page.mouse.up();
+    await expect(handle).toHaveAttribute("aria-valuenow", "420");
+    await expect
+      .poll(async () => Math.round((await aside.boundingBox())?.width ?? 0))
+      .toBe(420);
+    // The one width every workbench shares, kept for next time.
+    await page.reload();
+    await expect(
+      page.getByRole("separator", { name: "Sidebar width" }),
+    ).toHaveAttribute("aria-valuenow", "420");
+    // Schedule reads it from the prefs it keeps, where Todo saved it.
+    await page.goto("/schedule?demo=1");
+    await expect(
+      page.getByRole("separator", { name: "Sidebar width" }),
+    ).toHaveAttribute("aria-valuenow", "420", { timeout: 20_000 });
+  });
 });

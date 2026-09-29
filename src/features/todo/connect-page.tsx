@@ -86,7 +86,7 @@ function Connection() {
         <>
           <p className="text-fg" role="status">
             {connected ? "Connected. " : "ELMS is connected. "}
-            {words.checked ? `${words.checked}.` : "We haven't read it yet."}
+            {words.synced ? `${words.synced}.` : "We haven't read it yet."}
           </p>
           {words.problem ? (
             <p className="text-muted text-sm">{words.problem}</p>

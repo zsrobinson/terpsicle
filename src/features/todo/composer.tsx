@@ -22,7 +22,6 @@ import {
   quickAddFields,
   shortDayLabel,
   timeFieldFromMinutes,
-  type WeekStart,
 } from "~/core/todo";
 import { dotStyle } from "~/features/calendar/tint";
 import { track } from "~/lib/analytics";
@@ -138,7 +137,6 @@ function Chip({
 export function Composer({
   courses,
   colors,
-  weekStart,
   compact = false,
   onAdded,
   className,
@@ -146,13 +144,12 @@ export function Composer({
   /** The courses a task can be for: the person's plans' and ELMS's. */
   courses: readonly CourseCode[];
   colors: Readonly<Record<CourseCode, CourseColor>>;
-  weekStart: WeekStart;
   /**
-   * A phone: the field and its hint alone until it's in use, so the
-   * calendar starts on the first screen; the chips and pickers open then.
+   * The field and its hint alone until it's in use, so the sidebar's week
+   * shows under it; the chips and pickers open then.
    */
   compact?: boolean;
-  /** After a task is added (a phone's sheet closes, to show it). */
+  /** After a task is added. */
   onAdded?: () => void;
   className?: string;
 }) {
@@ -169,7 +166,7 @@ export function Composer({
   // Read as it's typed: "today" and "5pm" are New York's right now.
   const now = Date.now();
   const today = newYorkClock(now).date;
-  const parse = parseQuickAdd(text, { now, courses, weekStart, ignore });
+  const parse = parseQuickAdd(text, { now, courses, ignore });
   const fields = quickAddFields(text, parse, choice);
   const date = choice.date !== undefined ? choice.date : parse.date;
   const time =

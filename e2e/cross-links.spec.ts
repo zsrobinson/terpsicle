@@ -1,4 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
+import { addDays } from "../src/core/ics/dates";
+import { newYorkClock } from "../src/core/todo/list";
 import { TEST_FEED_TOKENS, testFeedLink } from "../src/core/todo/test-feed";
 import { lowerPlanDrawer } from "./plan-drawer";
 
@@ -83,37 +85,40 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   isMobile,
 }) => {
   await signIn(page);
-  // The courses and ELMS open from the bar.
-  await page
-    .getByRole("banner")
-    .getByRole("button", { name: "Courses and ELMS" })
-    .click();
-  await page
+  // The paste is in ELMS's settings, at the top of the sidebar (the
+  // drawer's, on a phone).
+  const elms = page.getByRole("region", { name: "ELMS" });
+  await elms.getByRole("button", { name: "Connect" }).click();
+  const connect = page.getByRole("dialog", { name: "Connect ELMS" });
+  await connect
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
-  await page.getByRole("button", { name: "Connect ELMS" }).click();
-  await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
+  await connect.getByRole("button", { name: "Connect ELMS" }).click();
+  await expect(elms).toContainText("ELMS synced");
 
-  // The week's title links to its classes (on a phone, in the bar's
-  // calendar sheet).
-  if (isMobile) {
-    await page.keyboard.press("Escape");
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Views and dates" })
-      .click();
-    await page.getByRole("menuitem", { name: /^View schedule/ }).click();
-  } else await page.getByRole("link", { name: "View schedule" }).click();
+  // The week's band links to its classes, and each course to its chat room
+  // (in the drawer, raised, on a phone).
+  const raise = async () => {
+    if (!isMobile) return;
+    const drawer = page.locator("[data-workbench-drawer]");
+    await expect(drawer).toBeVisible();
+    if ((await drawer.getAttribute("data-snap")) !== "peek") return;
+    await page.getByRole("button", { name: "Raise the panel" }).tap();
+    await expect(drawer).toHaveAttribute("data-snap", "half");
+  };
+  await raise();
+  await page
+    .getByRole("region", { name: "This week" })
+    .getByRole("link", { name: "View schedule" })
+    .click();
   await expect(page).toHaveURL(/\/schedule\//);
   await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 
-  // Each course in the side panel links to its chat room.
-  await page.goBack();
-  await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
-  await page
-    .getByRole("banner")
-    .getByRole("button", { name: "Courses and ELMS" })
-    .click();
+  // Project 2 (CMSC216) is due tomorrow: the week it's in has CMSC216.
+  const today = newYorkClock(Date.now()).date;
+  await page.goto(`/todo?date=${addDays(today, 1)}`);
+  await expect(elms).toContainText("ELMS synced");
+  await raise();
   await page.getByRole("link", { name: "View chat for CMSC216" }).click();
   await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);
 });

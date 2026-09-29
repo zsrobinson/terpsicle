@@ -1,0 +1,378 @@
+import { Link } from "@tanstack/react-router";
+import { cn } from "cn";
+import { Check, Eye, EyeOff } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Mark } from "~/components/brand/mark";
+import { PanelBody, SectionHeader } from "~/components/panel";
+import { courseColorTokens } from "~/core/color";
+import type { CourseCode, CourseColor, IsoDate, TermId } from "~/core/schema";
+import { formatShortDate } from "~/core/time";
+import {
+  type CourseWeek,
+  compareItems,
+  NO_COURSE_KEY,
+  NO_DATE,
+  type Progress,
+  totalOf,
+} from "~/core/todo";
+import { crossLinkClicked } from "~/lib/cross-link";
+import { Button } from "~/ui/button";
+import { ListRow } from "~/ui/list-row";
+import { WithTooltip } from "~/ui/tooltip";
+import { ScheduleLink } from "./calendar";
+import { Composer } from "./composer";
+import { ElmsHeader } from "./elms";
+import { Rows, type ViewProps } from "./todo-lists";
+
+// Todo's sidebar (docs/V3.md §3.9), the workbench's one panel, as Chat's
+// is: ELMS's line first (when it last synced, and its settings), then
+// Add a task, what has no date, and the week on screen: how much of it is
+// done, then each course, with a bar in its color that fills as you check
+// things off (the owner, 2026-09-29: "it feels rewarding to check things
+// off that way"). On a phone it's the drawer (./todo-drawer).
+
+/**
+ * The sidebar's panel, in the desktop's sidebar or the phone's drawer: the
+ * skip link's target, which takes focus.
+ */
+export const TODO_SIDEBAR_PANEL_ID = "todo-sidebar-panel";
+
+/** One course in the week: its identity, what's done, and whether it's hidden. */
+export interface CourseRow extends CourseWeek {
+  color: CourseColor | null;
+  hidden: boolean;
+  /** Its chat room's term, when it has a code and Chat is on. */
+  chatTerm: TermId | null;
+}
+
+/** "3 of 5 done", or "All 5 done". */
+export function doneOfWords({ done, total }: Progress): string {
+  if (total > 0 && done === total)
+    return total === 1 ? "Done" : `All ${total} done`;
+  return `${done} of ${total} done`;
+}
+
+/**
+ * A bar that fills as things are checked off: the week's in ink, a
+ * course's in its color over its tint. The fill slides on the sheets'
+ * curve, and jumps under Reduce Motion. It's a `progressbar` with the
+ * words as its value, so the words are never only in the picture.
+ */
+export function ProgressBar({
+  progress,
+  label,
+  color,
+  className,
+}: {
+  progress: Progress;
+  label: string;
+  color?: CourseColor | null;
+  className?: string;
+}) {
+  const share = progress.total === 0 ? 0 : progress.done / progress.total;
+  const tokens = color ? courseColorTokens(color) : null;
+  const track: CSSProperties | undefined = tokens
+    ? { backgroundColor: `var(--${tokens.bg})` }
+    : undefined;
+  const fill: CSSProperties = {
+    width: `${share * 100}%`,
+    ...(tokens ? { backgroundColor: `var(--${tokens.dot})` } : {}),
+  };
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={progress.total}
+      aria-valuenow={progress.done}
+      aria-valuetext={doneOfWords(progress)}
+      style={track}
+      className={cn("h-1.5 overflow-hidden", !tokens && "bg-hover", className)}
+    >
+      <div
+        data-testid="progress-fill"
+        style={fill}
+        className={cn(
+          "h-full transition-[width] duration-(--dur-sheet) ease-sheet motion-reduce:transition-none",
+          !tokens && "bg-fg",
+        )}
+      />
+    </div>
+  );
+}
+
+/** "2 of 5 done", with a check once it's all done. */
+function DoneCount({ progress }: { progress: Progress }) {
+  const all = progress.total > 0 && progress.done === progress.total;
+  return (
+    <span
+      className={cn(
+        "tnum flex items-center gap-1 text-sm",
+        all ? "emph-label" : "emph-meta",
+      )}
+    >
+      {all ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : null}
+      {doneOfWords(progress)}
+    </span>
+  );
+}
+
+function CourseLine({
+  row,
+  onHide,
+}: {
+  row: CourseRow;
+  onHide: (row: CourseRow, hide: boolean) => void;
+}) {
+  const name = row.code ?? row.key;
+  const dot = row.color ? courseColorTokens(row.color).dot : null;
+  return (
+    <ListRow
+      as="li"
+      align="start"
+      aria-label={name}
+      className={cn("py-2", row.hidden && "text-muted")}
+    >
+      <div className="flex min-h-7 min-w-0 items-center gap-3">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "block size-3 shrink-0",
+            (!dot || row.hidden) && "bg-hairline-strong",
+          )}
+          style={
+            dot && !row.hidden
+              ? { backgroundColor: `var(--${dot})` }
+              : undefined
+          }
+        />
+        <span
+          data-private={row.code ? undefined : ""}
+          className={cn(
+            "min-w-0 flex-1 truncate font-medium text-sm",
+            row.code && "ident",
+            row.hidden && "line-through",
+          )}
+        >
+          {name}
+        </span>
+        {row.hidden ? null : row.total === 0 ? (
+          <span className="emph-meta shrink-0 text-sm">Nothing due</span>
+        ) : (
+          <DoneCount progress={row} />
+        )}
+        <span className="-mr-1.5 flex shrink-0 items-center">
+          {row.chatTerm && row.code && !row.hidden ? (
+            <WithTooltip
+              label={`View chat: talk with the people in ${row.code}`}
+            >
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                render={
+                  <Link
+                    to="/chat"
+                    search={{ term: row.chatTerm, course: row.code }}
+                    aria-label={`View chat for ${row.code}`}
+                    onClick={() => crossLinkClicked("todo", "chat")}
+                  />
+                }
+              >
+                <Mark id="chat" size={16} className="size-4" />
+              </Button>
+            </WithTooltip>
+          ) : null}
+          {row.key === NO_COURSE_KEY ? null : (
+            <WithTooltip
+              label={
+                row.hidden
+                  ? `Show ${name}'s items again`
+                  : `Hide ${name}'s items everywhere in Todo`
+              }
+            >
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={row.hidden ? `Show ${name}` : `Hide ${name}`}
+                aria-pressed={row.hidden}
+                onClick={() => onHide(row, !row.hidden)}
+              >
+                {row.hidden ? (
+                  <EyeOff aria-hidden="true" />
+                ) : (
+                  <Eye aria-hidden="true" />
+                )}
+              </Button>
+            </WithTooltip>
+          )}
+        </span>
+      </div>
+      {row.hidden ? (
+        <p className="emph-secondary pl-6 text-sm">Hidden everywhere in Todo</p>
+      ) : row.total > 0 ? (
+        <ProgressBar
+          progress={row}
+          color={row.color}
+          label={`${name} this week`}
+          className="mt-1 mb-1.5 ml-6"
+        />
+      ) : null}
+    </ListRow>
+  );
+}
+
+/** The week on screen: all of it, then each course. */
+function WeekSection({
+  rows,
+  weekFirst,
+  thisWeek,
+  schedule,
+  onHide,
+  inDrawer,
+}: {
+  inDrawer: boolean;
+  rows: readonly CourseRow[];
+  weekFirst: IsoDate;
+  thisWeek: boolean;
+  schedule: SidebarSchedule | null;
+  onHide: (row: CourseRow, hide: boolean) => void;
+}) {
+  const shown = rows.filter((r) => !r.hidden);
+  const total = totalOf(shown);
+  const title = thisWeek
+    ? "This week"
+    : `Week of ${formatShortDate(weekFirst)}`;
+  return (
+    <section aria-label={title}>
+      <SectionHeader
+        level={2}
+        // A phone's drawer says the week in its strip, over this.
+        title={inDrawer ? "By course" : title}
+        right={
+          schedule ? (
+            <ScheduleLink
+              term={schedule.term}
+              planId={schedule.planId}
+              label={schedule.label}
+              onClick={() => crossLinkClicked("todo", "schedule")}
+            />
+          ) : null
+        }
+      />
+      {rows.length === 0 ? (
+        <p className="emph-secondary px-4 py-3 text-sm">
+          Each course shows here once something's due, with a bar that fills as
+          you check things off.
+        </p>
+      ) : (
+        <>
+          {/* A phone's drawer has the week's bar in its strip. */}
+          <div
+            hidden={inDrawer}
+            className="flex flex-col gap-2 border-hairline border-b px-4 pt-3 pb-4"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="emph-label text-sm">Everything</span>
+              {total.total === 0 ? (
+                <span className="emph-meta text-sm">Nothing due</span>
+              ) : (
+                <DoneCount progress={total} />
+              )}
+            </div>
+            <ProgressBar
+              progress={total}
+              label={`${title}, every course`}
+              className="h-2"
+            />
+          </div>
+          <ul aria-label="Courses">
+            {rows.map((row) => (
+              <CourseLine key={row.key} row={row} onHide={onHide} />
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Your own tasks with no date: no day on the week holds them. */
+function Undated({ props }: { props: ViewProps }) {
+  const undated = props.items
+    .filter((i) => i.dueDate === null && !props.done.has(i.uid))
+    .sort(compareItems);
+  if (undated.length === 0) return null;
+  return (
+    <section aria-label={NO_DATE}>
+      <SectionHeader level={2} title={NO_DATE} count={undated.length} />
+      <ul className="px-4">
+        <Rows items={undated} done={false} props={props} />
+      </ul>
+    </section>
+  );
+}
+
+/** The week's classes in Schedule: its term, and the main plan to open. */
+export interface SidebarSchedule {
+  term: TermId;
+  planId?: string;
+  /** Its tooltip: "Opens Plan A, your main plan for Fall 2026". */
+  label: string;
+}
+
+export function TodoSidebar({
+  props,
+  rows,
+  weekFirst,
+  thisWeek,
+  schedule,
+  onHide,
+  courses,
+  colors,
+  hasFileItems,
+  inDrawer = false,
+}: {
+  /** A phone's drawer, whose strip has the week's bar. */
+  inDrawer?: boolean;
+  /** The items and what's done with them, as the week has them. */
+  props: ViewProps;
+  rows: readonly CourseRow[];
+  /** The Monday of the week on screen. */
+  weekFirst: IsoDate;
+  thisWeek: boolean;
+  schedule: SidebarSchedule | null;
+  onHide: (row: CourseRow, hide: boolean) => void;
+  courses: readonly CourseCode[];
+  colors: Readonly<Record<CourseCode, CourseColor>>;
+  hasFileItems: boolean;
+}) {
+  return (
+    <div
+      id={TODO_SIDEBAR_PANEL_ID}
+      tabIndex={-1}
+      className="flex min-h-0 flex-1 flex-col outline-none"
+    >
+      <ElmsHeader hasFileItems={hasFileItems} now={props.now} />
+      <PanelBody>
+        <section aria-label="Add a task">
+          <SectionHeader level={2} title="Add a task" />
+          <Composer
+            courses={courses}
+            colors={colors}
+            compact
+            className="px-4 pt-3 pb-4"
+          />
+        </section>
+        <Undated props={props} />
+        <WeekSection
+          rows={rows}
+          weekFirst={weekFirst}
+          thisWeek={thisWeek}
+          schedule={schedule}
+          onHide={onHide}
+          inDrawer={inDrawer}
+        />
+      </PanelBody>
+    </div>
+  );
+}

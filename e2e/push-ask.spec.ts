@@ -151,18 +151,19 @@ test("asks after connecting ELMS, and Turn on hands off to the browser's prompt"
 }) => {
   test.slow();
   await signInNew(page, "/todo");
-  // The paste is in the courses and ELMS, which open from the bar.
+  // The paste is in ELMS's settings, at the top of the sidebar.
   await page
-    .getByRole("banner")
-    .getByRole("button", { name: "Courses and ELMS" })
+    .getByRole("region", { name: "ELMS" })
+    .getByRole("button", { name: "Connect" })
     .click();
-  await page
+  const connect = page.getByRole("dialog", { name: "Connect ELMS" });
+  await connect
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
-  await page.getByRole("button", { name: "Connect ELMS" }).click();
+  await connect.getByRole("button", { name: "Connect ELMS" }).click();
   const card = askCard(page, "Remind you the evening before something's due?");
   await expect(card).toBeVisible({ timeout: 15_000 });
-  // In the ELMS section, where the link went in.
+  // Under ELMS's line, where the link went in.
   await expect(
     page.getByRole("region", { name: "ELMS" }).getByRole("region", {
       name: "Remind you the evening before something's due?",
@@ -186,7 +187,7 @@ test("asks after connecting ELMS, and Turn on hands off to the browser's prompt"
 
   // Blocked, nothing asks again.
   await page.reload();
-  await expect(page.getByText(/open · ELMS feed checked/)).toBeVisible();
+  await expect(page.getByText(/^ELMS synced/)).toBeVisible();
   await expect(card).toHaveCount(0);
 });
 

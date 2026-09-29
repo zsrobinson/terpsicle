@@ -475,12 +475,13 @@ _Avoid_: item (in the UI)
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
 
-**Calendar** (Todo's):
-Todo's main area: the **Week** (the default), the **Month** or the **List** of what's due by day, each a URL. Weeks start on Monday, so a Sunday-night deadline ends its week, unless the student sets **Weeks start on** Sunday.
-_Avoid_: agenda, planner, schedule (that's the scheduler)
+**Week** (Todo's):
+Todo's one view: Monday to Sunday, so a Sunday-night deadline ends its week, each week a URL. On a phone, the same days one under another.
+_Avoid_: calendar view, month, list, agenda, planner, schedule (that's the scheduler)
 
-**Side panel** (Todo's):
-The column beside Todo's calendar, where the scheduler and Plan keep their sidebars: Add a task, This week, ELMS and Weeks start on. On a phone it sits above the calendar, folded under "Courses and ELMS".
+**Sidebar** (Todo's):
+Todo's workbench sidebar, beside the week: ELMS's line and its settings, Add a task, No date, and This week (a bar for the week and one per course). On a phone it's the drawer, whose strip is the week's bar.
+_Avoid_: side panel
 
 **Composer**:
 Todo's "Add a task…" field, which reads the date, time and course from the words ("PS3 due fri 11:59pm cmsc351"), marks them as you type, and shows them as chips before adding. In copy it's just "Add a task".

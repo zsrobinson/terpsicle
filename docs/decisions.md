@@ -536,7 +536,7 @@ Revisit if: Plan turns on in production; then list it always and add the shortcu
 
 ### Plan and Schedule share one sidebar width
 2026-09-27 · agent · one feature
-The two workbenches draw one sidebar, so they keep one width: Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
+The workbenches draw one sidebar, so they keep one width (Todo's too, since 2026-09-29: it reads the head script's localStorage copy and loads Dexie only to save a new width, since `/todo` keeps Dexie out of its first load): Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
 Revisit if: people want different widths in each product.
 
 ### Gradescope, honestly
@@ -554,15 +554,20 @@ Revisit if: Gradescope offers students an API or feed.
 Todo marks no item as an exam. The owner wasn't sure how exams were marked and asked to keep it only if it's plain from the ELMS feed and the calendar shows it clearly; the feed never says which items are exams (it was a keyword guess on the title that called "Final exam review session" an exam), so it goes.
 Revisit if: ELMS's feed starts saying what an item is beyond assignment or event.
 
-### Todo's controls are in its bar
+### Todo is one week
 2026-09-29 · owner · one feature
-Todo has no side panel: its views, Back, Today and Ahead, and the period's title are the family bar's context, and Add a task (+) and the courses and ELMS (This week, ELMS, Weeks start on) open from bar icons, as popovers on a desktop and sheets on a phone, so the calendar fills the page in every view. The owner: "the todo app has lots of things in the main content area that are more like controls and should really be at the top, and the calendar in its forms should be taking up that whole area." Weeks start on stays with the courses and ELMS rather than moving to Settings (the agent's call): it changes the calendar you're looking at. This changes "Todo is a calendar"'s side panel.
-Revisit if: people miss the composer or the courses' chart now that they're a click away.
+Todo is one view, the week, Monday to Sunday: the month, the list and "Weeks start on" are gone. The owner: "let's ONLY design around the week view. remove the other two views. let's just make this one excellent" and "starting things on monday makes too much sense to have a toggle for it". The week is edge to edge under the bar, "very similar to the schedule tab with its week": weekends one step of gray, today's day heading two, today's body not filled. An account that saved Sunday still loads: `SyncedPrefs` keeps the old `todo` key as an unknown one and nothing reads it. Old `?view=` links open the week.
+Revisit if: people ask to see further ahead than a week at a time.
+
+### Todo's sidebar holds its controls; the bar only moves the week
+2026-09-29 · owner · one feature
+Todo is a workbench with a sidebar, resizable like Schedule's and Plan's and sharing their width, with no rail. From the top: ELMS's line in the pattern of Chat's first part ("Your deadlines", "ELMS synced 3 minutes ago", a settings icon opening a small popover to sync now or paste a new link; with no link, Connect), then Add a task, No date (tasks without one), and the week on screen: a bar for the whole week and one per course in its color, "2 of 5 done", each with its chat link and hide toggle. The family bar holds only Back, Today and Ahead (outline buttons) and the week's short dates. On a phone the sidebar is the workbench drawer, whose strip is the week's bar. The owner: "things like adding a todo and showing the week completion by course should continue to be in that sidebar, they're pretty important"; "the stacked vertical bars within the data viz for each of the courses makes no sense ... i like the overall bar for the week, maybe we could also have one for each course. it feels rewarding to check things off that way." Tasks with no date move into the sidebar and the week's "View schedule" link to This week's band (the agent's calls: nothing but the week is on the canvas). This replaces "Todo's controls are in its bar" (2026-09-29).
+Revisit if: the sidebar grows past what one column holds.
 
 ### Todo is a calendar
 2026-09-28 · owner · one feature
-Todo's main view is a calendar: the week by default, then the month and a list, each a URL, with weeks starting Monday "since so many things are due sunday nights" and a synced pref for Sunday. It takes the workbench's shape with a side panel (adding a task in plain words, each course's weekly completion, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The side panel has no tabs (the agent's call): four short parts fit one column, and a rail would hide the composer.
-Revisit if: the side panel grows past what one column holds. Changed 2026-09-29: the side panel's parts open from the bar ("Todo's controls are in its bar").
+Todo's main view is a calendar, with weeks starting Monday "since so many things are due sunday nights". It takes the workbench's shape with a sidebar (adding a task in plain words, each course's week, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The sidebar has no tabs (the agent's call): its short parts fit one column, and a rail would hide the composer.
+Revisit if: the sidebar grows past what one column holds. Changed 2026-09-29: the week is the only view, and the sidebar is back ("Todo is one week", "Todo's sidebar holds its controls; the bar only moves the week").
 
 ### Todo reads tasks with its own grammar
 2026-09-28 · agent · one feature

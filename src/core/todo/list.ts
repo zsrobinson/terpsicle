@@ -16,18 +16,17 @@ import type {
 import { formatShortDate, formatTime } from "../time";
 import { relativeWords, spanWords } from "../words";
 import { matchFeedCourse, pickFeedCourse } from "./feed";
-import { DEFAULT_WEEK_START, type WeekStart, weekStartOf } from "./weeks";
 
-// How Todo's list reads (docs/V3.md §3.9): items grouped by day or by course,
-// done items folded away, and the header's words. Pure: "now" and "today"
+// How Todo's items read (docs/V3.md §3.9): their days, times and courses,
+// and the words for ELMS's last sync. Pure: "now" and "today"
 // are arguments, and dates are America/New_York's, like the feed's.
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
 
 /**
- * How far back the list reaches: open work that's past due, and the four
- * weeks the completion chart draws.
+ * How far back the list reaches: open work that's past due, and the weeks
+ * just behind this one, so Back rarely asks again.
  */
 export const TODO_LIST_PAST_DAYS = 28;
 /** How far ahead it reaches; with the past days, inside `todo/list`'s 120. */
@@ -110,129 +109,6 @@ export function compareItems(a: TodoItem, b: TodoItem): number {
   const bt = b.dueAt === null ? "" : b.dueAt;
   if (at !== bt) return at < bt ? -1 : 1;
   return a.title.localeCompare(b.title);
-}
-
-/** One day in the list: its open items, and its done ones folded away. */
-export interface TodoDay {
-  /** Null for "No date": own tasks without one. */
-  date: IsoDate | null;
-  label: string;
-  open: TodoItem[];
-  done: TodoItem[];
-}
-
-export type TodoSectionId =
-  | "earlier"
-  | "today"
-  | "tomorrow"
-  | "this-week"
-  | "next-week"
-  | "later"
-  | "no-date";
-
-/** A run of days under one heading. */
-export interface TodoSection {
-  id: TodoSectionId;
-  label: string;
-  days: TodoDay[];
-  /** What an empty section says; null when it isn't shown empty. */
-  empty: string | null;
-}
-
-const SECTION_LABELS: Record<TodoSectionId, string> = {
-  earlier: "Earlier",
-  today: "Today",
-  tomorrow: "Tomorrow",
-  "this-week": "This week",
-  "next-week": "Next week",
-  later: "Later",
-  "no-date": NO_DATE,
-};
-
-function sectionOf(
-  date: IsoDate,
-  today: IsoDate,
-  nextWeek: IsoDate,
-): TodoSectionId {
-  if (date < today) return "earlier";
-  if (date === today) return "today";
-  if (date === addDays(today, 1)) return "tomorrow";
-  if (date < nextWeek) return "this-week";
-  if (date < addDays(nextWeek, 7)) return "next-week";
-  return "later";
-}
-
-/**
- * The list by day (V3 §3.9): Today, Tomorrow, the rest of this week, next
- * week and later, each day with its open items and its done ones apart.
- * Today and Tomorrow always show, saying "Nothing due" when empty; so does
- * this week while it has days left, and next week. Earlier shows only open
- * work that's past due, with nothing folded: done past items are finished
- * business. Own tasks without a date go last, under "No date".
- */
-export function groupByDay(
-  items: readonly TodoItem[],
-  done: ReadonlySet<string>,
-  today: IsoDate,
-  start: WeekStart = DEFAULT_WEEK_START,
-): TodoSection[] {
-  const nextWeek = addDays(weekStartOf(today, start), 7);
-  const days = new Map<IsoDate, TodoDay & { date: IsoDate }>();
-  const dayOf = (date: IsoDate) => {
-    let day = days.get(date);
-    if (!day) {
-      day = { date, label: dayLabel(date, today), open: [], done: [] };
-      days.set(date, day);
-    }
-    return day;
-  };
-  const undated: TodoDay = { date: null, label: NO_DATE, open: [], done: [] };
-  for (const item of [...items].sort(compareItems)) {
-    const isDone = done.has(item.uid);
-    const day = item.dueDate === null ? undated : dayOf(item.dueDate);
-    if (day.date !== null && day.date < today && isDone) continue;
-    (isDone ? day.done : day.open).push(item);
-  }
-  dayOf(today);
-  dayOf(addDays(today, 1));
-
-  const sections = new Map<TodoSectionId, TodoDay[]>();
-  for (const day of [...days.values()].sort((a, b) =>
-    a.date < b.date ? -1 : 1,
-  )) {
-    const id = sectionOf(day.date, today, nextWeek);
-    sections.set(id, [...(sections.get(id) ?? []), day]);
-  }
-
-  const weekHasDaysLeft = addDays(today, 2) < nextWeek;
-  const order: TodoSectionId[] = [
-    "earlier",
-    "today",
-    "tomorrow",
-    "this-week",
-    "next-week",
-    "later",
-  ];
-  const out: TodoSection[] = [];
-  for (const id of order) {
-    const sectionDays = sections.get(id) ?? [];
-    const empty =
-      id === "this-week" && weekHasDaysLeft
-        ? "Nothing due this week."
-        : id === "next-week"
-          ? "Nothing due next week."
-          : null;
-    if (sectionDays.length === 0 && empty === null) continue;
-    out.push({ id, label: SECTION_LABELS[id], days: sectionDays, empty });
-  }
-  if (undated.open.length > 0 || undated.done.length > 0)
-    out.push({
-      id: "no-date",
-      label: SECTION_LABELS["no-date"],
-      days: [undated],
-      empty: null,
-    });
-  return out;
 }
 
 /** The course an item is filed and colored under, re-matched against the person's plans. */
@@ -318,50 +194,35 @@ export function courseChatTerm(
   return term.endsWith("12") ? `${Number(term.slice(0, 4)) + 1}01` : term;
 }
 
-/** Open items the list shows: past-due ones and everything from today on. */
-export function openCount(
-  items: readonly TodoItem[],
-  done: ReadonlySet<string>,
-): number {
-  return items.filter((item) => !done.has(item.uid)).length;
-}
-
-/** The header's second half: when ELMS was last read, and how that went. */
+/**
+ * When ELMS was last read, and how that went: the sidebar's first line
+ * ("ELMS synced 3 minutes ago") and what's wrong, if anything.
+ */
 export function feedWords(
   feed: TodoFeedState | null,
   now: number,
-): { checked: string | null; problem: string | null } {
-  if (!feed) return { checked: null, problem: null };
+): { synced: string | null; problem: string | null } {
+  if (!feed) return { synced: null, problem: null };
   if (feed.status === "broken")
     return {
-      checked: null,
+      synced: null,
       problem: "ELMS stopped sharing your calendar. Paste a new link.",
     };
-  const checked =
+  const synced =
     feed.lastSuccessAt === null
       ? null
-      : `ELMS feed checked ${relativeWords(feed.lastSuccessAt, now)}`;
+      : `ELMS synced ${relativeWords(feed.lastSuccessAt, now)}`;
   // The last try failed after the last success: the list may be stale.
   const failedLast =
     feed.lastError !== null &&
     feed.lastFetchAt !== null &&
     (feed.lastSuccessAt === null || feed.lastFetchAt > feed.lastSuccessAt);
   return {
-    checked,
+    synced,
     problem: failedLast
       ? "ELMS didn't answer. We'll try again in 20 minutes."
       : null,
   };
-}
-
-/** "8 open". */
-export function openWords(count: number): string {
-  return `${count} open`;
-}
-
-/** "3 done". */
-export function doneWords(count: number): string {
-  return `${count} done`;
 }
 
 /** Opening `/todo` asks ELMS again when the last read is older than this (V3 §3.5). */

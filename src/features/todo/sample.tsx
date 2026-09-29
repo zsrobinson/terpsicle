@@ -47,6 +47,8 @@ const DAYS: readonly { name: string; items: readonly SampleItem[] }[] = [
   },
 ];
 
+const WEEKEND = new Set(["Sat", "Sun"]);
+
 const COLORS = todoCourseColors(["CMSC216", "ENGL101", "MATH240"], {});
 
 function Card({ item }: { item: SampleItem }) {
@@ -87,9 +89,13 @@ export function SamplePreview() {
         {DAYS.map((day) => (
           <div
             key={day.name}
-            className="min-h-40 min-w-0 border-hairline border-r border-b"
+            className={cn(
+              "min-h-40 min-w-0 border-hairline border-r border-b",
+              // Shaded as the real week's weekend is.
+              WEEKEND.has(day.name) && "bg-panel",
+            )}
           >
-            <p className="border-hairline border-b px-2 py-1.5 text-muted text-sm">
+            <p className="emph-label border-hairline border-b px-2 py-1.5 text-sm">
               {day.name}
             </p>
             <ul className="space-y-1 p-1">

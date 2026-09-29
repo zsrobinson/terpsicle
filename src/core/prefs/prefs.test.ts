@@ -4,10 +4,8 @@ import {
   aiFeaturesOn,
   CHAT_RULES_SEEN_MAX,
   chatRulesSeen,
-  todoWeekStart,
   withAiFeatures,
   withChatRulesSeen,
-  withTodoWeekStart,
 } from "./prefs";
 
 describe("AI features", () => {
@@ -56,24 +54,18 @@ describe("chat room rules seen", () => {
   });
 });
 
-describe("Todo's week start", () => {
-  it("is Monday until someone picks Sunday", () => {
-    expect(todoWeekStart({})).toBe("monday");
-    expect(todoWeekStart({ todo: { weekStart: "sunday" } })).toBe("sunday");
-  });
-
-  it("changes, keeping the other prefs, and changes nothing when it's already that", () => {
-    const prefs = { ai: { features: false } };
-    const sunday = withTodoWeekStart(prefs, "sunday");
-    expect(sunday).toEqual({ ...prefs, todo: { weekStart: "sunday" } });
-    expect(withTodoWeekStart(sunday, "sunday")).toBe(sunday);
-    expect(todoWeekStart(withTodoWeekStart(sunday, "monday"))).toBe("monday");
-  });
-
-  it("refuses a day that isn't Monday or Sunday", () => {
-    expect(
-      SyncedPrefsSchema.safeParse({ todo: { weekStart: "friday" } }).success,
-    ).toBe(false);
+describe("Todo's old week start", () => {
+  it("still reads, whatever it says, and changes to other prefs keep it", () => {
+    // Todo's weeks are Monday's alone now (docs/decisions.md, "Todo is one
+    // week"); an account saved with the old setting must still load.
+    for (const weekStart of ["sunday", "monday", "friday"]) {
+      const prefs = SyncedPrefsSchema.parse({ todo: { weekStart } });
+      expect(prefs).toEqual({ todo: { weekStart } });
+      expect(withAiFeatures(prefs, false)).toEqual({
+        todo: { weekStart },
+        ai: { features: false },
+      });
+    }
   });
 });
 
