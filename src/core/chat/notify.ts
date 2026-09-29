@@ -1,10 +1,10 @@
 import {
   type CourseCode,
-  chatHref,
   parseRoomId,
   type RoomId,
   type TermId,
 } from "../schema";
+import { roomNameFromId, roomPath, roomPlace } from "./room-paths";
 import type { Room } from "./rooms";
 
 // Who a chat message notifies, and what they see (V2.md §6.1, §6.4, §6.6).
@@ -79,17 +79,14 @@ export function chatPreview(text: string, max = CHAT_PREVIEW_CHARS): string {
 }
 
 /**
- * Where a message is, in a few words: "CMSC131" for the course room,
- * "CMSC131 · 0303", "CMSC131 · Sadeghian's sections". `room` is the
- * catalog's, when the object has it.
+ * Where a message is, in a few words: "CMSC131 · Everyone", "CMSC131 ·
+ * Section 0303", "CMSC131 · Sadeghian's Sections". `room` is the catalog's,
+ * when the object has it; without it the name comes from the id.
  */
 export function chatPlaceWords(roomId: RoomId, room: Room | null): string {
   const parsed = parseRoomId(roomId);
   if (!parsed) return roomId;
-  const { courseCode, kind, sectionCode } = parsed;
-  if (kind === "course") return courseCode;
-  if (kind === "section") return `${courseCode} · ${sectionCode}`;
-  return room?.words ? `${courseCode} · ${room.words}` : courseCode;
+  return roomPlace(parsed.courseCode, room?.name ?? roomNameFromId(roomId));
 }
 
 /** The digest's words: "Hannah Lee mentioned you in CMSC131 · 0303", "Hannah Lee replied in CMSC131". */
@@ -111,12 +108,7 @@ export function chatMessageHref(m: {
   /** The thread's first message, for a reply; null for a top-level message. */
   thread: string | null;
 }): string {
-  return chatHref({
-    term: m.termId,
-    course: m.courseCode,
-    room: m.roomId,
-    ...(m.thread ? { thread: m.thread } : {}),
-  });
+  return roomPath(m.roomId, m.thread);
 }
 
 /** "3 unread in your class chats". */

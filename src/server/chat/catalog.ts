@@ -57,14 +57,18 @@ export async function loadChatCourse(
 }
 
 /**
- * Chat's term on `today` (a date in College Park), as the chat list works
- * it out: the listed term in session, or between terms the next to start.
- * Joining another term's chat is refused (owner, 2026-09-29).
+ * Chat's term at `now`, as the chat list works it out: the listed term in
+ * session in College Park, or between terms the next to start. Joining
+ * another term's chat is refused (owner, 2026-09-29), and a Chat link, which
+ * names no term, means this one.
  */
 export async function loadChatTerm(
   bucket: R2Bucket,
-  today: IsoDate,
+  now: Date,
 ): Promise<TermId | null> {
+  const today: IsoDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+  }).format(now);
   const read = memoJson(bucket);
   const terms = await readPublished(read, TERMS_KEY, TermsFileSchema);
   const listed = terms?.terms.map((t) => t.id) ?? [];

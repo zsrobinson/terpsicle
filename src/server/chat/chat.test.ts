@@ -25,6 +25,7 @@ import {
   type AcademicCalendar,
   CHAT_PROTOCOL_VERSION,
   type ChatClientFrame,
+  ChatJoinsResultSchema,
   type ChatMembersResult,
   ChatMembersResultSchema,
   type ChatServerFrame,
@@ -1136,26 +1137,82 @@ describe("a conversation", () => {
     expect((await b.client.error(theirs)).code).toBe("not-yours");
   });
 
-  it("deletes at once, for everyone", async () => {
+  it("leaves a tombstone for everyone when its author deletes a message", async () => {
     const { student, classmate } = await twoPeople();
     const a = await student.join([courseRoom]);
     const b = await classmate.join([courseRoom]);
     const id = await published(a.client, courseRoom, "oops");
     await b.client.next("message", (f) => f.message.id === id);
+    const react = b.client.req();
+    b.client.send({
+      type: "react",
+      req: react,
+      room: courseRoom,
+      id,
+      reaction: "eyes",
+      on: true,
+    });
+    await b.client.next("ack", (f) => f.req === react);
+    const req = a.client.req();
+    a.client.send({ type: "delete", req, room: courseRoom, id });
+    // The text and reactions go; the record that something was there stays.
+    const tombstone = {
+      id,
+      text: "",
+      deleted: true,
+      reactions: {},
+      author: { directoryId: "tstudent", name: "Test Student" },
+    };
+    expect(
+      (await a.client.next("ack", (f) => f.req === req)).message,
+    ).toMatchObject(tombstone);
+    expect(
+      (
+        await b.client.next(
+          "message",
+          (f) => f.message.id === id && f.message.deleted,
+        )
+      ).message,
+    ).toMatchObject(tombstone);
+    expect((await b.client.history(courseRoom)).messages).toMatchObject([
+      tombstone,
+    ]);
+    // It can't be edited, reacted to or deleted again.
+    const again = a.client.req();
+    a.client.send({ type: "delete", req: again, room: courseRoom, id });
+    expect((await a.client.error(again)).code).toBe("not-found");
+    const edit = a.client.req();
+    a.client.send({
+      type: "edit",
+      req: edit,
+      room: courseRoom,
+      id,
+      text: "back",
+    });
+    expect((await a.client.error(edit)).code).toBe("not-found");
+    // The list's second line says so too.
+    const latest = await classmate.api("chat/latest", {
+      termId: TERM,
+      courseCode: COURSE,
+      rooms: [courseRoom],
+    });
+    expect(await latest.json()).toMatchObject({
+      latest: [{ room: courseRoom, text: "", deleted: true }],
+    });
+  });
+
+  it("deletes a message only its author saw entirely, with no tombstone", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "here you go [hold]");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
     const req = a.client.req();
     a.client.send({ type: "delete", req, room: courseRoom, id });
     expect(
       (await a.client.next("ack", (f) => f.req === req)).message,
     ).toBeNull();
-    expect(await b.client.next("deleted")).toEqual({
-      type: "deleted",
-      room: courseRoom,
-      id,
-    });
-    expect((await b.client.history(courseRoom)).messages).toEqual([]);
-    const again = a.client.req();
-    a.client.send({ type: "delete", req: again, room: courseRoom, id });
-    expect((await a.client.error(again)).code).toBe("not-found");
+    expect((await a.client.history(courseRoom)).messages).toEqual([]);
   });
 
   it("reacts and takes a reaction back", async () => {
@@ -2163,6 +2220,47 @@ describe("chat routes", () => {
     expect(await follow(TERM)).toEqual({ status: "ok" });
   });
 
+  it("lists who joined a room and when, and a push that keeps the section keeps the time", async () => {
+    const { student } = await twoPeople();
+    const joins = async (roomId: string) =>
+      ChatJoinsResultSchema.parse(
+        await (
+          await student.api("chat/joins", {
+            termId: TERM,
+            courseCode: COURSE,
+            roomId,
+          })
+        ).json(),
+      );
+    const everyone = await joins(courseRoom);
+    expect(
+      everyone.status === "ok" && everyone.joins.map((j) => j.author.name),
+    ).toEqual(["Test Student", "Test Classmate"]);
+    const section = await joins(room0101);
+    expect(section).toMatchObject({
+      status: "ok",
+      joins: [{ author: { directoryId: "tstudent" } }],
+    });
+    // Another section's room isn't yours.
+    expect(await joins(room0201)).toEqual({ status: "not-a-member" });
+
+    // Saved again with the same section: the join stays when it was.
+    const before = section.status === "ok" ? section.joins[0]?.at : null;
+    await student.push(
+      [
+        aPlan({
+          id: "plan_student_1",
+          name: "Renamed",
+          courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0101" })],
+        }),
+      ],
+      undefined,
+      [1],
+    );
+    const again = await joins(room0101);
+    expect(again.status === "ok" && again.joins[0]?.at).toBe(before);
+  });
+
   it("lists members of rooms you can read", async () => {
     const { student } = await twoPeople();
     const list = async (roomId: string): Promise<ChatMembersResult> =>
@@ -2287,10 +2385,10 @@ describe("mentions and replies", () => {
           event: {
             type: "chat-mention",
             actor: "Test Student",
-            place: "CMSC351",
+            place: "CMSC351 · Everyone",
             text: "@Test Classmate did you start the homework? @Test Admin @Test Student",
           },
-          url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}`,
+          url: `/chat/${COURSE}/everyone`,
         },
       },
     ]);
@@ -2340,10 +2438,10 @@ describe("mentions and replies", () => {
         event: {
           type: "chat-reply",
           actor: "Test Student",
-          place: "CMSC351",
+          place: "CMSC351 · Everyone",
           text: "yes, here",
         },
-        url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}&thread=${root}`,
+        url: `/chat/${COURSE}/everyone?thread=${root}`,
       },
     });
     // Both replies are one group: the thread's.
@@ -2503,7 +2601,6 @@ describe("mentions and replies", () => {
       NotificationsInboxResultSchema.parse(
         await (await classmate.api("notifications/inbox", {})).json(),
       );
-    const room = encodeURIComponent(courseRoom);
     const { items, unread } = await inbox();
     expect(unread).toBe(2);
     expect(
@@ -2522,16 +2619,16 @@ describe("mentions and replies", () => {
         product: "chat",
         title: "Test Student replied to your question",
         body: "yes, here",
-        url: `/chat?term=${TERM}&course=${COURSE}&room=${room}&thread=${root}`,
+        url: `/chat/${COURSE}/everyone?thread=${root}`,
         count: 1,
         readAt: null,
       },
       {
         type: "chat-mention",
         product: "chat",
-        title: "2 mentions in CMSC351",
+        title: "2 mentions in CMSC351 · Everyone",
         body: "Test Student: @Test Classmate also bring the notes",
-        url: `/chat?term=${TERM}&course=${COURSE}&room=${room}`,
+        url: `/chat/${COURSE}/everyone`,
         count: 2,
         readAt: null,
       },
@@ -2649,11 +2746,13 @@ describe("the chat digest", () => {
     expect(m?.to).toBe("tclassmate@terpmail.umd.edu");
     expect(m?.subject).toBe("2 unread in your class chats");
     expect(m?.text).toContain(
-      "Test Student mentioned you in CMSC351: @Test Classmate bring the slides",
+      "Test Student mentioned you in CMSC351 · Everyone: @Test Classmate bring the slides",
     );
-    expect(m?.text).toContain("Test Student replied in CMSC351: me!");
+    expect(m?.text).toContain(
+      "Test Student replied in CMSC351 · Everyone: me!",
+    );
     expect(m?.text).not.toContain("[oops]");
-    expect(m?.text).toContain(`&thread=${root}`);
+    expect(m?.text).toContain(`/chat/CMSC351/everyone?thread=${root}`);
     expect(m?.headers["List-Unsubscribe"]).toMatch(
       /^<https:\/\/terpsicle\.com\/api\/notifications\/email-off\?u=tclassmate&t=chat-digest&k=[0-9a-f]+>$/,
     );

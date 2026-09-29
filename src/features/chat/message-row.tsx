@@ -21,6 +21,7 @@ import {
   type ChatItem,
   chatErrorWords,
   clockWords,
+  DELETED_MESSAGE_WORDS,
   heldWords,
   REACTION_WORDS,
   threadWords,
@@ -166,7 +167,11 @@ export const MessageRow = memo(function MessageRow({
             </WithTooltip>
           </div>
         ) : null}
-        {mode === "edit" ? (
+        {item.deleted ? (
+          <p data-message-body="" className="text-muted italic">
+            {DELETED_MESSAGE_WORDS}
+          </p>
+        ) : mode === "edit" ? (
           <EditBox
             text={item.text}
             onCancel={() => setMode("read")}
@@ -220,7 +225,7 @@ export const MessageRow = memo(function MessageRow({
           />
         ) : null}
       </div>
-      {item.local || mode !== "read" ? null : (
+      {item.local || item.deleted || mode !== "read" ? null : (
         <Toolbar
           item={item}
           mine={mine}

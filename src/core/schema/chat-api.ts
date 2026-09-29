@@ -14,23 +14,15 @@ import {
 // Chat's JSON routes (docs/V2.md §8.5), all `auth: "user"`, and the socket
 // route's query. Messages themselves travel over the socket (./chat).
 
-// ---------- /chat's search params ----------
+// ---------- a room's search params ----------
 
 /**
- * Where you are in Chat, so a room has a link and the back button walks
- * back out: the list, a course's rooms, a room, a thread. `join=1` (from the
- * scheduler's "Join CMSC351 chat") follows the course once you're signed in.
+ * `/chat/<COURSE>/<room>`'s search params (~/core/chat/room-paths): the
+ * thread open in the room; `join=1` from the scheduler's "Join CMSC351
+ * chat", which joins the course once you're signed in; and `term` from an
+ * older link, where a term that isn't Chat's opens the list instead.
  */
-export const ChatSearchSchema = z.object({
-  // The router reads a numeric `?term=` as a number: taken back as text.
-  term: z
-    .union([z.string(), z.number()])
-    .transform(String)
-    .pipe(TermIdSchema)
-    .optional()
-    .catch(undefined),
-  course: CourseCodeSchema.optional().catch(undefined),
-  room: RoomIdSchema.optional().catch(undefined),
+export const ChatRoomSearchSchema = z.object({
   thread: ChatMessageIdSchema.optional().catch(undefined),
   // The router may parse "1" as a number.
   join: z
@@ -38,17 +30,15 @@ export const ChatSearchSchema = z.object({
     .transform(() => 1 as const)
     .optional()
     .catch(undefined),
+  // The router reads a numeric `?term=` as a number: taken back as text.
+  term: z
+    .union([z.string(), z.number()])
+    .transform(String)
+    .pipe(TermIdSchema)
+    .optional()
+    .catch(undefined),
 });
-export type ChatView = z.infer<typeof ChatSearchSchema>;
-
-/** `/chat?…` for a view: links from the scheduler, and sign-in's way back. */
-export function chatHref(view: ChatView): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(view))
-    if (value !== undefined) params.set(key, String(value));
-  const query = params.toString();
-  return query ? `/chat?${query}` : "/chat";
-}
+export type ChatRoomSearch = z.infer<typeof ChatRoomSearchSchema>;
 
 // ---------- what Chat keeps in the browser (localStorage) ----------
 
@@ -170,3 +160,68 @@ export const ChatMembersResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("not-found") }),
 ]);
 export type ChatMembersResult = z.infer<typeof ChatMembersResultSchema>;
+
+// ---------- POST /api/chat/latest ----------
+
+/** Rooms of one course asked for at once, at most (a course has ~100 at most). */
+export const CHAT_LATEST_MAX = 120;
+
+/**
+ * Each room's newest message, for the chat list's second line (the owner,
+ * 2026-09-29). It asks the course's object, since D1 never holds chat text,
+ * and only for rooms whose `lastSeq` moved since it last asked.
+ */
+export const ChatLatestInputSchema = z
+  .strictObject({
+    ...course,
+    rooms: z.array(RoomIdSchema).min(1).max(CHAT_LATEST_MAX),
+  })
+  .refine((v) => v.rooms.every((roomId) => inCourse({ ...v, roomId })), {
+    message: "A room isn't one of this course's",
+    path: ["rooms"],
+  });
+export type ChatLatestInput = z.infer<typeof ChatLatestInputSchema>;
+
+export const ChatLatestMessageSchema = z.object({
+  room: RoomIdSchema,
+  author: ChatAuthorSchema,
+  /** Cut to a preview; empty for a tombstone. */
+  text: z.string(),
+  /** Its author deleted it: "Message deleted by author". */
+  deleted: z.boolean(),
+  createdAt: IsoDateTimeSchema,
+});
+export type ChatLatestMessage = z.infer<typeof ChatLatestMessageSchema>;
+
+/** Only rooms you can read that have a message. */
+export const ChatLatestResultSchema = z.object({
+  latest: z.array(ChatLatestMessageSchema),
+});
+export type ChatLatestResult = z.infer<typeof ChatLatestResultSchema>;
+
+// ---------- POST /api/chat/joins ----------
+
+/** Joins a room shows, at most: the newest. */
+export const CHAT_JOINS_MAX = 200;
+
+export const ChatJoinsInputSchema = ChatMembersInputSchema;
+export type ChatJoinsInput = ChatMembersInput;
+
+/**
+ * When people joined a room (their main plan took one of its sections, or
+ * for the course room they joined it), for its timeline's grouped lines
+ * ("Alex, Sam and 3 others joined"). People from before joins were kept
+ * have none.
+ */
+export const ChatJoinsResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("ok"),
+    /** Oldest first. */
+    joins: z.array(
+      z.object({ author: ChatAuthorSchema, at: IsoDateTimeSchema }),
+    ),
+  }),
+  z.object({ status: z.literal("not-a-member") }),
+  z.object({ status: z.literal("not-found") }),
+]);
+export type ChatJoinsResult = z.infer<typeof ChatJoinsResultSchema>;

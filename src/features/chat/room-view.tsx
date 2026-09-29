@@ -1,4 +1,5 @@
-import { Info } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { UserPlus } from "lucide-react";
 import {
   Fragment,
   type ReactNode,
@@ -7,6 +8,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { PanelNote } from "~/components/panel";
 import {
@@ -15,6 +17,9 @@ import {
   chatErrorWords,
   chatMessageRef,
   dayWords,
+  type JoinGroup,
+  joinGroups,
+  joinWords,
   listed,
   listState,
   peopleWords,
@@ -22,6 +27,7 @@ import {
   RUN_GAP_MS,
   typingIn,
   typingWords,
+  whenWords,
 } from "~/core/chat";
 import { chatRulesSeen, withChatRulesSeen } from "~/core/prefs";
 import {
@@ -46,11 +52,12 @@ import { type BackTo, PageHeader } from "~/ui/page-header";
 import { Skeleton } from "~/ui/skeleton";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
+import { useChatHome } from "./chat-home";
 import { Composer } from "./composer";
 import type { MessageActions, ReportOutcome } from "./message-row";
 import { MessageRow } from "./message-row";
-import { ROOM_RULES } from "./room-info";
-import { RoomLabel } from "./room-row";
+import { roomJoinsQuery } from "./queries";
+import { ROOM_RULES, RoomMenu } from "./room-menu";
 import type { CourseChatSession, SessionSnapshot } from "./session";
 import { showNote, showUndo, useNow } from "./undo";
 
@@ -131,7 +138,6 @@ export function RoomView({
   back,
   join,
   onOpenThread,
-  onInfo,
   onSeen,
   onReconnect,
 }: {
@@ -149,7 +155,6 @@ export function RoomView({
   /** Join, for a course you opened but haven't joined (it renders nothing otherwise). */
   join?: ReactNode;
   onOpenThread: (id: ChatMessageId) => void;
-  onInfo: () => void;
   /** You've seen the room's newest message. */
   onSeen: () => void;
   /** Opens the course's socket again, after it gave up. */
@@ -188,6 +193,34 @@ export function RoomView({
     ? null
     : (conversation?.firstUnread[room.id] ?? null);
   const typists = conversation ? typingIn(conversation, room.id, now) : [];
+  const [allowedOpen, setAllowedOpen] = useState(false);
+  // Who joined, as grouped lines between the messages (the owner, 2026-09-29).
+  const joins = useQuery({ ...roomJoinsQuery(room), enabled: readable });
+
+  // The list's second line follows the room while it's open.
+  const newest = useMemo(() => {
+    if (!conversation) return null;
+    let best: (typeof conversation.byId)[string] | null = null;
+    for (const m of Object.values(conversation.byId))
+      if (
+        m.room === room.id &&
+        !m.local &&
+        m.moderation.state === "visible" &&
+        (!best || m.createdAt > best.createdAt)
+      )
+        best = m;
+    return best;
+  }, [conversation, room.id]);
+  useEffect(() => {
+    if (!newest) return;
+    useChatHome.getState().noteLatest({
+      room: newest.room,
+      author: newest.author,
+      text: newest.text,
+      deleted: newest.deleted,
+      createdAt: newest.createdAt,
+    });
+  }, [newest]);
 
   const actions = useMessageActions(session, room, onOpenThread);
   const rulesSeen = useRulesSeen(courseCode);
@@ -207,7 +240,7 @@ export function RoomView({
   // One line under the room's name, the same height before and after the
   // room says how many people are in it.
   const facts = [
-    room.kind === "course" && room.code ? null : courseCode,
+    courseCode,
     room.detail,
     roomState ? peopleWords(roomState.members) : null,
   ]
@@ -219,10 +252,10 @@ export function RoomView({
       <PageHeader
         size="panel"
         back={thread ? back.room : compact ? back.list : undefined}
-        title={thread ? "Thread" : <RoomLabel room={room} />}
+        title={thread ? "Thread" : room.name}
         status={
           thread ? (
-            <RoomLabel room={room} />
+            room.label
           ) : facts ? (
             facts
           ) : (
@@ -234,16 +267,11 @@ export function RoomView({
           thread ? null : (
             <>
               {join}
-              <WithTooltip label="Room info: people, mute, leave">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Room info"
-                  onClick={onInfo}
-                >
-                  <Info />
-                </Button>
-              </WithTooltip>
+              <RoomMenu
+                courseCode={courseCode}
+                room={room}
+                onAllowed={() => setAllowedOpen(true)}
+              />
             </>
           )
         }
@@ -272,6 +300,7 @@ export function RoomView({
           firstUnread={firstUnread}
           you={conversation?.you ?? null}
           now={now}
+          joins={thread ? [] : (joins.data ?? [])}
           writable={roomState.writable}
           actions={actions}
           onLoadOlder={() => session?.loadOlder(room.id, thread)}
@@ -297,6 +326,8 @@ export function RoomView({
             placeholder={thread ? "Reply…" : `Message ${room.label}`}
             disabledReason={disabledReason}
             onTyping={() => session?.typing(room.id)}
+            allowedOpen={allowedOpen}
+            onAllowedOpenChange={setAllowedOpen}
             loadMembers={() =>
               roomMembers(room, conversation?.you?.directoryId)
             }
@@ -456,6 +487,7 @@ function Messages({
   firstUnread,
   you,
   now,
+  joins,
   writable,
   actions,
   onLoadOlder,
@@ -469,6 +501,8 @@ function Messages({
   firstUnread: ChatMessageId | null;
   you: SessionSnapshot["conversation"]["you"];
   now: number;
+  /** Who joined the room, placed between its messages. */
+  joins: Parameters<typeof joinGroups>[0];
   writable: boolean;
   actions: MessageActions;
   onLoadOlder: () => void;
@@ -522,6 +556,14 @@ function Messages({
   }, [loaded, lastId, onSeen]);
 
   const rows = thread && root ? [root, ...items] : items;
+  const groups = useMemo(
+    () => joinGroups(joins, rows, { complete: !more }),
+    [joins, rows, more],
+  );
+  const joinsBefore = new Map<string | null, JoinGroup[]>();
+  for (const g of groups)
+    joinsBefore.set(g.before, [...(joinsBefore.get(g.before) ?? []), g]);
+  const youId = you?.directoryId ?? null;
 
   return (
     <div
@@ -551,13 +593,18 @@ function Messages({
         {!loaded ? (
           <MessagesSkeleton />
         ) : rows.length === 0 ? (
-          <PanelNote className="py-6 text-center">
-            <p>
-              {thread
-                ? "No replies yet."
-                : "No messages yet. Say hi to your classmates."}
-            </p>
-          </PanelNote>
+          <>
+            {(joinsBefore.get(null) ?? []).map((g) => (
+              <JoinLine key={g.at} group={g} you={youId} nowIso={nowIso} />
+            ))}
+            <PanelNote className="py-6 text-center">
+              <p>
+                {thread
+                  ? "No replies yet."
+                  : "No messages yet. Say hi to your classmates."}
+              </p>
+            </PanelNote>
+          </>
         ) : (
           rows.map((item, i) => {
             const prev = rows[i - 1];
@@ -574,6 +621,9 @@ function Messages({
               item.id !== firstUnread;
             return (
               <Fragment key={item.id}>
+                {(joinsBefore.get(item.id) ?? []).map((g) => (
+                  <JoinLine key={g.at} group={g} you={youId} nowIso={nowIso} />
+                ))}
                 {newDay ? (
                   <DayDivider label={dayWords(item.createdAt, nowIso)} />
                 ) : null}
@@ -594,8 +644,42 @@ function Messages({
             );
           })
         )}
+        {rows.length > 0
+          ? (joinsBefore.get(null) ?? []).map((g) => (
+              <JoinLine key={g.at} group={g} you={youId} nowIso={nowIso} />
+            ))
+          : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * "Alex, Sam and 3 others joined": a small, quiet line (GroupMe's, the
+ * owner, 2026-09-29), with everyone's name and the time in its tooltip.
+ */
+function JoinLine({
+  group,
+  you,
+  nowIso,
+}: {
+  group: JoinGroup;
+  you: string | null;
+  nowIso: string;
+}) {
+  const everyone = group.people.map((p) => p.name).join(", ");
+  return (
+    <p
+      data-join-line=""
+      className="flex items-center justify-center gap-1.5 px-4 py-1 text-center text-muted text-xs"
+    >
+      <UserPlus size={12} aria-hidden="true" className="shrink-0" />
+      <WithTooltip label={`${everyone} · ${whenWords(group.at, nowIso)}`}>
+        <span className="truncate" data-private="">
+          {joinWords(group.people, you)}
+        </span>
+      </WithTooltip>
+    </p>
   );
 }
 

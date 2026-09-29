@@ -99,8 +99,9 @@ async function newPerson(
   return { context, page };
 }
 
+/** A room's path (~/core/chat/room-paths): `/chat/CMSC351/0101`. */
 const roomUrl = (course: string, section: string) =>
-  `/chat?term=${TERM}&course=${course}&room=${TERM}:${course}:${section}`;
+  `/chat/${course}/${section}`;
 
 /** A message in the log, by its text. */
 const message = (page: Page, text: string): Locator =>
@@ -193,7 +194,7 @@ test("with no classes yet, find any course and open its room", async ({
   await box.press("Enter");
 
   await expect(page).toHaveURL(
-    (url) => url.searchParams.get("room") === `${TERM}:CMSC131`,
+    (url) => url.pathname === "/chat/CMSC131/everyone",
   );
   await expect(
     page.getByRole("textbox", { name: /^Message CMSC131/ }),
@@ -228,14 +229,15 @@ test("two classmates talk in their section's room", async ({
   await rooms
     .getByRole("listitem")
     .filter({ hasText: course })
-    .getByRole("button", { name: new RegExp(`^${section} ·`) })
+    .getByRole("button", { name: `Section ${section}` })
     .click();
-  await expect(page).toHaveURL(
-    new RegExp(
-      `room=${TERM}%3A${course}%3A${section}|room=${TERM}:${course}:${section}`,
-    ),
-  );
+  // A room is a path now, a prettier link.
+  await expect(page).toHaveURL(new RegExp(`/chat/${course}/${section}$`));
   await dismissRules(page);
+  // Who's here shows as joins in the room, grouped on one quiet line.
+  await expect(
+    page.getByRole("log").locator("[data-join-line]").first(),
+  ).toContainText("joined");
 
   // tstudent writes; it shows at once, then for everyone once it's checked.
   const first = `Anyone want to study for the midterm? ${tag}`;
@@ -244,6 +246,13 @@ test("two classmates talk in their section's room", async ({
   // Nothing says it's being checked: it just looks sent.
   await expect(message(page, first).getByTestId("held-note")).toHaveCount(0);
   await expect(message(page, first).getByText(/checking/i)).toHaveCount(0);
+  // The list's second line is the room's newest message, not a summary.
+  if (!isMobile)
+    await expect(
+      page
+        .getByRole("navigation", { name: "Rooms" })
+        .locator(`[data-room-row="${TERM}:${course}:${section}"]`),
+    ).toContainText(`You: ${first}`);
 
   await classmate.page.goto(roomUrl(course, section));
   await dismissRules(classmate.page);
@@ -280,7 +289,7 @@ test("two classmates talk in their section's room", async ({
     classmate.page.getByRole("button", { name: "Close the thread" }),
   ).toHaveCount(0);
   await classmate.page
-    .getByRole("link", { name: `${course} ${section}`, exact: true })
+    .getByRole("link", { name: `${course} · Section ${section}`, exact: true })
     .click();
   await expect(
     classmate.page.getByRole("heading", { name: "Thread" }),
@@ -303,22 +312,42 @@ test("two classmates talk in their section's room", async ({
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(message(page, edited)).toBeVisible();
 
-  // Room info: how many people, and muting (no dialogs anywhere).
-  await page.getByRole("button", { name: "Room info" }).click();
-  const info2 = isMobile
-    ? page.getByRole("dialog")
-    : page.getByRole("complementary", { name: "Room info" });
-  await expect(
-    info2.getByText(/Terpsicle can't see registrations/),
-  ).toBeVisible();
-  // Muting flips, and says so (local runs may find it muted already).
-  const mute = info2.getByRole("button", { name: /^(Mute this room|Muted)$/ });
-  const was = await mute.getAttribute("aria-pressed");
-  await mute.click();
-  await expect(mute).toHaveAttribute(
-    "aria-pressed",
-    was === "true" ? "false" : "true",
+  // Deleted for real, it leaves a tombstone for everyone: the record stays,
+  // the words don't.
+  const id = await message(page, edited).getAttribute("data-message-id");
+  await messageAction(message(page, edited), "More", isMobile);
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  // The same message, by its id: sent once Undo runs out.
+  const tombstone = (p: Page) =>
+    p.getByRole("log").locator(`[data-message-id="${id}"]`);
+  await expect(tombstone(classmate.page)).toContainText(
+    "Message deleted by author",
+    { timeout: 20_000 },
   );
+  await expect(message(classmate.page, edited)).toHaveCount(0);
+  await expect(tombstone(page)).toContainText("Message deleted by author");
+
+  // The room's one button, Options: muting flips it (local runs may find
+  // it muted already), with no dialogs anywhere.
+  const options = page.getByRole("button", { name: /^(Options|Muted)$/ });
+  const wasMuted = (await options.textContent())?.includes("Muted") ?? false;
+  await options.click();
+  await page
+    .getByRole("menuitem", {
+      name: wasMuted ? "Unmute this room" : "Mute this room",
+    })
+    .click();
+  await expect(
+    page.getByRole("button", { name: wasMuted ? "Options" : "Muted" }),
+  ).toBeVisible();
+  // And the list marks a muted room with its bell.
+  if (!isMobile)
+    await expect(
+      page
+        .getByRole("navigation", { name: "Rooms" })
+        .locator(`[data-room-row="${TERM}:${course}:${section}"]`)
+        .getByLabel("Muted"),
+    ).toHaveCount(wasMuted ? 0 : 1);
 
   await classmate.context.close();
 });
@@ -422,7 +451,24 @@ test("course details in the scheduler lead to the course's chat", async ({
   await join.click();
   await expect(page).toHaveURL(/\/chat/);
   await expect(page.getByRole("log", { name: "Messages" })).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`room=${TERM}(%3A|:)${course}($|&)`));
+  await expect(page).toHaveURL(new RegExp(`/chat/${course}/everyone$`));
+});
+
+test("an older link, with the room in its search params, goes to the room's path", async ({
+  page,
+}, info) => {
+  const { course, section } = courseFor(info);
+  await signIn(page, "Test Student", "/chat");
+  await page.goto(
+    `/chat?term=${TERM}&course=${course}&room=${TERM}:${course}:${section}`,
+  );
+  await expect(page).toHaveURL(new RegExp(`/chat/${course}/${section}$`));
+  await expect(
+    page.getByRole("region", { name: `${course} · Section ${section}` }),
+  ).toBeVisible({ timeout: 15_000 });
+  // A course on its own is its room for everyone.
+  await page.goto(`/chat/${course}`);
+  await expect(page).toHaveURL(new RegExp(`/chat/${course}/everyone$`));
 });
 
 test("a course from a term that isn't Chat's has no Join, and the server won't join one", async ({

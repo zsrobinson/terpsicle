@@ -1,29 +1,17 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect } from "react";
-import { ChatSearchSchema } from "~/core/schema";
-import { ChatPage } from "~/features/chat/chat-page";
-import type { ChatGo } from "~/features/chat/nav";
-import { initAnalytics } from "~/lib/analytics";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { chatPath, parseChatPath } from "~/core/chat/room-paths";
 
-// Terpsicle Chat (V2.md §8.6). Everything talks to the Worker from the
-// browser (the socket, chat/*, sync/pull), so it renders only there.
+// The chat list (the layout, chat.tsx, draws it). An older link named its
+// room in search params (`/chat?term=…&course=…&room=…&thread=…`): it goes
+// to the room's path, keeping its term so a term that isn't Chat's opens
+// the list.
 export const Route = createFileRoute("/chat/")({
-  ssr: false,
-  validateSearch: ChatSearchSchema,
-  head: () => ({ meta: [{ title: "Chat · Terpsicle" }] }),
-  component: ChatRoute,
+  beforeLoad: ({ location }) => {
+    const at = parseChatPath(
+      location.pathname,
+      new URLSearchParams(location.searchStr),
+    );
+    if (at?.course) throw redirect({ href: chatPath(at), replace: true });
+  },
+  component: () => null,
 });
-
-function ChatRoute() {
-  const view = Route.useSearch();
-  const navigate = useNavigate({ from: "/chat/" });
-  useEffect(() => {
-    void initAnalytics();
-  }, []);
-  const go: ChatGo = useCallback(
-    (next, options) =>
-      void navigate({ search: next, replace: options?.replace ?? false }),
-    [navigate],
-  );
-  return <ChatPage view={view} go={go} />;
-}

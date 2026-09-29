@@ -312,8 +312,12 @@ export class CourseChatSession {
       room: waiting.room,
       id,
     });
-    // Gone, or already gone: either way it's not coming back.
-    if (result.ok || result.code === "not-found")
+    // A message the room saw comes back as its tombstone ("Message deleted
+    // by author"); one only you saw is gone, as is one already gone.
+    if (result.ok && result.message) {
+      this.#dispatch({ type: "upsert", message: result.message });
+      this.#dispatch({ type: "unhide", id });
+    } else if (result.ok || result.code === "not-found")
       this.#dispatch({ type: "remove", id });
     else this.#dispatch({ type: "unhide", id });
   }

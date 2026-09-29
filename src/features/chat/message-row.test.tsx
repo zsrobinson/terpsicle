@@ -62,6 +62,29 @@ describe("MessageRow", () => {
     expect(within(article).getByText(noor.name)).toBeInTheDocument();
   });
 
+  it("keeps a deleted message's place as a tombstone, with nothing to do on it", () => {
+    row(
+      aChatMessage({
+        author: me,
+        text: "",
+        deleted: true,
+        thread: { count: 2, lastAt: FIXTURE_NOW },
+      }),
+    );
+    const article = screen.getByRole("article");
+    expect(
+      within(article).getByText("Message deleted by author"),
+    ).toBeInTheDocument();
+    expect(within(article).getByText(me.name)).toBeInTheDocument();
+    // No edit, delete, react or report; its thread still opens.
+    expect(
+      within(article).queryByRole("button", { name: /Delete|Edit|More/ }),
+    ).toBeNull();
+    expect(
+      within(article).getByRole("button", { name: /2 replies/ }),
+    ).toBeInTheDocument();
+  });
+
   it("marks a held message for its author: yellow, with one plain line", () => {
     row(
       aChatMessage({

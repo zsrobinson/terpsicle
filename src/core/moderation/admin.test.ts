@@ -226,12 +226,23 @@ describe("parseChatMessageRef", () => {
     ).toEqual(found);
   });
 
-  it("reads a thread link from Chat, on any host", () => {
+  it("reads a thread link from Chat, on any host, which leaves the term to Chat", () => {
+    for (const link of [
+      "https://terpsicle.com/chat/CMSC351/0101?thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
+      "http://localhost:3000/chat/CMSC351/everyone?thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
+    ])
+      expect(parseChatMessageRef(link), link).toEqual({
+        ...found,
+        termId: null,
+      });
+  });
+
+  it("reads an older link, which named the term", () => {
     for (const link of [
       "https://terpsicle.com/chat?term=202701&course=CMSC351&room=202701%3ACMSC351&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
       "http://localhost:3000/chat?thread=01JABCDEFGHJKMNPQRSTVWXYZ0&course=CMSC351&term=202701",
       "/chat?term=202701&course=CMSC351&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
-      // The current term is left out; the room still names it.
+      // The term left out; the room still names it.
       "http://localhost:3706/chat?course=CMSC351&room=202701%3ACMSC351%3A0101&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
     ])
       expect(parseChatMessageRef(link), link).toEqual(found);
@@ -245,6 +256,7 @@ describe("parseChatMessageRef", () => {
       "202701:cmsc351:01JABCDEFGHJKMNPQRSTVWXYZ0",
       "202701:CMSC351:short",
       "https://terpsicle.com/chat?term=202701&course=CMSC351",
+      "https://terpsicle.com/chat/CMSC351/0101",
       "https://terpsicle.com/reviews?term=202701&course=CMSC351&thread=01JABCDEFGHJKMNPQRSTVWXYZ0",
       "http://[::1",
     ])

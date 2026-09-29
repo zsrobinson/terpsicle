@@ -65,6 +65,8 @@ export function Composer({
   onSend,
   onTyping,
   loadMembers,
+  allowedOpen,
+  onAllowedOpenChange,
 }: {
   placeholder: string;
   /** The field's accessible name: "Message CMSC351 · everyone". */
@@ -75,6 +77,9 @@ export function Composer({
   onTyping: () => void;
   /** The room's members, for @-mentions; without it, no autocomplete. */
   loadMembers?: () => Promise<readonly Mentionable[]>;
+  /** "What's allowed", opened from the room's Options too. */
+  allowedOpen?: boolean;
+  onAllowedOpenChange?: (open: boolean) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [caret, setCaret] = useState(0);
@@ -224,7 +229,7 @@ export function Composer({
         </WithTooltip>
       </div>
       <div className="mt-1 flex min-h-4 items-center gap-3 text-muted text-xs">
-        <Allowed />
+        <Allowed open={allowedOpen} onOpenChange={onAllowedOpenChange} />
         {hint ? (
           <span role="status" className="min-w-0">
             {ANSWERS_HINT}
@@ -286,10 +291,19 @@ function useMentions(
 }
 
 /** "What's allowed": chat's rules, in the words reviews use too. */
-export function Allowed() {
+export function Allowed({
+  open,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const policy = MODERATION_POLICY.chat;
   return (
-    <Popover>
+    <Popover
+      {...(open === undefined ? {} : { open })}
+      {...(onOpenChange ? { onOpenChange } : {})}
+    >
       <WithTooltip label="Chat's rules">
         <PopoverTrigger asChild>
           <button

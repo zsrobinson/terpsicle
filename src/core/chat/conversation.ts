@@ -325,6 +325,7 @@ export function conversationReducer(
         thread: null,
         reactions: {},
         moderation: { state: "held", reason: "checking" },
+        deleted: false,
         local: { req: action.req, state: "sending" },
       });
     }

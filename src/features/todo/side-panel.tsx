@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Eye, EyeOff, MessagesSquare, RefreshCw } from "lucide-react";
 import { SectionHeader } from "~/components/panel";
+import { EVERYONE_SLUG } from "~/core/chat/room-paths";
 import type {
   CourseCode,
   CourseColor,
@@ -151,8 +152,8 @@ function CourseLine({
             >
               <Button variant="ghost" size="icon-sm" asChild>
                 <Link
-                  to="/chat"
-                  search={{ term: row.chatTerm, course: row.code }}
+                  to="/chat/$course/$room"
+                  params={{ course: row.code, room: EVERYONE_SLUG }}
                   aria-label={`View chat for ${row.code}`}
                   onClick={() => crossLinkClicked("todo", "chat")}
                 >
