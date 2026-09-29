@@ -14,7 +14,8 @@ import { compare, sortedUnique, sortSections } from "./build";
 // - our own record beats PlanetTerp's, whichever arrives first;
 // - from the same source, the newer sighting's sections win (a section
 //   Testudo stopped listing was cancelled), but a section's names never
-//   go back to TBA: a name we saw is kept over an empty list.
+//   go back to TBA: a name we saw is kept over an empty list, and a course
+//   with no sections never replaces one that has them.
 
 /** A course's record after a new sighting of it. */
 export function mergeHistoryCourse(
@@ -24,6 +25,15 @@ export function mergeHistoryCourse(
   if (!existing) return incoming;
   if (outranks(existing.source, incoming.source)) return existing;
   if (outranks(incoming.source, existing.source)) return incoming;
+  // A course with no sections never replaces one that has them: a truncated
+  // sections answer publishes `sections: []` (DATA.md §4.1, "never replace
+  // good data with empty data").
+  if (incoming.sections.length === 0 && existing.sections.length > 0)
+    return {
+      ...existing,
+      title: incoming.title ?? existing.title,
+      credits: incoming.credits ?? existing.credits,
+    };
   const before = new Map(existing.sections.map((s) => [s.code, s]));
   const sections: HistorySection[] = sortSections(
     incoming.sections.map((s) => {

@@ -12,6 +12,7 @@ import {
   HistoryDeptSchema,
   type HistoryManifest,
   HistoryManifestSchema,
+  type HistoryOffering,
 } from "~/core/schema/history";
 import type { DataSource } from "../data-source";
 import { publishedFile, publishedPointer } from "./published";
@@ -70,8 +71,9 @@ export function historyDept(
 
 /**
  * Who taught `course` in `termId`: that term's record (its source, names
- * and sections), or null when there's none. The department's file query,
- * selected down, so it shares that file's cache.
+ * and sections), or null when there's none, including when its department
+ * has no history at all. Waits for the manifest; reads the department's
+ * file through its own query, so the two share a cache.
  */
 export function whoTaughtQuery(
   source: DataSource | null,
@@ -79,9 +81,18 @@ export function whoTaughtQuery(
   course: string,
   termId: TermId,
 ) {
+  const entry = historyDept(manifest, course.slice(0, 4));
+  const file = historyDeptQuery(source, entry);
   return queryOptions({
-    ...historyDeptQuery(source, historyDept(manifest, course.slice(0, 4))),
-    select: (dept: HistoryDept) => whoTaught(dept, course, termId),
+    queryKey: ["history", "who-taught", file.queryKey, course, termId] as const,
+    queryFn:
+      source && manifest
+        ? async ({ client }): Promise<HistoryOffering | null> =>
+            entry
+              ? whoTaught(await client.ensureQueryData(file), course, termId)
+              : null
+        : skipToken,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 

@@ -56,9 +56,20 @@ export interface BackfillResult {
   /** Skipped: backfilled by an earlier run. */
   alreadyDone: number;
   fetched: number;
-  /** PlanetTerp had no grades for them. */
+  /** PlanetTerp said it has no grades for them (its 400 "course not found"). */
   noGrades: number;
+  /**
+   * PlanetTerp answered with an empty list: not taken as "no grades"
+   * (DATA.md §4.1), so they stay to do and a rerun asks again.
+   */
+  emptyAnswers: number;
   failed: number;
+  /**
+   * False when a page of PlanetTerp's course list failed, or came back
+   * short with more after it: some courses may be missing from this run,
+   * and a rerun lists them again.
+   */
+  listingComplete: boolean;
   /** Course-in-a-term records found, per term (a dry run's answer). */
   byTerm: Record<TermId, number>;
   written: number;
@@ -79,7 +90,9 @@ export async function backfillHistory(
     alreadyDone: 0,
     fetched: 0,
     noGrades: 0,
+    emptyAnswers: 0,
     failed: 0,
+    listingComplete: true,
     byTerm: {},
     written: 0,
     errors: [],
@@ -141,7 +154,14 @@ export async function backfillHistory(
     try {
       const rows = await politely(() => fetchGrades(http, code));
       result.fetched++;
-      if (!rows || rows.length === 0) {
+      if (rows?.length === 0) {
+        result.emptyAnswers++;
+        result.errors.push(
+          `${code}: PlanetTerp answered with no grade rows; a rerun asks again`,
+        );
+        continue;
+      }
+      if (!rows) {
         result.noGrades++;
       } else {
         const meta = metas.get(code) ?? null;
@@ -208,25 +228,50 @@ async function listCourses(
   const scopes = options.departments?.length
     ? options.departments.map((d) => `&department=${encodeURIComponent(d)}`)
     : [""];
-  for (const scope of scopes) {
-    for (let offset = 0; ; offset += PAGE_SIZE) {
-      const page = z
-        .array(CourseListingSchema)
-        .parse(
-          await politely(() =>
-            http.json(
-              `${PLANETTERP_API}/courses?limit=${PAGE_SIZE}&offset=${offset}${scope}`,
-            ),
+  const page = async (offset: number, scope: string) =>
+    z
+      .array(CourseListingSchema)
+      .parse(
+        await politely(() =>
+          http.json(
+            `${PLANETTERP_API}/courses?limit=${PAGE_SIZE}&offset=${offset}${scope}`,
           ),
+        ),
+      );
+  for (const scope of scopes) {
+    let offset = 0;
+    let next: z.infer<typeof CourseListingSchema>[] | null = null;
+    try {
+      for (;;) {
+        const courses = next ?? (await page(offset, scope));
+        next = null;
+        for (const course of courses) {
+          const code = CourseCodeSchema.safeParse(
+            course.name.trim().toUpperCase(),
+          );
+          if (code.success)
+            out.set(code.data, {
+              title: course.title,
+              credits: course.credits,
+            });
+        }
+        offset += PAGE_SIZE;
+        if (courses.length === PAGE_SIZE) continue;
+        // A short page usually ends the list, but a truncated one looks the
+        // same: only an empty page after it says so.
+        const after = await page(offset, scope);
+        if (after.length === 0) break;
+        result.listingComplete = false;
+        result.errors.push(
+          `listing${scope}: the page at offset ${offset - PAGE_SIZE} had ${courses.length} courses, but more followed`,
         );
-      for (const course of page) {
-        const code = CourseCodeSchema.safeParse(
-          course.name.trim().toUpperCase(),
-        );
-        if (code.success)
-          out.set(code.data, { title: course.title, credits: course.credits });
+        next = after;
       }
-      if (page.length < PAGE_SIZE) break;
+    } catch (error) {
+      result.listingComplete = false;
+      result.errors.push(
+        `listing${scope}: stopped at offset ${offset}: ${String(error)}; a rerun lists again`,
+      );
     }
   }
   return out;

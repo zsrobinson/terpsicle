@@ -56,6 +56,23 @@ describe("mergeHistoryCourse", () => {
     expect(mergeHistoryCourse(before, after)).toEqual(before);
   });
 
+  it("never lets a course with no sections replace one that has them", () => {
+    // What a truncated sections answer publishes (DATA.md §4.1).
+    const before = aHistoryCourse();
+    const truncated = aHistoryCourse({
+      title: "Algorithms II",
+      instructors: [],
+      sections: [],
+    });
+    expect(mergeHistoryCourse(before, truncated)).toEqual({
+      ...before,
+      title: "Algorithms II",
+    });
+    // A course that never had sections takes the new sighting as usual.
+    const none = aHistoryCourse({ instructors: [], sections: [] });
+    expect(mergeHistoryCourse(none, truncated)).toEqual(truncated);
+  });
+
   it("lets a new name replace an old one", () => {
     const before = aHistoryCourse();
     const after = aHistoryCourse({

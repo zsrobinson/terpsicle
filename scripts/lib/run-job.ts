@@ -67,7 +67,10 @@ export async function runPipelineJob(
       break;
     case "history":
       // The instructor history, from the catalog already in the store.
-      result = { ...(await snapshotHistory(common)) };
+      // --force copies chunks held back for a sharp drop in sections.
+      result = {
+        ...(await snapshotHistory({ ...common, force: options.force })),
+      };
       break;
     case "seats":
       result = {

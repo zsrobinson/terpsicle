@@ -6,10 +6,14 @@ import {
   historyFromPlanetTerpGrades,
 } from "~/core/history";
 import {
+  type DeptChunk,
   DeptChunkSchema,
+  deptChunkKey,
   HISTORY_MANIFEST_KEY,
   historyDeptKey,
   historyTermKey,
+  ManifestSchema,
+  manifestKey,
 } from "~/core/schema";
 import {
   HistoryDeptSchema,
@@ -34,7 +38,7 @@ import {
 } from "./history";
 import { backfillHistory, HISTORY_BACKFILL_KEY } from "./history-backfill";
 import { createHttpClient } from "./http";
-import { readJson, silentLogger, writeJson } from "./publish";
+import { readJson, silentLogger, writeHashed, writeJson } from "./publish";
 
 const FIXTURES = new URL("./__fixtures__/", import.meta.url);
 const fixture = (path: string) =>
@@ -212,6 +216,32 @@ describe("publishHistory", () => {
     expect(store.writes).toEqual([]);
   });
 
+  it("writes nothing when the manifest is missing but term files aren't", async () => {
+    const store = createMemoryBlobStore();
+    await publishHistory({
+      store,
+      now,
+      log,
+      updates: [{ termId: fixtureTermId, courses: [aHistoryCourse()] }],
+    });
+    await store.delete(HISTORY_MANIFEST_KEY);
+    const files = (await store.list("history/")).sort();
+    await expect(
+      publishHistory({
+        store,
+        now,
+        log,
+        updates: [
+          {
+            termId: fixtureTermId,
+            courses: [aHistoryCourse({ code: "CMSC250" })],
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(HistoryUnreadableError);
+    expect((await store.list("history/")).sort()).toEqual(files);
+  });
+
   it("reports a term whose file went missing and leaves it alone", async () => {
     const store = createMemoryBlobStore();
     await publishHistory({
@@ -239,25 +269,117 @@ describe("publishHistory", () => {
   });
 });
 
+const StateSchema = z.object({
+  copied: z.record(
+    z.string(),
+    z.record(z.string(), z.object({ hash: z.string(), sections: z.number() })),
+  ),
+});
+
+/** Replaces a department's chunk in the catalog, as a crawl would. */
+async function recrawl(
+  store: ReturnType<typeof createMemoryBlobStore>,
+  dept: string,
+  change: (chunk: DeptChunk) => DeptChunk,
+) {
+  const manifest = await readJson(
+    store,
+    manifestKey(fixtureTermId),
+    ManifestSchema,
+  );
+  const entry = manifest?.departments.find((d) => d.code === dept);
+  if (!manifest || !entry) throw new Error(`no ${dept} in the catalog`);
+  const chunk = await readJson(
+    store,
+    deptChunkKey(fixtureTermId, dept, entry.hash),
+    DeptChunkSchema,
+  );
+  if (!chunk) throw new Error(`no ${dept} chunk`);
+  const next = change(chunk);
+  const { hash } = await writeHashed(
+    store,
+    DeptChunkSchema,
+    next,
+    (h) => deptChunkKey(fixtureTermId, dept, h),
+    dept,
+  );
+  const sectionCount = next.courses.reduce((n, c) => n + c.sections.length, 0);
+  await writeJson(store, manifestKey(fixtureTermId), {
+    ...manifest,
+    departments: manifest.departments.map((d) =>
+      d.code === dept ? { ...d, hash, sectionCount } : d,
+    ),
+  });
+}
+
+async function cmsc351(store: ReturnType<typeof createMemoryBlobStore>) {
+  const cmsc = (await manifestOf(store)).departments.find(
+    (d) => d.code === "CMSC",
+  );
+  const dept = await readJson(
+    store,
+    historyDeptKey("CMSC", cmsc?.hash ?? ""),
+    HistoryDeptSchema,
+  );
+  return dept?.courses
+    .find((c) => c.code === "CMSC351")
+    ?.offerings.find((o) => o.termId === fixtureTermId);
+}
+
 describe("the job state", () => {
   it("copies a changed chunk again, and only that one", async () => {
     const store = await catalogStore();
     await snapshotHistory({ store, now, log });
-    const state = await readJson(
-      store,
-      HISTORY_STATE_KEY,
-      z.object({
-        copied: z.record(z.string(), z.record(z.string(), z.string())),
-      }),
-    );
+    const state = await readJson(store, HISTORY_STATE_KEY, StateSchema);
     const depts = state?.copied[fixtureTermId] ?? {};
     const [dept] = Object.keys(depts);
     if (!dept) throw new Error("no department copied");
+    const last = depts[dept];
     await writeJson(store, HISTORY_STATE_KEY, {
-      copied: { ...state?.copied, [fixtureTermId]: { ...depts, [dept]: "0" } },
+      copied: {
+        ...state?.copied,
+        [fixtureTermId]: { ...depts, [dept]: { ...last, hash: "0" } },
+      },
     });
     const again = await snapshotHistory({ store, now, log });
     expect(again.chunks).toBe(1);
+  });
+
+  it("holds back a chunk whose sections dropped sharply, and doesn't record it", async () => {
+    const store = await catalogStore();
+    await snapshotHistory({ store, now, log });
+    const before = await cmsc351(store);
+    expect(before?.sections.length).toBeGreaterThan(0);
+    // A truncated /sections answer: every course published with no sections.
+    await recrawl(store, "CMSC", (chunk) => ({
+      ...chunk,
+      courses: chunk.courses.map((c) => ({ ...c, sections: [] })),
+    }));
+    const held = await snapshotHistory({ store, now, log });
+    expect(held).toMatchObject({ held: 1, chunks: 0 });
+    expect(held.errors[0]).toMatch(/CMSC: held back, 0 sections/);
+    expect(await cmsc351(store)).toEqual(before);
+    // Still held next run: it was never recorded as copied.
+    expect((await snapshotHistory({ store, now, log })).held).toBe(1);
+
+    // Forced through, the merge still keeps every instructor it had.
+    const forced = await snapshotHistory({ store, now, log, force: true });
+    expect(forced.chunks).toBe(1);
+    expect(await cmsc351(store)).toEqual(before);
+  });
+
+  it("copies a smaller drop, a few cancelled sections", async () => {
+    const store = await catalogStore();
+    await snapshotHistory({ store, now, log });
+    await recrawl(store, "CMSC", (chunk) => ({
+      ...chunk,
+      courses: chunk.courses.map((c) =>
+        c.code === "CMSC351" ? { ...c, sections: c.sections.slice(0, 1) } : c,
+      ),
+    }));
+    const run = await snapshotHistory({ store, now, log });
+    expect(run).toMatchObject({ held: 0, chunks: 1 });
+    expect((await cmsc351(store))?.sections).toHaveLength(1);
   });
 });
 
@@ -365,5 +487,106 @@ describe("backfillHistory", () => {
       (t) => t.termId === termId,
     );
     expect(entry?.courses).toEqual({ terpsicle: 1, planetterp: 0 });
+  });
+
+  /** A fake PlanetTerp answering each URL that contains a key from `pages`. */
+  const fakePlanetTerp = (pages: [string, number, unknown][]) => {
+    const fetch = async (input: string | URL | Request) => {
+      const url = String(input);
+      const hit = pages.find(([part]) => url.includes(part));
+      return hit
+        ? Response.json(hit[2], { status: hit[1] })
+        : new Response("nope", { status: 500 });
+    };
+    return createHttpClient({ fetch, attempts: 1, sleep: async () => {} });
+  };
+  const notFound = fixture("planetterp/grades-course-not-found.json");
+  const listing = (...codes: string[]) =>
+    codes.map((name) => ({ name, title: `${name} title`, credits: 3 }));
+
+  it("takes only PlanetTerp's 400 as no grades; an empty list stays to do", async () => {
+    const store = createMemoryBlobStore();
+    const http = fakePlanetTerp([
+      ["/course?name=", 200, { name: "X", title: "T", credits: 3 }],
+      ["/grades?course=CMSC351", 200, []],
+      ["/grades?course=CMSC250", 400, notFound],
+    ]);
+    const result = await backfillHistory({
+      http,
+      store,
+      now,
+      log,
+      courses: ["CMSC351", "CMSC250"],
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ emptyAnswers: 1, noGrades: 1 });
+    expect(result.errors).toContain(
+      "CMSC351: PlanetTerp answered with no grade rows; a rerun asks again",
+    );
+    const progress = await store.get(HISTORY_BACKFILL_KEY);
+    expect(JSON.parse(new TextDecoder().decode(progress ?? undefined))).toEqual(
+      { done: ["CMSC250"] },
+    );
+  });
+
+  it("checks a short list page, and reports one that had more after it", async () => {
+    const http = fakePlanetTerp([
+      ["offset=0&", 200, listing("CMSC131", "CMSC132")],
+      ["offset=100&", 200, listing("CMSC216")],
+      ["offset=200&", 200, []],
+      ["/grades?", 400, notFound],
+    ]);
+    const result = await backfillHistory({
+      http,
+      store: createMemoryBlobStore(),
+      now,
+      log,
+      departments: ["CMSC"],
+      sleep: async () => {},
+    });
+    expect(result.listed).toBe(3);
+    expect(result.listingComplete).toBe(false);
+    expect(result.errors[0]).toMatch(
+      /offset 0 had 2 courses, but more followed/,
+    );
+  });
+
+  it("ends the list quietly at an empty page after a short one", async () => {
+    const http = fakePlanetTerp([
+      ["offset=0&", 200, listing("CMSC131")],
+      ["offset=100&", 200, []],
+      ["/grades?", 400, notFound],
+    ]);
+    const result = await backfillHistory({
+      http,
+      store: createMemoryBlobStore(),
+      now,
+      log,
+      departments: ["CMSC"],
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ listed: 1, listingComplete: true });
+    expect(result.errors).toEqual([]);
+  });
+
+  it("keeps what it listed when a list page fails, and says the list is incomplete", async () => {
+    const http = fakePlanetTerp([
+      [
+        "offset=0&",
+        200,
+        listing(...Array.from({ length: 100 }, (_, i) => `CMSC${100 + i}`)),
+      ],
+      ["/grades?", 400, notFound],
+    ]);
+    const result = await backfillHistory({
+      http,
+      store: createMemoryBlobStore(),
+      now,
+      log,
+      departments: ["CMSC"],
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ listed: 100, listingComplete: false });
+    expect(result.errors[0]).toMatch(/stopped at offset 100/);
   });
 });

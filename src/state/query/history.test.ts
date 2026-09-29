@@ -62,9 +62,29 @@ describe("the instructor history in mock mode", () => {
     expect(terms).toEqual([...terms].sort().reverse());
   });
 
+  it("answers null for a department with no history, rather than waiting", async () => {
+    const client = createTestQueryClient();
+    const manifest = await client.fetchQuery(historyManifestQuery(source));
+    expect(manifest.departments.some((d) => d.code === "ZZZZ")).toBe(false);
+    await expect(
+      client.fetchQuery(
+        whoTaughtQuery(source, manifest, "ZZZZ101", fixtureTermId),
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      client.fetchQuery(taughtByQuery(source, manifest, ["ZZZZ"], ["Anyone"])),
+    ).resolves.toEqual([]);
+  });
+
   it("waits for the manifest before it reads anything", () => {
-    expect(
-      whoTaughtQuery(source, undefined, "CMSC351", fixtureTermId).queryKey,
-    ).toContain("history/dept/none");
+    const client = createTestQueryClient();
+    const query = whoTaughtQuery(source, undefined, "CMSC351", fixtureTermId);
+    const observer = new QueryObserver(client, query);
+    const stop = observer.subscribe(() => {});
+    expect(observer.getCurrentResult()).toMatchObject({
+      status: "pending",
+      fetchStatus: "idle",
+    });
+    stop();
   });
 });

@@ -121,6 +121,13 @@ export async function publishHistory(options: {
   } catch (error) {
     throw new HistoryUnreadableError(String(error));
   }
+  // No manifest but term files: the index was lost, not never written.
+  // Starting empty would orphan every term, and the 24 h collection would
+  // then delete them.
+  if (!previous && (await store.list("history/term/")).length > 0)
+    throw new HistoryUnreadableError(
+      `${HISTORY_MANIFEST_KEY} is missing, but history/term/ has files`,
+    );
   const termHash = new Map(previous?.terms.map((t) => [t.termId, t]) ?? []);
   const deptHash = new Map(
     previous?.departments.map((d) => [d.code, d.hash]) ?? [],
@@ -270,10 +277,19 @@ export async function publishHistory(options: {
 
 // ---------- the history job ----------
 
-/** Job state: per term, the chunk hash each department was last copied from. */
+/**
+ * Job state: per term, the chunk each department was last copied from and
+ * its section count (the manifest's), the baseline for `MIN_SECTION_SHARE`.
+ */
 export const HISTORY_STATE_KEY = `${JOBS_PREFIX}history/state.json`;
 const HistoryStateSchema = z.object({
-  copied: z.record(TermIdSchema, z.record(DeptCodeSchema, z.string())),
+  copied: z.record(
+    TermIdSchema,
+    z.record(
+      DeptCodeSchema,
+      z.object({ hash: z.string(), sections: z.number().int().min(0) }),
+    ),
+  ),
 });
 type HistoryState = z.infer<typeof HistoryStateSchema>;
 
@@ -283,6 +299,15 @@ type HistoryState = z.infer<typeof HistoryStateSchema>;
  * terms first, and keeps each run's R2 reads bounded.
  */
 export const MAX_HISTORY_CHUNKS = 600;
+
+/**
+ * A chunk with fewer than this share of the sections it had when last
+ * copied is held back, not copied: a truncated sections answer publishes
+ * courses with no sections, and if that were a term's last crawl its
+ * instructors would be lost (DATA.md §4.1). It stays held, and reported,
+ * until its count recovers or someone runs the job with `force`.
+ */
+export const MIN_SECTION_SHARE = 0.75;
 
 /** Only the fields the history keeps; the rest of a chunk is stripped unvalidated. */
 const HistoryChunkSchema = z.object({
@@ -301,6 +326,8 @@ export interface SnapshotHistoryResult {
   chunks: number;
   /** Changed chunks left for the next run (over `maxChunks`). */
   pending: number;
+  /** Changed chunks held back because their section count dropped sharply. */
+  held: number;
   courses: number;
   written: number;
   deleted: number;
@@ -318,6 +345,8 @@ export async function snapshotHistory(options: {
   now: Date;
   log: Logger;
   maxChunks?: number;
+  /** Copy chunks whose section count dropped sharply too (someone checked). */
+  force?: boolean;
 }): Promise<SnapshotHistoryResult> {
   const { store, now, log } = options;
   const maxChunks = options.maxChunks ?? MAX_HISTORY_CHUNKS;
@@ -325,6 +354,7 @@ export async function snapshotHistory(options: {
     terms: 0,
     chunks: 0,
     pending: 0,
+    held: 0,
     courses: 0,
     written: 0,
     deleted: 0,
@@ -343,7 +373,12 @@ export async function snapshotHistory(options: {
     ...termsFile.terms.filter((t) => t.status === "active"),
     ...termsFile.terms.filter((t) => t.status !== "active"),
   ].map((t) => t.id);
-  const todo: { termId: TermId; dept: DeptCode; hash: ContentHash }[] = [];
+  const todo: {
+    termId: TermId;
+    dept: DeptCode;
+    hash: ContentHash;
+    sections: number;
+  }[] = [];
   for (const termId of order) {
     let manifest: Manifest | null;
     try {
@@ -356,9 +391,27 @@ export async function snapshotHistory(options: {
     }
     if (!manifest) continue;
     result.terms++;
-    for (const d of manifest.departments)
-      if (state.copied[termId]?.[d.code] !== d.hash)
-        todo.push({ termId, dept: d.code, hash: d.hash });
+    for (const d of manifest.departments) {
+      const last = state.copied[termId]?.[d.code];
+      if (last?.hash === d.hash) continue;
+      if (
+        last &&
+        !options.force &&
+        d.sectionCount < last.sections * MIN_SECTION_SHARE
+      ) {
+        result.held++;
+        result.errors.push(
+          `history ${termId} ${d.code}: held back, ${d.sectionCount} sections where the last copy had ${last.sections}`,
+        );
+        continue;
+      }
+      todo.push({
+        termId,
+        dept: d.code,
+        hash: d.hash,
+        sections: d.sectionCount,
+      });
+    }
   }
   const batch = todo.slice(0, maxChunks);
   result.pending = todo.length - batch.length;
@@ -399,7 +452,10 @@ export async function snapshotHistory(options: {
     if (live.has(termId)) next.copied[termId] = { ...depts };
   for (const r of copied) {
     if (failedTerms.has(r.termId) || failedDepts.has(r.dept)) continue;
-    next.copied[r.termId] = { ...next.copied[r.termId], [r.dept]: r.hash };
+    next.copied[r.termId] = {
+      ...next.copied[r.termId],
+      [r.dept]: { hash: r.hash, sections: r.sections },
+    };
   }
   await writeJson(store, HISTORY_STATE_KEY, next);
   return result;
