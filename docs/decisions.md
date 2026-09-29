@@ -465,6 +465,11 @@ Revisit if: the other products want a public page too.
 R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. Summaries count our newest review by month for the same reason, and go stale when our published count changes.
 Revisit if: readers need finer freshness than a month.
 
+### We keep our own record of who taught what
+2026-09-29 · owner, then agent · one feature
+The owner: "moving forward we have to be able to do that ourselves too", since Testudo only shows a few terms back. The history job copies each term's instructors out of our catalog into R2's `history/` (a permanent, append-only file per term, an index, and department files to read), and a one-off script backfilled older terms from PlanetTerp's grades as `source: planetterp`. The agent's calls: our record beats PlanetTerp's per course; the same source's newer sighting replaces a course's sections (a dropped section was cancelled) but never sends a name back to TBA; and an unreadable index stops every write, since nothing can rebuild the record (DATA.md §3.5).
+Revisit if: we find a source for older terms that beats PlanetTerp's grade data, or the files grow too large to patch in a cron.
+
 ## Chat
 
 ### Real names, pre-made rooms

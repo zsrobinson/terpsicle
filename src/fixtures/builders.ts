@@ -81,6 +81,7 @@ import type {
   FourYearTemplate,
   FourYearWildcardEntry,
 } from "~/core/schema/four-year";
+import type { HistoryCourse, HistoryTerm } from "~/core/schema/history";
 import type { InboxItem } from "~/core/schema/notifications";
 
 /** Term id of the mock catalog's active, default term (Spring 2027). */
@@ -354,6 +355,34 @@ export function aCourseIndexManifest(
     generatedAt: FIXTURE_NOW,
     search: { hash: FIXTURE_HASH },
     departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
+    ...overrides,
+  };
+}
+
+// ---------- instructor history ----------
+
+/** CMSC351 as our own record of a term has it: one section, one instructor. */
+export function aHistoryCourse(
+  overrides: Partial<HistoryCourse> = {},
+): HistoryCourse {
+  return {
+    code: "CMSC351",
+    title: "Algorithms",
+    credits: { min: 3, max: 3 },
+    source: "terpsicle",
+    instructors: ["Ada Brandt"],
+    sections: [{ code: "0101", instructors: ["Ada Brandt"] }],
+    ...overrides,
+  };
+}
+
+export function aHistoryTerm(
+  overrides: Partial<HistoryTerm> = {},
+): HistoryTerm {
+  return {
+    schemaVersion: 1,
+    termId: fixtureTermId,
+    courses: [aHistoryCourse()],
     ...overrides,
   };
 }
