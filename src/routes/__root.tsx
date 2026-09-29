@@ -7,7 +7,7 @@ import {
 import type { ReactNode } from "react";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
-import { TabBar } from "~/components/tab-bar";
+import { LazyTabBar } from "~/components/lazy-tab-bar";
 import { AccountBoot } from "~/features/auth/account-boot";
 import { Pwa } from "~/features/pwa/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
@@ -120,7 +120,7 @@ function RootLayout() {
         <Outlet />
         <Pwa />
       </SheetIndent>
-      <TabBar />
+      <LazyTabBar />
       <Toaster />
     </TooltipProvider>
   );

@@ -223,9 +223,9 @@ _Avoid_: Export, checklist tab
 A placed section you've marked as registered for in Testudo, in the Register tab. It's part of the plan: it syncs, it's no longer a problem for being full, and its calendar block shows a small check.
 _Avoid_: checked, done, enrolled
 
-**Canvas bar**:
-The strip across the top of a workbench's canvas (the calendar, Plan's semesters): Share at its left, and the calendar's hint of the moment beside it. Code says `CanvasBar`.
-_Avoid_: toolbar, hint strip
+**Canvas hint**:
+The calendar's hint of the moment ("Showing every section of CMSC351. Click one to switch."), a small card floating over the top of the grid while there's something to say. Never a bar of its own: Share is in the family bar. Code says `CanvasHint`.
+_Avoid_: toolbar, hint strip, canvas bar
 
 **Panel**:
 What the sidebar shows for the open rail tab.

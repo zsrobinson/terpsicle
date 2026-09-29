@@ -24,6 +24,12 @@ import { isMain, ROOT } from "./lib/source-files";
  */
 export const EAGER_BUDGET = 345 * 1024;
 
+/** The phone's tab bar: its own chunk, only on pages that have one (~/components/lazy-tab-bar). */
+const TAB_BAR_NEVER_EAGER = {
+  pattern: /^src\/components\/(tab-bar|ui\/tab-bar-item)\.tsx$/,
+  why: "the phone's tab bar loads on first use, never with /",
+};
+
 /**
  * Gzipped JS + CSS for / (the marketing page), in bytes: 193 KB when this
  * was set (v2 routes), mostly React, the router and the route tree's search
@@ -341,7 +347,12 @@ export const ROUTE_BUDGETS: readonly {
   ...["/", "/settings", "/signin", "/privacy"].map((route) => ({
     route,
     budget: LANDING_BUDGET,
-    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
+    never: [
+      ...LANDING_NEVER_EAGER,
+      ADMIN_NEVER_EAGER,
+      PLAN_NEVER_EAGER,
+      TAB_BAR_NEVER_EAGER,
+    ],
   })),
   ...["/reviews/", "/reviews/$slug", "/reviews/mine", "/reviews/policy"].map(
     (route) => ({

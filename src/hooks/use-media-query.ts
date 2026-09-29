@@ -1,7 +1,12 @@
 import { useSyncExternalStore } from "react";
 
-/** SPEC §2: at 768px and below the sidebar becomes a bottom drawer. */
-export const MOBILE_QUERY = "(max-width: 768px)";
+/**
+ * SPEC §2: below 768px the sidebar becomes a bottom drawer. Tailwind's `md`
+ * edge exactly, where the phone's tab bar and the kit's sheets start, so an
+ * iPad at 768px gets the desktop layout whole, never the phone's bar without
+ * its tab bar.
+ */
+export const MOBILE_QUERY = "(max-width: 767.98px)";
 
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(

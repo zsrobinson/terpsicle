@@ -164,14 +164,15 @@ describe("calendar", () => {
     await renderDemo();
     act(() => goTo({ tab: "search", drill: null }));
     const idle = screen.getByText("Hover a result to see its sections here.");
-    // The hint sits in the canvas bar, which keeps one height.
-    const bar = idle.closest("[data-canvas-bar]");
-    expect(bar).toHaveClass("h-10");
+    // The hint floats over the grid, so its words changing move nothing.
+    const card = idle.closest("[data-canvas-hint]");
+    expect(card).not.toBeNull();
     act(() => useUi.getState().setHoverCourse("CMSC330"));
-    // Same bar, new words: nothing under it moves.
     expect(
-      screen.getByText(/Showing every section of/).closest("[data-canvas-bar]"),
-    ).toBe(bar);
+      screen
+        .getByText(/Showing every section of/)
+        .closest("[data-canvas-hint]"),
+    ).toBe(card);
     expect(screen.getByText("Mon")).toBeVisible();
     act(() => useUi.getState().setHoverCourse(null));
     expect(

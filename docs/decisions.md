@@ -36,7 +36,7 @@ Revisit if: people land on Home and look for Schedule.
 
 ### Phones get a tab bar: Home and the five products
 2026-09-28 · owner · app-wide
-Below `md`, a bottom tab bar replaces the product menu: six labeled tabs, Home (the Terpsicle mark) first, then the products in color order, edge to edge, marks always in color. A sheet or drawer pulled all the way up hides it; at every other height it stays. The top bar keeps only the product's context. Mockups: the iPhone plan (https://claude.ai/artifact/2n51EifS1pjTzmBP8U8g7a).
+Below `md`, a bottom tab bar replaces the product menu: six labeled tabs, Home (the Terpsicle mark) first, then the products in color order, edge to edge, marks always in color. A sheet or drawer pulled all the way up hides it; at every other height it stays. The top bar keeps only the product's context. Mockups: the iPhone plan (https://claude.ai/artifact/2n51EifS1pjTzmBP8U8g7a). (changed 2026-09-29, `v3/shell-tab-bar`: it also steps aside while a text field has the keyboard up on a touch screen, and in an open Chat room, whose composer takes the bottom edge, as the approved mockups show.)
 Revisit if: a seventh place arrives.
 
 ### One bar at the top

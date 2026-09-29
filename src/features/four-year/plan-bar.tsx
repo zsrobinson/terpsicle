@@ -262,7 +262,7 @@ function PlanName() {
  * with the first semester as a list of its own at the end.
  */
 function DocSheet({ onRename }: { onRename: () => void }) {
-  const { doc, today } = useModel();
+  const { doc, today, totals } = useModel();
   const docs = useFourYear((s) => s.history.present.docs);
   const setActive = useFourYear((s) => s.setActive);
   // Rename puts a field where the button was: the sheet leaves focus there.
@@ -270,7 +270,7 @@ function DocSheet({ onRename }: { onRename: () => void }) {
   return (
     <ActionMenu
       title="Four-year plans"
-      description={doc.name}
+      description={`${doc.name} · ${totals.earned} earned, ${totals.inProgress} in progress, ${totals.planned} planned`}
       tooltip="Switch, rename, copy or delete this four-year plan"
       finalFocus={() => {
         const sent = renaming.current;
@@ -278,12 +278,20 @@ function DocSheet({ onRename }: { onRename: () => void }) {
         return sent ? false : null;
       }}
       trigger={
+        // The plan's name over its credits: a phone's bar says where it
+        // stands, so nothing needs a row of its own under the bar.
         <button
           type="button"
-          // The kit's one selected fill, as the scheduler's open plan tab.
-          className="flex h-9 min-w-0 items-center gap-1 rounded-md bg-accent-soft pr-1.5 pl-2.5 font-medium text-base transition-colors hover:bg-hover data-popup-open:bg-hover"
+          className="flex h-10 min-w-0 items-center gap-1 rounded-md pr-1.5 pl-1.5 text-left transition-colors hover:bg-hover data-popup-open:bg-hover"
         >
-          <span className="truncate">{doc.name}</span>
+          <span className="min-w-0">
+            <span className="block truncate font-medium text-base leading-tight">
+              {doc.name}
+            </span>
+            <span className="tnum block truncate text-muted text-xs leading-tight">
+              {creditsHeadline(totals)}
+            </span>
+          </span>
           <ChevronDown
             size={14}
             aria-hidden="true"

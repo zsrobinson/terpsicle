@@ -16,7 +16,7 @@ const PEEK_CSS = `calc(${PEEK_HEIGHT}px + var(--tab-bar-height) + var(--safe-bot
 
 // The workbench (CONTEXT.md; docs/COHESION.md §4): a product laid out like
 // the scheduler. The family bar; a rail of the product's views, one sidebar
-// panel and a canvas that fills the rest; on phones (≤ 768px) the same
+// panel and a canvas that fills the rest; on phones (below 768px) the same
 // pieces with the sidebar in a bottom drawer. Schedule and Plan are
 // workbenches: each brings its own bar, views and canvas, and this lays
 // them out the same way.

@@ -100,7 +100,7 @@ Nobody should have to touch the app when a new semester appears.
 - **Showing every section.** Opening a course (from anywhere):
   - Every other section of that course appears as a **dashed ghost**, labeled with section code and instructor, plus "Full" or "Overlaps" where true. Other classes dim.
   - Click a ghost to switch. Hover a ghost or a section row, or use `↑`/`↓`, to preview it solid. `↵` switches.
-  - A one-line hint in a strip above the grid (the canvas bar, there only while a hint is: a course open, a plan previewed, the Search or Generate tab) explains this while it's active.
+  - A one-line hint in a small card floating over the top of the grid (the canvas hint, there only while a hint is: a course open, a plan previewed, the Search or Generate tab) explains this while it's active. It's never a bar under the family bar.
   - A click or tap on empty time closes the course (as `Esc` does) instead of starting a block; Back reopens it. Blocks are drawn only while no course is open.
   - **Courses with many sections:** sections with identical meeting times collapse into one ghost ("0101–0106 · 6 sections"), and that ghost's popover lists them. Ghost labels shrink to just the code when narrow. If more than ~12 distinct ghosts remain, the calendar shows the first 12 by section order, and the sidebar list shows the rest.
 - **Search hover:** hovering a search result shows all of that course's sections as ghosts. This is how people compare across upper-level courses with one section each.

@@ -12,9 +12,9 @@ import { dotStyle, tintStyle } from "./tint";
 
 // One-line hints above the grid. Nothing ever goes below it (SPEC §2).
 // Each hint appears with a context (course details open, a plan previewed,
-// the Search or Generate tab), in the canvas bar
-// (~/components/workbench/canvas-bar), which is there only while one is and
-// keeps one height: nothing the pointer does moves the grid.
+// the Search or Generate tab), in a card floating over the grid's top
+// (~/components/workbench/canvas-hint): nothing the pointer does moves the
+// grid.
 
 const HINT_CLASS = "@container flex min-w-0 flex-1 items-center gap-2 text-sm";
 

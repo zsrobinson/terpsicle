@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { CanvasBar } from "~/components/workbench/canvas-bar";
+import { CanvasHint } from "~/components/workbench/canvas-hint";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
@@ -147,14 +147,10 @@ export function Calendar() {
       endMinute={model.endMinute}
       bottomInset={bottomInset}
       emptyLabel={empty ? EMPTY_WEEK : undefined}
-      top={
-        <>
-          {/* Only while there's something to say: Share is in the family
-              bar (docs/decisions.md, "One bar at the top"). */}
-          {hint ? <CanvasBar>{hint}</CanvasBar> : null}
-          <UntimedStrip sections={model.untimed} onOpen={openCourse} />
-        </>
-      }
+      // Floating over the grid while there's something to say: no second
+      // bar under the family bar (docs/decisions.md, "One bar at the top").
+      overlay={hint ? <CanvasHint>{hint}</CanvasHint> : null}
+      top={<UntimedStrip sections={model.untimed} onOpen={openCourse} />}
     >
       {(layout) => (
         <Grid
@@ -183,14 +179,20 @@ function useDrawerInset(): number {
   return Math.max(0, snapHeights(window.innerHeight).half - PEEK_HEIGHT);
 }
 
-/** The part of the screen where the calendar can be seen, under its day names. */
+/**
+ * The part of the screen where the calendar can be seen: under its day
+ * names and the hint floating over the grid, above a phone's drawer.
+ */
 function visibleBand(
   scroller: HTMLElement,
   drawerCover: number,
 ): { top: number; bottom: number } {
   const box = scroller.getBoundingClientRect();
+  const hint = scroller.parentElement
+    ?.querySelector<HTMLElement>("[data-canvas-hint]")
+    ?.getBoundingClientRect();
   return {
-    top: box.top + DAY_HEADER_HEIGHT,
+    top: Math.max(box.top + DAY_HEADER_HEIGHT, hint ? hint.bottom : 0),
     bottom: Math.min(box.bottom, window.innerHeight - drawerCover),
   };
 }

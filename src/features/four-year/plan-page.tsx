@@ -54,7 +54,6 @@ import {
 } from "./model";
 import { PlanBar } from "./plan-bar";
 import {
-  CreditsSummary,
   DegreeAuditNote,
   PLAN_SIDEBAR_FRAME_ID,
   PLAN_SIDEBAR_ID,
@@ -305,11 +304,10 @@ function Workspace({ nav, view }: { nav: PlanNav; view: ReactNode }) {
           drawer={<PlanDrawer view={view} onPreload={preload} />}
           canvas={
             <>
-              {/* Share is in the family bar (docs/decisions.md, "One bar
-                  at the top"). */}
+              {/* Share and the credits are in the family bar: nothing sits
+                  under it (docs/decisions.md, "One bar at the top"). */}
               {mobile ? (
                 <div className="space-y-4 px-4 pt-3 pb-4">
-                  <CreditsSummary />
                   <PhoneBoard selected={model.target} />
                   <DegreeAuditNote />
                 </div>

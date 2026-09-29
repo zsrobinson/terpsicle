@@ -863,6 +863,31 @@
     visibility 0s linear var(--dur-tab);
 }
 @media (pointer: coarse) {
+  /*
+   * With the bar gone for the keyboard, toasts come back down to the edge
+   * (the keyboard's own lift is the browser's). Not on a workbench, whose
+   * drawer rests on --tab-bar-height and would jump if it changed.
+   */
+  :root:not(:has([data-workbench-drawer])):has(
+    :is(
+        input:not(
+          [type="button"],
+          [type="checkbox"],
+          [type="color"],
+          [type="file"],
+          [type="image"],
+          [type="radio"],
+          [type="range"],
+          [type="reset"],
+          [type="submit"]
+        ),
+        textarea,
+        [contenteditable=""],
+        [contenteditable="true"]
+      ):not([readonly]):focus
+  ) {
+    --toast-lift: calc(var(--safe-bottom) + 16px);
+  }
   :root:has(
       :is(
           input:not(
