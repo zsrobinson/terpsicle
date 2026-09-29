@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TooltipProvider } from "~/ui/tooltip";
+import { TooltipProvider, WithTooltip } from "~/ui/tooltip";
 import {
   ContactEmail,
   contactEmailAddress,
@@ -21,7 +21,7 @@ describe("contact email", () => {
   it("renders the address in words, never whole in the page", () => {
     const { container } = render(
       <TooltipProvider>
-        <ContactEmail />
+        <ContactEmail Tooltip={WithTooltip} />
       </TooltipProvider>,
     );
     expect(screen.getByText("admin [at] terpsicle.com")).toBeInTheDocument();

@@ -1,15 +1,15 @@
 import { Check } from "lucide-react";
 import {
-  lazy,
-  Suspense,
+  type ComponentProps,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
 import { Mark } from "~/components/brand/mark";
+import { LazyTooltip } from "~/components/lazy-tooltip";
 import { useMediaQuery } from "~/hooks/use-media-query";
-import { WithTooltip } from "~/ui/tooltip";
+import { lazyComponent } from "~/lib/lazy-component";
 import { STEPS } from "../copy";
 import { HeroWords } from "../hero";
 import { Misprint } from "../misprint";
@@ -27,8 +27,15 @@ import { STEP_PRODUCT, type Stage, toStage } from "./stages";
 // Reduced motion gets each stage's final frame with no transition
 // (marketing.css).
 
-const Pieces = lazy(() =>
-  import("./pieces").then((m) => ({ default: m.Pieces })),
+// If their code doesn't arrive, the screen stays the plain week, and asks
+// again once the browser is back online (~/lib/lazy-component). They show
+// nothing while it comes rather than suspend: a render that suspended on a
+// chunk that then failed could stay uncommitted, holding back the rest of
+// the page's first update (e2e/build).
+const Pieces = lazyComponent<ComponentProps<typeof import("./pieces").Pieces>>(
+  () => import("./pieces").then((m) => m.Pieces),
+  () => null,
+  { Loading: null },
 );
 
 /** While the page scrolls to a step it was sent to, scrolling doesn't restage. */
@@ -139,9 +146,7 @@ export function Story() {
             onIntent={() => setWantPieces(true)}
             pieces={
               wantPieces ? (
-                <Suspense fallback={null}>
-                  <Pieces stage={stage} state={state} onChange={setState} />
-                </Suspense>
+                <Pieces stage={stage} state={state} onChange={setState} />
               ) : null
             }
           />
@@ -208,14 +213,14 @@ function Step({
       </ul>
       <p className="mk-try text-muted text-sm">{step.tryIt}</p>
       <div>
-        <WithTooltip label={`Open Terpsicle ${NAME[product]}`}>
+        <LazyTooltip label={`Open Terpsicle ${NAME[product]}`}>
           <a
             href={VIEW[product].to}
             className={`mk-link font-semibold text-base ${paint.text}`}
           >
             {VIEW[product].label}
           </a>
-        </WithTooltip>
+        </LazyTooltip>
       </div>
     </section>
   );

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { SIGNED_IN_KEPT, SIGNED_IN_PARAM } from "~/core/schema";
 import { track } from "~/lib/analytics";
-import { noteToast } from "~/ui/toast";
 import { useAccount } from "./account-store";
 
 /** Set once this browser has signed in, for `firstOnDevice`. */
@@ -38,11 +37,17 @@ export function AccountBoot() {
         (m) => m.requestInstallPromptSoon("first-sign-in"),
         () => {},
       );
+    // Toasts' code loads after the page (src/routes/__root.tsx), and this
+    // is on every page's first load, so it asks for it only when needed.
     if (signedIn === SIGNED_IN_KEPT)
-      noteToast(KEPT_ACCOUNT_NOTE, {
-        id: "account-kept",
-        description: KEPT_ACCOUNT_DETAIL,
-      });
+      void import("~/ui/toast").then(
+        (m) =>
+          m.noteToast(KEPT_ACCOUNT_NOTE, {
+            id: "account-kept",
+            description: KEPT_ACCOUNT_DETAIL,
+          }),
+        () => {},
+      );
   }, []);
   return null;
 }
