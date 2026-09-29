@@ -5,11 +5,14 @@ import { PRIVATE } from "./screenshot";
 // an agent can use to find it again, its visible text (never a private
 // element's) and its `data-*` ids.
 
-/** Radix's and React's generated ids change between renders: never used. */
-const GENERATED_ID = /^(?:radix-|:r|«r|r\d)|[:«»]/;
-/** State and plumbing attributes, not ids. */
+/**
+ * Radix's, Base UI's and React's generated ids change between renders: never
+ * used. (Base UI gives every tooltip's control one, `base-ui-_r_1_`.)
+ */
+const GENERATED_ID = /^(?:radix-|base-ui-|:r|«r|_r_|r\d)|[:«»]/;
+/** State and plumbing attributes (the kit's, Radix's, Base UI's), not ids. */
 const NOISE =
-  /^data-(?:state|slot|side|align|orientation|disabled|highlighted|radix-.*|feedback-ui|private)$/;
+  /^data-(?:state|slot|side|align|orientation|disabled|highlighted|radix-.*|base-ui-.*|popup-open|popup-side|pressed|open|closed|instant|starting-style|ending-style|anchor-hidden|checked|unchecked|placeholder|feedback-ui|private)$/;
 
 const cssString = (value: string) =>
   `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;

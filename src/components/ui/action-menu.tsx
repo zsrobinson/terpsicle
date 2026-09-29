@@ -20,6 +20,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { HapticTap } from "./haptic";
+import {
+  MENU_ITEM,
+  MENU_POPUP,
+  MENU_SEPARATOR,
+  POPUP_LAYER,
+  POSITIONER,
+} from "./popup";
 import type { Sheet as SheetComponent } from "./sheet";
 import { quietTooltips, WithTooltip } from "./tooltip";
 
@@ -36,9 +43,10 @@ import { quietTooltips, WithTooltip } from "./tooltip";
 //     <ActionMenuItem icon={<Plus />} onSelect={newPlan}>New plan</…>
 //   </ActionMenu>
 //
-// The desktop menu keeps Ink's look (a raised card, a hairline, the soft gray
-// highlight) with the Base UI docs' pop: 100ms, scale 0.98 and a fade. The
-// phone's sheet is ./sheet.tsx, loaded only on phones.
+// The desktop menu is the kit's DropdownMenu card and rows (./popup.ts):
+// Ink's look (a raised card, a hairline, the soft gray highlight) with the
+// Base UI docs' pop (--dur-pop: 100ms, scale 0.98 and a fade). The phone's
+// sheet is ./sheet.tsx, loaded only on phones.
 
 /** Below `md` (768px), where the family bar becomes the phone's bars. */
 const PHONE_QUERY = "(max-width: 767.98px)";
@@ -125,9 +133,10 @@ function ActionMenu({
         </WithTooltip>
         <Menu.Portal>
           <Menu.Positioner
-            // A floating layer, reached from its trigger (e2e/axe.ts).
-            data-floating=""
-            className="z-50 outline-none"
+            // A floating layer, reached from its trigger (e2e/axe.ts),
+            // placed as every kit popup is.
+            {...POSITIONER}
+            className={POPUP_LAYER}
             side="bottom"
             align={align}
             sideOffset={6}
@@ -145,15 +154,7 @@ function ActionMenu({
                 quietTooltips();
                 return true;
               }}
-              className={cn(
-                "min-w-[180px] overflow-y-auto overflow-x-hidden border border-keyline bg-raised p-1 text-fg shadow-pop outline-none",
-                "max-h-(--available-height) origin-(--transform-origin)",
-                "transition-[scale,opacity] duration-100 ease-out",
-                "data-starting-style:scale-98 data-starting-style:opacity-0 data-ending-style:scale-98 data-ending-style:opacity-0",
-                "motion-reduce:transition-opacity! motion-reduce:duration-100!",
-                "motion-reduce:data-starting-style:scale-100 motion-reduce:data-ending-style:scale-100",
-                className,
-              )}
+              className={cn(MENU_POPUP, className)}
             >
               <span id={headingId} hidden>
                 {title}
@@ -272,8 +273,8 @@ function SheetTrigger({
 
 // ── Items ─────────────────────────────────────────────────────────────────
 
-const menuItemClass =
-  "relative flex min-h-8 w-full cursor-default select-none items-center gap-2 px-2 py-1 text-left text-base outline-none data-disabled:pointer-events-none data-highlighted:bg-hover data-disabled:opacity-40 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0";
+// The desktop menu's rows are the kit's menu rows.
+const menuItemClass = MENU_ITEM;
 
 // The phone's rows: 44px targets, the soft gray under a finger, the chosen
 // one in accent-soft with its check (the mockups' plans sheet).
@@ -626,7 +627,7 @@ function GroupLabel({ id, children }: { id: string; children: ReactNode }) {
 function ActionMenuSeparator() {
   const shape = useContext(ShapeContext);
   if (shape.kind === "menu")
-    return <Menu.Separator className="-mx-1 my-1 h-px bg-hairline" />;
+    return <Menu.Separator className={MENU_SEPARATOR} />;
   return <hr className="my-1 h-px border-0 bg-hairline" />;
 }
 

@@ -140,12 +140,35 @@
 }
 
 /*
- * Motion. The sheet's curve and length are the Base UI drawer docs' (vaul
- * used the same curve): `ease-sheet duration-450`, and the page behind
- * scales back over 400ms on it.
+ * Motion tokens (the iPhone plan §5; docs/decisions.md, "Motion through view
+ * transitions"): every moving thing takes its duration and curve from here.
+ * The numbers are Base UI's docs demos' (popups, the switch, the drawer;
+ * vaul used the same sheet curve) and UIKit's push. Curves are theme keys,
+ * so each is a utility too (`ease-pop`, `ease-sheet`). Reduce Motion stops
+ * transitions outright (at the end of this file).
+ *
+ *   --dur-pop      menus, popovers, selects, dialogs, tooltips: scale from
+ *                  98% and fade (tooltips fade only), on --ease-pop
+ *   --dur-control  switches, segment fills, a tab's press, toasts
+ *   --dur-tab      the product switch's cross-fade
+ *   --dur-push     a push in, and --dur-pop-back its way back
+ *   --dur-sheet    sheets and the workbench drawer's snaps (`duration-450`),
+ *                  on --ease-sheet
+ *   --dur-indent   the page behind a modal sheet scaling back, on --ease-sheet
  */
 @theme {
+  --ease-pop: ease-out;
+  --ease-control: ease;
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+}
+:root {
+  --dur-pop: 100ms;
+  --dur-control: 150ms;
+  --dur-tab: 150ms;
+  --dur-push: 350ms;
+  --dur-pop-back: 300ms;
+  --dur-sheet: 450ms;
+  --dur-indent: 400ms;
 }
 
 /*
