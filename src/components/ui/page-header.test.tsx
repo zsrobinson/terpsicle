@@ -18,10 +18,7 @@ describe("PageHeader at page size", () => {
     const h1 = await screen.findByRole("heading", { level: 1 });
     expect(h1).toHaveTextContent("CMSC216 · Introduction to Computer Systems");
     expect(h1).toHaveClass("text-xl", "emph-title");
-    expect(screen.getByText("Offered in Spring 2027")).toHaveClass(
-      "text-sm",
-      "text-muted",
-    );
+    expect(screen.getByText("Offered in Spring 2027")).toHaveClass("emph-meta");
     const back = screen.getByRole("link", { name: "Reviews" });
     expect(back).toHaveAttribute("href", "/reviews");
     // Every control has a tooltip: Back says where it goes.
