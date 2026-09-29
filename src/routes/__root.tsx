@@ -22,7 +22,7 @@ import { ActivityLogBoot } from "~/lib/activity-log-boot";
 import { InlineScript } from "~/lib/inline-script";
 import type { RouterContext } from "~/lib/query-client";
 import { SheetIndent } from "~/ui/sheet-indent";
-import { TooltipProvider } from "~/ui/tooltip";
+import { TooltipProvider } from "~/ui/tooltip-provider";
 import appCss from "../styles.css?url";
 
 // Toasts show only after something happens, so sonner loads once the page
