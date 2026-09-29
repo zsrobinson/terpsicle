@@ -13,6 +13,7 @@ import { detectFourYearProblems } from "~/core/four-year/problems";
 import { type StatusOf, statusResolver } from "~/core/four-year/status";
 import { defaultTargetTerm, fourYearColumns } from "~/core/four-year/terms";
 import type {
+  DeptCode,
   IsoDate,
   LocalId,
   PlanSearch,
@@ -25,7 +26,7 @@ import type {
   FourYearProblem,
   FourYearTerm,
 } from "~/core/schema/four-year";
-import { useCourseLookup, useFourYearFacts } from "./data";
+import { useDocDepts, useFourYearFacts } from "./data";
 
 // Everything the page shows about the open doc, worked out once per change
 // by core: columns and their status, credits, GenEd progress and problems.
@@ -35,6 +36,10 @@ export type PlanModel = {
   readonly doc: FourYearDoc;
   readonly today: IsoDate;
   readonly lookup: FourYearCourses;
+  /** A department the doc needs is still loading: its problems aren't known yet. */
+  readonly deptsLoading: boolean;
+  /** Departments whose file didn't load: their titles can't show. */
+  readonly deptsFailed: ReadonlySet<DeptCode>;
   readonly columns: readonly FourYearTerm[];
   readonly statusOf: StatusOf;
   readonly summaries: ReadonlyMap<FourYearTerm, ColumnSummary>;
@@ -56,7 +61,12 @@ export function usePlanModel(
   today: IsoDate,
   picked: FourYearTerm | undefined,
 ): PlanModel {
-  const lookup = useCourseLookup();
+  // The doc's departments, loaded once here for everything that shows it.
+  const {
+    lookup,
+    loading: deptsLoading,
+    failed: deptsFailed,
+  } = useDocDepts(doc);
   const calendars = useFourYearFacts((s) => s.calendars);
   const latestTermId = useFourYearFacts((s) => s.latestTermId);
   return useMemo(() => {
@@ -80,6 +90,8 @@ export function usePlanModel(
       doc,
       today,
       lookup,
+      deptsLoading,
+      deptsFailed,
       columns,
       statusOf,
       summaries: new Map(
@@ -96,7 +108,16 @@ export function usePlanModel(
           ? picked
           : defaultTargetTerm(columns, statusOf),
     };
-  }, [doc, today, lookup, calendars, latestTermId, picked]);
+  }, [
+    doc,
+    today,
+    lookup,
+    deptsLoading,
+    deptsFailed,
+    calendars,
+    latestTermId,
+    picked,
+  ]);
 }
 
 export type PlanNavOptions = {

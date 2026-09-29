@@ -158,7 +158,9 @@ export function Composer({
   const listId = `${id}-mentions`;
   const optionId = (i: number) => `${id}-mention-${i}`;
   return (
-    <div className="relative border-hairline border-t px-4 pt-2 pb-3">
+    // The page's bottom edge on a phone: clear of the home indicator, until
+    // the keyboard comes up over it.
+    <div className="relative border-hairline border-t px-4 pt-2 pb-[max(--spacing(3),var(--safe-bottom))] focus-within:pb-3">
       {mentions.open ? (
         <div
           id={listId}

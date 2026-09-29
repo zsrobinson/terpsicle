@@ -199,7 +199,7 @@ The v2 brand came from a prototype track: a "Bulletin" paper round, then six var
 - **Offsets, never blur:** a hard copy of the box, 2px down and right (`shadow-offset`); 3px for menus, popovers and toasts (`shadow-pop`). Tailwind's `shadow-xs`…`2xl` map onto these, so nothing is soft.
 - **Keylines:** menus, popovers, toasts and cards get a 1px ink line (`border-keyline`). Panels, rows and headers keep hairlines.
 - **A black box never gets a black offset** (owner), **and in dark, a light box never gets a light offset.** The ink-filled button's offset is gray (base-500) in light, and every dark offset is base-700.
-- **Buttons** (`src/components/ui/button.tsx`): filled and outline buttons carry the offset. Outline is paper with an ink border. Hover changes the fill only. Pressing moves the button into its shadow (it shifts by the offset, and the shadow goes). Focus is a 2px ink ring, 2px out. Disabled buttons lose the offset and fade. Ghost and link buttons stay flat, so a row of icon buttons isn't a row of boxes.
+- **Buttons** (`src/components/ui/button.tsx`): filled and outline buttons carry the offset. Outline is paper with an ink border. Hover changes the fill only. Pressing moves the button into its shadow (it shifts by the offset, and the shadow goes). Focus is a 2px ink ring, 2px out. Disabled buttons lose the offset and fade. Ghost and link buttons stay flat, so a row of icon buttons isn't a row of boxes. Whatever hovers to the soft gray (ghost buttons, rows, tabs) also presses to it, at once, on every device, and fades out over 150ms when the finger lifts: a phone can't hover, so the press is its only sign (`src/styles.css`, "Press states").
 - **The phone drawer** has an ink top edge and a 2px offset above it.
 
 ### 7.4 Grain
