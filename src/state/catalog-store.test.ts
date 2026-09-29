@@ -631,23 +631,68 @@ describe("revalidating", () => {
     expect(savedDeptKeys()).toContain(cmsc5);
   });
 
-  it("gives up a manifest fetch that never ends, as a network failure", async () => {
+  it("gives up a manifest fetch that never ends, once, and not as offline", async () => {
     vi.useFakeTimers();
     server.publish(ACTIVE, { CMSC: 7, MATH: 2, ENGL: 3 });
     const cmsc7 = deptChunkKey(ACTIVE, "CMSC", hash(7));
-    // A file read that never comes back.
+    // A file read that never comes back (a slow link, not a dead one).
     server.hold((key) => key === cmsc7);
     const { client, source } = useCatalog.getState();
     if (!client || !source) throw new Error("connected");
+    server.take();
     const fetch = client
       .fetchQuery({ ...manifestQuery(source, ACTIVE), staleTime: 0 })
       .catch((error: unknown) => error);
-    // Tried three times while online (DATA.md §5.5), each given its time.
-    await vi.advanceTimersByTimeAsync(3 * POINTER_TIMEOUT_MS + 1000);
+    await vi.advanceTimersByTimeAsync(POINTER_TIMEOUT_MS + 1000);
     const error = await fetch;
     expect(error).toBeInstanceOf(DataError);
-    expect((error as DataError).reason).toBe("network");
+    expect((error as DataError).reason).toBe("timeout");
+    // Not asked again at once: a timeout isn't retried.
+    expect(server.take().filter((k) => k === cmsc7)).toEqual([cmsc7]);
+    // Too slow isn't offline: the bar doesn't say so.
+    expect(useCatalog.getState().network).toBe("online");
     vi.useRealTimers();
+
+    // The slow read comes back late. It saves nothing, and the next
+    // poll's manifest is saved as usual.
+    server.release();
+    server.publish(ACTIVE, { CMSC: 8, MATH: 2, ENGL: 3 });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      departments: expect.arrayContaining([
+        expect.objectContaining({ code: "CMSC", hash: hash(8) }),
+      ]),
+    });
+  });
+
+  it("keeps the version the saved manifest names, not an orphan beside it", async () => {
+    // An older copy of CMSC left on disk (CMSC@0) beside the one the saved
+    // manifest names (CMSC@1).
+    const rowOf = (key: string) =>
+      `published:catalog-${JSON.stringify(["published", "live", key])}`;
+    const named = storage.rows.get(
+      rowOf(deptChunkKey(ACTIVE, "CMSC", hash(1))),
+    ) as { queryHash: string; queryKey: unknown[] };
+    const orphan = deptChunkKey(ACTIVE, "CMSC", hash(0));
+    storage.rows.set(rowOf(orphan), {
+      ...structuredClone(named),
+      queryHash: JSON.stringify(["published", "live", orphan]),
+      queryKey: ["published", "live", orphan],
+    });
+    // CMSC@5 is broken.
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 2);
+    server.files.set(deptChunkKey(ACTIVE, "CMSC", hash(5)), { nope: true });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    // Saved: CMSC@1, which the saved manifest named, and it stays on disk.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      departments: expect.arrayContaining([
+        expect.objectContaining({ code: "CMSC", hash: hash(1) }),
+      ]),
+    });
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(1)));
+    expect(savedDeptKeys()).not.toContain(orphan);
   });
 
   it("never saves an older manifest over a newer one another tab brought in", async () => {

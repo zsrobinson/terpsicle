@@ -181,7 +181,7 @@ const prefixOf = (family: SchemaFamily) => `published:${family}`;
 
 /**
  * The storage keys of a family's rows in this mode, under an R2 prefix:
- * `published:catalog-["published","live","catalog/202701/` for one term,
+ * `published:catalog-["published","live","catalog/<term>/` for one term,
  * so a scan reads that term's keys and nothing else. A query's hash is its
  * key as JSON, so the key is its prefix.
  */
