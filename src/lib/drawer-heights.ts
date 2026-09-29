@@ -1,8 +1,9 @@
 import type { DrawerSnap } from "~/core/schema";
 
-// The phone drawer's heights, apart from the drawer itself (~/features/schedule/mobile-drawer.tsx,
-// with vaul), which loads only on phones: the shell and the calendar size
-// themselves around it on every screen.
+// The phone drawer's heights, apart from the drawer itself
+// (~/components/workbench/drawer.tsx, on Base UI's Drawer), which loads only
+// on phones: the shell and the calendar size themselves around it on every
+// screen. Where it rests is on `<html data-drawer-snap>` while it's up.
 
 /** Handle + tab strip + the panel's header line. */
 export const PEEK_HEIGHT = 124;

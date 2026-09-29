@@ -1,22 +1,33 @@
+import { Drawer } from "@base-ui/react/drawer";
 import { cn } from "cn";
 import type { LucideIcon } from "lucide-react";
 import {
+  type CSSProperties,
   type ReactNode,
+  type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
-import { Drawer } from "vaul";
 import type { DrawerSnap } from "~/core/schema";
-import { PEEK_HEIGHT, snapHeights, TOP_BAR_HEIGHT } from "~/lib/drawer-heights";
+import { PEEK_HEIGHT, snapHeights } from "~/lib/drawer-heights";
 import { WithTooltip } from "~/ui/tooltip";
 
 // A workbench on a phone (SPEC §2): the same sidebar, in a bottom drawer
 // that rests at peek, half or full height, with the rail as its strip of
 // tabs. No bespoke mobile screens, so a product's views only have to work
-// in the sidebar. This file loads only on phones (vaul is its own chunk);
-// each product wraps it with its tabs and what moves the drawer.
+// in the sidebar. This file loads only on phones (Base UI's Drawer comes
+// with it, in its own chunk); each product wraps it with its tabs and what
+// moves the drawer.
+//
+// It's Base UI's Drawer, as the kit's Sheet is (~/ui/sheet), but never
+// modal and never closed: it's part of the page. So it lives in the page,
+// inside the sheet indent (~/ui/sheet-indent), and scales back with the
+// page when a sheet opens over it; and it has a Drawer.Provider of its own,
+// so that being always open doesn't hold the page scaled back.
 
 function useViewportHeight(): number {
   return useSyncExternalStore(
@@ -30,12 +41,12 @@ function useViewportHeight(): number {
 }
 
 /**
- * How much of the screen's bottom the on-screen keyboard covers. Phones
- * shrink the visual viewport for it and leave the layout (`innerHeight`,
- * `dvh`) alone, so the drawer, sized to the layout, runs on under it.
- * Small differences are the browser's toolbars, not a keyboard.
+ * Whether the on-screen keyboard is up. Phones shrink the visual viewport
+ * for it and leave the layout (`innerHeight`) alone. Small differences are
+ * the browser's toolbars, not a keyboard. (How much it covers is Base UI's
+ * `--drawer-keyboard-inset`, from `Drawer.VirtualKeyboardProvider`.)
  */
-function useKeyboardInset(): number {
+function useKeyboardUp(): boolean {
   return useSyncExternalStore(
     (onChange) => {
       const vv = window.visualViewport;
@@ -48,11 +59,10 @@ function useKeyboardInset(): number {
     },
     () => {
       const vv = window.visualViewport;
-      if (!vv) return 0;
-      const inset = Math.round(window.innerHeight - vv.height - vv.offsetTop);
-      return inset > 80 ? inset : 0;
+      if (!vv) return false;
+      return window.innerHeight - vv.height - vv.offsetTop > 80;
     },
-    () => 0,
+    () => false,
   );
 }
 
@@ -77,12 +87,14 @@ function isTextEntry(el: EventTarget | null): boolean {
   );
 }
 
+/** The drawer's own element: the one that moves. */
+const POPUP = "[data-workbench-drawer]";
+
 /**
- * Puts the drawer at full now, skipping vaul's half-second slide, then
- * records the snap. Reading the layout commits the jump before vaul sets its
- * transition, so vaul's own move to the same place has nothing to animate.
- * The transform is vaul's for a snap point `innerHeight - TOP_BAR_HEIGHT`
- * tall: its offset from the top.
+ * Puts the drawer at full now, with no slide, then records the snap. The
+ * inline transform is where full rests (no offset), laid out before the
+ * snap's render, so the render's move to the same place has nothing to
+ * animate; `useInstantRaiseCleanup` takes it off once that has landed.
  */
 function raiseAtOnce(
   inside: HTMLElement,
@@ -90,13 +102,66 @@ function raiseAtOnce(
   setSnap: (snap: DrawerSnap) => void,
 ) {
   if (snap === "full") return;
-  const drawer = inside.closest<HTMLElement>("[data-vaul-drawer]");
+  const drawer = inside.closest<HTMLElement>(POPUP);
   if (drawer) {
     drawer.style.transition = "none";
-    drawer.style.transform = `translate3d(0, ${TOP_BAR_HEIGHT}px, 0)`;
+    drawer.style.transform = "translateY(0px)";
     drawer.getBoundingClientRect();
   }
   setSnap("full");
+}
+
+/** Hands the drawer's place back to its classes once full has rendered. */
+function useInstantRaiseCleanup(
+  popup: RefObject<HTMLDivElement | null>,
+  snap: DrawerSnap,
+) {
+  useLayoutEffect(() => {
+    const el = popup.current;
+    if (!el || snap !== "full" || !el.style.transform) return;
+    // A frame on, so the transition that comes back has nothing to catch.
+    const frame = requestAnimationFrame(() => {
+      el.style.removeProperty("transform");
+      el.style.removeProperty("transition");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [popup, snap]);
+}
+
+/**
+ * The snap, on `<html data-drawer-snap>`, for the shell around the drawer
+ * (the phone's tab bar steps aside at full). Gone with the drawer.
+ */
+function useSnapOnRoot(snap: DrawerSnap) {
+  useEffect(() => {
+    document.documentElement.dataset.drawerSnap = snap;
+  }, [snap]);
+  useEffect(
+    () => () => {
+      delete document.documentElement.dataset.drawerSnap;
+    },
+    [],
+  );
+}
+
+/**
+ * Transitions only once the first place has been painted: arriving (the
+ * chunk loads after the page), the drawer appears where it rests rather
+ * than sliding there.
+ */
+function usePainted(): boolean {
+  const [painted, setPainted] = useState(false);
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setPainted(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, []);
+  return painted;
 }
 
 export function WorkbenchDrawer({
@@ -120,15 +185,26 @@ export function WorkbenchDrawer({
 }) {
   const viewport = useViewportHeight();
   const heights = snapHeights(viewport);
-  const keyboard = useKeyboardInset();
+  const keyboardUp = useKeyboardUp();
+  const painted = usePainted();
+  const popup = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
   usePageStaysPut();
-  const points = [
-    `${heights.peek}px`,
-    `${heights.half}px`,
-    `${heights.full}px`,
-  ];
-  const snapOf = (point: string | number | null): DrawerSnap =>
-    point === points[2] ? "full" : point === points[1] ? "half" : "peek";
+  useSnapOnRoot(snap);
+  useInstantRaiseCleanup(popup, snap);
+
+  // Base UI's snap points, as heights: pixels for peek and half, and 1 (all
+  // of the viewport under the top bar) for full, which is `data-expanded`.
+  // Under 480px half is full's height, and Base UI keeps the one point.
+  const points: Record<DrawerSnap, number> = {
+    peek: heights.peek,
+    half: heights.half,
+    full: 1,
+  };
+  const snapOf = (point: number | string): DrawerSnap =>
+    point === points.full ? "full" : point === points.half ? "half" : "peek";
+  // Where the drawer's top rests, down from full's.
+  const offset = heights.full - heights[snap];
 
   // At peek only the panel's header shows: typing in a search box there put
   // the results below the screen's edge. Anything focused inside raises a
@@ -150,38 +226,35 @@ export function WorkbenchDrawer({
         else if (getSnap() === "peek") setSnap("half");
       };
       // A tap on a field: raise first, then focus. iOS Safari measures the
-      // field for the keyboard as it takes focus, before focusin, so raised
-      // there it still panned the page to the field's old place for a
-      // moment. Cancelling the tap's end keeps the browser from focusing
-      // it; focusing it here, in the tap, still brings up the keyboard.
-      let tap: { field: HTMLElement; x: number; y: number } | null = null;
+      // field for the keyboard as it takes focus, before focusin. This runs
+      // on the tap's end before Base UI's keyboard provider (at the root)
+      // focuses the field in the same tap, so the field is already where
+      // it will stay.
+      let tap: { x: number; y: number } | null = null;
       const touchStart = (event: TouchEvent) => {
         const touch = event.touches[0];
         tap =
           touch &&
           event.touches.length === 1 &&
           isTextEntry(event.target) &&
-          event.target instanceof HTMLElement &&
           event.target !== document.activeElement &&
           getSnap() !== "full"
-            ? { field: event.target, x: touch.clientX, y: touch.clientY }
+            ? { x: touch.clientX, y: touch.clientY }
             : null;
       };
       const touchEnd = (event: TouchEvent) => {
         const start = tap;
         tap = null;
         const touch = event.changedTouches[0];
-        if (!start || !touch || !event.cancelable) return;
+        if (!start || !touch) return;
         // A drag that started on the field isn't a tap.
         if (Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 10)
           return;
-        event.preventDefault();
         raiseAtOnce(el, getSnap(), setSnap);
-        start.field.focus({ preventScroll: true });
       };
       el.addEventListener("focusin", raise);
       el.addEventListener("touchstart", touchStart, { passive: true });
-      el.addEventListener("touchend", touchEnd, { passive: false });
+      el.addEventListener("touchend", touchEnd, { passive: true });
       return () => {
         el.removeEventListener("focusin", raise);
         el.removeEventListener("touchstart", touchStart);
@@ -199,165 +272,146 @@ export function WorkbenchDrawer({
   useEffect(() => {
     const focused = document.activeElement;
     if (
-      keyboard > 0 &&
+      keyboardUp &&
       isTextEntry(focused) &&
       content.current?.contains(focused)
     )
       raiseAtOnce(content.current, getSnap(), setSnap);
-  }, [keyboard, getSnap, setSnap]);
+  }, [keyboardUp, getSnap, setSnap]);
 
   return (
-    <Drawer.Root
-      open
-      modal={false}
-      dismissible={false}
-      snapPoints={points}
-      // vaul takes a drag down from the point just below `fadeFromIndex`
-      // (by default, half) as fading its overlay out, and when the drawer
-      // can't be dismissed it then doesn't follow the finger at all, only
-      // snapping once it lifts. There's no overlay (the drawer isn't modal),
-      // so start the fade at the first point and every drag follows.
-      fadeFromIndex={0}
-      // vaul's own keyboard handling resizes and lifts the drawer by the
-      // keyboard plus the snap's offset, which squeezed ours (full height,
-      // slid down) to its header. We size the inside to the keyboard instead.
-      repositionInputs={false}
-      activeSnapPoint={points[["peek", "half", "full"].indexOf(snap)] ?? null}
-      setActiveSnapPoint={(point) => setSnap(snapOf(point))}
+    <div
+      ref={inPageOrder}
+      // Base UI's focus guards steer Tab into and out of a popup it expects
+      // at the end of the page. This one sits in the page's own order, where
+      // they sent Shift+Tab from its first control round to its last.
+      className="contents [&_[data-base-ui-focus-guard]]:hidden [&>[aria-owns]]:hidden"
     >
-      <Drawer.Portal>
-        <Drawer.Content
-          ref={claimPullDown}
-          aria-describedby={undefined}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          data-snap={snap}
-          // styles.css lifts toasts above the strip while this is on the page.
-          data-workbench-drawer=""
-          // vaul makes the drawer `touch-action: none` so a finger drags it
-          // rather than panning the page. That also stopped a pinch zooming
-          // the page over it; allow that back. (Safari may not know the
-          // value and keep `none`.)
-          style={{ touchAction: "pinch-zoom" }}
-          className="fixed inset-x-0 bottom-0 z-40 flex h-dvh flex-col border-keyline border-t bg-bg shadow-drawer outline-none"
+      <div ref={setHost} className="contents" />
+      {/* Its own provider: the page's (the sheet indent) counts open
+          drawers to scale the page back, and this one is always open. */}
+      <Drawer.Provider>
+        <Drawer.Root
+          open
+          // Never closed: a flick down past peek, Esc or the Android back
+          // gesture are refused. A flick that would close it from higher up
+          // rests it at peek. Esc goes on to whatever else wants it.
+          onOpenChange={(open, details) => {
+            if (open) return;
+            details.cancel();
+            details.allowPropagation();
+          }}
+          modal={false}
+          disablePointerDismissal
+          snapPoints={[points.peek, points.half, points.full]}
+          // A flick moves one snap, as iOS's sheets do; a long drag goes
+          // where it's let go.
+          snapToSequentialPoints
+          snapPoint={points[snap]}
+          onSnapPointChange={(point, details) => {
+            if (point !== null) {
+              setSnap(snapOf(point));
+              return;
+            }
+            details.cancel();
+            if (getSnap() !== "peek") setSnap("peek");
+          }}
         >
-          <Drawer.Title className="sr-only">{title}</Drawer.Title>
-          <div
-            ref={content}
-            className="flex flex-col"
-            // The drawer is full height and slides down; size the inside to
-            // what's showing so its scroll area ends at the screen's edge, or
-            // at the keyboard's when it's up. Never less than the header.
-            style={{
-              height: Math.max(
-                heights[snap] - keyboard,
-                Math.min(heights[snap], PEEK_HEIGHT),
-              ),
-            }}
-          >
-            <Grabber snap={snap} onSnap={setSnap} />
-            {tabs}
-            <div ref={raiseOnFocus} className="flex min-h-0 flex-1 flex-col">
-              {children}
-            </div>
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+          <Drawer.Portal container={host}>
+            <Drawer.VirtualKeyboardProvider>
+              <Drawer.Viewport
+                // Under the top bar: full is all of it. It lets taps through
+                // to the calendar; only the drawer itself takes them.
+                className="pointer-events-none fixed inset-x-0 top-12 bottom-0 z-40"
+              >
+                <Drawer.Popup
+                  ref={popup}
+                  initialFocus={false}
+                  data-snap={snap}
+                  // styles.css lifts toasts above the strip while this is
+                  // on the page.
+                  data-workbench-drawer=""
+                  className={cn(
+                    "pointer-events-auto absolute inset-x-0 top-0 flex h-full flex-col border-keyline border-t bg-bg shadow-drawer outline-none",
+                    // Where it rests, plus the finger's drag.
+                    "[transform:translateY(calc(var(--workbench-offset)+var(--drawer-swipe-movement-y,0px)))]",
+                    painted &&
+                      "transition-transform duration-450 ease-sheet motion-reduce:transition-none",
+                    "data-swiping:select-none",
+                    // Paper under it when a drag lifts it past full.
+                    "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-12 after:bg-bg",
+                  )}
+                  style={
+                    {
+                      "--workbench-offset": `${offset}px`,
+                      // A finger's drag moves the drawer, never the page (Base
+                      // UI decides drag or scroll); a pinch still zooms the
+                      // page. (Safari may not know the value and keep `none`.)
+                      touchAction: "pinch-zoom",
+                    } as CSSVars
+                  }
+                >
+                  <Drawer.Title className="sr-only">{title}</Drawer.Title>
+                  <div
+                    ref={content}
+                    className="flex flex-col"
+                    // The drawer is full height and slides down; size the
+                    // inside to what's showing so its scroll area ends at the
+                    // screen's edge, or at the keyboard's when it's up. Never
+                    // less than the header.
+                    style={{
+                      height: `max(calc(${heights[snap]}px - var(--drawer-keyboard-inset, 0px)), ${Math.min(heights[snap], PEEK_HEIGHT)}px)`,
+                    }}
+                  >
+                    <Grabber snap={snap} onSnap={setSnap} />
+                    {tabs}
+                    {/* The panel. A finger drags the drawer from anywhere
+                        (from a list, only once it's scrolled to its top); a
+                        mouse only from the strip above the panel, beside the
+                        grabber and the tabs, so a click on a row that isn't a
+                        button isn't taken for a drag, and text can be
+                        selected. */}
+                    <Drawer.Content
+                      ref={raiseOnFocus}
+                      className="flex min-h-0 flex-1 flex-col"
+                    >
+                      {children}
+                    </Drawer.Content>
+                  </div>
+                </Drawer.Popup>
+              </Drawer.Viewport>
+            </Drawer.VirtualKeyboardProvider>
+          </Drawer.Portal>
+        </Drawer.Root>
+      </Drawer.Provider>
+    </div>
   );
 }
 
 /**
- * A finger pulling down on a list that's already at its top lowers the
- * drawer, as a mouse drag does. Left to the browser, that pull is a scroll:
- * it cancels vaul's pointer, so the drawer stays put, and with nothing left
- * to scroll it ran on into the page and pulled it to refresh. Cancelling the
- * drag's first move keeps it with the drawer; after that the browser keeps
- * whatever it was given. A drag up, a list scrolled down, a mostly sideways
- * drag and a second finger (pinch-zoom) all stay the browser's.
- *
- * The other way round: a finger on a list that's scrolled down is the
- * list's, but vaul drags any drawer that isn't at its very top (ours never
- * is: full sits under the top bar). On Android the drawer took the first
- * few moves, the browser then took the scroll, and vaul read the cancel as
- * a release: a quick flick down, so scrolling a long list back up dropped
- * the drawer to half or peek. `data-vaul-no-drag` on the scrolled list,
- * for that gesture, is vaul's own way to leave a pointer alone.
+ * Keeps the drawer in the Tab order. Base UI's portal takes everything in it
+ * out of the order (`tabindex="-1"`, the old value in `data-tabindex`) when
+ * focus moves to the page, and puts it back when focus comes in through its
+ * guards, which this drawer doesn't use (above). Left out, Tab skipped the
+ * sidebar, and a list with nothing left to Tab to couldn't be scrolled from
+ * the keyboard (axe's scrollable-region-focusable). This runs as focus
+ * leaves, after Base UI's own capturing listener has done that.
  */
-function claimPullDown(drawer: HTMLDivElement | null) {
-  if (!drawer) return;
-  let start: { x: number; y: number } | null = null;
-  let claimed: boolean | null = null;
-  let scrolled: Element | null = null;
-  const onDown = (event: PointerEvent) => {
-    release();
-    if (event.pointerType === "mouse") return;
-    scrolled = scrolledAncestor(event.target, drawer);
-    scrolled?.setAttribute("data-vaul-no-drag", "");
-  };
-  const release = () => {
-    scrolled?.removeAttribute("data-vaul-no-drag");
-    scrolled = null;
-  };
-  // vaul takes the pointerout that follows a cancel for a release too, so
-  // the mark stays through a cancelled gesture (until the next finger comes
-  // down) and through a lifted one until vaul has seen the pointerup.
-  const onUp = () => setTimeout(release, 0);
-  const onStart = (event: TouchEvent) => {
-    const touch = event.touches[0];
-    start =
-      event.touches.length === 1 && touch
-        ? { x: touch.clientX, y: touch.clientY }
-        : null;
-    claimed = null;
-  };
-  const onMove = (event: TouchEvent) => {
-    const touch = event.touches[0];
-    if (!start || event.touches.length !== 1 || !touch) {
-      start = null;
-      return;
+function inPageOrder(root: HTMLDivElement | null) {
+  if (!root) return;
+  const restore = () => {
+    for (const el of root.querySelectorAll<HTMLElement>("[data-tabindex]")) {
+      const was = el.dataset.tabindex;
+      delete el.dataset.tabindex;
+      if (was) el.setAttribute("tabindex", was);
+      else el.removeAttribute("tabindex");
     }
-    if (claimed === null) {
-      const dy = touch.clientY - start.y;
-      const dx = touch.clientX - start.x;
-      if (dy === 0 && dx === 0) return;
-      claimed = dy > Math.abs(dx) && pullsDrawer(event.target, drawer);
-    }
-    if (claimed && event.cancelable) event.preventDefault();
   };
-  // Capture: marked before vaul (React, at the root) sees the pointer.
-  drawer.addEventListener("pointerdown", onDown, true);
-  drawer.addEventListener("pointerup", onUp, true);
-  // Non-passive: only a cancelled touchmove keeps the browser from scrolling.
-  drawer.addEventListener("touchstart", onStart, { passive: true });
-  drawer.addEventListener("touchmove", onMove, { passive: false });
-  return () => {
-    release();
-    drawer.removeEventListener("pointerdown", onDown, true);
-    drawer.removeEventListener("pointerup", onUp, true);
-    drawer.removeEventListener("touchstart", onStart);
-    drawer.removeEventListener("touchmove", onMove);
-  };
+  root.addEventListener("focusout", restore);
+  return () => root.removeEventListener("focusout", restore);
 }
 
-/** The nearest scroller under `target`, inside the drawer, that's scrolled down. */
-function scrolledAncestor(
-  target: EventTarget | null,
-  drawer: HTMLElement,
-): Element | null {
-  let el = target instanceof Element ? target : null;
-  while (el && el !== drawer) {
-    if (el.scrollTop > 0) return el;
-    el = el.parentElement;
-  }
-  return null;
-}
-
-/** vaul's own rule: a pull drags the drawer unless something is scrolled. */
-function pullsDrawer(target: EventTarget | null, drawer: HTMLElement): boolean {
-  if (!(target instanceof Element) || target.closest("[data-vaul-no-drag]"))
-    return false;
-  return scrolledAncestor(target, drawer) === null;
-}
+type CSSVars = CSSProperties & Record<`--${string}`, string>;
 
 const NEXT_SNAP: Record<DrawerSnap, DrawerSnap> = {
   peek: "half",
@@ -367,7 +421,8 @@ const NEXT_SNAP: Record<DrawerSnap, DrawerSnap> = {
 
 /**
  * The bar at the top: drag the drawer anywhere to resize it, or tap this to
- * step peek → half → full. A real button (vaul's handle isn't focusable).
+ * step peek → half → full. A real button, so a keyboard and a screen reader
+ * can move the drawer too.
  */
 function Grabber({
   snap,
@@ -401,7 +456,8 @@ function Grabber({
  * the drawer's header) off the top of the screen: "you're no longer able to
  * see where you're typing" (the mobile lab's keyboard-at-half on iOS). The
  * drawer has already put the field where the keyboard can't cover it, so
- * any scroll of the page is undone.
+ * any scroll of the page is undone. (Base UI's keyboard provider does this
+ * for modal drawers only.)
  */
 function usePageStaysPut() {
   useEffect(() => {

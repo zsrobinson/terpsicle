@@ -2,7 +2,6 @@ import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
 import { CalendarDays, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Drawer } from "vaul";
 import { AppBar } from "~/components/app-bar";
 import { Mark } from "~/components/brand/mark";
 import { PanelNote } from "~/components/panel";
@@ -30,6 +29,7 @@ import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
+import { Sheet, SheetTitle } from "~/ui/sheet";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, useChatHome } from "./chat-home";
@@ -501,32 +501,20 @@ function CourseRoom({
         </aside>
       ) : null}
       {mobile ? (
-        <Drawer.Root open={infoOpen} onOpenChange={setInfoOpen}>
-          <Drawer.Portal>
-            <Drawer.Overlay className="fixed inset-0 z-40 bg-fg/20" />
-            <Drawer.Content
-              aria-describedby={undefined}
-              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col border-keyline border-t bg-bg shadow-drawer outline-none"
-            >
-              <div
-                className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-hairline-strong"
-                aria-hidden="true"
-              />
-              <PageHeader
-                size="panel"
-                title={
-                  <Drawer.Title asChild>
-                    <span>Room info</span>
-                  </Drawer.Title>
-                }
-                actions={closeInfo}
-              />
-              <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-                {info}
-              </div>
-            </Drawer.Content>
-          </Drawer.Portal>
-        </Drawer.Root>
+        <Sheet open={infoOpen} onOpenChange={setInfoOpen}>
+          <PageHeader
+            size="panel"
+            title={
+              <SheetTitle asChild>
+                <span>Room info</span>
+              </SheetTitle>
+            }
+            actions={closeInfo}
+          />
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            {info}
+          </div>
+        </Sheet>
       ) : null}
     </>
   );

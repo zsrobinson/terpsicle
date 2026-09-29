@@ -11,7 +11,7 @@ Features (`src/features/<feature>/`) plug into the shell through routes: each ta
 The frame the scheduler is laid out in, shared with Plan (`CONTEXT.md`, "Workbench"; `docs/COHESION.md` §4). It knows nothing about either product: each passes its own bar, views and canvas.
 - `layout.tsx`: `Workbench` (bar; rail, sidebar and canvas on desktop; canvas and drawer on phones), `WorkbenchSidebar` (the aside and its resize handle) and `lazyDrawer` (a product's phone drawer, in its own chunk).
 - `rail.tsx`: `WorkbenchRail`, `RailButton` (with `railHint` for its tooltip) and `CountBadge`.
-- `drawer.tsx`: `WorkbenchDrawer` (vaul, its snaps, the keyboard and the pull-down) and its strip, `DrawerTabs` and `DrawerTab`. Phones only.
+- `drawer.tsx`: `WorkbenchDrawer` (Base UI's Drawer, never modal or closed: its peek, half and full snaps, the keyboard, raising at once for a tapped field, and `<html data-drawer-snap>` for the shell) and its strip, `DrawerTabs` and `DrawerTab`. Phones only.
 - `back-bar.tsx`: `DrillBackBar`, a drill-in's one Back.
 - `status.tsx`: the bar's `CreditsStatus` and `ProblemsStatus`.
 - `sidebar-resize.tsx`: the handle below.

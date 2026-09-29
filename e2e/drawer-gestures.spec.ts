@@ -92,7 +92,7 @@ interface TouchWatch {
   __pointerId?: Promise<number>;
 }
 
-const drawer = (page: Page) => page.locator("[data-vaul-drawer]");
+const drawer = (page: Page) => page.locator("[data-workbench-drawer]");
 const tabs = (page: Page) =>
   page.getByRole("navigation", { name: "Tabs", exact: true });
 
@@ -155,7 +155,7 @@ async function searchResults(page: Page) {
   return results;
 }
 
-/** vaul's snap animation takes 0.5 s; a drag before it ends is ignored. */
+/** A snap slides for 450ms (`ease-sheet`): let it land before the next drag. */
 const settle = (page: Page) => page.waitForTimeout(600);
 
 test("the page can't scroll, rubber-band or pull to refresh", async ({
@@ -180,16 +180,16 @@ test("the page can't scroll, rubber-band or pull to refresh", async ({
     expect(s.overflow, root).toBe("hidden");
   }
   // The scrollers keep their own scrolling but never hand it to the page.
-  expect((await style("[data-vaul-drawer] [data-panel-body]")).overscroll).toBe(
-    "contain",
-  );
+  expect(
+    (await style("[data-workbench-drawer] [data-panel-body]")).overscroll,
+  ).toBe("contain");
   expect((await style("[data-calendar-scroll]")).overscroll).toBe("contain");
   await searchResults(page);
   expect((await style("#search-results")).overscroll).toBe("contain");
 
-  // vaul makes the drawer `touch-action: none` so it can follow a finger;
-  // ours still lets a pinch zoom the page, and so does the viewport.
-  expect((await style("[data-vaul-drawer]")).touch).toBe("pinch-zoom");
+  // A finger's drag on the drawer moves it, not the page; a pinch still
+  // zooms the page there, and so does the viewport.
+  expect((await style("[data-workbench-drawer]")).touch).toBe("pinch-zoom");
   const viewport = await page
     .locator('meta[name="viewport"]')
     .getAttribute("content");
@@ -229,7 +229,7 @@ test("pulling a list down at its top lowers the drawer", async ({ page }) => {
 });
 
 test("dragging the grabber moves the drawer up and down", async ({ page }) => {
-  const grabber = '[data-vaul-drawer] button[aria-label$="the panel"]';
+  const grabber = '[data-workbench-drawer] button[aria-label$="the panel"]';
   const top = () =>
     drawer(page).evaluate((el) => el.getBoundingClientRect().top);
   await settle(page);
@@ -281,12 +281,13 @@ test("scrolling a list back up leaves the drawer where it is", async ({
   page,
 }) => {
   // On a phone (the mobile lab's url-bar scenario, Android Chrome), a finger
-  // moving down on a scrolled list reached vaul as a few pointer moves
-  // before the browser took the scroll and cancelled the pointer. vaul
-  // dragged the drawer for those moves, took the pointerout that follows a
-  // cancel for a release, and read it as a flick down: the drawer dropped to
-  // half or peek. Headless Chromium cancels before any move, so this plays
-  // the phone's sequence after a real touch: moves, cancel, pointerout.
+  // moving down on a scrolled list reached the drawer (vaul, then) as a few
+  // pointer moves before the browser took the scroll and cancelled the
+  // pointer. vaul dragged the drawer for those moves, took the pointerout
+  // that follows a cancel for a release, and read it as a flick down: the
+  // drawer dropped to half or peek. Headless Chromium cancels before any
+  // move, so this plays the phone's sequence after a real touch: moves,
+  // cancel, pointerout.
   const results = await searchResults(page);
   await settle(page);
   await results.evaluate((el) => el.scrollTo({ top: 600 }));

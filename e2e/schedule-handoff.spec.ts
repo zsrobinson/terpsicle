@@ -23,7 +23,7 @@ test.afterEach(() => {
 /** Spring 2027's column; on a phone, picked from the strip first. */
 async function spring(page: Page, isMobile: boolean) {
   if (isMobile) {
-    await expect(page.locator("[data-vaul-drawer]")).toHaveAttribute(
+    await expect(page.locator("[data-workbench-drawer]")).toHaveAttribute(
       "data-snap",
       "peek",
     );
@@ -84,7 +84,7 @@ test("View schedule makes Spring's plan, View four-year plan comes back, and the
 
   // A phone's drawer opens far enough to show the bookmarks.
   if (isMobile)
-    await expect(page.locator("[data-vaul-drawer]")).not.toHaveAttribute(
+    await expect(page.locator("[data-workbench-drawer]")).not.toHaveAttribute(
       "data-snap",
       "peek",
     );

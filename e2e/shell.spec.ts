@@ -309,7 +309,7 @@ test.describe("desktop", () => {
 test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout");
 
-  const drawer = (page: Page) => page.locator("[data-vaul-drawer]");
+  const drawer = (page: Page) => page.locator("[data-workbench-drawer]");
   const drawerTop = async (page: Page) =>
     (await drawer(page).evaluate((el) => el.getBoundingClientRect().top)) ?? 0;
 

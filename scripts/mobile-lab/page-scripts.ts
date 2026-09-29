@@ -64,7 +64,7 @@ export const INSTALL = `(() => {
   // Only frames where something moved, so a still screen costs nothing.
   let last = "";
   const tick = () => {
-    const d = document.querySelector("[data-vaul-drawer]");
+    const d = document.querySelector("[data-workbench-drawer]");
     const a = document.activeElement;
     const focused = a && a !== document.body && (a.tagName === "INPUT" || a.tagName === "TEXTAREA");
     const f = [
@@ -117,7 +117,7 @@ export const PROBE = `(() => {
   };
   const describe = lab ? lab.describe : (el) => el && el.tagName;
   const scroller = (el) => el ? { scrollTop: Math.round(el.scrollTop), scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, rect: rect(el) } : null;
-  const drawer = document.querySelector("[data-vaul-drawer]");
+  const drawer = document.querySelector("[data-workbench-drawer]");
   const a = document.activeElement;
   const nonText = ["button","checkbox","color","file","image","radio","range","reset","submit"];
   const textEntry = !!a && ((a.tagName === "INPUT" && !nonText.includes(a.type)) || a.tagName === "TEXTAREA" || a.isContentEditable === true);

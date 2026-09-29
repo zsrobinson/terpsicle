@@ -344,7 +344,7 @@ test.describe("install prompt", () => {
     // sits under the drawer's layer, which takes Esc, so the menu stays open
     // and the second press of "Sign in" below closes it instead.
     if (isMobile)
-      await expect(page.locator("[data-vaul-drawer]")).toBeVisible();
+      await expect(page.locator("[data-workbench-drawer]")).toBeVisible();
     const entry = isMobile
       ? page.getByRole("menuitem", { name: "Install app" })
       : page.getByRole("button", { name: "Install app" });
