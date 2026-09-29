@@ -134,6 +134,16 @@ function renderTodo(view: CalendarView = "week", anchor?: string) {
   return wrap(<TodoPage view={view} anchor={anchor} />);
 }
 
+/** Opens one of the bar's panels (a popover, at a desktop's width). */
+async function openPanel(
+  user: ReturnType<typeof userEvent.setup>,
+  name: "Add a task" | "Courses and ELMS",
+) {
+  const bar = await screen.findByRole("banner");
+  await user.click(await within(bar).findByRole("button", { name }));
+  return screen.findByRole("dialog", { name });
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(NOW));
@@ -205,14 +215,20 @@ describe("who's looking", () => {
       "href",
       "/todo/connect",
     );
-    // The paste is in the side panel too, beside the empty week.
-    expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
     expect(
       screen.getByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Add a task" }));
-    expect(screen.getByRole("textbox", { name: "New task" })).toHaveFocus();
+    await user.click(
+      within(screen.getByRole("main")).getByRole("button", {
+        name: "Add a task",
+      }),
+    );
+    const field = await screen.findByRole("textbox", { name: "New task" });
+    await waitFor(() => expect(field).toHaveFocus());
+    // The paste is in the bar's courses and ELMS.
+    await openPanel(user, "Courses and ELMS");
+    expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
   });
 
   it("starts a calendar without ELMS from the first visit", async () => {
@@ -220,6 +236,7 @@ describe("who's looking", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Email my advisor{Enter}",
@@ -237,6 +254,7 @@ describe("connecting", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Courses and ELMS");
     const input = await screen.findByLabelText("ELMS calendar link");
     expect(input).toHaveAttribute("type", "url");
     expect(input).toHaveAttribute("autocomplete", "off");
@@ -256,6 +274,7 @@ describe("connecting", () => {
     renderTodo();
     const user = userEvent.setup();
     const link = testFeedLink(TEST_FEED_TOKENS.calendar);
+    await openPanel(user, "Courses and ELMS");
     const input = await screen.findByLabelText("ELMS calendar link");
     await user.type(input, link);
     client.answer({ feed: aTodoFeedState(), items: [aTodoItem()] });
@@ -270,6 +289,7 @@ describe("connecting", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Courses and ELMS");
     const input = await screen.findByLabelText("ELMS calendar link");
     client.connect.mockResolvedValueOnce({
       status: "unreachable",
@@ -314,6 +334,7 @@ describe("connecting", () => {
         answer = resolve;
       }),
     );
+    await openPanel(user, "Courses and ELMS");
     const input = await screen.findByLabelText("ELMS calendar link");
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
     await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
@@ -338,6 +359,7 @@ describe("connecting", () => {
     renderTodo();
     const user = userEvent.setup();
     client.connect.mockRejectedValueOnce(new ApiCallError("unauthorized"));
+    await openPanel(user, "Courses and ELMS");
     const input = await screen.findByLabelText("ELMS calendar link");
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
     await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
@@ -438,8 +460,14 @@ describe("the week", () => {
     signedIn();
     renderTodo();
     await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" });
-    // On a phone the panel comes after the h1: an h3 there would skip a level.
-    for (const name of ["Add a task", "This week", "ELMS", "Weeks start on"])
+    // The panels open under the bar's h1: an h3 there would skip a level.
+    const user = userEvent.setup();
+    await openPanel(user, "Add a task");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Add a task" }),
+    ).toBeVisible();
+    await openPanel(user, "Courses and ELMS");
+    for (const name of ["This week", "ELMS", "Weeks start on"])
       expect(screen.getByRole("heading", { level: 2, name })).toBeVisible();
   });
 
@@ -495,6 +523,7 @@ describe("the week", () => {
       await screen.findByRole("heading", { level: 1, name: "Sep 27 – Oct 3" }),
     ).toBeVisible();
     const user = userEvent.setup();
+    await openPanel(user, "Courses and ELMS");
     await user.click(screen.getByRole("radio", { name: "Monday" }));
     expect(
       await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
@@ -605,15 +634,22 @@ describe("the week", () => {
       (await screen.findAllByText(/Checking ELMS…/)).length,
     ).toBeGreaterThan(0);
     act(() => answer({ status: "too-soon", feed: aTodoFeedState() }));
+    await openPanel(userEvent.setup(), "Courses and ELMS");
     expect(
       await screen.findByText("ELMS was checked in the last 5 minutes."),
     ).toBeVisible();
   });
 
-  it("says, in place, when ELMS stopped sharing the link", async () => {
+  it("says, in the bar and in place, when ELMS stopped sharing the link", async () => {
     fakeClient({ feed: aTodoFeedState({ status: "broken" }), items });
     signedIn();
     renderTodo();
+    expect(
+      await screen.findByText(
+        /^\d+ open · ELMS stopped sharing your calendar$/,
+      ),
+    ).toBeVisible();
+    await openPanel(userEvent.setup(), "Courses and ELMS");
     expect(
       await screen.findByText(
         "ELMS stopped sharing your calendar. Paste a new link.",
@@ -628,6 +664,7 @@ describe("the week", () => {
     fakeClient({ feed: null, items: [items[3] as TodoItem] });
     signedIn();
     renderTodo();
+    await openPanel(userEvent.setup(), "Courses and ELMS");
     expect(
       await screen.findByText(/Some deadlines came from a file/),
     ).toBeVisible();
@@ -694,7 +731,7 @@ describe("the month and the list", () => {
   });
 });
 
-describe("courses in the side panel", () => {
+describe("courses in the bar's panel", () => {
   const week: TodoItem[] = [
     aTodoItem({ uid: "cmsc-a", dueDate: "2026-09-29" }),
     aTodoItem({ uid: "cmsc-b", title: "Lab 5", dueDate: "2026-10-02" }),
@@ -721,6 +758,7 @@ describe("courses in the side panel", () => {
     fakeClient({ items: week, done: ["cmsc-a", "cmsc-old"] });
     signedIn();
     renderTodo();
+    await openPanel(userEvent.setup(), "Courses and ELMS");
     const courses = await screen.findByRole("list", { name: "Courses" });
     const cmsc = within(courses).getByRole("listitem", { name: "CMSC216" });
     expect(within(cmsc).getByText("1 of 2 done this week")).toBeVisible();
@@ -738,6 +776,7 @@ describe("courses in the side panel", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Courses and ELMS");
     await user.click(
       await screen.findByRole("button", { name: "Hide Terps Robotics Club" }),
     );
@@ -762,6 +801,7 @@ describe("courses in the side panel", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Courses and ELMS");
     expect(await screen.findByText("Hidden everywhere in Todo")).toBeVisible();
     expect(screen.queryByText("WebAssign 5")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Show MATH240" }));
@@ -776,6 +816,7 @@ describe("courses in the side panel", () => {
     fakeClient({ items: week });
     signedIn(true, "on");
     renderTodo();
+    await openPanel(userEvent.setup(), "Courses and ELMS");
     expect(
       await screen.findByRole("link", { name: "View chat for CMSC216" }),
     ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
@@ -785,6 +826,7 @@ describe("courses in the side panel", () => {
     fakeClient({ items: week });
     signedIn();
     renderTodo();
+    await openPanel(userEvent.setup(), "Courses and ELMS");
     await screen.findByRole("list", { name: "Courses" });
     expect(screen.queryByRole("link", { name: /^View chat/ })).toBeNull();
   });
@@ -796,6 +838,7 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Add a task");
     const field = await screen.findByRole("textbox", { name: "New task" });
     expect(field).toHaveAttribute("data-private");
     await user.type(field, "PS3 due tomorrow 11:59pm cmsc216");
@@ -825,8 +868,10 @@ describe("the composer", () => {
       course: true,
       typed: true,
     });
-    expect(field).toHaveValue("");
-    expect(field).toHaveFocus();
+    // It closes on the add, to show the task.
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Add a task" })).toBeNull(),
+    );
     expect(await screen.findByText("PS3")).toBeVisible();
   });
 
@@ -835,6 +880,7 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Read the Sun Also Rises sun",
@@ -855,6 +901,7 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Return library books fri",
@@ -882,8 +929,9 @@ describe("the composer", () => {
     await user.click(
       await screen.findByRole("button", { name: "Add a task on Wed, Sep 30" }),
     );
-    const field = screen.getByRole("textbox", { name: "New task" });
-    expect(field).toHaveFocus();
+    // The bar's composer opens, with the day.
+    const field = await screen.findByRole("textbox", { name: "New task" });
+    await waitFor(() => expect(field).toHaveFocus());
     expect(
       within(screen.getByRole("list", { name: "The task will be" })).getByText(
         "Wed, Sep 30",
@@ -897,6 +945,7 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
+    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Buy a lab coat tomorrow{Enter}",

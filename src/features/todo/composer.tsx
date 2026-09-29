@@ -26,7 +26,6 @@ import {
 } from "~/core/todo";
 import { dotStyle } from "~/features/calendar/tint";
 import { track } from "~/lib/analytics";
-import { useShortcut } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import {
@@ -58,11 +57,18 @@ interface ComposerRequest {
   date: IsoDate | null;
   /** Changes with every request, so the same day twice still asks. */
   seq: number;
+  /**
+   * The last request a composer took. On a phone the composer is in a sheet
+   * that opens for the request, so one that arrives before its composer
+   * does waits for it; a desktop's is always there and takes it at once.
+   */
+  taken: number;
 }
 
-const useComposerRequest = create<ComposerRequest>()(() => ({
+export const useComposerRequest = create<ComposerRequest>()(() => ({
   date: null,
   seq: 0,
+  taken: 0,
 }));
 
 /**
@@ -134,6 +140,7 @@ export function Composer({
   colors,
   weekStart,
   compact = false,
+  onAdded,
   className,
 }: {
   /** The courses a task can be for: the person's plans' and ELMS's. */
@@ -145,6 +152,8 @@ export function Composer({
    * calendar starts on the first screen; the chips and pickers open then.
    */
   compact?: boolean;
+  /** After a task is added (a phone's sheet closes, to show it). */
+  onAdded?: () => void;
   className?: string;
 }) {
   const saveTask = useTodo((s) => s.saveTask);
@@ -180,13 +189,12 @@ export function Composer({
     setChoice({});
   };
 
-  // The calendar's "add on this day", and Q: each request once, and none
-  // made before this composer was here.
+  // The calendar's "add on this day", and Q: each request once, by the
+  // composer on screen, including one made just before it opened.
   const request = useComposerRequest();
-  const handled = useRef(request.seq);
   useEffect(() => {
-    if (request.seq === handled.current) return;
-    handled.current = request.seq;
+    if (request.seq === request.taken) return;
+    useComposerRequest.setState({ taken: request.seq });
     if (request.date !== null) {
       setIgnore((s) => new Set([...s, "date"]));
       setChoice((c) => ({ ...c, date: request.date }));
@@ -194,10 +202,6 @@ export function Composer({
     field.current?.scrollIntoView({ block: "nearest" });
     field.current?.focus({ preventScroll: true });
   }, [request]);
-  useShortcut({ key: "q" }, () => {
-    startTask();
-    return true;
-  });
 
   /** A picker sets it: the text's words for it stay in the title. */
   const pick = (kind: QuickAddKind, patch: QuickAddChoice) => {
@@ -227,7 +231,8 @@ export function Composer({
       });
     save();
     reset();
-    field.current?.focus();
+    if (onAdded) onAdded();
+    else field.current?.focus();
   };
 
   const onKeyDown = (event: KeyboardEvent) => {

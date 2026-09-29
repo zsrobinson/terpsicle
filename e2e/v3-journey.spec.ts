@@ -215,9 +215,13 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
       },
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
-    // The second device is a laptop-sized window: the paste is right there
-    // in Todo's side panel.
+    // The second device is a laptop-sized window: the paste is in Todo's
+    // courses and ELMS, which open from the bar.
     await phone.goto("/todo");
+    await phone
+      .getByRole("banner")
+      .getByRole("button", { name: "Courses and ELMS" })
+      .click();
     await phone
       .getByLabel("ELMS calendar link")
       .fill(testFeedLink(TEST_FEED_TOKENS.calendar));

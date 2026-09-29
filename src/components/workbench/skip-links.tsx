@@ -18,10 +18,10 @@ export function SkipLinks({
   canvasId: string;
   /** "calendar", "semesters". */
   canvasName: string;
-  /** The open panel's element, the link's target. */
-  sidebarId: string;
+  /** The open panel's element, the link's target (none on Todo, which has no sidebar). */
+  sidebarId?: string;
   /** Opens a collapsed sidebar or resting drawer, then focuses the panel. */
-  onSidebar: () => void;
+  onSidebar?: () => void;
 }) {
   const toCanvas = (event: MouseEvent) => {
     event.preventDefault();
@@ -29,7 +29,7 @@ export function SkipLinks({
   };
   const toSidebar = (event: MouseEvent) => {
     event.preventDefault();
-    onSidebar();
+    onSidebar?.();
   };
   return (
     <>
@@ -42,15 +42,17 @@ export function SkipLinks({
           Skip to {canvasName}
         </a>
       </WithTooltip>
-      <WithTooltip label="Jump past the top bar to the open panel">
-        <a
-          href={`#${sidebarId}`}
-          className={`${linkClass} focus:left-40`}
-          onClick={toSidebar}
-        >
-          Skip to sidebar
-        </a>
-      </WithTooltip>
+      {sidebarId ? (
+        <WithTooltip label="Jump past the top bar to the open panel">
+          <a
+            href={`#${sidebarId}`}
+            className={`${linkClass} focus:left-40`}
+            onClick={toSidebar}
+          >
+            Skip to sidebar
+          </a>
+        </WithTooltip>
+      ) : null}
     </>
   );
 }
