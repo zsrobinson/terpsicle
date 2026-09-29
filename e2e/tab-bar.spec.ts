@@ -150,9 +150,12 @@ test("a Chat room takes the bottom for its composer", async ({ page }) => {
   await page.goto(`/auth/test?return=${encodeURIComponent("/chat")}`);
   await page.getByRole("button", { name: "Sign in as Test Student" }).click();
   await page.waitForURL((url) => url.pathname.startsWith("/chat"));
+  // The first room of the first class, whatever the account's plans hold.
   const room = page
-    .getByRole("navigation", { name: "Rooms" })
-    .getByRole("button", { name: /· everyone$/ })
+    .getByRole("list", { name: "Your classes" })
+    .getByRole("listitem")
+    .first()
+    .getByRole("button")
     .first();
   await expect(room).toBeVisible({ timeout: 20_000 });
   await expect(tabBar(page)).toBeVisible();

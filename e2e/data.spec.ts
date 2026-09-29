@@ -18,8 +18,14 @@ async function open(page: Page) {
   await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 }
 
+/**
+ * The term's control: the term switcher on a desktop ("Spring 2027"), the
+ * term and plan's one control on a phone ("Spring 2027, Plan A").
+ */
 const switcher = (page: Page, term: string) =>
-  page.getByRole("button", { name: term, exact: true });
+  page
+    .getByRole("banner")
+    .getByRole("button", { name: new RegExp(`^${term}(,|$)`) });
 
 test("switch to a past term and back; the last one is remembered", async ({
   page,

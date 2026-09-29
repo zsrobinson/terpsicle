@@ -205,6 +205,7 @@ function scrollIntoBand(
   pick: (column: CalendarModel["columns"][number]) => readonly Timed[],
   { model, layout }: { model: CalendarModel; layout: CalendarLayout },
   drawerCover: number,
+  whole = false,
 ): void {
   const scroller = grid?.closest<HTMLElement>("[data-calendar-scroll]");
   if (!grid || !scroller) return;
@@ -217,6 +218,7 @@ function scrollIntoBand(
       })),
     ),
     visibleBand(scroller, drawerCover),
+    { whole },
   );
   if (delta === 0) return;
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -281,6 +283,7 @@ function useScrollToGhosts(
           ),
         latest.current,
         cover(),
+        true,
       ),
     );
     return () => cancelAnimationFrame(frame);

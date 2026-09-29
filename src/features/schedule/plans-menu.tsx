@@ -96,6 +96,8 @@ export function PlansMenu({ termId }: { termId: TermId }) {
         // "Spring ’27 [Next] / Plan A ▾": the term and the open plan.
         <button
           type="button"
+          // Named in full: "Spring 2027, Plan A".
+          aria-label={`${term.name}, ${active?.name ?? "no plan yet"}`}
           className="flex h-9 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-base transition-colors hover:bg-hover data-popup-open:bg-hover"
         >
           <span className="whitespace-nowrap font-semibold">

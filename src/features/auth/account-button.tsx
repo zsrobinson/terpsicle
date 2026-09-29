@@ -81,8 +81,11 @@ function AccountMenu({
   note: string | null;
 }) {
   const user = useAccount((s) => s.user);
+  const [open, setOpen] = useState(false);
   return (
     <ActionMenu
+      open={open}
+      onOpenChange={setOpen}
       title={user ? "Account" : "Sign in"}
       tooltip={user ? "Your account and theme" : signInPitch(pagePathname())}
       align="end"
@@ -121,7 +124,11 @@ function AccountMenu({
         )
       }
     >
-      {user ? <AccountItems user={user} /> : <SignInItems />}
+      {user ? (
+        <AccountItems user={user} onSignedOut={() => setOpen(false)} />
+      ) : (
+        <SignInItems />
+      )}
       <ActionMenuSeparator />
       <ThemeMenuItems />
       <InstallAppMenuItem />
@@ -174,14 +181,24 @@ function SignInItems() {
 }
 
 /** Who's signed in, then Settings, Admin (admins) and the two sign-outs. */
-function AccountItems({ user }: { user: MeUser }) {
+function AccountItems({
+  user,
+  onSignedOut,
+}: {
+  user: MeUser;
+  /** Closes the menu: it stays open through a sign-out to say if it failed. */
+  onSignedOut: () => void;
+}) {
   const signOut = useAccount((s) => s.signOut);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   const [failed, setFailed] = useState<string | null>(null);
   const run = (removeLocal: boolean) => {
     setFailed(null);
     signOut({ removeLocal })
-      .then(() => track("signed_out", { removedLocal: removeLocal }))
+      .then(() => {
+        track("signed_out", { removedLocal: removeLocal });
+        onSignedOut();
+      })
       .catch((error: unknown) => setFailed(signOutFailure(error)));
   };
   return (
