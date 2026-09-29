@@ -54,7 +54,8 @@ export function ProductPage(props: ProductPageProps) {
       ? (props.footer ?? true)
       : false;
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // The page's end scrolls up clear of the home indicator.
+    <div className="flex min-h-0 flex-1 flex-col pb-(--safe-bottom)">
       <main
         className={cn(
           "mx-auto flex w-full flex-1 flex-col gap-4 px-4 pt-4 pb-8",

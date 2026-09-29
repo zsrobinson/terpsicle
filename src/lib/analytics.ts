@@ -55,6 +55,7 @@ export interface AnalyticsEvents {
   problem_fix_applied: { kind: ProblemFix["kind"]; problem: ProblemKind };
   export_codes_copied: { count: number };
   share_link_copied: { product: "schedule" | "plan" };
+  share_link_shared: { product: "schedule" | "plan" };
   four_year_shared_opened: { outcome: "ok" | "invalid" | "newer-version" };
   four_year_shared_saved: NoProperties;
   registration_code_copied: NoProperties;
