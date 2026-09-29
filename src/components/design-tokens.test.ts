@@ -503,8 +503,11 @@ describe("the palette", () => {
     expect(used.filter((name) => SONNER.includes(name ?? ""))).toEqual([]);
   });
 
-  it("lifts toasts just above a workbench drawer's resting strip", () => {
-    const lift = /--toast-lift:\s*(\d+)px/.exec(STYLES)?.[1];
+  it("lifts toasts just above a workbench drawer's resting strip, and the home indicator", () => {
+    const lift =
+      /--toast-lift:\s*calc\((\d+)px \+ var\(--safe-bottom\)\);/.exec(
+        STYLES,
+      )?.[1];
     expect(Number(lift)).toBe(PEEK_HEIGHT + 8);
   });
 

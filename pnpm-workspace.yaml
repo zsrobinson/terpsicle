@@ -9,8 +9,3 @@ allowBuilds:
   lightningcss: true
   sharp: true
   workerd: true
-# vaul never passes `modal` to Radix Dialog, so even `modal={false}` hides the
-# rest of the page from screen readers and traps focus in the drawer. The
-# phone drawer is always open next to the calendar, so it must not be modal.
-patchedDependencies:
-  vaul@1.1.2: patches/vaul@1.1.2.patch

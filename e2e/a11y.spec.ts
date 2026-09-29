@@ -72,7 +72,7 @@ async function openTab(page: Page, isMobile: boolean, label: string) {
       .first(),
   ).toBeVisible();
   // On a phone, raise a resting drawer so the whole panel is on screen.
-  const drawer = page.locator("[data-vaul-drawer]");
+  const drawer = page.locator("[data-workbench-drawer]");
   if (isMobile && (await drawer.getAttribute("data-snap")) === "peek") {
     await page.getByRole("button", { name: "Raise the panel" }).tap();
     await expect(drawer).toHaveAttribute("data-snap", "half");
@@ -237,7 +237,7 @@ for (const scheme of ["light", "dark"] as const) {
       await open(page);
       await openTab(page, isMobile, "Travel");
       const sidebar = isMobile
-        ? page.locator("[data-vaul-drawer]")
+        ? page.locator("[data-workbench-drawer]")
         : page.getByRole("complementary", { name: "Sidebar" });
       await sidebar
         .getByRole("button", { name: /^CMSC330 to ECON200/ })
@@ -309,7 +309,7 @@ test.describe("reduced motion", () => {
     ).toBe("none");
     await page.keyboard.press("Escape");
     if (isMobile) {
-      const drawer = page.locator("[data-vaul-drawer]");
+      const drawer = page.locator("[data-workbench-drawer]");
       await page.getByRole("button", { name: "Raise the panel" }).tap();
       expect(
         await drawer.evaluate((el) => getComputedStyle(el).transitionDuration),

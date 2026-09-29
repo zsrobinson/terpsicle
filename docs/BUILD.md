@@ -143,7 +143,7 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 | Language/runtime | TypeScript `strict` (plus `noUncheckedIndexedAccess`), ESM, Node 22 for scripts |
 | Package manager | pnpm |
 | App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The scheduler (`/schedule`) is client-rendered (`ssr: false`); the marketing page at `/` and the other static pages are server-rendered. The Worker mostly serves assets and data. `/` sends returning visitors straight to `/schedule` (`docs/V2.md` §2: the session cookie in `src/server/routing.ts`, the returning flag and saved plans in `src/features/marketing/returning.ts`). |
-| UI | Tailwind 4, shadcn/ui (Radix), lucide, Geist + Geist Mono, `vaul` (mobile drawer), `sonner` (toasts) |
+| UI | Tailwind 4, shadcn/ui (Radix), lucide, Geist + Geist Mono, Base UI (`@base-ui/react`: the phone drawer and sheets, and the kit's primitives as they move), `sonner` (toasts) |
 | State | Zustand, Dexie; undo is a snapshot stack in the plans store (pure reducer in `core/plans`) |
 | Validation | zod 4 at every boundary |
 | Parsing | htmlparser2 (streaming, runs in Workers and Node) |
@@ -179,7 +179,7 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 
 What the scheduler loads on first use, not up front (each has a rule in `SCHEDULE_NEVER_EAGER`, so it can't drift back):
 - **Every tab and drill-in**, each its own route whose component the router splits into a chunk (`src/routes/schedule.*.tsx`): Travel, Blocks, Generate and Export with what only they use (the generator's Comlink client, `.ics`, Base UI's Select) have rules; Courses, Search, Problems and course details load with the first view that shows them (`/schedule/courses` on a first visit, `/schedule/course/$code` from an email), which `check:bundle` measures with `/schedule`. Hovering or focusing a rail tab (a touch on a drawer tab, hovering a travel pill) preloads the route, so it's usually there by the click; until then the panel's skeleton shows, and a chunk that can't load says so in the panel, with Reload.
-- **The phone drawer** (vaul). `app-shell.tsx` loads it only at the phone width, starting as soon as the app's code runs, so it arrives alongside the data; a resting edge holds its place meanwhile. Its sizes live in `drawer-heights.ts` for the shell and the calendar.
+- **The phone drawer** (Base UI's Drawer, `src/components/workbench/drawer.tsx`). `app-shell.tsx` loads it only at the phone width, starting as soon as the app's code runs, so it arrives alongside the data; a resting edge holds its place meanwhile. Its sizes live in `drawer-heights.ts` for the shell and the calendar. Chat's room info sheet loads on phones only too, so Base UI's Drawer (beyond the sheet indent every page has) is never in a first load (`check-bundle.ts`).
 - **MiniSearch.** `use-course-search.ts` loads the text index when Search first opens. Eager code imports `~/core/search/filters` and `~/core/search/summary`, never the `~/core/search` barrel, which would pull it back in.
 - MapLibre, the generator's worker and the mock fixtures, as before (`NEVER_EAGER`).
 

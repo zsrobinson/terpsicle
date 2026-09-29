@@ -31,7 +31,7 @@ async function openGenerate(page: Page, isMobile: boolean) {
       .getByRole("navigation", { name: "Tabs", exact: true })
       .getByRole("button", { name: "Generate" })
       .tap();
-    const drawer = page.locator("[data-vaul-drawer]");
+    const drawer = page.locator("[data-workbench-drawer]");
     if ((await drawer.getAttribute("data-snap")) === "peek") {
       await page.getByRole("button", { name: "Raise the panel" }).tap();
       await expect(drawer).toHaveAttribute("data-snap", "half");

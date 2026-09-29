@@ -70,7 +70,7 @@ test("a course Testudo dropped gets its course info, from its base course or by 
   await problems.getByRole("button", { name: "Count it as MATH141" }).click();
   // On a phone its Undo toast stays clear of the next problem's button.
   if (isMobile) {
-    await expect(page.locator("[data-vaul-drawer]")).toHaveAttribute(
+    await expect(page.locator("[data-workbench-drawer]")).toHaveAttribute(
       "data-snap",
       "half",
     );

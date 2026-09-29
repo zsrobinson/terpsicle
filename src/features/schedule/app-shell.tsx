@@ -39,7 +39,7 @@ import { TermSwitcher } from "./term-switcher";
 import { TopBar } from "./top-bar";
 import { UndoToasts } from "./undo-toasts";
 
-// The phone drawer (vaul) is its own chunk, fetched at once on phones only.
+// The phone drawer (Base UI's Drawer) is its own chunk, fetched at once on phones only.
 const MobileDrawer = lazyDrawer(() =>
   import("./mobile-drawer").then((m) => m?.MobileDrawer),
 );

@@ -52,8 +52,22 @@ export class ShotTooBigError extends Error {
   }
 }
 
+/**
+ * On phones the sheet is the kit's (~/ui/sheet): a Base UI portal holding
+ * its backdrop beside it, which carries no mark of its own.
+ */
+const SHEET_PORTAL = "[data-base-ui-portal]";
+const OUR_SHEET = `[data-slot="sheet"]${FEEDBACK_UI}`;
+
+/** The page's wrapper, scaled back while a sheet is open (~/ui/sheet-indent). */
+const INDENT = "[data-sheet-indent]";
+
 function skipped(node: Node): boolean {
-  return node instanceof Element && node.matches(LEFT_OUT);
+  return (
+    node instanceof Element &&
+    (node.matches(LEFT_OUT) ||
+      (node.matches(SHEET_PORTAL) && node.querySelector(OUR_SHEET) !== null))
+  );
 }
 
 /** The color of the boxes: the theme's faint ink, solid. */
@@ -164,6 +178,9 @@ export async function captureViewport(): Promise<{
         // Opacity, since a child can't undo it the way it can visibility.
         if (cloned instanceof HTMLElement && cloned.matches(PRIVATE))
           cloned.style.opacity = "0";
+        // The page as it is, not as it steps back behind our sheet.
+        if (cloned instanceof HTMLElement && cloned.matches(INDENT))
+          cloned.style.transform = "none";
       },
       timeout: 10_000,
     });
