@@ -42,6 +42,13 @@ export const REVIEWS_MANIFEST_KEY = "reviews/manifest.json";
 export const reviewsDeptKey = (dept: DeptCode, hash: ContentHash): string =>
   `reviews/dept/${dept}.${hash}.json`;
 
+/** Who taught what, per term (DATA.md §3.5). */
+export const HISTORY_MANIFEST_KEY = "history/manifest.json";
+export const historyTermKey = (termId: TermId, hash: ContentHash): string =>
+  `history/term/${termId}.${hash}.json`;
+export const historyDeptKey = (dept: DeptCode, hash: ContentHash): string =>
+  `history/dept/${dept}.${hash}.json`;
+
 export const GEO_MANIFEST_KEY = "geo/manifest.json";
 export const buildingsKey = (hash: ContentHash): string =>
   `geo/buildings.${hash}.json`;

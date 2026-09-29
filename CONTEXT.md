@@ -104,6 +104,9 @@ One weekly time and place of a section: its kind (Lec, Dis, Lab), days, times, b
 **Professor**:
 Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "instructor" on the Instructors tab and its cards and for one section's own teacher (its row, its ghost, its problem: "Instructor TBA"), and "professor" for groups and rooms ("Professor TBA").
 
+**Instructor history**:
+Our own record of who taught each course in each term, kept after Testudo stops listing the term (DATA.md §3.5). Older terms come from PlanetTerp's grades and are marked as theirs. Say "taught", as in "Taught CMSC351 in Fall 2026".
+
 **GenEd**:
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".
 
