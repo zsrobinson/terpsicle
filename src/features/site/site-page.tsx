@@ -3,6 +3,7 @@ import { Settings, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppBar } from "~/components/app-bar";
 import { feedbackProduct } from "~/core/feedback/path";
+import { courseFromSlug } from "~/core/reviews/slugs";
 import { isAdminPath, SCHEDULE_PATH } from "~/core/routing";
 import { PRODUCTS } from "~/lib/products";
 import { Button } from "~/ui/button";
@@ -63,8 +64,20 @@ export function SiteHeader({
       pathname={path}
       context={notFound ? null : pageContext(path)}
       borderOnScroll={borderOnScroll}
+      phoneTitle={notFound ? undefined : phoneTitle(path)}
     />
   );
+}
+
+/**
+ * What a phone's bar leads with on a Reviews course's page: its code (the
+ * page's own title is the code and name, too long for the bar). Elsewhere
+ * the bar names the product.
+ */
+function phoneTitle(path: string): ReactNode | undefined {
+  const slug = /^\/reviews\/([^/]+)\/?$/.exec(path)?.[1];
+  const code = slug ? courseFromSlug(slug) : null;
+  return code ? <span className="ident">{code}</span> : undefined;
 }
 
 /**

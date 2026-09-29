@@ -60,11 +60,12 @@ test("the coffee button opens its note and links out", async ({
 }) => {
   await page.goto("/reviews");
   await hydrated(page);
-  await expect(page.getByTestId("feedback-button")).toBeVisible();
   let link = page.getByRole("link", { name: "Buy me a coffee" });
   if (isMobile) {
-    // No room in a phone's bar: it's in the account menu.
+    // A phone's bar keeps its title and the account: coffee is in the
+    // account menu, with Feedback.
     await expect(page.getByTestId("coffee-button")).toHaveCount(0);
+    await expect(page.getByTestId("feedback-button")).toHaveCount(0);
     await bar(page).getByRole("button", { name: "Sign in" }).click();
     link = page.getByRole("menuitem", { name: "Buy me a coffee" });
   } else {
@@ -191,4 +192,46 @@ test("the monogram is ink: black in light, paper in dark", async ({ page }) => {
   await expect
     .poll(colors)
     .toEqual({ bg: "rgb(255, 252, 240)", fg: "rgb(16, 15, 15)" });
+});
+
+test("every phone bar leads with a title, at rest", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "phones only");
+  // The left side is never empty (docs/DESIGN.md §7.8): the product's
+  // context where it has one, the product's name otherwise, before any
+  // scroll.
+  const leading = () =>
+    bar(page).evaluate((el) => {
+      const half = el.getBoundingClientRect().width / 2;
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const words: string[] = [];
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const text = n.textContent?.trim() ?? "";
+        if (!text || !n.parentElement) continue;
+        const style = getComputedStyle(n.parentElement);
+        if (style.visibility === "hidden" || Number(style.opacity) === 0)
+          continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        const box = range.getBoundingClientRect();
+        if (box.width > 0 && box.left < half) words.push(text);
+      }
+      return words.join(" ");
+    });
+  for (const path of [
+    "/home",
+    "/schedule?demo=1",
+    "/reviews",
+    "/chat",
+    "/plan",
+    "/todo",
+    "/settings",
+  ]) {
+    await page.goto(path);
+    await expect.poll(leading, { message: path }).not.toBe("");
+  }
+  await page.goto("/reviews/cmsc131");
+  await expect(bar(page).locator("[data-phone-title]")).toHaveText("CMSC131");
 });
