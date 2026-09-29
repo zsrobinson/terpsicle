@@ -123,7 +123,7 @@ const RULES = {
  * own design.
  */
 const HEADING =
-  /<(h[2-6]|legend)\b[^>]*?className=(?:"([^"]*)"|\{cn\(\s*"([^"]*)")/gs;
+  /<(h[2-6]|legend)\b[^>]*?className=(?:"([^"]*)"|\{cn\(([\s\S]*?)\)\s*\})/g;
 
 /** "file: <h3 class>" for every heading off the ladder. */
 function headingsOffTheLadder(sources: Record<string, string>): string[] {
@@ -132,8 +132,13 @@ function headingsOffTheLadder(sources: Record<string, string>): string[] {
     if (!file.endsWith(".tsx")) continue;
     for (const m of source.matchAll(HEADING)) {
       const classes = m[2] ?? m[3] ?? "";
+      // On the ladder, and never dimmed, not even for some of its rows (a
+      // day that isn't today is still a heading).
       if (
-        /\b(?:emph-(?:title|heading|label)|sr-only|mk-[\w-]+)\b/.test(classes)
+        /\b(?:emph-(?:title|heading|label)|sr-only|mk-[\w-]+)\b/.test(
+          classes,
+        ) &&
+        !/\btext-(?:muted|faint)\b|\bfont-(?:normal|light)\b/.test(classes)
       )
         continue;
       found.push(`${file}: <${m[1]} "${classes}">`);
@@ -242,6 +247,9 @@ describe("the rules", () => {
     );
     expect(off(`<h3\n  id={id}\n  className="font-semibold">A</h3>`)).toBe(1);
     expect(off(`<legend className={cn("text-muted", x)}>A</legend>`)).toBe(1);
+    expect(
+      off(`<h2 className={cn("emph-heading", !today && "text-muted")}>A</h2>`),
+    ).toBe(1);
     expect(
       off(
         `<h2 className="emph-heading text-base">A</h2> <h3 className="sr-only">B</h3> <h2 className="mk-display mk-h2">C</h2> <h4>D</h4> <legend className="emph-label">E</legend>`,
