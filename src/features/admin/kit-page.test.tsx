@@ -55,6 +55,9 @@ describe("KitPage", () => {
       "Switch",
       "Segmented control",
       "Select and buttons",
+      "Menus",
+      "Popover and dialog",
+      "Tooltips",
     ])
       expect(
         screen.getByRole("heading", { level: 2, name: part }),

@@ -69,7 +69,7 @@ Each item is one PR unless it says otherwise. Check items off here in the PR tha
 - [x] Page primitives in `src/components/ui`: `PageHeader`, the named `Page` layouts, `SubNav` (one pattern, on routes), `EmptyState`, `ListRow`, `Card`, `Loading` and `ErrorNote`. Each gets tests and a story in a `/admin/kit` page, so they can be reviewed side by side in both themes. (`v3/page-kit`: `PageHeader`, `ProductPage`, `ViewSwitch`, `EmptyState`, `ListRow` and `GroupHeader`, `Card`, `RowSkeleton` and `PageSkeleton`, `InlineError`. The panel's one-line note is now `PanelNote`.)
 - [x] Controls the inventory found hand-rolled five times over (§6):
   - [x] `Input` and `SearchField`: one height, one border, one focus rule.
-  - [x] `Select`: Radix everywhere; no native `<select>`. (The marketing page's Plan sample, the last one, is gone with `v3/marketing-live`.)
+  - [x] `Select`: the kit's (Base UI) everywhere; no native `<select>`. (The marketing page's Plan sample, the last one, is gone with `v3/marketing-live`.)
   - [x] `Switch`.
   - [x] `SegmentedControl`: one selected look.
   - [x] `BackLink`: one back affordance.
