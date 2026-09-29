@@ -26,6 +26,7 @@ import {
 import { type CatalogEvent, termsSettled, useCatalog } from "./catalog-store";
 import { useCatalogPolling, useSeatsFreshness } from "./data-hooks";
 import { DataError, type DataSource, type ReadPriority } from "./data-source";
+import { manifestQuery } from "./query/catalog";
 import type { PollPlatform } from "./query/catalog-poll";
 import {
   createMemoryQueryStorage,
@@ -450,7 +451,7 @@ describe("revalidating", () => {
     );
   });
 
-  it("keeps the manifest and files it has, on screen and on disk, when a new file fails", async () => {
+  it("keeps the files it has, on screen and on disk, when the new ones fail", async () => {
     server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 3);
     server.files.set(deptChunkKey(ACTIVE, "CMSC", hash(5)), { nope: true });
     server.files.set(seatsKey(ACTIVE, hash(1003)), { schemaVersion: 1 });
@@ -461,13 +462,83 @@ describe("revalidating", () => {
     expect(titles(ACTIVE)).toContain("CMSC v1");
     expect(t?.depts.CMSC).toBe("ready");
     expect(t?.seats?.asOf).toBe("2026-09-25T01:00:00.000Z");
-    // Not saved: the saved manifest never names a file this device lacks,
-    // and nothing it names was dropped.
+    // The saved manifest names the versions this device has, so it never
+    // names a file it lacks, and nothing it names was dropped.
     expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
       seats: { hash: hash(1001) },
     });
     expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(1)));
     expect(savedKeys()).toContain(seatsKey(ACTIVE, hash(1001)));
+  });
+
+  it("shows new seats when one department's new file is broken, and tries only that file again", async () => {
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 2);
+    server.files.set(deptChunkKey(ACTIVE, "CMSC", hash(5)), { nope: true });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+
+    // The new seats show; CMSC keeps the version it had.
+    const t = () => useCatalog.getState().byTerm[ACTIVE];
+    expect(t()?.seats?.asOf).toBe("2026-09-25T02:00:00.000Z");
+    expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
+    expect(t()?.depts.CMSC).toBe("ready");
+    // Saved: the new seats, and CMSC at the version this device has; the
+    // old seats file is dropped, the old CMSC file kept.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      seats: { hash: hash(1002) },
+      departments: expect.arrayContaining([
+        expect.objectContaining({ code: "CMSC", hash: hash(1) }),
+      ]),
+    });
+    expect(savedKeys()).toContain(seatsKey(ACTIVE, hash(1002)));
+    expect(savedKeys()).not.toContain(seatsKey(ACTIVE, hash(1001)));
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(1)));
+
+    // The next poll asks for the manifest and that one file, nothing else.
+    server.take();
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(server.take()).toEqual([
+      manifestKey(ACTIVE),
+      deptChunkKey(ACTIVE, "CMSC", hash(5)),
+    ]);
+
+    // Once the jobs fix it, the next poll brings it on screen and on disk.
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 2);
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(titles(ACTIVE)).toEqual(["CMSC v5", "ENGL v3", "MATH v2"]);
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(5)));
+    expect(savedDeptKeys()).not.toContain(
+      deptChunkKey(ACTIVE, "CMSC", hash(1)),
+    );
+  });
+
+  it("never saves an older manifest over a newer one another tab brought in", async () => {
+    vi.useFakeTimers();
+    const { client, source } = useCatalog.getState();
+    if (!client || !source) throw new Error("connected");
+    // This tab asks for the manifest (still v1 seats)...
+    await client.fetchQuery({ ...manifestQuery(source, ACTIVE), staleTime: 0 });
+    // ...and before it saves it, the polling tab (another client over the
+    // same disk) brings newer seats and saves them.
+    server.publish(ACTIVE, { CMSC: 1, MATH: 2, ENGL: 3 }, 2);
+    const holder = createTestQueryClient();
+    const newer = await holder.fetchQuery({
+      ...manifestQuery(source, ACTIVE),
+      staleTime: 0,
+    });
+    client.setQueryData(manifestQuery(source, ACTIVE).queryKey, newer, {
+      updatedAt: Date.now() + 1,
+    });
+    await vi.runAllTimersAsync();
+    await flushQueryStorage();
+    vi.useRealTimers();
+    // The newer manifest and its seats stay saved.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      seats: { hash: hash(1002) },
+    });
+    expect(savedKeys()).toContain(seatsKey(ACTIVE, hash(1002)));
   });
 
   it("keeps what's loaded and marks the tab stale when the server has a newer format", async () => {

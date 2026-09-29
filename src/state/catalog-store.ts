@@ -36,6 +36,7 @@ import {
   termsQuery,
 } from "./query/catalog";
 import { type PollPlatform, pollManifest } from "./query/catalog-poll";
+import { preloadPublished } from "./query/persister";
 import { whenNewerFormat } from "./query/published";
 
 // The term catalog on screen (DATA.md §2, §5.1): the term list, and per
@@ -461,6 +462,30 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     });
   };
 
+  /**
+   * Departments shown at an older version than the manifest lists (their
+   * new file didn't load, so the old one stayed) whose new file has since
+   * come in, from a later poll's retry: shown at the new one now.
+   */
+  const catchUp = (termId: TermId) => {
+    const { client, source } = get();
+    const manifest = get().byTerm[termId]?.manifest;
+    if (!client || !source || !manifest) return;
+    const loaded = termChunks(termId);
+    let moved = false;
+    for (const d of manifest.departments) {
+      const have = loaded.get(d.code);
+      if (!have || have.hash === d.hash) continue;
+      const chunk = client.getQueryData(
+        deptChunkQuery(source, termId, d).queryKey,
+      );
+      if (!chunk) continue;
+      loaded.set(d.code, { hash: d.hash, courses: chunk.courses });
+      moved = true;
+    }
+    if (moved) rebuild(termId, manifest);
+  };
+
   /** The manifest query's latest outcome → the term on screen. */
   const syncManifest = (termId: TermId) => {
     const { client, source } = get();
@@ -469,7 +494,8 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       manifestQuery(source, termId).queryKey,
     );
     noteReach(state);
-    if (state?.data) void applyManifest(termId, state.data);
+    if (state?.data)
+      void applyManifest(termId, state.data).then(() => catchUp(termId));
     else if (state?.error && state.fetchStatus === "idle")
       manifestFailed(termId, state.error);
   };
@@ -497,6 +523,10 @@ export const useCatalog = create<CatalogState>()((set, get) => {
     if (get().byTerm[termId]?.manifestState !== "loading")
       patchTerm(termId, () => ({ manifestState: "loading" }));
     watchManifest(termId);
+    // The term's saved files in one read, before the manifest and ~200
+    // departments restore from it one by one.
+    if (!client.getQueryData(manifestQuery(source, termId).queryKey))
+      await preloadPublished("catalog", source.kind, `catalog/${termId}/`);
     try {
       const manifest = await reached(
         client.ensureQueryData(manifestQuery(source, termId)),
@@ -720,7 +750,13 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       const { client, source } = get();
       if (!client || !source) return () => {};
       watchManifest(termId);
-      return pollManifest(client, source, termId, pollPlatform);
+      return pollManifest(
+        client,
+        source,
+        termId,
+        pollPlatform,
+        () => get().appStale,
+      );
     },
 
     ensureTerm: async (termId, first = []) => {

@@ -1,4 +1,5 @@
 import {
+  hashKey,
   notifyManager,
   onlineManager,
   type Query,
@@ -6,6 +7,7 @@ import {
   type QueryFunctionContext,
   type QueryKey,
   queryOptions,
+  replaceEqualDeep,
   skipToken,
 } from "@tanstack/react-query";
 import { z } from "zod";
@@ -22,6 +24,7 @@ import {
   flushQueryStorage,
   forgetPersisted,
   type Persister,
+  persistPublished,
   prunePublished,
   publishedPersister,
   savedPublishedKeys,
@@ -104,6 +107,23 @@ const HOUR_MS = 60 * 60 * 1000;
  * With `checkOnRestore`, a copy that did read is shown and then fetched
  * once in the background, whatever its age (a pointer, once per page).
  */
+/**
+ * Per query, what its fetch left to do once the persister has saved what
+ * it fetched: a pointer's own save (with any file that didn't load put
+ * back) and prune, which must come after, not be overwritten by it.
+ */
+const pendingSettle = new Map<string, () => Promise<void>>();
+
+/** Runs a fetch's settle after the persister's save, which it has already scheduled. */
+function afterSave<T>(query: Query, data: T): T {
+  const settleNow = pendingSettle.get(query.queryHash);
+  if (settleNow) {
+    pendingSettle.delete(query.queryHash);
+    setTimeout(() => void settleNow(), 0);
+  }
+  return data;
+}
+
 function validated<S extends z.ZodType>(
   persister: Persister,
   schema: S,
@@ -126,12 +146,15 @@ function validated<S extends z.ZodType>(
       context,
       query,
     );
-    if (fetched) return data;
+    if (fetched) return afterSave(query, data);
     const parsed = schema.safeParse(data);
     if (!parsed.success) {
       await forgetPersisted(family, query.queryHash);
       // Nothing saved now: this fetches, and saves what it gets.
-      return persister.persisterFn(queryFn, context, query);
+      return afterSave(
+        query,
+        await persister.persisterFn(queryFn, context, query),
+      );
     }
     if (checkOnRestore)
       // After the restored copy is in (and the persister has set its age).
@@ -172,8 +195,11 @@ function published<S extends z.ZodType>(
               options.onMissing &&
               error instanceof DataError &&
               error.reason === "missing"
-            )
+            ) {
+              askingPointer.add(key);
               await options.onMissing(client).catch(() => {});
+              askingPointer.delete(key);
+            }
             return noteNewer(family)(error);
           })
       : skipToken,
@@ -307,6 +333,18 @@ export function publishedPointer<S extends z.ZodType>(
     lists: (data: z.infer<S>) => string[];
     fileSchema: (key: string) => z.ZodType | BinaryFile;
     scope?: string;
+    /**
+     * Take the new pointer even when some of its new files can't load (a
+     * term's manifest: one broken department mustn't stop the seats). It
+     * shows as it came; it's saved as `keepOld` returns it, with each file
+     * that failed back at the version this device has (`kept`: new key →
+     * saved key), so the disk still never names a file it lacks. Without
+     * it, one failure keeps the old pointer, on screen and on disk.
+     */
+    keepOld?: (
+      data: z.infer<S>,
+      kept: ReadonlyMap<string, string>,
+    ) => z.infer<S>;
   },
 ) {
   const scope = options.scope ?? "";
@@ -315,23 +353,44 @@ export function publishedPointer<S extends z.ZodType>(
     checkOnRestore: true,
     load: async (source, client) => {
       const data: z.infer<S> = await readParsed(source, key, schema, family);
-      const listed = options.lists(data);
-      await refreshSaved(source, client, family, listed, options.fileSchema, {
-        scope,
-      });
+      const kept = await refreshSaved(
+        source,
+        client,
+        family,
+        options.lists(data),
+        options.fileSchema,
+        { scope, partial: Boolean(options.keepOld) },
+      );
+      const toSave =
+        kept.size > 0 && options.keepOld ? options.keepOld(data, kept) : data;
       // After the query holds the new pointer: save it, then prune.
-      setTimeout(() => {
-        void settle(source, client, family, key, listed, scope);
-      }, 0);
+      // After the query holds the new pointer and the persister has
+      // saved it as fetched: save it as it should be kept, then prune.
+      pendingSettle.set(hashKey(publishedKey(source.kind, key)), () =>
+        settle(source, client, family, key, {
+          fetched: data,
+          toSave,
+          listed: options.lists(toSave),
+          scope,
+        }),
+      );
       return data;
     },
   });
 }
 
 /**
+ * Hashed files whose query is waiting on its pointer (`onMissing`): a
+ * pointer's fetch mustn't wait for them in turn.
+ */
+const askingPointer = new Set<string>();
+
+/**
  * Fetches and saves the new version of every file saved from the old
- * pointer. Throws if one can't load, so the old pointer stays, on screen
- * and on disk, with the files it names (DATA.md §5.1 step 4).
+ * pointer, each on its own. Returns those that failed (new key → the saved
+ * key it would replace). Unless `partial`, one failure throws, so the old
+ * pointer stays, on screen and on disk, with the files it names (DATA.md
+ * §5.1 step 4). The next fetch tries only what's still missing.
  */
 async function refreshSaved(
   source: DataSource,
@@ -339,16 +398,21 @@ async function refreshSaved(
   family: SchemaFamily,
   listed: readonly string[],
   fileSchema: (key: string) => z.ZodType | BinaryFile,
-  { scope }: { scope: string },
-): Promise<void> {
+  { scope, partial }: { scope: string; partial: boolean },
+): Promise<Map<string, string>> {
   const saved = await savedPublishedKeys(family, source.kind, scope);
   const have = new Set(saved);
-  const slots = new Set(saved.map(fileSlot));
-  const changed = listed.filter((k) => !have.has(k) && slots.has(fileSlot(k)));
-  if (changed.length === 0) return;
+  const bySlot = new Map(saved.map((k) => [fileSlot(k), k]));
+  const changed = listed.filter((k) => !have.has(k) && bySlot.has(fileSlot(k)));
+  const kept = new Map<string, string>();
+  if (changed.length === 0) return kept;
   const files = publishedPersister(family);
-  await Promise.all(
+  const results = await Promise.allSettled(
     changed.map(async (k) => {
+      // Its query is waiting for this pointer: waiting for it here would
+      // be waiting for ourselves. It counts as not loaded yet.
+      if (askingPointer.has(k))
+        throw new DataError(k, "missing", `${k} is waiting on its pointer`);
       const schema = fileSchema(k);
       const file =
         schema instanceof z.ZodType
@@ -358,22 +422,48 @@ async function refreshSaved(
       await files.persistQueryByKey(file.queryKey, client);
     }),
   );
+  let firstError: unknown;
+  results.forEach((result, i) => {
+    const k = changed[i];
+    const old = k ? bySlot.get(fileSlot(k)) : undefined;
+    if (result.status === "fulfilled" || !k || !old) return;
+    firstError ??= result.reason;
+    kept.set(k, old);
+  });
+  if (kept.size > 0 && !partial) throw firstError;
   await flushQueryStorage();
+  return kept;
 }
 
-/** Saves the new pointer, then drops the files it no longer lists. */
+/**
+ * Saves the pointer this fetch brought (`toSave`), then drops the files
+ * it no longer lists (`listed`: its own list, not the one on screen). If
+ * the query holds another copy by then (another tab's newer one, put in
+ * while this fetch was out), it saves nothing: an older pointer over a
+ * newer one would lose the newer one's files. The tab that fetched that
+ * one saves it.
+ */
 async function settle(
   source: DataSource,
   client: QueryClient,
   family: SchemaFamily,
   key: string,
-  listed: readonly string[],
-  scope: string,
+  {
+    fetched,
+    toSave,
+    listed,
+    scope,
+  }: { fetched: unknown; toSave: unknown; listed: string[]; scope: string },
 ): Promise<void> {
-  await publishedPersister(family).persistQueryByKey(
-    publishedKey(source.kind, key),
-    client,
-  );
+  const query = client
+    .getQueryCache()
+    .find({ queryKey: publishedKey(source.kind, key), exact: true });
+  if (
+    !query ||
+    replaceEqualDeep(query.state.data, fetched) !== query.state.data
+  )
+    return;
+  await persistPublished(family, query, toSave);
   await flushQueryStorage();
   await prunePublished(family, source.kind, new Set([key, ...listed]), scope);
 }

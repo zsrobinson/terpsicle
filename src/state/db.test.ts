@@ -370,8 +370,8 @@ describe("Dexie v7", () => {
     await Dexie.delete(name);
   });
 
-  /** A database as version 6 left it, with the published-data cache full. */
-  async function seedV6(): Promise<void> {
+  /** The database as a version 6 build declares it (a tab still open on it). */
+  function v6Build(): Dexie {
     const v6 = new Dexie(name);
     v6.version(1).stores(DB_V1_STORES);
     v6.version(2).stores({ syncDocs: "key", seatAlerts: null });
@@ -379,6 +379,12 @@ describe("Dexie v7", () => {
     v6.version(4).stores({});
     v6.version(5).stores({});
     v6.version(6).stores({});
+    return v6;
+  }
+
+  /** A database as version 6 left it, with the published-data cache full. */
+  async function seedV6(): Promise<void> {
+    const v6 = v6Build();
     await v6.open();
     await v6.table("plans").put(aPlan({ id: "planAAAA" }));
     await v6.table("fourYear").put(aFourYear());
@@ -423,6 +429,24 @@ describe("Dexie v7", () => {
       key: "mainPlans",
       value: {},
     });
+    db.close();
+  });
+
+  it("lets a tab still on version 6 keep saving plans once another tab upgrades", async () => {
+    name = `v7-${++count}`;
+    await seedV6();
+    const oldTab = v6Build();
+    await oldTab.open();
+    // A new build opens in another tab: the old tab's connection closes
+    // for the upgrade...
+    const db = new TerpsicleDb(name);
+    await db.open();
+    expect(db.verno).toBe(LOCAL_DB_VERSION);
+    // ...and its next save reopens it, at the version on disk.
+    await oldTab.table("plans").put(aPlan({ id: "planBBBB", name: "Plan B" }));
+    expect(await db.plans.get("planBBBB")).toMatchObject({ name: "Plan B" });
+    expect(await oldTab.table("plans").count()).toBe(2);
+    oldTab.close();
     db.close();
   });
 });

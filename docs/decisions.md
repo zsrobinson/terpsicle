@@ -96,7 +96,7 @@ Revisit if: the persister's API leaves `experimental_`, or something per person 
 
 ### One tab polls seats for the browser
 2026-09-29 · agent · app-wide
-The seat poll is the manifest query's `refetchInterval`, paused while the page is hidden. Visible tabs queue for a Web Lock per term (`terpsicle:seat-poll:<kind>:<term>`); only the holder polls, and it posts each manifest on the `terpsicle:catalog` BroadcastChannel, which the other tabs put in their own cache (newer only). A hidden or closed tab gives the lock up. Without Web Locks every visible tab polls. Two visible windows would otherwise ask twice a minute, and switching tabs would refetch in each.
+The seat poll is the manifest query's `refetchInterval`, paused while the page is hidden. Visible tabs queue for a Web Lock per term and catalog format (`terpsicle:seat-poll:<kind>:catalog@<version>:<term>`); only the holder polls, and it posts each manifest on the `terpsicle:catalog` BroadcastChannel, which the other tabs put in their own cache (newer only). A hidden, closed or out-of-date tab gives the lock up, and so does one whose last three polls failed. Without Web Locks every visible tab polls. Two visible windows would otherwise ask twice a minute, and switching tabs would refetch in each.
 Revisit if: another poll (the bell) needs the same, or TanStack ships cross-tab dedupe.
 
 ### Back and Forward undo navigation

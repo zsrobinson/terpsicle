@@ -3,9 +3,9 @@ import {
   type QueryClient,
   QueryObserver,
 } from "@tanstack/react-query";
-import type { TermId } from "~/core/schema";
+import { SCHEMA_VERSIONS, type TermId } from "~/core/schema";
 import { ManifestBroadcastSchema } from "~/core/schema/query-cache";
-import type { DataSource } from "../data-source";
+import { type DataSource, SchemaVersionError } from "../data-source";
 import { CATALOG_POLL_MS, manifestQuery } from "./catalog";
 
 // The seat poll (DATA.md §5.1 step 5) in Query's words: an active term's
@@ -39,6 +39,17 @@ export interface PollPlatform {
   channel: (name: string) => PollChannel | null;
 }
 
+/**
+ * Polls in a row that failed before the polling tab lets another try. A
+ * tab that can't reach the server, or reads a manifest it can't use,
+ * mustn't keep the others from polling.
+ */
+export const GIVE_UP_AFTER = 3;
+
+/** The lock for one term's poll: builds that read a different catalog format never share it. */
+export const pollLockName = (kind: DataSource["kind"], termId: TermId) =>
+  `terpsicle:seat-poll:${kind}:catalog@${SCHEMA_VERSIONS.catalog}:${termId}`;
+
 export function browserPollPlatform(): PollPlatform {
   return {
     locks:
@@ -62,6 +73,11 @@ export function pollManifest(
   source: DataSource,
   termId: TermId,
   platform: PollPlatform = browserPollPlatform(),
+  /**
+   * This tab is out of date (a newer data format is published): it stops
+   * polling for the others, and reloads when it's next shown.
+   */
+  stale: () => boolean = () => false,
 ): () => void {
   const options = manifestQuery(source, termId);
   const observer = new QueryObserver(client, {
@@ -72,16 +88,34 @@ export function pollManifest(
   const channel = platform.channel(CATALOG_CHANNEL);
   let leading = false;
   let posted = 0;
+  let stopped = false;
+  /** Fetches in a row that failed, and the last failure counted. */
+  let failures = 0;
+  let failedAt = 0;
+  /** Out of date: never polls for the others again. */
+  let outOfDate = false;
+  const mayLead = () =>
+    !stopped && !outOfDate && !stale() && focusManager.isFocused();
 
   const unsubscribe = observer.subscribe((result) => {
+    if (result.isFetching) return;
+    if (result.errorUpdatedAt > failedAt) {
+      failedAt = result.errorUpdatedAt;
+      failures++;
+      if (result.error instanceof SchemaVersionError && result.error.newer)
+        outOfDate = true;
+    } else if (result.isSuccess) failures = 0;
+    if (!leading) return;
+    if (outOfDate || stale()) return standDown();
+    if (failures >= GIVE_UP_AFTER) {
+      // To the back of the queue: another tab polls, and this one only
+      // gets the lock again once they've given it up too.
+      failures = 0;
+      standDown();
+      return follow();
+    }
     // The polling tab tells the others what it fetched, once per fetch.
-    if (
-      !leading ||
-      !result.isSuccess ||
-      result.isFetching ||
-      result.dataUpdatedAt <= posted
-    )
-      return;
+    if (!result.isSuccess || result.dataUpdatedAt <= posted) return;
     posted = result.dataUpdatedAt;
     channel?.postMessage({
       kind: source.kind,
@@ -129,33 +163,42 @@ export function pollManifest(
     waiting = asking;
     locks
       .request(
-        `terpsicle:seat-poll:${source.kind}:${termId}`,
+        pollLockName(source.kind, termId),
         { signal: asking.signal },
-        () =>
-          new Promise<void>((resolve) => {
-            waiting = null;
+        () => {
+          if (waiting === asking) waiting = null;
+          // Granted after this tab stopped, hid or went out of date (the
+          // grant comes a task after the ask, and an abort can't take it
+          // back then): let it go at once, or no tab would poll again.
+          if (!mayLead()) return Promise.resolve();
+          return new Promise<void>((resolve) => {
             release = () => {
               release = null;
               lead(false);
               resolve();
             };
             lead(true);
-          }),
+          });
+        },
       )
       // Aborted while waiting: another tab kept it, and this one hid.
       .catch(() => {});
   };
-  const standDown = () => {
+  function standDown() {
     waiting?.abort();
     waiting = null;
     release?.();
     if (!platform.locks) lead(false);
-  };
-  const follow = () => (focusManager.isFocused() ? seek() : standDown());
+  }
+  function follow() {
+    if (mayLead()) seek();
+    else standDown();
+  }
   follow();
   const stopFocus = focusManager.subscribe(follow);
 
   return () => {
+    stopped = true;
     stopFocus();
     standDown();
     unsubscribe();

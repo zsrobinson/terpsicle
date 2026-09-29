@@ -1,14 +1,36 @@
 import { focusManager, type QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type Manifest, manifestKey } from "~/core/schema";
-import { fixtureTermId, mockDataSource } from "~/fixtures";
-import { createBucketDataSource, type DataSource } from "../data-source";
-import { CATALOG_POLL_MS, manifestQuery } from "./catalog";
 import {
+  deptChunkKey,
+  type Manifest,
+  manifestKey,
+  SCHEMA_VERSIONS,
+  seatsKey,
+} from "~/core/schema";
+import { fixtureTermId, mockDataSource } from "~/fixtures";
+import {
+  createBucketDataSource,
+  DataError,
+  type DataSource,
+} from "../data-source";
+import {
+  CATALOG_POLL_MS,
+  deptChunkQuery,
+  manifestQuery,
+  seatsQuery,
+} from "./catalog";
+import {
+  GIVE_UP_AFTER,
   type PollChannel,
   type PollPlatform,
+  pollLockName,
   pollManifest,
 } from "./catalog-poll";
+import {
+  createMemoryQueryStorage,
+  flushQueryStorage,
+  setQueryStorage,
+} from "./persister";
 import { createTestQueryClient } from "./testing";
 
 // The seat poll across tabs (DATA.md §5.1 step 5): one visible tab of the
@@ -19,7 +41,11 @@ import { createTestQueryClient } from "./testing";
 const TERM = fixtureTermId;
 const KEY = manifestKey(TERM);
 
-/** Web Locks, as far as the poll uses them: exclusive, queued, abortable. */
+/**
+ * Web Locks, as far as the poll uses them: exclusive and queued. As in
+ * browsers, a lock is granted at once when it's free but its callback
+ * runs a task later, and an abort after the grant does nothing.
+ */
 function fakeLocks() {
   const held = new Set<string>();
   const queues = new Map<string, Array<() => void>>();
@@ -29,23 +55,28 @@ function fakeLocks() {
     callback: () => Promise<void>,
   ): Promise<void> =>
     new Promise<void>((resolve, reject) => {
-      const run = () => {
-        held.add(name);
-        void callback().then(() => {
-          held.delete(name);
-          queues.get(name)?.shift()?.();
-          resolve();
-        });
-      };
-      if (!held.has(name)) return run();
       const queue = queues.get(name) ?? [];
       queues.set(name, queue);
-      queue.push(run);
+      let granted = false;
+      const grant = () => {
+        granted = true;
+        held.add(name);
+        setTimeout(() => {
+          void callback().then(() => {
+            held.delete(name);
+            queue.shift()?.();
+            resolve();
+          });
+        }, 0);
+      };
       options.signal?.addEventListener("abort", () => {
-        const at = queue.indexOf(run);
+        if (granted) return;
+        const at = queue.indexOf(grant);
         if (at >= 0) queue.splice(at, 1);
         reject(new DOMException("Aborted", "AbortError"));
       });
+      if (held.has(name)) queue.push(grant);
+      else grant();
     });
   return { request } as unknown as NonNullable<PollPlatform["locks"]>;
 }
@@ -227,5 +258,141 @@ describe("the seat poll across tabs", () => {
     expect(server.reads() - before).toBe(2);
     stopA();
     stopB();
+  });
+
+  it("lets the lock go when it's granted to a tab that stopped since asking", async () => {
+    const server = aServer();
+    const platform: PollPlatform = {
+      locks: fakeLocks(),
+      channel: fakeChannels(),
+    };
+    const a = await aTab(server.source);
+    const b = await aTab(server.source);
+    // A term switch in the gap between the ask and the grant.
+    pollManifest(a, server.source, TERM, platform)();
+    const stopB = pollManifest(b, server.source, TERM, platform);
+    const before = server.reads();
+    // The other tab gets the lock a few task hops later: a second's slack.
+    await vi.advanceTimersByTimeAsync(2 * CATALOG_POLL_MS + 1000);
+    expect(server.reads() - before).toBe(2);
+    stopB();
+  });
+
+  it("lets another tab poll once the polling one fails three polls in a row", async () => {
+    const server = aServer();
+    const platform: PollPlatform = {
+      locks: fakeLocks(),
+      channel: fakeChannels(),
+    };
+    const unreachable: DataSource = {
+      ...server.source,
+      readJson: async (key, options) => {
+        if (key === KEY) throw new DataError(key, "network", "offline");
+        return server.source.readJson(key, options);
+      },
+    };
+    const a = await aTab(server.source);
+    const b = await aTab(server.source);
+    const stopA = pollManifest(a, unreachable, TERM, platform);
+    const stopB = pollManifest(b, server.source, TERM, platform);
+    const before = server.reads();
+    await vi.advanceTimersByTimeAsync(GIVE_UP_AFTER * CATALOG_POLL_MS);
+    // Only the failing tab asked so far.
+    expect(server.reads()).toBe(before);
+    await vi.advanceTimersByTimeAsync(2 * CATALOG_POLL_MS);
+    expect(server.reads() - before).toBeGreaterThanOrEqual(1);
+    stopA();
+    stopB();
+  });
+
+  it("stops polling for the others once the server has a newer format than this tab reads", async () => {
+    const server = aServer();
+    const platform: PollPlatform = {
+      locks: fakeLocks(),
+      channel: fakeChannels(),
+    };
+    let oldReads = 0;
+    const newer: DataSource = {
+      ...server.source,
+      readJson: async (key, options) => {
+        const data = await server.source.readJson(key, options);
+        if (key !== KEY) return data;
+        oldReads++;
+        return { ...(data as object), schemaVersion: 99 };
+      },
+    };
+    const a = await aTab(server.source);
+    const b = await aTab(server.source);
+    const stopA = pollManifest(a, newer, TERM, platform);
+    const stopB = pollManifest(b, server.source, TERM, platform);
+    await vi.advanceTimersByTimeAsync(CATALOG_POLL_MS);
+    expect(oldReads).toBe(1);
+    // The other tab polls from here, and this one never again.
+    stopB();
+    await vi.advanceTimersByTimeAsync(3 * CATALOG_POLL_MS);
+    expect(oldReads).toBe(1);
+    stopA();
+  });
+
+  it("keeps builds that read different catalog formats on different locks", () => {
+    expect(pollLockName("live", TERM)).toBe(
+      `terpsicle:seat-poll:live:catalog@${SCHEMA_VERSIONS.catalog}:${TERM}`,
+    );
+  });
+
+  it("shares new seats with the other tabs when one department's new file is broken", async () => {
+    const storage = createMemoryQueryStorage();
+    setQueryStorage(storage);
+    try {
+      const bucket = createBucketDataSource(mockDataSource);
+      const original = (await bucket.readJson(KEY)) as Manifest;
+      const dept = original.departments[0];
+      const seats = original.seats;
+      if (!dept || !seats) throw new Error("the mock has both");
+      const broken = deptChunkKey(TERM, dept.code, "f".repeat(16));
+      const newSeats = seatsKey(TERM, "e".repeat(16));
+      let changed = false;
+      const source: DataSource = {
+        ...bucket,
+        kind: "live",
+        readJson: async (key, options) => {
+          if (key === broken) return { nope: true };
+          if (key === newSeats)
+            return bucket.readJson(seatsKey(TERM, seats.hash), options);
+          if (key === KEY && changed)
+            return {
+              ...original,
+              departments: original.departments.map((d) =>
+                d.code === dept.code ? { ...d, hash: "f".repeat(16) } : d,
+              ),
+              seats: { ...seats, hash: "e".repeat(16) },
+            };
+          return bucket.readJson(key, options);
+        },
+      };
+      const platform: PollPlatform = {
+        locks: fakeLocks(),
+        channel: fakeChannels(),
+      };
+      const a = await aTab(source);
+      // This device has the department and the seats saved.
+      await a.fetchQuery(deptChunkQuery(source, TERM, dept));
+      await a.fetchQuery(seatsQuery(source, TERM, seats.hash));
+      await vi.advanceTimersByTimeAsync(0);
+      await flushQueryStorage();
+      const b = await aTab(source);
+      const stopA = pollManifest(a, source, TERM, platform);
+      const stopB = pollManifest(b, source, TERM, platform);
+
+      changed = true;
+      await vi.advanceTimersByTimeAsync(CATALOG_POLL_MS);
+      // The polling tab took the new manifest, and the other tab has it.
+      expect(manifestIn(a, source)?.seats?.hash).toBe("e".repeat(16));
+      expect(manifestIn(b, source)?.seats?.hash).toBe("e".repeat(16));
+      stopA();
+      stopB();
+    } finally {
+      setQueryStorage(null);
+    }
   });
 });

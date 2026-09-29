@@ -46,35 +46,30 @@ test("switch to a past term and back; the last one is remembered", async ({
   await expect(switcher(page, "Spring 2027")).toBeVisible();
 });
 
-test("the catalog is saved on this device, and a reload with /data out of reach starts from it", async ({
-  page,
-  isMobile,
-}) => {
-  // One layout is enough: this is about the data, not the drawer.
-  test.skip(isMobile, "desktop only");
-  // The mock data over HTTP, so there are real requests to cut.
+/** The mock data over HTTP, so there are real requests to cut. */
+async function overHttp(page: Page) {
   await page.addInitScript(() =>
     localStorage.setItem("terpsicle:mock-data", "http"),
   );
-  const planOnScreen = () =>
-    expect(
-      page
-        .getByRole("region", { name: "Week calendar" })
-        .getByRole("button", { name: /^CMSC351 0301/ })
-        .first(),
-    ).toBeVisible();
-  await page.goto("/schedule?demo=1");
-  await planOnScreen();
-  const searchFor = async (text: string) => {
-    await page.keyboard.press("/");
-    await page.getByRole("combobox", { name: "Search courses" }).fill(text);
-  };
-  await searchFor("cmsc 351");
-  // Search waits for the whole term, so the whole term has loaded.
-  const result = page.locator('[data-course-result="CMSC351"]');
-  await expect(result).toContainText("4 sections", { timeout: 15_000 });
+}
 
-  // The manifest, the departments and the seats are saved (DATA.md §5.5).
+const planOnScreen = (page: Page) =>
+  expect(
+    page
+      .getByRole("region", { name: "Week calendar" })
+      .getByRole("button", { name: /^CMSC351 0301/ })
+      .first(),
+  ).toBeVisible();
+
+test("the catalog is saved on this device, in the query cache", async ({
+  page,
+}) => {
+  await overHttp(page);
+  await page.goto("/schedule?demo=1");
+  await planOnScreen(page);
+
+  // The term list, the manifest, the plan's departments and the seats are
+  // saved (DATA.md §5.5).
   await expect
     .poll(() => page.evaluate(readQueryCache), { timeout: 15_000 })
     .toEqual(
@@ -91,6 +86,35 @@ test("the catalog is saved on this device, and a reload with /data out of reach 
     );
   // The old data cache's tables went with LOCAL_DB_VERSION 7.
   expect(await page.evaluate(readOldCacheTables)).toEqual([]);
+});
+
+test("a reload with /data out of reach starts from what's saved", async ({
+  page,
+  isMobile,
+}) => {
+  // This one searches with the "/" shortcut and the sidebar's search box,
+  // which the phone layout doesn't have (search opens in the drawer there,
+  // and search.spec.ts covers that). What it reads is saved the same way
+  // on both layouts, which the test above checks on each.
+  test.skip(isMobile, "searches from the desktop sidebar");
+  await overHttp(page);
+  await page.goto("/schedule?demo=1");
+  await planOnScreen(page);
+  const searchFor = async (text: string) => {
+    await page.keyboard.press("/");
+    await page.getByRole("combobox", { name: "Search courses" }).fill(text);
+  };
+  await searchFor("cmsc 351");
+  // Search waits for the whole term, so the whole term has loaded.
+  const result = page.locator('[data-course-result="CMSC351"]');
+  await expect(result).toContainText("4 sections", { timeout: 15_000 });
+  await expect
+    .poll(() => page.evaluate(readQueryCache), { timeout: 15_000 })
+    .toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('"mock","catalog/202701/manifest.json"'),
+      ]),
+    );
 
   // /data out of reach: the catalog comes from this device, search finds
   // the course with its sections, and the bar says so quietly.
@@ -100,7 +124,7 @@ test("the catalog is saved on this device, and a reload with /data out of reach 
     return route.abort("internetdisconnected");
   });
   await page.reload();
-  await planOnScreen();
+  await planOnScreen(page);
   await searchFor("cmsc 351");
   await expect(result).toContainText("4 sections", { timeout: 15_000 });
   await expect(page.getByText("Offline · showing saved data")).toBeVisible();

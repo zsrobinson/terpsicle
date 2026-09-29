@@ -3,6 +3,7 @@ import {
   experimental_createQueryPersister,
   type PersistedQuery,
 } from "@tanstack/query-persist-client-core";
+import type { Query } from "@tanstack/react-query";
 import Dexie, { type EntityTable } from "dexie";
 import { SCHEMA_VERSIONS, type SchemaFamily } from "~/core/schema";
 import {
@@ -28,6 +29,8 @@ interface Row {
 export interface QueryStorage extends AsyncStorage<unknown> {
   /** Storage keys that start with `prefix`, without reading their rows. */
   keys(prefix: string): Promise<string[]>;
+  /** Every row whose key starts with `prefix`, in one read. */
+  rowsFrom(prefix: string): Promise<[string, unknown][]>;
 }
 
 const warn = (error: unknown) => console.warn("Query cache:", error);
@@ -68,6 +71,12 @@ export function createDexieQueryStorage(
           String,
         ),
       ),
+    rowsFrom: (prefix) =>
+      safe([] as [string, unknown][], async () =>
+        (await db.rows.where("key").startsWith(prefix).toArray()).map(
+          (row) => [row.key, row.value] as [string, unknown],
+        ),
+      ),
   };
 }
 
@@ -88,21 +97,47 @@ export function createMemoryQueryStorage(): QueryStorage & {
     entries: async () => [...rows],
     keys: async (prefix) =>
       [...rows.keys()].filter((k) => k.startsWith(prefix)),
+    rowsFrom: async (prefix) => [...rows].filter(([k]) => k.startsWith(prefix)),
   };
 }
 
 /** Writes not yet done, so a pointer is stored only after its files. */
 const pending = new Set<Promise<unknown>>();
 
-/** The storage, with its writes counted (the persister doesn't await them). */
+/**
+ * Rows read ahead in one go (`preloadPublished`), each handed out once to
+ * the query that restores it. A write or delete of the key drops it, so a
+ * read never sees an older row than the storage has.
+ */
+const readAhead = new Map<string, unknown>();
+/** How long rows read ahead wait for their query before they're let go. */
+const READ_AHEAD_MS = 60_000;
+
+/**
+ * The storage, with its writes counted (the persister doesn't await them)
+ * and reads served from what was read ahead.
+ */
 function tracked(inner: QueryStorage): QueryStorage {
   return {
     ...inner,
+    getItem: (key) => {
+      if (readAhead.has(key)) {
+        const value = readAhead.get(key);
+        readAhead.delete(key);
+        return Promise.resolve(value);
+      }
+      return inner.getItem(key);
+    },
     setItem: (key, value) => {
+      readAhead.delete(key);
       const write = Promise.resolve(inner.setItem(key, value));
       pending.add(write);
       void write.finally(() => pending.delete(write));
       return write;
+    },
+    removeItem: (key) => {
+      readAhead.delete(key);
+      return inner.removeItem(key);
     },
   };
 }
@@ -120,10 +155,16 @@ function queryStorage(): QueryStorage | null {
   return storage;
 }
 
+/** Test hook: the storage as the persister uses it (reads ahead, writes counted). */
+export function queryStorageForTests(): QueryStorage | null {
+  return queryStorage();
+}
+
 /** Test hook: where persisted queries go (null: nowhere). */
 export function setQueryStorage(next: QueryStorage | null): void {
   storage = next ? tracked(next) : null;
   persisters.clear();
+  readAhead.clear();
 }
 
 /** Waits for every write the persister has started. */
@@ -137,6 +178,39 @@ export type Persister = ReturnType<
 const persisters = new Map<string, Persister>();
 
 const prefixOf = (family: SchemaFamily) => `published:${family}`;
+
+/**
+ * The storage keys of a family's rows in this mode, under an R2 prefix:
+ * `published:catalog-["published","live","catalog/202701/` for one term,
+ * so a scan reads that term's keys and nothing else. A query's hash is its
+ * key as JSON, so the key is its prefix.
+ */
+function rowPrefix(
+  family: SchemaFamily,
+  kind: DataSource["kind"],
+  scope: string,
+): string {
+  return `${prefixOf(family)}-${JSON.stringify(["published", kind, scope]).slice(0, -2)}`;
+}
+
+/**
+ * Reads a family's saved rows under an R2 prefix (a term) in one
+ * IndexedDB read, so the queries that restore them next (a term's ~200
+ * departments) don't each open a transaction of their own.
+ */
+export async function preloadPublished(
+  family: SchemaFamily,
+  kind: DataSource["kind"],
+  scope: string,
+): Promise<void> {
+  const store = queryStorage();
+  if (!store) return;
+  const rows = await store.rowsFrom(rowPrefix(family, kind, scope));
+  for (const [key, value] of rows) readAhead.set(key, value);
+  setTimeout(() => {
+    for (const [key] of rows) readAhead.delete(key);
+  }, READ_AHEAD_MS);
+}
 
 /**
  * The persister for one family of published files. Its buster is the
@@ -167,6 +241,24 @@ export function publishedPersister(family: SchemaFamily): Persister {
   return persister;
 }
 
+/**
+ * Saves a query with `data` in place of what it holds, as the persister
+ * would save it (a pointer saved with a file that didn't load put back at
+ * the version this device has, ./published.ts).
+ */
+export async function persistPublished(
+  family: SchemaFamily,
+  query: Pick<Query, "queryHash" | "queryKey" | "state">,
+  data: unknown,
+): Promise<void> {
+  await queryStorage()?.setItem(`${prefixOf(family)}-${query.queryHash}`, {
+    buster: `${family}@${SCHEMA_VERSIONS[family]}`,
+    queryHash: query.queryHash,
+    queryKey: query.queryKey,
+    state: { ...query.state, data },
+  });
+}
+
 /** Deletes one saved query, whose data didn't read. */
 export async function forgetPersisted(
   family: SchemaFamily,
@@ -187,7 +279,7 @@ export async function savedPublishedKeys(
   const store = queryStorage();
   if (!store) return [];
   const prefix = `${prefixOf(family)}-`;
-  return (await store.keys(prefix)).flatMap((key) => {
+  return (await store.keys(rowPrefix(family, kind, scope))).flatMap((key) => {
     const queryKey = parseKey(key.slice(prefix.length));
     return queryKey && queryKey[1] === kind && queryKey[2].startsWith(scope)
       ? [queryKey[2]]
@@ -213,7 +305,11 @@ export async function prunePublished(
   const store = queryStorage();
   if (!store) return;
   const prefix = `${prefixOf(family)}-`;
-  for (const key of await store.keys(prefix)) {
+  // A whole family also drops rows whose key doesn't read; a scope looks
+  // only at its own keys.
+  for (const key of await store.keys(
+    scope ? rowPrefix(family, kind, scope) : prefix,
+  )) {
     const queryKey = parseKey(key.slice(prefix.length));
     if (queryKey && queryKey[1] !== kind) continue;
     if (queryKey && !queryKey[2].startsWith(scope)) continue;

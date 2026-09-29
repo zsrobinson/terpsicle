@@ -131,8 +131,46 @@ export function manifestQuery(source: DataSource | null, termId: TermId) {
       lists: (m) => termFiles(termId, m),
       fileSchema: termFileSchema,
       scope: `catalog/${termId}/`,
+      keepOld: (m, kept) => withKept(termId, m, kept),
     },
   );
+}
+
+/** A hashed key's hash. */
+const hashOf = (key: string | undefined) =>
+  key ? /\.([0-9a-f]{16})\.json$/.exec(key)?.[1] : undefined;
+
+/**
+ * The manifest to save when some of its new files didn't load: each of
+ * those back at the version this device has, so the saved manifest never
+ * names a file it lacks, and the old file isn't dropped. The rest (the new
+ * seats, above all) are the new ones. What's on screen is the manifest as
+ * it came, with the old department kept in the index.
+ */
+function withKept(
+  termId: TermId,
+  manifest: Manifest,
+  kept: ReadonlyMap<string, string>,
+): Manifest {
+  const back = (key: string) => hashOf(kept.get(key));
+  const seats = manifest.seats && back(seatsKey(termId, manifest.seats.hash));
+  const changes =
+    manifest.changes && back(changesKey(termId, manifest.changes.hash));
+  return {
+    ...manifest,
+    departments: manifest.departments.map((d) => {
+      const hash = back(deptChunkKey(termId, d.code, d.hash));
+      return hash ? { ...d, hash } : d;
+    }),
+    seats:
+      manifest.seats && seats
+        ? { ...manifest.seats, hash: seats }
+        : manifest.seats,
+    changes:
+      manifest.changes && changes
+        ? { ...manifest.changes, hash: changes }
+        : manifest.changes,
+  };
 }
 
 /**
