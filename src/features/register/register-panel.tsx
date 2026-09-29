@@ -11,6 +11,7 @@ import {
 import type { TermId } from "~/core/schema";
 import { WatchingList } from "~/features/alerts/watching-list";
 import { DraftLine, PlanHeading } from "~/features/courses/main-plan-line";
+
 import { useCatalog } from "~/state/catalog-store";
 import { useAcademicCalendar } from "~/state/data-hooks";
 import {
@@ -39,6 +40,8 @@ export function RegisterPanel() {
   const fit = useFitContext();
   // Cached and offline-safe; no file for the term reads as "not published".
   const calendar = useAcademicCalendar(current?.termId ?? null);
+  // A newer format than this tab reads: only Reload helps.
+  const stale = useCatalog((s) => s.appStale);
   const registeredKeys = current?.plan.registered;
   const registered = useMemo(
     () => new Set(registeredKeys ?? []),
@@ -129,9 +132,14 @@ export function RegisterPanel() {
         {calendar.state === "error" ? (
           <InlineError
             className="px-4"
-            message="Couldn't load the term's dates, so there's no calendar file yet. Check your connection and try again."
-            onRetry={() => void useCatalog.getState().ensureCalendar(termId)}
-            retryTooltip="Load the term's dates again"
+            message={
+              stale
+                ? "Terpsicle has been updated since this page opened. Reload to get the term's dates."
+                : "Couldn't load the term's dates, so there's no calendar file yet. Check your connection and try again."
+            }
+            onRetry={calendar.retry}
+            reload={stale}
+            retryTooltip={stale ? undefined : "Load the term's dates again"}
           />
         ) : null}
       </PanelBody>

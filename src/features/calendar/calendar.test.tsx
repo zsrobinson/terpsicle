@@ -13,6 +13,7 @@ import {
   fixtureTermId,
 } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
+import { loadCampus } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 
@@ -31,7 +32,7 @@ async function renderDemo() {
       activePlanByTerm: { [fixtureTermId]: demoPlan.id },
     });
     await useCatalog.getState().ensureTerm(fixtureTermId);
-    await useCatalog.getState().ensureCampus();
+    await loadCampus(view.queryClient);
   });
   const calendar = screen.getByRole("region", { name: "Week calendar" });
   await within(calendar).findAllByRole("button", { name: /^CMSC351 0301/ });

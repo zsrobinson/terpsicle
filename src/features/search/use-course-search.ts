@@ -13,7 +13,8 @@ import {
   type WildcardSearchInfo,
   wildcardSearchInfo,
 } from "~/core/search/wildcards";
-import { useCatalog } from "~/state/catalog-store";
+import { useLoadedPlanetTerp } from "~/state/data-hooks";
+
 import { useFitContext, useTermCatalog } from "~/state/hooks";
 import { type SearchEngine, useSearchEngine } from "~/state/search-engine";
 
@@ -93,7 +94,7 @@ export function useCourseResults(
   const catalog = useTermCatalog(termId);
   const fit = useFitContext();
   const engine = useSearchEngine();
-  const planetTerp = useCatalog((s) => s.instructors);
+  const planetTerp = useLoadedPlanetTerp();
   const seats = catalog?.seats?.seats ?? null;
   const index = catalog?.index;
   const active = query.trim() !== "" || isFiltering(filters);
@@ -115,7 +116,7 @@ export function useCourseResults(
             status: "ready",
             courses: sortCourses(found.courses, sort, {
               seats,
-              planetTerp: (dept: DeptCode) => planetTerp[dept],
+              planetTerp: (dept: DeptCode) => planetTerp.get(dept),
             }),
           }
         : found,

@@ -1,5 +1,6 @@
 // Test helpers for the stores. Not used by the app.
 
+import type { QueryClient } from "@tanstack/react-query";
 import type { Plan, TermId } from "~/core/schema";
 import {
   demoBlocks,
@@ -12,6 +13,8 @@ import {
 import { INITIAL_CATALOG_STATE, useCatalog } from "./catalog-store";
 import { createBucketDataSource, createDataReader } from "./data-source";
 import { useGenerateDrafts } from "./generate-drafts";
+import { ensureCampus } from "./query/catalog";
+import { connectPublished, usePublishedSource } from "./query/published";
 import { INITIAL_SEAT_WATCHES_STATE, useSeatWatches } from "./seat-watches";
 import { useShare } from "./share-store";
 import { INITIAL_UI_STATE, useUi } from "./ui-store";
@@ -34,10 +37,17 @@ export function resetStores(): void {
 export async function loadStores(): Promise<void> {
   resetStores();
   useWorkspace.setState({ hydrated: true });
-  useCatalog
-    .getState()
-    .setReader(createDataReader(createBucketDataSource(mockDataSource)));
+  const source = createBucketDataSource(mockDataSource);
+  useCatalog.getState().setReader(createDataReader(source));
+  // What app.tsx does: published queries read the same files.
+  connectPublished(source);
   await useCatalog.getState().loadTerms();
+}
+
+/** Loads the campus map into a page's query client, as the shell does once a section is placed. */
+export async function loadCampus(client: QueryClient): Promise<void> {
+  const { source } = usePublishedSource.getState();
+  if (source) await ensureCampus(client, source);
 }
 
 /** The fixtures' term, whose catalog the mock bucket serves. */

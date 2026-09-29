@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import {
   PanelBody,
@@ -93,6 +94,7 @@ export function GeneratePanel() {
   const catalog = useTermCatalog(termId);
   const plan = current?.plan ?? null;
   const [draft, update, prefilled] = useDraft(termId, plan);
+  const client = useQueryClient();
   const blocks = useWorkspace((s) => s.blocks);
   const status = useGenerateRun((s) => s.status);
   const refreshing = useGenerateRun((s) => s.refreshing);
@@ -134,8 +136,8 @@ export function GeneratePanel() {
   // run store waits for a burst of clicks to settle).
   useEffect(() => {
     if (termId && !shared && chipsChangedSinceRun(termId, draft))
-      runLive(termId, draft);
-  }, [termId, shared, draft]);
+      runLive(termId, draft, client);
+  }, [termId, shared, draft, client]);
 
   // Each view starts at its top: the results replace the form in place.
   const lastView = useRef(view);
@@ -146,7 +148,7 @@ export function GeneratePanel() {
   }, [view]);
 
   const run = () => {
-    if (termId) void runGenerate(termId, draft);
+    if (termId) void runGenerate(termId, draft, client);
   };
   const fourYear =
     column && column.courses.length + column.placeholders.length > 0
@@ -161,7 +163,7 @@ export function GeneratePanel() {
             };
             update(() => next);
             track("four_year_handoff", { outcome: "generated" });
-            void runGenerate(termId, next);
+            void runGenerate(termId, next, client);
           },
         }
       : null;
@@ -173,7 +175,7 @@ export function GeneratePanel() {
     );
     update(() => next);
     track("generate_relaxation_applied", { constraint: r.constraint });
-    void runGenerate(termId, next, { relaxed: true });
+    void runGenerate(termId, next, client, { relaxed: true });
   };
   const chips = (next: Partial<GenerateChips>) => {
     if (termId) pickChips(termId, plan, { ...draft, ...next });

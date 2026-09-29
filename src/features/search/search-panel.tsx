@@ -33,7 +33,8 @@ import { openCourse } from "~/features/courses/actions";
 import { useFocusRequest } from "~/features/schedule/focus-request";
 import { track } from "~/lib/analytics";
 import { TONE_TEXT } from "~/lib/emphasis";
-import { useCatalog } from "~/state/catalog-store";
+import { useLoadedPlanetTerp } from "~/state/data-hooks";
+
 import {
   useActiveTerm,
   useCurrentPlan,
@@ -250,8 +251,8 @@ const SORT_NAMES: Record<SearchSort, string> = {
 
 /** Ratings by department, from whatever PlanetTerp files are loaded. */
 function usePlanetTerp() {
-  const loaded = useCatalog((s) => s.instructors);
-  return useMemo(() => (dept: DeptCode) => loaded[dept], [loaded]);
+  const loaded = useLoadedPlanetTerp();
+  return useMemo(() => (dept: DeptCode) => loaded.get(dept), [loaded]);
 }
 
 /**

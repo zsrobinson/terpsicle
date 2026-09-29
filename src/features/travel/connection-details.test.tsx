@@ -4,7 +4,7 @@ import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { currentView, openDrill } from "~/features/schedule/schedule-nav";
 import type { ShellRoutes } from "~/features/schedule/test-utils";
 import { track } from "~/lib/analytics";
-import { useCatalog } from "~/state/catalog-store";
+import { loadCampus } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { ConnectionDetails } from "./connection-details";
 import { TravelPanel } from "./travel-panel";
@@ -26,7 +26,7 @@ const WITH_ROUTE = "Tu:CMSC330-0103#0>ECON200-0101#0";
 async function openConnection(connectionId: string) {
   const view = await renderPlanTab([panels], "travel");
   await act(async () => {
-    await useCatalog.getState().ensureCampus();
+    await loadCampus(view.queryClient);
     openDrill({ kind: "connection", connectionId });
   });
   return view;

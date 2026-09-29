@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fixtureTermId } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
 import { EMPTY_DRAFT } from "~/state/generate-drafts";
+import { createTestQueryClient } from "~/state/query/testing";
 import { loadStores } from "~/state/testing";
 import { createInProcessGenerator, type Generator } from "~/worker/generator";
 import {
@@ -46,7 +47,7 @@ describe("a Generate run", () => {
       },
     };
     setGenerator(late);
-    await runGenerate(fixtureTermId, draft);
+    await runGenerate(fixtureTermId, draft, createTestQueryClient());
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(useGenerateRun.getState().status.kind).toBe("done");
     setGenerator(null);

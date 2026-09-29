@@ -28,7 +28,8 @@ import { SeatMeter } from "~/features/courses/seat-meter";
 import { useDrillEntry } from "~/features/schedule/drill-entry";
 import { closeDrill } from "~/features/schedule/schedule-nav";
 import { track } from "~/lib/analytics";
-import { useCatalog } from "~/state/catalog-store";
+import { useLoadedPlanetTerp } from "~/state/data-hooks";
+
 import {
   useCurrentPlan,
   usePlanProblems,
@@ -143,7 +144,7 @@ export function ResultDetails() {
   const found = useResult(entry.resultId);
   const current = useCurrentPlan();
   const catalog = useTermCatalog(found?.request.termId ?? null);
-  const instructors = useCatalog((s) => s.instructors);
+  const instructors = useLoadedPlanetTerp();
   const { travel, campus } = useTravel();
   const currentProblems = usePlanProblems();
 
@@ -178,7 +179,7 @@ export function ResultDetails() {
     () =>
       sectionQuality(
         refs.map((r) => r.course),
-        Object.values(instructors).flatMap((d) => (d ? [d] : [])),
+        [...instructors.values()],
       ),
     [refs, instructors],
   );
