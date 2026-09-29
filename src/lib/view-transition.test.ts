@@ -197,13 +197,17 @@ describe("historyFollower", () => {
     finish: () => void;
   }
   let started: Started[] = [];
+  /** The phone layout (a desktop's scheduler runs no transitions). */
+  let phone = true;
 
   beforeEach(() => {
     started = [];
+    phone = true;
     vi.spyOn(CSS, "supports").mockReturnValue(true);
-    vi.spyOn(window, "matchMedia").mockReturnValue({
-      matches: false,
-    } as MediaQueryList);
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({ matches: query.includes("max-width") && phone }) as MediaQueryList,
+    );
     (
       document as unknown as { startViewTransition: unknown }
     ).startViewTransition = vi.fn(
@@ -212,12 +216,21 @@ describe("historyFollower", () => {
         const finished = new Promise<void>((resolve) => {
           finish = resolve;
         });
+        let abort = (_reason: unknown) => {};
+        const ready = new Promise<void>((_resolve, reject) => {
+          abort = reject;
+        });
         // The browser calls `update` a frame later: tests call it by hand.
-        const skipTransition = vi.fn(() => finish());
+        // Skipped, it rejects `ready` as the browser does: left unhandled,
+        // that's an unhandled rejection, which fails the run.
+        const skipTransition = vi.fn(() => {
+          abort(new DOMException("Transition was skipped", "AbortError"));
+          finish();
+        });
         started.push({ ...arg, skipTransition, finish });
         return {
           updateCallbackDone: Promise.resolve(),
-          ready: Promise.resolve(),
+          ready,
           finished,
           skipTransition,
         };
@@ -326,6 +339,22 @@ describe("historyFollower", () => {
     expect(started).toHaveLength(0);
     expect(view.path()).toBe("/schedule/course/CMSC131");
     expect(view.onChange).not.toHaveBeenCalled();
+  });
+
+  it("moves at once on a desktop, where a transition would block clicks", () => {
+    phone = false;
+    const view = follow(search);
+    view.go(course("CMSC131"));
+    expect(started).toHaveLength(0);
+    expect(view.path()).toBe("/schedule/course/CMSC131");
+    expect(view.onChange).toHaveBeenCalledTimes(1);
+    // …and the router's own transition leaves it alone too.
+    expect(
+      viewTransitionTypes({
+        fromLocation: search,
+        toLocation: course("CMSC131"),
+      }),
+    ).toBe(false);
   });
 
   it("follows a replace at once, without a transition", () => {

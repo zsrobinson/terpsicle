@@ -62,9 +62,13 @@ async function openSearch(page: Page) {
   await expect(result(page, "CMSC131")).toBeVisible({ timeout: 20_000 });
 }
 
+const PHONE_ONLY = "the scheduler animates its own moves on phones only";
+
 test("a course pushes in from search, Back pops it, and typing doesn't move", async ({
   page,
+  isMobile,
 }) => {
+  test.skip(!isMobile, PHONE_ONLY);
   await openSearch(page);
   const start = (await types(page)).length;
 
@@ -86,6 +90,7 @@ test("a course pushes in from search, Back pops it, and typing doesn't move", as
 });
 
 test("another rail tab cross-fades", async ({ page, isMobile }) => {
+  test.skip(!isMobile, PHONE_ONLY);
   await openSearch(page);
   const start = (await types(page)).length;
   const tabs = isMobile
@@ -96,6 +101,34 @@ test("another rail tab cross-fades", async ({ page, isMobile }) => {
   await tabs.getByRole("button", { name: "Courses", exact: true }).click();
   await expect(page).toHaveURL(/\/schedule\/courses/);
   expect(await nextType(page, start)).toBe("tab");
+});
+
+test("on a desktop the scheduler moves without one, so the calendar takes a click at once", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "the desktop layout");
+  await openSearch(page);
+  const start = (await types(page)).length;
+  await result(page, "CMSC131").click();
+  await expect(page.locator(OPEN_VIEW)).toHaveText("CMSC131");
+  await page.goBack();
+  await expect(page.locator(OPEN_VIEW)).toHaveCount(0);
+  // Right away, a point on the calendar is the calendar's: while a
+  // transition plays, every point would be <html>'s instead.
+  const hit = await page
+    .getByRole("region", { name: "Week calendar" })
+    .locator('[data-day="M"]')
+    .evaluate((column) => {
+      const box = column.getBoundingClientRect();
+      const at = document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      );
+      return at !== null && column.contains(at);
+    });
+  expect(hit).toBe(true);
+  expect(await types(page)).toHaveLength(start);
 });
 
 test("another product cross-fades", async ({ page, isMobile }) => {
@@ -111,20 +144,22 @@ test("another product cross-fades", async ({ page, isMobile }) => {
   expect(await nextType(page, start)).toBe("tab");
 });
 
-test("the product menu and the drawer keep their own motion: no transition", async ({
+test("a sheet and the drawer keep their own motion: no transition", async ({
   page,
   isMobile,
 }) => {
-  test.skip(!isMobile, "the phone's product menu and drawer");
+  test.skip(!isMobile, "the phone's term sheet and drawer");
   await openSearch(page);
   const start = (await types(page)).length;
+  // The bar's term and plan open as a sheet on a phone.
   await page
-    .locator('[data-slot="app-bar"]')
-    .getByRole("button", { name: /^Terpsicle/ })
+    .locator("[data-family-bar]")
+    .getByRole("button", { name: /^Spring 2027/ })
     .click();
-  await expect(page.getByRole("menu")).toBeVisible();
+  const sheet = page.locator('[data-slot="action-sheet"]');
+  await expect(sheet).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(sheet).toHaveCount(0);
   const drawer = page.locator("[data-workbench-drawer]");
   const snap = await drawer.getAttribute("data-snap");
   await drawer.getByRole("button", { name: /the panel$/ }).click();
@@ -198,7 +233,11 @@ test("a Chat room opens with a push and closes with a pop", async ({
 test.describe("under Reduce Motion", () => {
   test.use({ reducedMotion: "reduce" });
 
-  test("push and pop change in place, and nothing slides", async ({ page }) => {
+  test("push and pop change in place, and nothing slides", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, PHONE_ONLY);
     await openSearch(page);
     const start = (await types(page)).length;
     await result(page, "CMSC131").click();
@@ -210,6 +249,7 @@ test.describe("under Reduce Motion", () => {
   });
 
   test("another tab changes in place too", async ({ page, isMobile }) => {
+    test.skip(!isMobile, PHONE_ONLY);
     await openSearch(page);
     const start = (await types(page)).length;
     const tabs = isMobile

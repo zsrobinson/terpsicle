@@ -39,6 +39,9 @@ const SWIPE_WINDOW_MS = 1000;
 /** History entries a follower claimed; more than this are long settled. */
 const CLAIMS_KEPT = 16;
 
+/** The phone layout (`MOBILE_QUERY` in ~/hooks/use-media-query). */
+const PHONE_QUERY = "(max-width: 767.98px)";
+
 type StartViewTransition = Document["startViewTransition"];
 /** Older engines lack the method; `activeViewTransition` is newer still. */
 type DocumentWithTransitions = Omit<Document, "startViewTransition"> & {
@@ -278,6 +281,11 @@ function begin(
     },
     attach(transition) {
       if (!transition) return finish();
+      // A skipped transition (a newer one started, or skipTransition())
+      // rejects `ready` with an AbortError, which is how it's meant to end,
+      // not an error: its update still runs, and `finished` still settles.
+      transition.ready.catch(() => undefined);
+      transition.updateCallbackDone.catch(() => undefined);
       transition.finished.catch(() => undefined).then(finish);
     },
   };
@@ -392,8 +400,16 @@ export function historyFollower(router: AnyRouter): HistoryFollower {
     if (productOf(from) !== productOf(to)) return;
     claim(keyOf(next));
     const undone = keyOf(next) === keyOf(shown);
+    // Phones only: while a transition plays the page can't be hit (Chromium
+    // sends every point to <html>, pointer-events or not), and a desktop's
+    // calendar is clicked block after block. There the sidebar keeps its own
+    // small slide, which never gets in a click's way.
     const type =
-      !undone && supportsTypedViewTransitions() ? typeFor(from, to) : null;
+      !undone &&
+      supportsTypedViewTransitions() &&
+      window.matchMedia(PHONE_QUERY).matches
+        ? typeFor(from, to)
+        : null;
     // One swipe, one navigation.
     swipedAt = Number.NEGATIVE_INFINITY;
     if (undone) {

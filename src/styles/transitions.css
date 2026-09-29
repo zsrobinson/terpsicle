@@ -13,16 +13,14 @@
  * Every duration and curve is a motion token (styles.css), and nothing runs
  * longer than --dur-push. Pages share rules through the `page` class, not a
  * shared name: the whole screen (`root`) is the page, except in the
- * scheduler, where its sidebar's panel is.
+ * scheduler on a phone, where its sidebar's panel is. The scheduler on a
+ * desktop runs none inside itself (~/lib/view-transition's historyFollower).
  */
 
 /* ---------- what holds still ---------- */
 
 /* The bars and the drawer are groups of their own, so a page slides under
    them and they don't move. Each selector names one element per page. */
-[data-slot="app-bar"] {
-  view-transition-name: app-bar;
-}
 [data-family-bar] {
   view-transition-name: family-bar;
 }
@@ -61,11 +59,16 @@ html:active-view-transition-type(pop):has(#sidebar-panel) {
 /* The scheduler's drill-ins and Chat's room keep their own small slide for
    browsers without typed view transitions (~/lib/view-transition turns them
    off there); where the push runs, it replaces that slide rather than
-   doubling it. */
+   doubling it. On a desktop the scheduler never runs one (a click on the
+   calendar mid-transition would be lost), so its slide stays. */
 @supports selector(:active-view-transition-type(a)) {
-  #sidebar-panel > [data-layer],
   [data-vt-fallback] {
     animation: none;
+  }
+  @media (max-width: 767.98px) {
+    #sidebar-panel > [data-layer] {
+      animation: none;
+    }
   }
 }
 
@@ -134,21 +137,7 @@ html:active-view-transition-type(tab) {
     opacity: 0;
   }
 }
-/* A desktop's quiet version, as the scheduler's drill-ins had: half a rem. */
-@keyframes vt-nudge-from-right {
-  from {
-    opacity: 0;
-    transform: translateX(0.5rem);
-  }
-}
-@keyframes vt-nudge-from-left {
-  from {
-    opacity: 0;
-    transform: translateX(-0.5rem);
-  }
-}
-
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   html:active-view-transition-type(push) {
     &::view-transition-old(.page) {
       animation-name: vt-shift-out;
@@ -181,17 +170,6 @@ html:active-view-transition-type(tab) {
     &::view-transition-new(*) {
       animation-duration: var(--dur-tab);
     }
-  }
-  /* The whole screen cross-fades; the scheduler's panel nudges. */
-  html:active-view-transition-type(push)::view-transition-new(sidebar-panel) {
-    animation-name: vt-nudge-from-right;
-  }
-  html:active-view-transition-type(pop)::view-transition-new(sidebar-panel) {
-    animation-name: vt-nudge-from-left;
-  }
-  html:active-view-transition-type(push)::view-transition-old(sidebar-panel),
-  html:active-view-transition-type(pop)::view-transition-old(sidebar-panel) {
-    animation-name: vt-fade-out;
   }
 }
 
