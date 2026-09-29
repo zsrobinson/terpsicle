@@ -9,6 +9,7 @@ import {
   focusProp,
   prevented,
   radixPositionerProps,
+  returnFocusProp,
   triggerState,
   useWatchedOpen,
 } from "./radix-compat";
@@ -195,7 +196,7 @@ function PopoverContent({
           // Opening moves focus inside, and closing moves it back. A tooltip
           // opening on that focus would sit on top and take the first Esc.
           initialFocus={focusProp(onOpenAutoFocus, popup, quietTooltips)}
-          finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+          finalFocus={returnFocusProp(onCloseAutoFocus, popup, quietTooltips)}
           className={cn(POPUP_CARD, POPUP_MOTION, "p-3", className)}
           {...props}
         />

@@ -13,8 +13,8 @@ import {
   type AsChild,
   asChildRender,
   type CompatEvent,
-  focusProp,
   radixPositionerProps,
+  returnFocusProp,
   selectAsClick,
   triggerState,
   useWatchedOpen,
@@ -93,7 +93,7 @@ function ContextMenuContent({
         <ContextMenuPrimitive.Popup
           ref={popup}
           data-slot="context-menu-content"
-          finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+          finalFocus={returnFocusProp(onCloseAutoFocus, popup, quietTooltips)}
           className={cn(MENU_POPUP, className)}
           {...props}
         />

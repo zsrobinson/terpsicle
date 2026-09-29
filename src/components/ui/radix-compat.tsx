@@ -128,6 +128,32 @@ export function focusProp(
   };
 }
 
+/**
+ * `focusProp` for `finalFocus`, which Base UI calls once the closing
+ * animation ends: if focus has gone on to something else meanwhile (the
+ * next field, pressed while the list faded), it stays there, as it did on
+ * Radix after a press outside. Otherwise focus goes back to the trigger.
+ */
+export function returnFocusProp(
+  handler: ((event: CompatEvent) => void) | undefined,
+  popup: RefObject<HTMLElement | null>,
+  before?: () => void,
+): () => boolean {
+  const closing = focusProp(handler, popup, before);
+  return () => {
+    const active = document.activeElement;
+    const movedOn =
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      !popup.current?.contains(active);
+    if (movedOn) {
+      before?.();
+      return false;
+    }
+    return closing();
+  };
+}
+
 /** What a Base UI item's click handler gets, as far as `onSelect` needs. */
 type ItemClick = {
   readonly currentTarget: HTMLElement;

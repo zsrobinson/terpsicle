@@ -12,8 +12,8 @@ import {
 } from "./popup";
 import {
   type CompatEvent,
-  focusProp,
   radixPositionerProps,
+  returnFocusProp,
   triggerState,
   useWatchedOpen,
 } from "./radix-compat";
@@ -173,7 +173,7 @@ function SelectContent({
         <SelectPrimitive.Popup
           ref={popup}
           data-slot="select-content"
-          finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+          finalFocus={returnFocusProp(onCloseAutoFocus, popup, quietTooltips)}
           className={cn(
             POPUP_CARD,
             POPUP_MOTION,

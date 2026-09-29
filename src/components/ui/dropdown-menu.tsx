@@ -14,8 +14,8 @@ import {
   type AsChild,
   asChildRender,
   type CompatEvent,
-  focusProp,
   radixPositionerProps,
+  returnFocusProp,
   selectAsClick,
   triggerState,
   useWatchedOpen,
@@ -111,7 +111,7 @@ function DropdownMenuContent({
           data-slot="dropdown-menu-content"
           // Focus goes back to the trigger: its tooltip would open over
           // what the person was looking at.
-          finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+          finalFocus={returnFocusProp(onCloseAutoFocus, popup, quietTooltips)}
           className={cn(MENU_POPUP, className)}
           {...props}
         />
