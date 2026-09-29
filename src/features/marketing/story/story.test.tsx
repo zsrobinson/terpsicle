@@ -175,7 +175,7 @@ describe("the story", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
     // The first move of the mouse brings the tooltips' code, and each
-    // control is made anew inside its tooltip (marketing/lazy-tooltip.tsx),
+    // control is made anew inside its tooltip (components/lazy-tooltip.tsx),
     // so the controls are found after it.
     await user.hover(document.body);
     await waitFor(() =>

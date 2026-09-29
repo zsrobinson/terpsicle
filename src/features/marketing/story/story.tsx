@@ -8,10 +8,10 @@ import {
   useState,
 } from "react";
 import { Mark } from "~/components/brand/mark";
+import { LazyTooltip } from "~/components/lazy-tooltip";
 import { useMediaQuery } from "~/hooks/use-media-query";
 import { STEPS } from "../copy";
 import { HeroWords } from "../hero";
-import { LazyTooltip } from "../lazy-tooltip";
 import { Misprint } from "../misprint";
 import { NAME, PAINT, PRODUCT_ORDER, VIEW } from "../products";
 import { type DemoState, START } from "./plan-a";

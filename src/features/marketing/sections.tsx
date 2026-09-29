@@ -1,10 +1,10 @@
 import { ArrowRight } from "lucide-react";
 import { Mark } from "~/components/brand/mark";
+import { LazyTooltip } from "~/components/lazy-tooltip";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
 import { CLOSING, CONNECT } from "./copy";
-import { LazyTooltip } from "./lazy-tooltip";
 import { NAME, VIEW } from "./products";
 
 // After the story: how the five hand off to each other, then the way in.

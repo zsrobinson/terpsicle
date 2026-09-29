@@ -1,21 +1,22 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { Logo } from "~/components/brand/logo";
 import { EarlyAccessChip } from "~/components/early-access";
+import { LazyTooltip } from "~/components/lazy-tooltip";
 import { SCHEDULE_PATH, STAY_PARAM } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { ContactEmail } from "~/features/site/contact-email";
+import { lazyComponent } from "~/lib/lazy-component";
 import { Button } from "~/ui/button";
-import { LazyTooltip } from "./lazy-tooltip";
 
 // The marketing page's header and footer.
 
 // Only a signed-in visitor at `/?stay` sees the account menu, so its code
 // (the menu, the avatar, sync's status) loads when they do, not with the
-// page (scripts/check-bundle.ts).
-const AccountButton = lazy(() =>
-  import("~/features/auth/account-button").then((m) => ({
-    default: m.AccountButton,
-  })),
+// page (scripts/check-bundle.ts). If it doesn't arrive, "Open Terpsicle"
+// stands alone until it does (~/lib/lazy-component), never an error.
+const AccountButton = lazyComponent<object>(
+  () => import("~/features/auth/account-button").then((m) => m.AccountButton),
+  () => null,
 );
 
 /**

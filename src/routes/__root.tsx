@@ -1,17 +1,11 @@
+import { ROUTE_STATES_PRELOAD } from "virtual:terpsicle/route-states-preload";
 import {
   createRootRouteWithContext,
   HeadContent,
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
-import {
-  type ComponentType,
-  lazy,
-  type ReactNode,
-  Suspense,
-  useEffect,
-  useState,
-} from "react";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { AccountBoot } from "~/features/auth/account-boot";
@@ -20,21 +14,22 @@ import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
 import { routeStates } from "~/features/site/lazy-route-states";
 import { ActivityLogBoot } from "~/lib/activity-log-boot";
 import { InlineScript } from "~/lib/inline-script";
+import { lazyComponent } from "~/lib/lazy-component";
 import type { RouterContext } from "~/lib/query-client";
 import { SheetIndent } from "~/ui/sheet-indent";
 import { TooltipProvider } from "~/ui/tooltip-provider";
 import appCss from "../styles.css?url";
 
 // Toasts show only after something happens, so sonner loads once the page
-// has, in a chunk of its own (scripts/check-bundle.ts), as the PWA's code
-// does. A toast raised before it mounts isn't lost: sonner replays what's
-// still up when its Toaster subscribes.
-const Toaster = lazy<ComponentType>(() =>
-  import("~/ui/sonner").then(
-    (m) => ({ default: m.Toaster }),
-    // Offline, or a deploy removed the chunk: the next load tries again.
-    () => ({ default: () => null }),
-  ),
+// has, in a chunk of its own (scripts/check-bundle.ts), which the service
+// worker keeps for offline (scripts/pwa-precache.ts). A toast raised before
+// it mounts isn't lost: sonner replays what's still up when its Toaster
+// subscribes. If the chunk doesn't arrive, it's asked for again once the
+// browser is back online (~/lib/lazy-component): Undo toasts are how this
+// app does without confirmation dialogs.
+const Toaster = lazyComponent<object>(
+  () => import("~/ui/sonner").then((m) => m.Toaster),
+  () => null,
 );
 
 function Toasts() {
@@ -57,8 +52,13 @@ function Toasts() {
   );
 }
 
+/** The leaf route is `/` (the root's own types know only itself). */
+function isMarketingPage(matches: readonly { routeId: string }[]): boolean {
+  return matches.at(-1)?.routeId === "/";
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       // `viewport-fit=cover`: edge to edge on an iPhone, under the notch, the
@@ -102,6 +102,15 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         sizes: "180x180",
       },
       ...pwaLinks,
+      // Every page but `/` may be drawn as loading, or fail, before its code
+      // arrives: fetch the router's states alongside the page's own code
+      // (~/features/site/lazy-route-states). `/` has its own frame.
+      ...(isMarketingPage(matches)
+        ? []
+        : ROUTE_STATES_PRELOAD.map((href) => ({
+            rel: "modulepreload",
+            href,
+          }))),
     ],
   }),
   shellComponent: RootDocument,

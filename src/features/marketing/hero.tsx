@@ -1,9 +1,9 @@
 import { cn } from "cn";
+import { LazyTooltip } from "~/components/lazy-tooltip";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
 import { HERO } from "./copy";
-import { LazyTooltip } from "./lazy-tooltip";
 import { Misprint } from "./misprint";
 import { PAINT } from "./products";
 

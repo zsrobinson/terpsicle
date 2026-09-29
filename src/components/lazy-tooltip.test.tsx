@@ -83,4 +83,67 @@ describe("LazyTooltip", () => {
     await waitFor(() => expect(kitTriggers()).toHaveLength(2));
     expect(screen.getByRole("link", { name: "View schedule" })).toHaveFocus();
   });
+
+  it("lets go of every key when Cmd comes up (a Mac sends no keyup for C in Cmd+C)", async () => {
+    render(<Links />);
+    fireEvent.keyDown(document.body, { key: "Meta", code: "MetaLeft" });
+    fireEvent.keyDown(document.body, { key: "c", code: "KeyC" });
+    // No keyup for C: only Meta's.
+    fireEvent.keyUp(document.body, { key: "Meta", code: "MetaLeft" });
+    await waitFor(() => expect(kitTriggers()).toHaveLength(2));
+  });
+
+  it("lets go of held keys when the tab is hidden", async () => {
+    render(<Links />);
+    fireEvent.keyDown(document.body, { key: "Tab", code: "Tab" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(kitTriggers()).toHaveLength(0);
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    fireEvent(document, new Event("visibilitychange"));
+    await waitFor(() => expect(kitTriggers()).toHaveLength(2));
+    visibility.mockRestore();
+  });
+
+  it("waits while text is selected across a control, and keeps the selection", async () => {
+    render(
+      <>
+        <p>Before</p>
+        <Links />
+      </>,
+    );
+    const selection = document.getSelection();
+    const range = document.createRange();
+    range.setStart(screen.getByText("Before").firstChild as Node, 0);
+    range.setEnd(screen.getByText("Privacy").firstChild as Node, 3);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(kitTriggers()).toHaveLength(0);
+    expect(selection?.toString()).toBe("BeforePri");
+    act(() => {
+      selection?.removeAllRanges();
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    await waitFor(() => expect(kitTriggers()).toHaveLength(2));
+  });
+
+  it("doesn't move focus when it wasn't on a control that was remade", async () => {
+    render(
+      <>
+        <input aria-label="Elsewhere" />
+        <Links />
+      </>,
+    );
+    const elsewhere = screen.getByRole("textbox", { name: "Elsewhere" });
+    act(() => elsewhere.focus());
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    await waitFor(() => expect(kitTriggers()).toHaveLength(2));
+    expect(elsewhere).toHaveFocus();
+    expect(focus).not.toHaveBeenCalled();
+    focus.mockRestore();
+  });
 });

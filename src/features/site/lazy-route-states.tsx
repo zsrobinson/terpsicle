@@ -1,6 +1,9 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
-import type { ReactNode } from "react";
+import { LazyTooltip } from "~/components/lazy-tooltip";
+import { lazyComponent } from "~/lib/lazy-component";
+import { Button } from "~/ui/button";
+import { reloadPage } from "~/ui/reload";
 import { NotFoundPage } from "./not-found-page";
 import { RouteError, RoutePending } from "./route-states";
 
@@ -9,56 +12,61 @@ import { RouteError, RoutePending } from "./route-states";
 // the browser each need them. All three draw the family bar, and with it the
 // account menu, the bell and the product menu, which `/` never shows: in the
 // browser they're chunks of their own (scripts/check-bundle.ts keeps them out
-// of `/`'s first load).
+// of `/`'s first load; the service worker keeps them for offline,
+// scripts/pwa-precache.ts).
 //
 // The server renders them straight away: the Worker draws the pending state
 // for pages that render only in the browser (`ssr: false`), and the 404 page,
 // so they have to be there before the first byte. Start's compiler drops the
 // server branch, and the static imports with it, from the browser's build.
 //
-// Not the router's `lazyRouteComponent`: that expects the router to load it
-// first, as it does a route's own components, and suspending on `use()`
-// without it warns. These suspend the classic way until their code is here,
-// and render at once after (the router preloads them, src/router.tsx).
+// A failure is exactly when their code may not arrive (offline, or a deploy
+// removed the chunk), so each has a plain stand-in without the bar that
+// needs nothing more than the page already has, and asks again when it's
+// back online (~/lib/lazy-component).
 
-type Component<P> = (props: P) => ReactNode;
-
-function lazyState<P extends object>(
-  load: () => Promise<Component<P>>,
-): Component<P> & { preload: () => Promise<void> } {
-  let Loaded: Component<P> | null = null;
-  let loading: Promise<void> | null = null;
-  let failed: unknown = null;
-  const preload = () => {
-    loading ??= load().then(
-      (component) => {
-        Loaded = component;
-      },
-      (error: unknown) => {
-        failed = error;
-      },
-    );
-    return loading;
-  };
-  function Lazy(props: P) {
-    if (failed) throw failed;
-    if (!Loaded) throw preload();
-    return <Loaded {...props} />;
-  }
-  return Object.assign(Lazy, { preload });
+/** When the failure state's own code didn't arrive: what happened, and Reload. */
+export function RouteErrorUnavailable() {
+  return (
+    <main className="flex min-h-dvh flex-col items-start gap-2 bg-bg p-4 text-fg">
+      <h1 className="font-semibold text-lg">This page didn't load</h1>
+      <p role="status">
+        Part of Terpsicle didn't arrive. Check your connection, then reload.
+      </p>
+      <LazyTooltip label="Load this page again">
+        <Button variant="outline" size="sm" onClick={() => reloadPage()}>
+          Reload
+        </Button>
+      </LazyTooltip>
+    </main>
+  );
 }
 
-const LazyRoutePending = lazyState<object>(() =>
-  import("./route-states").then((m) => m.RoutePending),
+/** When the 404 page's own code didn't arrive: it still says so. */
+export function NotFoundUnavailable() {
+  return (
+    <main className="flex min-h-dvh flex-col items-start gap-2 bg-bg p-4 text-fg">
+      <h1 className="font-semibold text-lg">Page not found</h1>
+      <p>There's nothing at this address.</p>
+    </main>
+  );
+}
+
+const LazyRoutePending = lazyComponent<object>(
+  () => import("./route-states").then((m) => m.RoutePending),
+  // Loading, without the bar: the page itself shows next.
+  () => null,
 );
-const LazyRouteError = lazyState<ErrorComponentProps>(() =>
-  import("./route-states").then((m) => m.RouteError),
+const LazyRouteError = lazyComponent<ErrorComponentProps>(
+  () => import("./route-states").then((m) => m.RouteError),
+  RouteErrorUnavailable,
 );
-const LazyNotFoundPage = lazyState<object>(() =>
-  import("./not-found-page").then((m) => m.NotFoundPage),
+const LazyNotFoundPage = lazyComponent<object>(
+  () => import("./not-found-page").then((m) => m.NotFoundPage),
+  NotFoundUnavailable,
 );
 
-/** Fetches their code; resolves at once when it's already here. */
+/** Fetches their code; settles at once when it's already here. */
 export async function preloadRouteStates(): Promise<void> {
   await Promise.all([
     LazyRoutePending.preload(),

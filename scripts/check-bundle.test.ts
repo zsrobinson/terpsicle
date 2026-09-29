@@ -111,7 +111,7 @@ describe("bundle check", () => {
           // What `/` carries: its page, the account's status, the chip, the
           // tooltips' shared delay, and the query client.
           "src/features/marketing/frame.tsx",
-          "src/features/marketing/lazy-tooltip.tsx",
+          "src/components/lazy-tooltip.tsx",
           "src/features/auth/account-store.ts",
           "src/components/early-access.tsx",
           "src/components/ui/tooltip-provider.tsx",

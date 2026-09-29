@@ -51,8 +51,10 @@ export function getRouter() {
   if (!router.isServer) {
     // The loading and failure states load on their own (they carry the
     // family bar). A page the Worker drew as loading (`ssr: false`) needs
-    // them to hydrate, so fetch them now anywhere but `/`, the marketing
-    // page, which has its own frame; there, as soon as anything navigates.
+    // them to hydrate, so anywhere but `/` the head preloads their files
+    // (src/routes/__root.tsx) and this takes them up now; on `/`, the
+    // marketing page, which has its own frame, as soon as anything
+    // navigates. The service worker keeps them for offline.
     if (window.location.pathname !== "/") void preloadRouteStates();
     router.subscribe("onBeforeNavigate", () => void preloadRouteStates());
   }
