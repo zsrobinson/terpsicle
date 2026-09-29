@@ -181,3 +181,30 @@ test("travel pills step aside while a course's sections show", async ({
   await page.keyboard.press("Escape");
   await expect(pills.first()).toBeVisible();
 });
+
+test("a class's right-click menu is its row's, and Remove has Undo", async ({
+  page,
+}) => {
+  // A long press on a phone opens the same menu (the kit's ContextMenu).
+  await calendar(page)
+    .getByRole("button", { name: /^ECON200 0101/ })
+    .first()
+    .click({ button: "right" });
+  const menu = page.getByRole("menu");
+  await expect(
+    menu.getByRole("menuitem", { name: "See sections and details" }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Bookmark instead" }),
+  ).toBeVisible();
+  await menu.getByRole("menuitem", { name: "Remove from plan" }).click();
+  await expect(
+    calendar(page).getByRole("button", { name: /^ECON200 0101/ }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(
+    calendar(page)
+      .getByRole("button", { name: /^ECON200 0101/ })
+      .first(),
+  ).toBeVisible();
+});
