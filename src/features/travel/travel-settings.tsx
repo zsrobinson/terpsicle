@@ -144,7 +144,7 @@ function Field({
 }) {
   return (
     <div>
-      <div id={labelId} className="mb-1.5 font-medium text-muted text-xs">
+      <div id={labelId} className="emph-label mb-1.5 text-sm">
         {label}
       </div>
       {children}

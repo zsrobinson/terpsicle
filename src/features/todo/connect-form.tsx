@@ -117,7 +117,7 @@ export function ConnectForm({
       aria-busy={busy}
       className="flex flex-col gap-1.5"
     >
-      <label htmlFor={inputId} className="font-medium text-muted text-xs">
+      <label htmlFor={inputId} className="emph-label text-sm">
         ELMS calendar link
       </label>
       <div className={cn("flex flex-col gap-2", !stacked && "sm:flex-row")}>

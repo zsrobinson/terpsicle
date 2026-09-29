@@ -53,11 +53,7 @@ export function HomeSection({
           />
           {title}
           {tag}
-          {meta ? (
-            <span className="tnum ml-2 font-normal text-muted text-sm">
-              {meta}
-            </span>
-          ) : null}
+          {meta ? <span className="emph-meta ml-2">{meta}</span> : null}
         </span>
       }
       aside={
@@ -104,7 +100,9 @@ export function HomeNote({
   children: ReactNode;
   className?: string;
 }) {
-  return <p className={cn("py-2 text-muted text-sm", className)}>{children}</p>;
+  return (
+    <p className={cn("emph-secondary py-2 text-sm", className)}>{children}</p>
+  );
 }
 
 /** A row's one link, answering for the whole row (which is `relative`). */

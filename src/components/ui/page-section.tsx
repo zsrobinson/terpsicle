@@ -50,8 +50,8 @@ export function PageSection({
         <Heading
           className={
             size === "display"
-              ? "font-semibold text-2xl tracking-tight"
-              : "font-semibold text-base"
+              ? "emph-title text-2xl"
+              : "emph-heading text-base"
           }
         >
           {title}
@@ -59,7 +59,7 @@ export function PageSection({
         {aside ? (
           <div
             className={
-              size === "display" ? "text-base text-muted" : "text-muted text-xs"
+              size === "display" ? "emph-secondary text-base" : "emph-meta"
             }
           >
             {aside}

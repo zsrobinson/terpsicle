@@ -235,10 +235,22 @@ test("with nothing unread, the list says so in a line and links to settings", as
   }, userId);
   expect(status).toBe(200);
   await page.goto("/reviews");
-  const bell = page.getByTestId("notifications-bell");
-  await expect(bell).toHaveAccessibleName("Notifications", { timeout: 20_000 });
-  await expect(bell.getByTestId("notifications-count")).toHaveCount(0);
-  await bell.click();
+  if (isMobile) {
+    // A phone's bell is in the account menu, with no unread note on the
+    // avatar.
+    const account = page.getByRole("button", { name: /^Account: / });
+    await expect(account).toBeVisible({ timeout: 20_000 });
+    expect(await account.getAttribute("aria-label")).not.toMatch(/unread/);
+    await account.click();
+    await page.getByRole("menuitem", { name: /^Notifications/ }).click();
+  } else {
+    const bell = page.getByTestId("notifications-bell");
+    await expect(bell).toHaveAccessibleName("Notifications", {
+      timeout: 20_000,
+    });
+    await expect(bell.getByTestId("notifications-count")).toHaveCount(0);
+    await bell.click();
+  }
   const list = page.getByRole("dialog", { name: "Notifications" });
   await expect(
     list.getByText("Nothing new. Notifications show up here, pushed or not."),

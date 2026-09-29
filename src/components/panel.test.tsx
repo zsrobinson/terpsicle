@@ -26,13 +26,21 @@ describe("SectionHeader", () => {
     const title = screen.getByRole("heading", { name: "Sections" });
     const bar = title.parentElement;
     expect(bar).toHaveTextContent("Sections3 of 14 fitOnly fits");
-    expect(bar).toHaveClass("sticky", "top-0", "h-9");
+    // The section band (docs/DESIGN.md §7.8): tinted, a hairline above and
+    // below, the kit's height.
+    expect(bar).toHaveClass(
+      "sticky",
+      "top-0",
+      "h-(--band-height)",
+      "bg-band",
+      "border-y",
+    );
   });
 
-  it("has a quiet label form, which PanelLabel is", () => {
+  it("draws every section the same way: PanelLabel is the band too", () => {
     const { container } = render(<PanelLabel>Bookmarked</PanelLabel>);
     expect(container.firstChild).toHaveTextContent("Bookmarked");
-    expect(container.firstChild).not.toHaveClass("border-y");
+    expect(container.firstChild).toHaveClass("bg-band", "border-y");
   });
 });
 
@@ -65,7 +73,7 @@ describe("GroupHeader", () => {
     await user.click(screen.getByRole("button", { name: "Reviews" }));
     expect(onReviews).toHaveBeenCalledOnce();
     expect(onToggle).toHaveBeenCalledOnce();
-    expect(toggle.parentElement).toHaveClass("sticky", "top-9");
+    expect(toggle.parentElement).toHaveClass("sticky", "top-(--band-height)");
   });
 });
 

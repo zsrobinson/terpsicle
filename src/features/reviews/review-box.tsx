@@ -156,13 +156,13 @@ export function ReviewBox({
       aria-labelledby={id}
       data-review-box={shown.kind}
       className={cn(
-        "flex flex-col gap-3 border border-hairline-strong p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5",
+        "flex flex-col gap-3 border border-hairline-strong p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6",
         // Your class and your review: the box wears the product's color.
         shown.kind === "took" && "border-product-reviews",
       )}
     >
       <div className="flex min-w-0 flex-col gap-1">
-        <h2 id={id} className="text-balance font-semibold text-xl">
+        <h2 id={id} className="emph-heading text-balance text-xl">
           {title}
         </h2>
         <p className="text-base text-muted">{line}</p>

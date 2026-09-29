@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect } from "react";
 import { SiteHeader } from "~/features/site/site-page";
+import { useIsMobile } from "~/hooks/use-media-query";
 import { initAnalytics, track } from "~/lib/analytics";
 import { ProductPage } from "~/ui/product-page";
 import { BarSearch, PhoneSearchButton } from "./search";
@@ -37,13 +38,16 @@ export function ReviewsFrame({
   // Past the front door, the bar carries the search: the small box from
   // `md`, and a phone's magnifier, which opens it in a sheet.
   const search = page !== "home";
+  // A phone's bar leads with its title (the course's code, the product):
+  // the box would take its place, so there it's the magnifier alone.
+  const phone = useIsMobile();
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <div className="sticky top-0 z-20 bg-bg">
         <SiteHeader
           borderOnScroll
           collapseTabs
-          context={search ? <BarSearch /> : undefined}
+          context={search && !phone ? <BarSearch /> : undefined}
           status={search ? <PhoneSearchButton /> : undefined}
         />
       </div>

@@ -280,7 +280,7 @@ export function GeneratePanel() {
           </>
         ) : (
           <>
-            <SectionHeader variant="label" title="Courses" />
+            <SectionHeader title="Courses" />
             <CourseList
               items={draft.items}
               update={update}
@@ -294,16 +294,14 @@ export function GeneratePanel() {
               inputRef={inputRef}
             />
             <SectionHeader
-              variant="label"
               title="Filters"
-              right={<span className="font-normal">Take plans out</span>}
+              right={<span className="emph-meta">Take plans out</span>}
             />
             <div className="px-4">{filterChips}</div>
             <SectionHeader
-              variant="label"
               title="Preferences"
               right={
-                <span className="font-normal">
+                <span className="emph-meta">
                   Put plans in order. Click again for 2×
                 </span>
               }

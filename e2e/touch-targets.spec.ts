@@ -50,13 +50,16 @@ for (const path of ["/schedule?demo=1", "/reviews", "/todo"]) {
         timeout: 20_000,
       });
     const targets = await barTargets(page);
-    expect(targets.length).toBeGreaterThan(1);
+    // Every phone bar ends with the account (the bell and Feedback are in
+    // its menu), so it's always measured; the scheduler's has more.
+    expect(targets.map((t) => t.name)).toContain("Sign in");
+    if (path.startsWith("/schedule")) expect(targets.length).toBeGreaterThan(1);
     const short = targets.filter((t) => t.width < 24 || !t.hits.every(Boolean));
     expect(short).toEqual([]);
   });
 }
 
-test("signed in, the bell is thumb-sized too", async ({ page }) => {
+test("signed in, the account is thumb-sized too", async ({ page }) => {
   await page.goto("/privacy");
   const status = await page.evaluate(async () => {
     const response = await fetch("/api/auth/test-sign-in", {
@@ -68,12 +71,15 @@ test("signed in, the bell is thumb-sized too", async ({ page }) => {
   });
   expect(status).toBe(200);
   await page.goto("/reviews");
-  await expect(page.getByTestId("notifications-bell")).toBeVisible({
+  // The bell is in the account menu on a phone: the avatar is the bar's
+  // signed-in control.
+  await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible({
     timeout: 20_000,
   });
+  await expect(page.getByTestId("notifications-bell")).toHaveCount(0);
   const targets = await barTargets(page);
   expect(targets.map((t) => t.name)).toContainEqual(
-    expect.stringMatching(/^Notifications/),
+    expect.stringMatching(/^Account: /),
   );
   const short = targets.filter((t) => t.width < 24 || !t.hits.every(Boolean));
   expect(short).toEqual([]);

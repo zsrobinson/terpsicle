@@ -444,7 +444,7 @@ function ResultGroup({
   const id = useId();
   return (
     <div className={cn("flex flex-col gap-1", wide && "sm:col-span-2")}>
-      <h3 id={id} className="font-medium text-muted text-sm">
+      <h3 id={id} className="emph-heading text-sm">
         {title}
       </h3>
       <ul

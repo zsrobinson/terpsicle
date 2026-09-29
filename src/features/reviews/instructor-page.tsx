@@ -450,7 +450,7 @@ export function RatingSummary({
 }) {
   const words = combinedRatingWords(combined);
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 bg-product-reviews-soft px-5 py-5">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-product-reviews-soft px-6 py-6">
       {combined.rating === null ? (
         <p className="text-lg">No reviews yet.</p>
       ) : (

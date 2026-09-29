@@ -28,7 +28,7 @@ export function EarlyAccessChip({
       <span
         data-testid="early-access"
         className={cn(
-          "inline-flex h-5 shrink-0 items-center whitespace-nowrap border border-hairline-strong px-1.5 font-medium text-2xs text-muted",
+          "inline-flex h-5 shrink-0 items-center whitespace-nowrap border border-hairline-strong px-1.5 text-2xs text-muted",
           className,
         )}
       >

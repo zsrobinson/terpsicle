@@ -58,15 +58,15 @@ export function AboutMore({
 
   return (
     <div className="text-sm leading-5">
-      <p className="text-muted">
+      <p>
         {course.description ?? "Testudo has no description for this course."}
       </p>
       {rows.length > 0 ? (
         <dl className="mt-2 space-y-1.5">
           {rows.map((r) => (
             <div key={r.label}>
-              <dt className="font-medium">{r.label}</dt>
-              <dd className="text-muted">{r.value}</dd>
+              <dt className="emph-secondary">{r.label}</dt>
+              <dd>{r.value}</dd>
             </div>
           ))}
         </dl>

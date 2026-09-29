@@ -13,7 +13,19 @@ import { WithTooltip } from "./tooltip";
 // muted at 12px under it; `trail` is right-aligned tabular facts; `action` is
 // one small button. Hover is `bg-hover` (the caller's, when the row does
 // something); the selected row is `bg-accent-soft`, never a product tint.
-// Groups get a tinted 30px `GroupHeader`, never a card.
+// Groups get a `GroupHeader` band, never a card.
+
+/**
+ * The one section band of the workbench products' sidebars (Schedule, Chat,
+ * Plan, Todo; docs/DESIGN.md §7.8): a tinted strip with a hairline above and
+ * below, on every section, the first one too. The band carries the
+ * hierarchy: a section's is `bg-panel`, a group inside it (the instructors
+ * under Sections) a half step lighter, its rows the page. Its top hairline
+ * sits over whatever rule is above it (`-mt-px`), so a band under a header
+ * or a row never draws two. 30px, 44px on phones (`--band-height`).
+ */
+export const SECTION_BAND =
+  "-mt-px flex h-(--band-height) shrink-0 items-center gap-2 border-hairline border-y px-4 text-sm";
 
 /**
  * One row of any list. The rest of the props go to the row element (pointer
@@ -76,7 +88,7 @@ export function ListRow({
       <div className="min-w-0 flex-1">
         {children}
         {secondary !== undefined ? (
-          <div className="mt-0.5 text-muted text-sm">{secondary}</div>
+          <div className="emph-secondary mt-0.5 text-sm">{secondary}</div>
         ) : null}
       </div>
       {trail !== undefined ? (
@@ -104,6 +116,7 @@ export function GroupHeader({
   right,
   sticky = false,
   headingLevel,
+  nested = false,
   className,
 }: {
   title: ReactNode;
@@ -113,6 +126,13 @@ export function GroupHeader({
   sticky?: boolean;
   /** A plain group's heading level, when it heads a part of the page. */
   headingLevel?: 2 | 3 | 4;
+  /**
+   * A group inside a section (the instructors under a course's Sections):
+   * a half step lighter than the section's band, a step darker than its
+   * rows. Without it, the group is the section (Chat's courses, Plan's
+   * GenEd groups).
+   */
+  nested?: boolean;
   className?: string;
 } & (
   | {
@@ -125,11 +145,13 @@ export function GroupHeader({
 )) {
   const label = (
     <>
-      <span className="truncate font-semibold text-fg">{title}</span>
+      <span className="emph-heading truncate">{title}</span>
       {/* The title keeps its room; the meta takes what's left and gives it
           up first (QA S8: "Farid Kinc…" beside a whole rating and GPA). */}
       {meta ? (
-        <span className="tnum min-w-0 flex-1 truncate text-muted">{meta}</span>
+        <span className="emph-secondary tnum min-w-0 flex-1 truncate">
+          {meta}
+        </span>
       ) : null}
     </>
   );
@@ -137,8 +159,11 @@ export function GroupHeader({
   return (
     <div
       className={cn(
-        "flex h-7.5 items-center gap-2 border-hairline border-b bg-panel px-4 text-muted text-sm",
-        sticky && "sticky top-9 z-10",
+        SECTION_BAND,
+        "text-muted",
+        nested ? "bg-band-soft" : "bg-band",
+        // Under a sticky section band.
+        sticky && "sticky top-(--band-height) z-10",
         className,
       )}
     >

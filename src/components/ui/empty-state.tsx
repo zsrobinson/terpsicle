@@ -114,10 +114,8 @@ export function EmptyState(props: EmptyStateProps) {
         <div className="flex size-10 items-center justify-center">{mark}</div>
       ) : null}
       <div className="flex flex-col gap-1">
-        <Heading className="font-semibold text-xl tracking-tight">
-          {title}
-        </Heading>
-        <p className="text-pretty text-muted">{line}</p>
+        <Heading className="emph-title text-xl">{title}</Heading>
+        <p className="emph-secondary text-pretty">{line}</p>
       </div>
       {children}
       <div

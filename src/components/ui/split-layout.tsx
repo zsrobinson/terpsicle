@@ -41,7 +41,7 @@ export function SplitLayout({
       data-slot="split-layout"
       className={cn(
         "grid grid-cols-1 gap-x-8 lg:grid-cols-3",
-        size === "display" ? "gap-y-8 lg:gap-x-12" : "gap-y-6",
+        size === "display" ? "gap-y-8" : "gap-y-6",
         className,
       )}
     >

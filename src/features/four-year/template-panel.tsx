@@ -77,7 +77,7 @@ function TemplateCard({ template }: { template: FourYearTemplate }) {
   return (
     <Card role="region" aria-labelledby={headingId} className="gap-3">
       <div className="space-y-0.5">
-        <h3 id={headingId} className="font-semibold">
+        <h3 id={headingId} className="emph-heading">
           {template.name}
         </h3>
         <p className="tnum text-muted text-xs">
@@ -174,7 +174,7 @@ export function TemplatePanel({
   return (
     <div className="space-y-3 px-4 py-3">
       <div className="space-y-1">
-        <h2 className="font-medium">Start from a sample plan</h2>
+        <h2 className="emph-heading">Start from a sample plan</h2>
         <p className="text-muted text-sm">
           A sample plan lays out a major's courses semester by semester. Adding
           one fills your empty semesters and leaves the rest as they are.

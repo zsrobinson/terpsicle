@@ -168,7 +168,7 @@ test("the sheet passes axe in both themes, and Esc keeps the draft", async ({
   await scan(page, "feedback sheet, dark");
 });
 
-test("phones get a drawer, from the menu or the header's icon", async ({
+test("phones get a drawer, from the account menu on every bar", async ({
   page,
   isMobile,
 }) => {
@@ -181,13 +181,11 @@ test("phones get a drawer, from the menu or the header's icon", async ({
   await expect(sheet(page).getByLabel("What would help?")).toBeVisible();
   await closeSheet(page, true);
 
-  // Elsewhere, the header's icon, alone.
+  // Reviews' bar has no context, and it's in the account menu there too:
+  // every phone bar ends the same way (docs/decisions.md).
   await page.goto("/reviews");
-  const button = page.getByRole("button", { name: "Send feedback" });
-  await expect(button).toBeVisible();
-  await expect(button).not.toContainText("Feedback");
-  await button.tap();
-  await expect(sheet(page)).toBeVisible();
+  await expect(page.getByTestId("feedback-button")).toHaveCount(0);
+  await openSheet(page, true);
   await expect(sheet(page).getByLabel("What happened?")).toBeVisible();
 });
 
@@ -214,9 +212,19 @@ test("on a phone, a bar with the product's context sends Feedback to the menu", 
   await expect(sheet(page)).toBeVisible();
 });
 
-test("it's on product pages, not on / or /privacy", async ({ page }) => {
+test("it's on product pages, not on / or /privacy", async ({
+  page,
+  isMobile,
+}) => {
   await page.goto("/reviews");
-  await expect(page.getByTestId("feedback-button")).toBeVisible();
+  if (isMobile) {
+    // A phone's is in the account menu (see above).
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Send feedback" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+  } else await expect(page.getByTestId("feedback-button")).toBeVisible();
   await page.goto("/privacy");
   await expect(
     page.getByRole("heading", { name: "Privacy", level: 1 }),

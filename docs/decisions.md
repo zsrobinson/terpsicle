@@ -44,6 +44,16 @@ Revisit if: a seventh place arrives.
 "i'm not a big fan of having two different bars at the top." Share is an icon in the family bar beside the others, not a second bar over the canvas, and switching semesters or plans happens in a sheet, so the bar isn't cramped.
 Revisit if: a product needs more than one action there.
 
+### Darker and bolder means more important, everywhere
+2026-09-29 · owner · app-wide
+"we should have darker and bolder communicate more importance, and use the same system throughout the entire app." A heading is never lighter than what it heads, in every product (docs/DESIGN.md §7.8). The kit's slots set it, with five `emph-*` utilities (Title, Heading, Label, Secondary, Meta) for words they don't draw. `src/components/design-tokens.test.ts` fails on a heading off the ladder or a bold-but-muted label.
+Revisit if: never on its own.
+
+### Two design languages: bands on workbench pages, type on reading pages
+2026-09-29 · owner · app-wide
+"the fix i was looking for was a little simpler than a giant 7-step design system thing, it was more about standardizing how we do these types of sections in the sidebar. consider also that we sort of have two design languages, one for the dashboard sort of pages with the sidebar, and another for more public pages or things like the dashboard or settings where the hierarchy comes more from larger text and whatnot rather than darker backgrounds." Schedule, Chat, Plan and Todo are workbench pages. On them, section bands and borders carry the hierarchy, in one pattern: a section's band (`SectionHeader`, or `GroupHeader`), then a lighter band for a group inside it (`GroupHeader nested`), then rows on the page, with a hairline above every band. Chat's room list is the reference. Home, Reviews and Settings are reading pages, where larger type carries the hierarchy and there are no bands (docs/DESIGN.md §7.8).
+Revisit if: a page is both, or a new product doesn't fit either.
+
 ### Base UI for every primitive, styled in Ink
 2026-09-28 · owner · app-wide
 Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.
@@ -599,8 +609,8 @@ Revisit if: another route needs the same, or feedback needs sign-in.
 ### Send feedback on a workbench's phone bar
 2026-09-27 · agent · one feature
 On phones a workbench's bar (the scheduler's, and Plan's since `v3/plan-workbench`) has no room for another button beside its term and plan control, its problems and Share, so "Send feedback" is an item in its account menu there, as the theme is. Every other product's phone bar shows the icon.
-(changed 2026-09-27: Plan moved onto the workbench, and its phone bar is the scheduler's compact one.) (changed 2026-09-29, `v3/shell-tab-bar`: the phone's top bar was redesigned. The tab bar took the product menu's place and Share joined the bar as an icon, so the room it freed went to Share; Feedback stays in the menu there.)
-Revisit if: people on phones stop finding Send feedback, or a workbench's phone bar loses Share or its problems.
+(changed 2026-09-27: Plan moved onto the workbench, and its phone bar is the scheduler's compact one.) (changed 2026-09-29, `v3/shell-tab-bar`: the phone's top bar was redesigned. The tab bar took the product menu's place and Share joined the bar as an icon, so the room it freed went to Share; Feedback stays in the menu there.) (changed 2026-09-29, `v3/visual-hierarchy`, the orchestrator for the owner's "consistency between all aspects of this product": every phone bar keeps the bell, the coffee link and "Send feedback" in the account menu, as the iPhone plan has it, not only a workbench's or a bar with context. The avatar wears the unread dot. Every phone bar is now its title on the left (never empty, at rest: the context, or the product's name), its status and Share, then the avatar.)
+Revisit if: people on phones stop finding Send feedback or their notifications, or a workbench's phone bar loses Share or its problems.
 
 ### Feedback groups by Workers AI, issues without words
 2026-09-27 · agent · one feature

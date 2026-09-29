@@ -189,7 +189,7 @@ export function Composer({
         }}
       >
         <div>
-          <h3 className="font-semibold text-base">
+          <h3 className="emph-heading text-base">
             {existing ? "Edit your review" : "Write a review"}
           </h3>
           <p className="text-muted text-sm">
@@ -222,7 +222,7 @@ export function Composer({
         </div>
 
         <div className="space-y-1">
-          <label htmlFor={ids.body} className="font-medium text-sm">
+          <label htmlFor={ids.body} className="emph-label text-sm">
             Your review
           </label>
           <WithTooltip label="How lectures, exams, projects and grading went for you">
@@ -337,7 +337,7 @@ const OptionalPick = memo(function OptionalPick({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-muted text-sm">
+      <label htmlFor={id} className="emph-label text-sm">
         {label}
       </label>
       <Select

@@ -44,12 +44,13 @@ import { ThemeToggle } from "./theme-toggle";
 // Below `md`, on a page with the phone's tab bar (~/components/tab-bar), the
 // tab bar is how you move between products, so the bar keeps only the
 // product's context (docs/decisions.md, "One bar at the top"): the term and
-// plan, the room, "Settings"; on Home the wordmark; elsewhere the product's
-// name, once the page's own title has scrolled under the bar. The account
-// menu takes the product menu's About Terpsicle and Early access note.
-// Phones fold the coffee button and the theme into the account menu, and
-// Feedback and the bell too where the bar is crowded. The same bar,
-// everywhere.
+// plan, the room, "Settings"; on Home the wordmark; a Reviews course's code;
+// elsewhere the product's name. The left side is never empty, at rest or
+// scrolled (`PhoneTitle`). The account menu takes the product menu's About
+// Terpsicle and Early access note. Phones fold the bell, the coffee button,
+// Feedback and the theme into the account menu on every bar, so every phone
+// bar is its title, its status and Share, and the avatar (docs/decisions.md,
+// "Crowded bars give their context the room"). The same bar, everywhere.
 
 /** Where the tabs fit beside the scheduler's term and plans. */
 const WIDE = "min-[1100px]:flex";
@@ -76,6 +77,7 @@ export function AppBar({
   crowdedBelow2xl = false,
   borderOnScroll = false,
   collapseTabs = false,
+  phoneTitle,
 }: {
   /** The product you're in; null on Settings and the site's own pages. */
   current: ProductId | null;
@@ -107,20 +109,25 @@ export function AppBar({
    * or tab into them (owner, 2026-09-29, Reviews first).
    */
   collapseTabs?: boolean;
+  /**
+   * What a phone's bar leads with where it has no context: the thing you're
+   * in (a Reviews course's code), as a Label. Without it, the product's name.
+   */
+  phoneTitle?: ReactNode;
 }) {
   // Below `md` the phone's tab bar moves between products, where the page
   // has one: the product menu gives way to the product's context.
   const tabbed = tabBarAt(pathname) !== null;
   const phoneMenus = usePhoneMenus();
-  const phoneTitle = tabbed && !context;
-  const scrolled = useScrolled(borderOnScroll || phoneTitle);
-  // Phones: where the bar also carries the product's context (the scheduler,
-  // Chat's term), "Send feedback" and the bell move into the account menu so
-  // the context reads whole; the avatar wears a dot for what's unread. Until
-  // /api/me answers, neither shows, so nothing flashes.
+  const titled = tabbed && !context;
+  const scrolled = useScrolled(borderOnScroll || titled);
+  // Phones: "Send feedback" and the bell are in the account menu on every
+  // bar, so the title and context read whole and every phone bar has the
+  // same end; the avatar wears a dot for what's unread. Until /api/me
+  // answers, neither shows, so nothing flashes.
   const accountLoading = useAccount((s) => s.status === "loading");
   const mobile = useIsMobile();
-  const crowded = compact || (mobile && context != null);
+  const crowded = compact || mobile;
   const feedbackInMenu = crowded && feedback !== null;
   // A phone's bar has no room for another icon beside Feedback and the
   // account: the coffee link is always in the account menu there.
@@ -143,7 +150,7 @@ export function AppBar({
         "flex h-[calc(--spacing(12)+var(--safe-top))] shrink-0 items-center border-hairline border-b pt-(--safe-top)",
         borderOnScroll && !scrolled && "border-b-transparent",
         // The bar's rule appears with the small title, as iOS's bars do.
-        phoneTitle && !scrolled && "max-md:border-b-transparent",
+        titled && !scrolled && "max-md:border-b-transparent",
         compact ? "gap-1 px-2" : "gap-2 px-3",
       )}
     >
@@ -204,11 +211,11 @@ export function AppBar({
         </>
       ) : (
         <div className="flex min-w-0 flex-1 items-center">
-          {phoneTitle ? (
+          {titled ? (
             <PhoneTitle
               current={current}
               home={pathname === HOME_PATH}
-              shown={pathname === HOME_PATH || scrolled}
+              title={phoneTitle}
             />
           ) : null}
         </div>
@@ -397,37 +404,41 @@ function MenuItems({
 }
 
 /**
- * A phone's bar with no context of its own leads with where you are, quietly:
- * the wordmark on Home; a product's mark and name once the page's own title
- * has scrolled under the bar (the tab bar says it until then).
+ * A phone's bar with no context of its own leads with where you are, at rest
+ * and scrolled, so its left side is never empty: the wordmark on Home; the
+ * thing you're in where the page names one (a Reviews course's code), as a
+ * Label; otherwise the product's mark and name, as a Heading
+ * (docs/DESIGN.md §7.8). The page's own title says it to a screen reader.
  */
 function PhoneTitle({
   current,
   home,
-  shown,
+  title,
 }: {
   current: ProductId | null;
   home: boolean;
-  shown: boolean;
+  title?: ReactNode;
 }) {
   const product = PRODUCTS.find((p) => p.id === current);
-  if (!home && !product) return null;
+  if (!home && !product && title === undefined) return null;
   return (
     <span
       aria-hidden="true"
-      className={cn(
-        "flex min-w-0 items-center gap-1.5 pl-1 font-semibold text-base transition-opacity duration-(--dur-control) md:hidden",
-        !shown && "opacity-0",
-      )}
+      data-phone-title=""
+      className="flex min-w-0 items-center gap-1.5 pl-1 text-base md:hidden"
     >
       {home ? (
         <Wordmark />
-      ) : product ? (
+      ) : (
         <>
-          <Mark id={product.id} size={20} />
-          <span className="truncate">{product.label}</span>
+          {product ? <Mark id={product.id} size={20} /> : null}
+          {title !== undefined ? (
+            <span className="emph-label truncate">{title}</span>
+          ) : product ? (
+            <span className="emph-heading truncate">{product.label}</span>
+          ) : null}
         </>
-      ) : null}
+      )}
     </span>
   );
 }

@@ -93,7 +93,7 @@ export function ShareButton({
         aria-describedby={noteId}
         className="w-[380px] max-w-[calc(100vw-16px)] space-y-3"
       >
-        <h2 id={`${fieldId}-title`} className="font-semibold text-base">
+        <h2 id={`${fieldId}-title`} className="emph-heading text-base">
           {title}
         </h2>
         <div className="flex gap-2">

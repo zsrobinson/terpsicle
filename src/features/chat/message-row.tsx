@@ -648,9 +648,7 @@ function ReportForm({
         }}
       >
         <fieldset>
-          <legend className="mb-1 font-medium">
-            Why are you reporting it?
-          </legend>
+          <legend className="emph-label mb-1">Why are you reporting it?</legend>
           {/* The kit's rows, a native radio leading each: the reasons stay
               in view, and arrow keys move between them. */}
           <ul>
@@ -692,7 +690,7 @@ function ReportForm({
           </ul>
         </fieldset>
         <div className="flex flex-col gap-1">
-          <label htmlFor={noteId} className="text-muted text-sm">
+          <label htmlFor={noteId} className="emph-label text-sm">
             {reason === "other"
               ? "What's the problem? A person reads this"
               : "Anything to add? (optional)"}

@@ -202,7 +202,7 @@ export function SearchBox({
             className="not-first:mt-1 not-first:border-hairline not-first:border-t not-first:pt-1"
           >
             {group.value === "More" || group.value === "Department" ? null : (
-              <Autocomplete.GroupLabel className="px-2 pt-1.5 pb-1 font-medium text-muted text-xs">
+              <Autocomplete.GroupLabel className="emph-meta px-2 pt-1.5 pb-1">
                 {group.value}
               </Autocomplete.GroupLabel>
             )}

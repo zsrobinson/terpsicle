@@ -176,7 +176,11 @@ test("every control in Notifications has a tooltip", async ({
   expect(status).toBe(200);
   await page.goto("/reviews");
   await settle(page);
-  await page.getByTestId("notifications-bell").click();
+  if (isMobile) {
+    // A phone's bell is in the account menu.
+    await page.getByRole("button", { name: /^Account: / }).click();
+    await page.getByRole("menuitem", { name: /^Notifications/ }).click();
+  } else await page.getByTestId("notifications-bell").click();
   await expect(
     page.getByRole("dialog", { name: "Notifications" }),
   ).toBeVisible();

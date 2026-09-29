@@ -718,7 +718,7 @@ function ListParts() {
             caption="A card: one object you press or that floats. Keyline, 2px offset, paper."
           >
             <Card className="max-w-md">
-              <h3 className="flex flex-wrap items-center gap-1.5 font-semibold">
+              <h3 className="emph-heading flex flex-wrap items-center gap-1.5">
                 <Star size={13} aria-hidden="true" />
                 4.5 (112) Christopher Kauffman
                 <span className="font-normal text-muted">· GPA 3.08</span>
@@ -960,10 +960,7 @@ function ControlParts() {
               onClear={() => setQuery("")}
             />
             <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor={`${id}-name`}
-                className="font-medium text-muted text-xs"
-              >
+              <label htmlFor={`${id}-name`} className="emph-label text-sm">
                 Plan name
               </label>
               <Input
@@ -973,10 +970,7 @@ function ControlParts() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor={`${id}-feed`}
-                className="font-medium text-muted text-xs"
-              >
+              <label htmlFor={`${id}-feed`} className="emph-label text-sm">
                 ELMS calendar link (off)
               </label>
               <Input
@@ -1275,7 +1269,7 @@ function PopupParts() {
                 aria-label="Share Plan A"
                 className="w-[380px] max-w-[calc(100vw-16px)] space-y-3"
               >
-                <h2 className="font-semibold text-base">Share Plan A</h2>
+                <h2 className="emph-heading text-base">Share Plan A</h2>
                 <div className="flex gap-2">
                   <Input
                     aria-label="Share link"
