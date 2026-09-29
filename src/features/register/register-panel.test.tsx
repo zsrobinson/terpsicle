@@ -231,6 +231,35 @@ describe("Register tab", () => {
     expect(button).not.toHaveAttribute("aria-disabled", "true");
   });
 
+  it("offers Reload when the term's dates are in a newer format than this tab reads", async () => {
+    const { queryClient } = await renderPlanTab([panels], "register");
+    await screen.findByRole("button", { name: /Add to your calendar/ });
+    const bucket = createBucketDataSource(mockDataSource);
+    act(() =>
+      connectPublished({
+        ...bucket,
+        readJson: async (key, options) => {
+          const raw = await bucket.readJson(key, options);
+          return key === calendarKey(fixtureTermId)
+            ? { ...(raw as object), schemaVersion: 99 }
+            : raw;
+        },
+      }),
+    );
+    await act(() =>
+      queryClient.resetQueries({
+        predicate: (q) => q.queryKey[2] === calendarKey(fixtureTermId),
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Terpsicle has been updated since this page opened. Reload to get the term's dates.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reload" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
   describe("watching for a seat", () => {
     const here = aSeatWatch({ sectionKey: "CMSC351-0301" });
     const otherTerm = aSeatWatch({

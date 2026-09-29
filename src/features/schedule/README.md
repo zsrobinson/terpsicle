@@ -72,7 +72,7 @@ Published data beyond the term catalog, in `~/state/data-hooks`, read through th
 | Hook | Returns |
 |---|---|
 | `useSeatsFreshness(termId)` | `{ state, text, asOf }`. Put `text` above a section list: "Seats as of 2 minutes ago" (`live`, from Testudo's as-of time, in `relativeWords`), "Seats stopped updating when this term was archived." (`archived`), "Offline · showing saved data" (`offline`), "Seats unknown" (`unknown`), or "" while `loading`. It re-renders every 30 s. |
-| `useInstructors(dept)` | `{ data, state, source, retry }`: the department's PlanetTerp file (`instructors` by slug, `names` for the Testudo-name join, `grades` per course), or `null` when PlanetTerp has none; `retry` is Try again. |
+| `useInstructors(dept)` | `{ data, state, source, retry }`: the department's PlanetTerp file (`instructors` by slug, `names` for the Testudo-name join, `grades` per course), or `null` when PlanetTerp has none; `retry` is Try again. A file the server deleted stays `loading` while the manifest is asked again, once; a newer format sets `appStale`, and the failure offers Reload. |
 | `useLoadedPlanetTerp()` | The PlanetTerp files already loaded, by department, without loading more: sorting by rating and a generated plan's details read it. |
 | `useAcademicCalendar(termId)` | `{ calendar, state, retry }`: the provost calendar for .ics export. `status: "not-published"`, or `ready` with no calendar (no file yet), means the dates aren't out: say so plainly. Cached, so it works offline. |
 | `useCampus(load = true)` | `{ campus, state }`: core's `CampusMap` (routes and off-campus codes), `EMPTY_CAMPUS` until loaded. With `load` false it only reads (`useTravel`); the shell loads it once the plan has a placed section. |

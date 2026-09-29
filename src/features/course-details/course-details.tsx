@@ -9,7 +9,7 @@ import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useReadCourseNotifications } from "~/features/notifications/read-here";
 import { useDrillEntry } from "~/features/schedule/drill-entry";
 import { track } from "~/lib/analytics";
-import { deptOf } from "~/state/catalog-store";
+import { deptOf, useCatalog } from "~/state/catalog-store";
 import { useCourseDept, useInstructors } from "~/state/data-hooks";
 import {
   type CurrentPlan,
@@ -94,6 +94,7 @@ function Details({
   // Opening the course reads its seat openings (V2.md §6.7).
   useReadCourseNotifications(termId, course.code);
   const planetTerp = useInstructors(deptOf(course.code));
+  const stale = useCatalog((s) => s.appStale);
   const seats = catalog?.seats?.seats ?? null;
   const entry = current?.plan.courses.find((c) => c.courseCode === course.code);
   const readOnly = current?.readOnly ?? true;
@@ -194,6 +195,7 @@ function Details({
             loading={ptLoading}
             failed={planetTerp.state === "error"}
             onRetry={planetTerp.retry}
+            stale={stale}
           />
         </div>
       </section>

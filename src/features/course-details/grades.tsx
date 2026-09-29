@@ -47,6 +47,7 @@ export function Grades({
   loading,
   failed = false,
   onRetry,
+  stale = false,
 }: {
   course: Course;
   planetTerp: PlanetTerpDept | null;
@@ -58,6 +59,8 @@ export function Grades({
    * too (`GradesBlock`), which don't load the scheduler's stores.
    */
   onRetry?: () => void;
+  /** The server publishes a newer format than this tab reads: offer Reload. */
+  stale?: boolean;
 }) {
   const grades = planetTerp?.courses[course.code];
   const [who, setWho] = useState<InstructorSlug | "all">("all");
@@ -73,9 +76,14 @@ export function Grades({
     return (
       <InlineError
         className="py-0"
-        message="Couldn't load grades from PlanetTerp. Check your connection and try again."
+        message={
+          stale
+            ? "Terpsicle has been updated since this page opened. Reload to see PlanetTerp's grades."
+            : "Couldn't load grades from PlanetTerp. Check your connection and try again."
+        }
         onRetry={onRetry}
-        retryTooltip="Load PlanetTerp's grades again"
+        reload={stale}
+        retryTooltip={stale ? undefined : "Load PlanetTerp's grades again"}
       />
     );
   if (!grades?.all)

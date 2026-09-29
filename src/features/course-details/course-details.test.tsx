@@ -65,14 +65,13 @@ async function renderDetails(
       : openCourse(courseCode),
   );
   await screen.findByTestId("sections");
-  // PlanetTerp's file and the rest of what details asked for, in: each
-  // query starts once the one before it (a manifest) has landed.
-  for (let i = 0; i < 3; i++) {
-    await waitFor(() => expect(view.queryClient.isFetching()).toBe(0), {
-      timeout: 5_000,
-    });
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
-  }
+  // PlanetTerp's file is in once the course's grades show, or say
+  // PlanetTerp has none.
+  await within(screen.getByTestId("grades")).findByText(
+    /got an A or B|PlanetTerp has no grades/,
+    {},
+    { timeout: 5_000 },
+  );
   return view;
 }
 
@@ -809,6 +808,46 @@ describe("Course details", () => {
         expect(jada).not.toHaveTextContent("Couldn't load reviews"),
       );
       expect(reads.length).toBeGreaterThan(before);
+    });
+
+    it("offer Reload when PlanetTerp's file is in a newer format than this tab reads", async () => {
+      const { queryClient } = await renderDetails("CMSC351", "instructors");
+      await findReviews("Jada Abernathy");
+      const bucket = createBucketDataSource(mockDataSource);
+      act(() =>
+        connectPublished({
+          ...bucket,
+          readJson: async (key, options) => {
+            const raw = await bucket.readJson(key, options);
+            return key.startsWith("planetterp/dept/CMSC.")
+              ? { ...(raw as object), schemaVersion: 99 }
+              : raw;
+          },
+        }),
+      );
+      await act(() =>
+        queryClient.resetQueries({
+          predicate: (q) =>
+            String(q.queryKey[2]).startsWith("planetterp/dept/CMSC."),
+        }),
+      );
+      const jada = await findReviews("Jada Abernathy");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent(
+          "Terpsicle has been updated since this page opened. Reload to see PlanetTerp's reviews.",
+        ),
+      );
+      expect(
+        within(jada).getByRole("button", { name: "Reload" }),
+      ).toBeVisible();
+      expect(
+        within(jada).queryByRole("button", { name: "Try again" }),
+      ).toBeNull();
+      expect(screen.getByTestId("grades")).toHaveTextContent(
+        "Reload to see PlanetTerp's grades.",
+      );
+      // The scheduler's catalog signal: the page reloads when next shown.
+      expect(useCatalog.getState().appStale).toBe(true);
     });
   });
 

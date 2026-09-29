@@ -32,6 +32,7 @@ import {
   type ReadPriority,
   SchemaVersionError,
 } from "./data-source";
+import { whenNewerFormat } from "./query/published";
 
 // Published data (DATA.md §2, §5.1): the term list; per term its manifest,
 // seats, changes and departments (as a core CatalogIndex); the campus map;
@@ -710,6 +711,12 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       }
     },
   };
+});
+
+// The query cache's reads (PlanetTerp, the campus map, calendars, the
+// course index) find a newer format too: the same signal, the same Reload.
+whenNewerFormat(() => {
+  if (!useCatalog.getState().appStale) useCatalog.setState({ appStale: true });
 });
 
 /** Department of a course code (DATA.md §1). */

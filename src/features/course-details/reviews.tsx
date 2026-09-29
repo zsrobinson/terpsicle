@@ -24,7 +24,7 @@ import { AiSparkles } from "~/features/ai/ai-sparkles";
 import { useAiFeatures } from "~/features/ai/use-ai-features";
 import { useAccount } from "~/features/auth/account-store";
 import { crossLinkClicked, viewWords } from "~/lib/cross-link";
-import { deptOf } from "~/state/catalog-store";
+import { deptOf, useCatalog } from "~/state/catalog-store";
 import {
   useInstructors,
   usePlanetTerpStatus,
@@ -183,6 +183,8 @@ export function InstructorReviews({
   const grades = courseGrades(planetTerp, course, pt);
   // The same query course details loaded it with: Try again asks it again.
   const { retry } = useInstructors(deptOf(course.code));
+  // A newer format than this tab reads: only Reload helps.
+  const stale = useCatalog((s) => s.appStale);
   // Mounted only while open, so the summary is asked for on open (SPEC §4),
   // and never while AI features are off: then the review count shows, as
   // when there's no summary.
@@ -208,9 +210,14 @@ export function InstructorReviews({
       ) : failed && !planetTerp ? (
         <InlineError
           className="py-0"
-          message="Couldn't load reviews from PlanetTerp. Check your connection and try again."
+          message={
+            stale
+              ? "Terpsicle has been updated since this page opened. Reload to see PlanetTerp's reviews."
+              : "Couldn't load reviews from PlanetTerp. Check your connection and try again."
+          }
           onRetry={retry}
-          retryTooltip="Load PlanetTerp's reviews again"
+          reload={stale}
+          retryTooltip={stale ? undefined : "Load PlanetTerp's reviews again"}
         />
       ) : !pt ? (
         <p className="text-muted">

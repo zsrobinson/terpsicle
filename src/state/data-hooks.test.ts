@@ -3,20 +3,34 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  calendarKey,
+  PLANETTERP_MANIFEST_KEY,
+  type PlanetTerpManifest,
+  planetTerpDeptKey,
+} from "~/core/schema";
+import {
+  aPlanetTerpDept,
   archivedFixtureTermId,
   fixtureTermId,
   MOCK_GRADES_THROUGH,
+  mockDataSource,
   mockPlanetTerpDepts,
   mockRouteGeometries,
 } from "~/fixtures";
+import { useCatalog } from "./catalog-store";
 import {
   useAcademicCalendar,
   useCampus,
   useInstructors,
   useLoadedPlanetTerp,
+  usePlanetTerpStatus,
   useRouteGeometry,
 } from "./data-hooks";
-import { DataError, type DataSource } from "./data-source";
+import {
+  createBucketDataSource,
+  DataError,
+  type DataSource,
+} from "./data-source";
 import { connectPublished } from "./query/published";
 import { createTestQueryClient } from "./query/testing";
 import { loadStores } from "./testing";
@@ -50,10 +64,11 @@ describe("useInstructors", () => {
 
   it("is idle without a department", () => {
     const { result } = renderHook(() => useInstructors(null));
-    expect(result.current).toMatchObject({
+    expect(result.current).toEqual({
       data: null,
       state: "idle",
       source: null,
+      retry: expect.any(Function),
     });
   });
 });
@@ -128,6 +143,111 @@ describe("reading without loading", () => {
       expect(readers.result.current.planetTerp.get(dept)?.dept).toBe(dept),
     );
     expect(readers.result.current.campus.campus.routes).not.toBeNull();
+  });
+});
+
+describe("a manifest naming a file the server deleted", () => {
+  /** The mock bucket, whose PlanetTerp manifest moves CMSC to a new hash after `moveAfter` reads. */
+  function movingServer(options: { moveAfter: number; newFile: boolean }) {
+    const bucket = createBucketDataSource(mockDataSource);
+    let manifestReads = 0;
+    const source: DataSource = {
+      ...bucket,
+      readJson: async (key, readOptions) => {
+        if (key === PLANETTERP_MANIFEST_KEY) {
+          manifestReads++;
+          const manifest = (await bucket.readJson(key)) as PlanetTerpManifest;
+          if (manifestReads <= options.moveAfter) return manifest;
+          return {
+            ...manifest,
+            departments: manifest.departments.map((d) =>
+              d.code === "CMSC" ? { ...d, hash: MOVED } : d,
+            ),
+          };
+        }
+        if (key.startsWith("planetterp/dept/CMSC.")) {
+          if (key === planetTerpDeptKey("CMSC", MOVED) && options.newFile)
+            return aPlanetTerpDept({ dept: "CMSC" });
+          throw new DataError(key, "missing", "deleted");
+        }
+        return bucket.readJson(key, readOptions);
+      },
+    };
+    return { source, manifestReads: () => manifestReads };
+  }
+  const MOVED = "0000000000000007";
+
+  it("asks for the manifest again and loads the new file, loading all the while", async () => {
+    const server = movingServer({ moveAfter: 1, newFile: true });
+    connectPublished(server.source);
+    const states: string[] = [];
+    const { result } = renderHook(() => {
+      const instructors = useInstructors("CMSC");
+      states.push(instructors.state);
+      return { instructors, status: usePlanetTerpStatus("CMSC") };
+    });
+    await waitFor(() => expect(result.current.instructors.state).toBe("ready"));
+    expect(result.current.instructors.data?.dept).toBe("CMSC");
+    expect(states).not.toContain("error");
+    expect(result.current.status.failed).toBe(false);
+    expect(server.manifestReads()).toBe(2);
+  });
+
+  it("asks once per file: still gone, it says the file didn't load", async () => {
+    const server = movingServer({ moveAfter: 1, newFile: false });
+    connectPublished(server.source);
+    const { result } = renderHook(() => ({
+      instructors: useInstructors("CMSC"),
+      status: usePlanetTerpStatus("CMSC"),
+    }));
+    await waitFor(() => expect(result.current.instructors.state).toBe("error"));
+    expect(result.current.status.failed).toBe(true);
+    // The first read, then one more for each file that came back missing
+    // (the old hash, then the new one), and no more.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(server.manifestReads()).toBe(3);
+  });
+
+  it("asks once, and says so, when the manifest still names the missing file", async () => {
+    const server = movingServer({ moveAfter: 99, newFile: false });
+    connectPublished(server.source);
+    const states: string[] = [];
+    const { result } = renderHook(() => {
+      const instructors = useInstructors("CMSC");
+      states.push(instructors.state);
+      return instructors;
+    });
+    await waitFor(() => expect(result.current.state).toBe("error"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(server.manifestReads()).toBe(2);
+    // Loading until the manifest's answer was in, then the failure.
+    expect(states.indexOf("error")).toBe(states.length - 1);
+  });
+});
+
+describe("a newer format than this tab reads", () => {
+  it("marks the tab out of date, as the catalog does, so it offers Reload", async () => {
+    const bucket = createBucketDataSource(mockDataSource);
+    connectPublished({
+      ...bucket,
+      readJson: async (key, options) => {
+        const raw = await bucket.readJson(key, options);
+        return key === PLANETTERP_MANIFEST_KEY ||
+          key === calendarKey(fixtureTermId)
+          ? { ...(raw as object), schemaVersion: 99 }
+          : raw;
+      },
+    });
+    expect(useCatalog.getState().appStale).toBe(false);
+    const { result } = renderHook(() => ({
+      instructors: useInstructors("CMSC"),
+      calendar: useAcademicCalendar(fixtureTermId),
+    }));
+    await waitFor(() => {
+      expect(result.current.instructors.state).toBe("error");
+      expect(result.current.calendar.state).toBe("error");
+    });
+    expect(useCatalog.getState().appStale).toBe(true);
   });
 });
 

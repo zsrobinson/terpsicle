@@ -3,7 +3,7 @@ import {
   useQueries,
   useQuery,
 } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AcademicCalendar,
   BuildingCode,
@@ -169,6 +169,8 @@ export function useInstructors(dept: DeptCode | null): {
 } {
   const { source, manifest } = usePlanetTerpManifest(dept !== null);
   const entry = dept ? planetTerpEntry(manifest.data, dept) : undefined;
+  // A file the server deleted asks for the manifest again before it fails
+  // (`planetTerpDeptQuery`), so until then it's loading, never an error.
   const file = useQuery(planetTerpDeptQuery(source, entry));
   const state: LoadState | "idle" =
     !dept || !source
@@ -199,26 +201,30 @@ export function useInstructors(dept: DeptCode | null): {
 export function useLoadedPlanetTerp(): ReadonlyMap<DeptCode, PlanetTerpDept> {
   const { source, manifest } = usePlanetTerpManifest(false);
   const departments = manifest.data?.departments ?? NO_DEPARTMENTS;
-  const combine = useCallback(
-    (files: UseQueryResult<PlanetTerpDept>[]) => {
-      const loaded = new Map<DeptCode, PlanetTerpDept>();
-      files.forEach((f, i) => {
-        const dept = departments[i]?.code;
-        if (dept && f.data) loaded.set(dept, f.data);
-      });
-      return loaded as ReadonlyMap<DeptCode, PlanetTerpDept>;
-    },
-    [departments],
+  // One observer per department (~200): built once per manifest, not per
+  // render, and read as the loaded files alone, so a render where none
+  // changed hands back the same array, and so the same Map.
+  const queries = useMemo(
+    () =>
+      departments.map((d) => ({
+        ...planetTerpDeptQuery(source, d),
+        enabled: false,
+      })),
+    [source, departments],
   );
-  return useQueries({
-    queries: departments.map((d) => ({
-      ...planetTerpDeptQuery(source, d),
-      enabled: false,
-    })),
-    combine,
-  });
+  const loaded = useQueries({ queries, combine: loadedFiles });
+  return useMemo(
+    () => new Map(loaded.map((file) => [file.dept, file] as const)),
+    [loaded],
+  );
 }
 const NO_DEPARTMENTS: readonly { code: DeptCode; hash: string }[] = [];
+/** The files that have loaded; Query keeps the array's identity while they don't change. */
+function loadedFiles(
+  files: UseQueryResult<PlanetTerpDept>[],
+): readonly PlanetTerpDept[] {
+  return files.flatMap((f) => (f.data ? [f.data] : []));
+}
 
 /**
  * A department's Terpsicle review numbers (V2 §7.6), loaded on first use

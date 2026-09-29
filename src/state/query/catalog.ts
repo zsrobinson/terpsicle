@@ -26,6 +26,7 @@ import {
   type TermId,
   type TravelMode,
 } from "~/core/schema";
+import { RoutesFileSchema } from "~/core/schema/routes-file";
 import {
   type CampusMap,
   campusMap,
@@ -34,7 +35,7 @@ import {
 } from "~/core/travel";
 import { DataError, type DataSource, readParsed } from "../data-source";
 import {
-  BINARY,
+  noteNewer,
   publishedBinary,
   publishedFile,
   publishedFixed,
@@ -80,7 +81,11 @@ export function planetTerpEntry(
   return manifest?.departments.find((d) => d.code === dept);
 }
 
-/** A department's PlanetTerp file, at the manifest's hash (none: nothing to read). */
+/**
+ * A department's PlanetTerp file, at the manifest's hash (none: nothing to
+ * read). One the server has deleted asks for the manifest again first:
+ * it stays loading meanwhile, and a new hash is a new file.
+ */
 export function planetTerpDeptQuery(
   source: DataSource | null,
   entry: { code: DeptCode; hash: ContentHash } | undefined,
@@ -90,13 +95,25 @@ export function planetTerpDeptQuery(
     entry ? planetTerpDeptKey(entry.code, entry.hash) : "planetterp/dept/none",
     PlanetTerpDeptSchema,
     "planetterp",
+    {
+      onMissing: (client) =>
+        client.fetchQuery({ ...planetTerpManifestQuery(source), staleTime: 0 }),
+    },
   );
+}
+
+/** A read of a file the server no longer has (or never had). */
+export function isMissing(error: unknown): boolean {
+  return error instanceof DataError && error.reason === "missing";
 }
 
 /**
  * These departments' PlanetTerp files, outside React (the generator's
  * ranking), each on its own: one that can't load is left out, which
- * ranking treats as unrated. Empty when the manifest can't load.
+ * ranking treats as unrated. A saved manifest can name a file the server
+ * has since deleted: that file's query asks for the manifest again before
+ * it fails, and those departments are tried once more at the hashes it
+ * brought, as the course index does. Empty when the manifest can't load.
  */
 export async function ensurePlanetTerpDepts(
   client: QueryClient,
@@ -104,23 +121,34 @@ export async function ensurePlanetTerpDepts(
   depts: readonly DeptCode[],
 ): Promise<Map<DeptCode, PlanetTerpDept>> {
   const out = new Map<DeptCode, PlanetTerpDept>();
-  const manifest = await client
-    .ensureQueryData(planetTerpManifestQuery(source))
-    .catch(() => null);
+  const query = planetTerpManifestQuery(source);
+  const manifest = await client.ensureQueryData(query).catch(() => null);
   if (!manifest) return out;
-  const unique = [...new Set(depts)];
-  const files = await Promise.allSettled(
-    unique.map((dept) => {
-      const entry = planetTerpEntry(manifest, dept);
-      return entry
-        ? client.ensureQueryData(planetTerpDeptQuery(source, entry))
-        : Promise.resolve(null);
-    }),
-  );
-  files.forEach((result, i) => {
-    if (result.status === "fulfilled" && result.value)
-      out.set(unique[i] as DeptCode, result.value);
-  });
+  /** Loads `wanted` at `from`'s hashes; returns those whose file is missing. */
+  const load = async (from: PlanetTerpManifest, wanted: DeptCode[]) => {
+    const files = await Promise.allSettled(
+      wanted.map((dept) => {
+        const entry = planetTerpEntry(from, dept);
+        return entry
+          ? client.ensureQueryData(planetTerpDeptQuery(source, entry))
+          : Promise.resolve(null);
+      }),
+    );
+    const missing: DeptCode[] = [];
+    files.forEach((result, i) => {
+      const dept = wanted[i] as DeptCode;
+      if (result.status === "fulfilled") {
+        if (result.value) out.set(dept, result.value);
+      } else if (isMissing(result.reason)) missing.push(dept);
+    });
+    return missing;
+  };
+  const missing = await load(manifest, [...new Set(depts)]);
+  if (missing.length === 0) return out;
+  // The manifest the missing files asked for; the same one (structurally
+  // shared) when nothing moved.
+  const fresh = client.getQueryData(query.queryKey);
+  if (fresh && fresh !== manifest) await load(fresh, missing);
   return out;
 }
 
@@ -135,7 +163,9 @@ export function geoManifestQuery(source: DataSource | null) {
       ...(m.routes ? [routesKey(m.routes.hash)] : []),
     ],
     fileSchema: (key) =>
-      key.startsWith("geo/routes.") ? BINARY : BuildingsFileSchema,
+      key.startsWith("geo/routes.")
+        ? { binary: RoutesFileSchema }
+        : BuildingsFileSchema,
   });
 }
 
@@ -161,17 +191,29 @@ export function routesQuery(
   return publishedBinary(
     hash ? source : null,
     hash ? routesKey(hash) : "geo/routes.none",
+    RoutesFileSchema,
     "geo",
   );
 }
 
-/** The campus map from its files; `EMPTY_CAMPUS` with neither. */
+/**
+ * The campus map from its files; `EMPTY_CAMPUS` with neither. Never
+ * throws: it runs in render. The routes query has already checked the
+ * bytes decode (`RoutesFileSchema`); should they somehow not, that's no
+ * routes, which travel shows as unknown.
+ */
 export function campusFrom(
   buildings: Parameters<typeof campusMap>[1] | undefined,
   routes: ArrayBuffer | undefined,
 ): CampusMap {
   if (!buildings && !routes) return EMPTY_CAMPUS;
-  return campusMap(routes ? decodeRoutes(routes) : null, buildings ?? null);
+  let table: ReturnType<typeof decodeRoutes> | null = null;
+  try {
+    table = routes ? decodeRoutes(routes) : null;
+  } catch {
+    table = null;
+  }
+  return campusMap(table, buildings ?? null);
 }
 
 /** The campus map as far as it's loaded, without loading more; outside React. */
@@ -223,9 +265,7 @@ export function calendarQuery(
 }
 
 /** A read that failed because the file isn't published (yet): not an error to show. */
-export function isNotPublished(error: unknown): boolean {
-  return error instanceof DataError && error.reason === "missing";
-}
+export const isNotPublished = isMissing;
 
 // ---------- a connection's walking path ----------
 
@@ -250,7 +290,7 @@ export function routeGeometryQuery(
             readParsed(source, key, RouteGeometrySchema, "geo").catch(
               (error: unknown) => {
                 if (isNotPublished(error)) return null;
-                throw error;
+                return noteNewer("geo")(error);
               },
             )
         : skipToken,
