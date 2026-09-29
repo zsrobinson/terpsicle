@@ -29,7 +29,13 @@ export async function playwrightDevice(
       ? { executablePath: localChromium(), args: [] }
       : {}),
     ...(process.env.HTTPS_PROXY
-      ? { proxy: { server: process.env.HTTPS_PROXY } }
+      ? // A local dev server (`--url http://localhost:…`) isn't behind it.
+        {
+          proxy: {
+            server: process.env.HTTPS_PROXY,
+            bypass: "localhost,127.0.0.1",
+          },
+        }
       : {}),
   });
   const device = new PlaywrightDevice(engine, browser);
