@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { matchesWildcard, wildcardDept } from "~/core/catalog";
 import {
   activeMustHaves,
@@ -12,10 +13,13 @@ import { ranksByQuality } from "~/core/generate/score";
 import { sameChips } from "~/core/generate/url";
 import {
   DEFAULT_GENERATE_LIMITS,
+  type DeptCode,
   type GenerateDraft,
   type GenerateRequest,
+  type PlanetTerpDept,
   type TermId,
 } from "~/core/schema";
+import { EMPTY_CAMPUS } from "~/core/travel";
 import { currentView, goTo } from "~/features/schedule/schedule-nav";
 import { track } from "~/lib/analytics";
 import { deptOf, useCatalog } from "~/state/catalog-store";
@@ -25,6 +29,12 @@ import {
   INITIAL_RUN_STATE,
   useGenerateRun,
 } from "~/state/generate-run-store";
+import {
+  ensureCampus,
+  ensurePlanetTerpDepts,
+  loadedCampus,
+} from "~/state/query/catalog";
+import { usePublishedSource } from "~/state/query/published";
 import { useWorkspace } from "~/state/workspace-store";
 import {
   defaultGenerator,
@@ -72,7 +82,10 @@ export function buildRequest(
   };
 }
 
-async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
+async function gatherInput(
+  request: GenerateRequest,
+  client: QueryClient,
+): Promise<GenerateInput> {
   const codes = draftCourseCodes(request.items);
   const wildcards = request.items.flatMap((i) =>
     i.kind === "wildcard" ? [i.wildcard] : [],
@@ -82,14 +95,19 @@ async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
   const wholeTerm = wildcards.some((w) => wildcardDept(w) === null);
   const depts = [...new Set([...codes.map(deptOf), ...patternDepts])];
   const catalog = useCatalog.getState();
+  const source = usePublishedSource.getState().source;
   // PlanetTerp files are extras: a department that fails to load is unrated,
-  // which ranking treats as neutral.
-  await Promise.all([
+  // which ranking treats as neutral. So is a campus map that can't load.
+  const [, walking, planetTerp] = await Promise.all([
     wholeTerm
       ? catalog.ensureTerm(request.termId, depts)
       : catalog.ensureDepts(request.termId, depts),
-    request.mustHaves.enoughTravelTime ? catalog.ensureCampus() : null,
-    ...depts.map((d) => catalog.ensureInstructors(d)),
+    request.mustHaves.enoughTravelTime && source
+      ? ensureCampus(client, source).catch(() => null)
+      : null,
+    source
+      ? ensurePlanetTerpDepts(client, source, depts)
+      : new Map<DeptCode, PlanetTerpDept>(),
   ]);
   const term = useCatalog.getState().byTerm[request.termId];
   if (!term || term.manifestState === "error")
@@ -110,13 +128,16 @@ async function gatherInput(request: GenerateRequest): Promise<GenerateInput> {
   // fetched only when the ranking is by ratings or GPAs; otherwise those
   // options rank as unrated, which is neutral.
   const rated = new Set(depts);
-  if (wholeTerm && ranksByQuality(request.rankBy)) {
+  if (wholeTerm && ranksByQuality(request.rankBy) && source) {
     for (const c of options) rated.add(deptOf(c.code));
-    await Promise.all([...rated].map((d) => catalog.ensureInstructors(d)));
+    const more = await ensurePlanetTerpDepts(client, source, [...rated]);
+    for (const [dept, file] of more) planetTerp.set(dept, file);
   }
-  const { campus, instructors } = useCatalog.getState();
+  // Without the travel check, whatever of the map is already here.
+  const campus =
+    walking ?? (source ? loadedCampus(client, source) : EMPTY_CAMPUS);
   const ratings = [...rated].flatMap((d) => {
-    const file = instructors[d];
+    const file = planetTerp.get(d);
     return file ? [file] : [];
   });
   return {
@@ -139,6 +160,7 @@ let asked: { termId: TermId; draft: GenerateDraft } | null = null;
 export async function runGenerate(
   termId: TermId,
   draft: GenerateDraft,
+  client: QueryClient,
   { relaxed = false, live = false }: { relaxed?: boolean; live?: boolean } = {},
 ): Promise<void> {
   current?.cancel();
@@ -161,7 +183,7 @@ export async function runGenerate(
   const started = performance.now();
   const request = buildRequest(termId, draft);
   try {
-    const input = await gatherInput(request);
+    const input = await gatherInput(request, client);
     if (!isCurrent()) return;
     generator ??= defaultGenerator();
     // Progress comes over its own Comlink port, so the last report can land
@@ -242,11 +264,15 @@ export function chipsChangedSinceRun(
  * Ranks again after a chip changes (SPEC §3.9, "Live results"), once the
  * clicks stop for a moment, in the worker like any run.
  */
-export function runLive(termId: TermId, draft: GenerateDraft): void {
+export function runLive(
+  termId: TermId,
+  draft: GenerateDraft,
+  client: QueryClient,
+): void {
   cancelLiveRun();
   liveTimer = setTimeout(() => {
     liveTimer = null;
-    void runGenerate(termId, draft, { live: true });
+    void runGenerate(termId, draft, client, { live: true });
   }, LIVE_RUN_DELAY_MS);
 }
 

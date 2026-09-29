@@ -6,49 +6,25 @@ import {
   diffManifest,
 } from "~/core/catalog";
 import {
-  type AcademicCalendar,
-  AcademicCalendarSchema,
-  type BuildingCode,
-  BuildingsFileSchema,
-  buildingsKey,
   type ChangesFile,
   type ContentHash,
   type Course,
   type CourseCode,
-  calendarKey,
   changesKey,
   type DeptChunk,
   type DeptCode,
   deptChunkKey,
-  GEO_MANIFEST_KEY,
-  GeoManifestSchema,
   type Manifest,
   ManifestSchema,
   manifestKey,
-  PLANETTERP_MANIFEST_KEY,
-  type PlanetTerpDept,
-  type PlanetTerpManifest,
-  PlanetTerpManifestSchema,
-  type PlanetTerpSource,
-  planetTerpDeptKey,
-  type RouteGeometry,
-  routesKey,
   SCHEMA_VERSIONS,
-  type SchemaFamily,
   type SeatsFile,
   seatsKey,
   TERMS_KEY,
   type Term,
   type TermId,
   TermsFileSchema,
-  type TravelMode,
 } from "~/core/schema";
-import {
-  type CampusMap,
-  campusMap,
-  decodeRoutes,
-  EMPTY_CAMPUS,
-} from "~/core/travel";
 import { type CacheFile, type DataCache, versionedCache } from "./data-cache";
 import {
   DataError,
@@ -56,6 +32,7 @@ import {
   type ReadPriority,
   SchemaVersionError,
 } from "./data-source";
+import { whenNewerFormat } from "./query/published";
 
 // Published data (DATA.md §2, §5.1): the term list; per term its manifest,
 // seats, changes and departments (as a core CatalogIndex); the campus map;
@@ -129,20 +106,6 @@ export interface CatalogState {
   /** Specific, plain words for the person, when terms can't load. */
   termsError: string | null;
   byTerm: Readonly<Partial<Record<TermId, TermCatalog>>>;
-  /** Routes and off-campus codes; `EMPTY_CAMPUS` until the geo files load. */
-  campus: CampusMap;
-  campusState: LoadState | "idle";
-  /** PlanetTerp files by department (ratings, grades, the name join). */
-  instructors: Readonly<Partial<Record<DeptCode, PlanetTerpDept>>>;
-  instructorsState: Readonly<Partial<Record<DeptCode, LoadState>>>;
-  /**
-   * How current PlanetTerp is, from its manifest (DATA.md §4.1); null until
-   * the manifest loads, or when it predates the `source` block.
-   */
-  planetTerpSource: PlanetTerpSource | null;
-  /** Academic calendars by term (.ics export). */
-  calendars: Readonly<Partial<Record<TermId, AcademicCalendar>>>;
-  calendarsState: Readonly<Partial<Record<TermId, LoadState>>>;
   /** The last request to the server failed: show saved data, and say so quietly. */
   network: "online" | "offline";
   /**
@@ -168,16 +131,6 @@ export interface CatalogState {
   refreshTerm: (termId: TermId) => Promise<void>;
   /** Tries again after a failed first load. */
   retry: () => Promise<void>;
-  /** Loads the buildings and routes files (DATA §4.2), once. */
-  ensureCampus: () => Promise<void>;
-  ensureInstructors: (dept: DeptCode) => Promise<void>;
-  ensureCalendar: (termId: TermId) => Promise<void>;
-  /** A connection's path (DATA.md §4.3); null when there's none to draw. */
-  loadRouteGeometry: (
-    from: BuildingCode,
-    to: BuildingCode,
-    mode: TravelMode,
-  ) => Promise<RouteGeometry | null>;
 }
 
 /**
@@ -236,13 +189,6 @@ export const INITIAL_CATALOG_STATE = {
   termsState: "idle",
   termsError: null,
   byTerm: {},
-  campus: EMPTY_CAMPUS,
-  campusState: "idle",
-  instructors: {},
-  instructorsState: {},
-  planetTerpSource: null,
-  calendars: {},
-  calendarsState: {},
   network: "online",
   appStale: false,
 } satisfies Partial<CatalogState>;
@@ -701,67 +647,6 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       if (!cached) await fresh;
     });
 
-  /** A fixed-name file that's cheap and rarely changes: cached copy, then network. */
-  const pointerFile = async <T>(
-    key: string,
-    parse: (data: unknown) => T | null,
-    fetch: () => Promise<T>,
-    onValue: (value: T) => void,
-  ): Promise<void> => {
-    const cached = await cachedPointer(key, parse);
-    if (cached) onValue(cached);
-    const fresh = reached(fetch()).then(async (value) => {
-      onValue(value);
-      await get().cache?.putPointer(key, value, nowIso());
-    });
-    if (cached) {
-      fresh.catch((error: unknown) => console.error(error));
-      return;
-    }
-    await fresh;
-  };
-
-  const parseWith =
-    <T>(
-      schema: { safeParse(v: unknown): { success: boolean; data?: T } },
-      family: SchemaFamily,
-    ) =>
-    (data: unknown): T | null => {
-      const parsed = schema.safeParse(data);
-      const value = parsed.success ? (parsed.data as T) : null;
-      return value &&
-        (value as { schemaVersion?: number }).schemaVersion ===
-          SCHEMA_VERSIONS[family]
-        ? value
-        : null;
-    };
-
-  let planetTerpManifest: Promise<PlanetTerpManifest> | null = null;
-  const loadPlanetTerpManifest = (reader: DataReader) => {
-    planetTerpManifest ??= new Promise<PlanetTerpManifest>(
-      (resolve, reject) => {
-        let settled = false;
-        pointerFile(
-          PLANETTERP_MANIFEST_KEY,
-          parseWith<PlanetTerpManifest>(PlanetTerpManifestSchema, "planetterp"),
-          () => reader.planetTerpManifest(),
-          (m) => {
-            // Cached first, then revalidated: the newest word on freshness wins.
-            set({ planetTerpSource: m.source ?? null });
-            if (!settled) {
-              settled = true;
-              resolve(m);
-            }
-          },
-        ).catch((error: unknown) => {
-          planetTerpManifest = null;
-          if (!settled) reject(error);
-        });
-      },
-    );
-    return planetTerpManifest;
-  };
-
   return {
     ...INITIAL_CATALOG_STATE,
 
@@ -771,7 +656,6 @@ export const useCatalog = create<CatalogState>()((set, get) => {
       asked.clear();
       firstSeats.clear();
       loadStats.clear();
-      planetTerpManifest = null;
       onEvent = options.onEvent;
       const cache = options.cache
         ? versionedCache(options.cache, SCHEMA_VERSIONS)
@@ -826,119 +710,13 @@ export const useCatalog = create<CatalogState>()((set, get) => {
         }
       }
     },
-
-    ensureCampus: () =>
-      once("campus", async () => {
-        const { reader, campusState } = get();
-        if (!reader || campusState === "ready") return;
-        set({ campusState: "loading" });
-        try {
-          let manifest: ReturnType<typeof GeoManifestSchema.parse> | null =
-            null;
-          await pointerFile(
-            GEO_MANIFEST_KEY,
-            parseWith(GeoManifestSchema, "geo"),
-            () => reader.geoManifest(),
-            (m) => {
-              manifest ??= m;
-            },
-          ).catch((error: unknown) => {
-            if (!manifest) throw error;
-          });
-          const m = manifest as ReturnType<
-            typeof GeoManifestSchema.parse
-          > | null;
-          if (!m) throw new Error("No geo manifest");
-          const geo = { family: "geo" as const, termId: null };
-          const [buildings, routes] = await Promise.all([
-            hashed(buildingsKey(m.buildings.hash), geo, () =>
-              reader.buildings(m.buildings.hash),
-            ).then((b) => BuildingsFileSchema.parse(b)),
-            m.routes
-              ? hashed(routesKey(m.routes.hash), geo, () =>
-                  reader.routes(m.routes?.hash ?? ""),
-                )
-              : null,
-          ]);
-          set({
-            campus: campusMap(routes ? decodeRoutes(routes) : null, buildings),
-            campusState: "ready",
-          });
-        } catch (error) {
-          // Travel then reads "No route data yet"; nothing else depends on it.
-          console.error(error);
-          set({ campusState: "error" });
-        }
-      }),
-
-    ensureInstructors: (dept) =>
-      once(`instructors:${dept}`, async () => {
-        const { reader } = get();
-        if (!reader || get().instructorsState[dept] === "ready") return;
-        const setState = (state: LoadState) =>
-          set({
-            instructorsState: { ...get().instructorsState, [dept]: state },
-          });
-        setState("loading");
-        try {
-          const manifest = await loadPlanetTerpManifest(reader);
-          const entry = manifest.departments.find((d) => d.code === dept);
-          if (!entry) {
-            setState("ready");
-            return;
-          }
-          const file = await hashed(
-            planetTerpDeptKey(dept, entry.hash),
-            { family: "planetterp", termId: null },
-            () => reader.planetTerpDept(dept, entry.hash),
-          );
-          set({ instructors: { ...get().instructors, [dept]: file } });
-          setState("ready");
-        } catch (error) {
-          // Ratings and grades are extras: the course still shows without them.
-          console.error(error);
-          setState("error");
-        }
-      }),
-
-    ensureCalendar: (termId) =>
-      once(`calendar:${termId}`, async () => {
-        const { reader } = get();
-        if (!reader || get().calendarsState[termId] === "ready") return;
-        const setState = (state: LoadState) =>
-          set({ calendarsState: { ...get().calendarsState, [termId]: state } });
-        setState("loading");
-        try {
-          await pointerFile(
-            calendarKey(termId),
-            parseWith<AcademicCalendar>(AcademicCalendarSchema, "calendar"),
-            () => reader.calendar(termId),
-            (calendar) =>
-              set({ calendars: { ...get().calendars, [termId]: calendar } }),
-          );
-          setState("ready");
-        } catch (error) {
-          // No file yet means the provost hasn't published the dates: ready,
-          // with no calendar, which export says plainly (SPEC §3.0).
-          const missing = reasonOf(error) === "missing";
-          if (!missing) console.error(error);
-          setState(missing || get().calendars[termId] ? "ready" : "error");
-        }
-      }),
-
-    loadRouteGeometry: async (from, to, mode) => {
-      const { reader } = get();
-      if (!reader) return null;
-      try {
-        // Fixed name with a day's max-age: the browser's HTTP cache keeps it.
-        return await reached(reader.routeGeometry(from, to, mode));
-      } catch (error) {
-        // Missing geometry hides the map; never draw a straight line (DATA.md §4.3).
-        if (reasonOf(error) !== "missing") console.error(error);
-        return null;
-      }
-    },
   };
+});
+
+// The query cache's reads (PlanetTerp, the campus map, calendars, the
+// course index) find a newer format too: the same signal, the same Reload.
+whenNewerFormat(() => {
+  if (!useCatalog.getState().appStale) useCatalog.setState({ appStale: true });
 });
 
 /** Department of a course code (DATA.md §1). */
