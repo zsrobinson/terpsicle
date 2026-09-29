@@ -1317,7 +1317,7 @@ function PopupParts() {
                   It opens like an app, works offline and tells you when a seat
                   opens.
                 </DialogDescription>
-                <div className="mt-5 flex justify-end gap-2">
+                <div className="mt-6 flex justify-end gap-2">
                   <WithTooltip label="Close without installing">
                     <Button variant="ghost" onClick={() => setDialog(false)}>
                       Not now
