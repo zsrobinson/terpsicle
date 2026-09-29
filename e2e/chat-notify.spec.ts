@@ -134,22 +134,6 @@ test("an @-mention pushes to the classmate it names", async ({
       },
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
-    // Quiet hours (on by default) hold a mention from 11pm to 8am New York
-    // until morning, so a run in the evening got no push at all. This is
-    // the push as it goes by day; quiet hours have their own tests
-    // (src/core/notifications and src/server/notifications, quiet.test.ts).
-    const current = await theirs.request.post("/api/notifications/settings", {
-      headers: sameOrigin(theirs),
-      data: {},
-    });
-    const { settings } = (await current.json()) as {
-      settings: Record<string, unknown>;
-    };
-    const saved = await theirs.request.post("/api/notifications/settings/set", {
-      headers: sameOrigin(theirs),
-      data: { settings: { ...settings, quietHours: { on: false } } },
-    });
-    expect(saved.status()).toBe(200);
     // Earlier runs' mentions in this course, read, so this run's group
     // starts at one (each project has its own course, so its own group).
     const inbox = await theirs.request.post("/api/notifications/inbox", {
