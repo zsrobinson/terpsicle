@@ -426,19 +426,19 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
           );
         })}
         {unreadable.length > 0 ? (
-          <section
-            aria-label="Lines we couldn't read"
-            className="space-y-1 border-hairline border-t px-4 py-2"
-          >
-            <h3 className="emph-heading text-sm">
-              {unreadable.length === 1
-                ? "One line we couldn't read"
-                : `${unreadable.length} lines we couldn't read`}
-            </h3>
-            <p className="text-muted text-xs">
+          <section aria-label="Lines we couldn't read">
+            <GroupHeader
+              headingLevel={3}
+              title={
+                unreadable.length === 1
+                  ? "One line we couldn't read"
+                  : `${unreadable.length} lines we couldn't read`
+              }
+            />
+            <p className="px-4 pt-2 text-muted text-xs">
               They're left out. Add them from Search if you need them.
             </p>
-            <ul className="space-y-0.5">
+            <ul className="space-y-0.5 px-4 pt-1 pb-2">
               {unreadable.map((raw, i) => (
                 <li
                   // By position: a key made of pasted text could reach a console warning.

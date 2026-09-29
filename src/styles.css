@@ -33,6 +33,8 @@
 
   --color-bg: var(--bg);
   --color-panel: var(--panel);
+  --color-band: var(--band);
+  --color-band-soft: var(--band-soft);
   --color-raised: var(--raised);
   --color-hover: var(--hover);
   --color-hairline: var(--hairline);
@@ -237,6 +239,13 @@
   color-scheme: light;
   --bg: #fffcf0; /* paper */
   --panel: #f2f0e5; /* base-50 */
+  /*
+   * The section band in the workbench sidebars (SECTION_BAND): panel's step
+   * in light. A group's band inside a section's (GroupHeader nested) is
+   * halfway from the page to it.
+   */
+  --band: #f2f0e5; /* base-50 */
+  --band-soft: #f8f6ea;
   --raised: #fffcf0; /* paper */
   --hover: #e6e4d9; /* base-100 */
   --hairline: #cecdc3; /* base-200 */
@@ -339,6 +348,12 @@
   color-scheme: dark;
   --bg: #100f0f; /* black */
   --panel: #1c1b1a; /* base-950 */
+  /*
+   * A step past panel and raised (both base-950 here), so the band shows in
+   * a sheet or a popover too; between base-950 and base-900.
+   */
+  --band: #232221;
+  --band-soft: #1a1918;
   --raised: #1c1b1a; /* base-950 */
   --hover: #282726; /* base-900 */
   --hairline: #343331; /* base-850 */
@@ -657,19 +672,16 @@
 }
 
 /*
- * Emphasis (docs/DESIGN.md §7.8): one ladder for every product. More
- * important is darker and bolder, and a heading is never lighter than what
- * it heads. In dark, "darker" is higher contrast: `fg` is the paper there.
- * These set ink and weight; the size is the kit's (a page's title is 18px, a
- * display page's 32px), except Meta, which is always small.
+ * Emphasis (docs/DESIGN.md §7.8): more important is darker and bolder, and
+ * a heading is never lighter than what it heads. The kit's slots set it;
+ * these are for words the kit has no slot for. They set ink and weight; the
+ * size is the caller's, except Meta, which is always small.
  *
- *   emph-title      the page's name              fg, 600, tight
- *   emph-heading    a section or group           fg, 600
- *   emph-label      a row's name, a field label  fg, 500
- *   emph-body       content                      fg, 400
+ *   emph-title      a page's or drill-in's name  fg, 600, tight
+ *   emph-heading    a heading the kit can't draw fg, 600
+ *   emph-label      a field label, what you're in fg, 500
  *   emph-secondary  a supporting line            muted, 400
  *   emph-meta       counts, times, freshness     muted, 400, 12px, tabular
- *   emph-disabled   what you can't use yet       faint
  */
 @utility emph-title {
   color: var(--fg);
@@ -687,11 +699,6 @@
   font-weight: 500;
 }
 
-@utility emph-body {
-  color: var(--fg);
-  font-weight: 400;
-}
-
 @utility emph-secondary {
   color: var(--muted);
   font-weight: 400;
@@ -703,10 +710,6 @@
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
   font-variant-numeric: tabular-nums;
-}
-
-@utility emph-disabled {
-  color: var(--faint);
 }
 
 /*

@@ -161,7 +161,7 @@ export function GroupHeader({
       className={cn(
         SECTION_BAND,
         "text-muted",
-        nested ? "bg-panel/50" : "bg-panel",
+        nested ? "bg-band-soft" : "bg-band",
         // Under a sticky section band.
         sticky && "sticky top-(--band-height) z-10",
         className,

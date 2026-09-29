@@ -38,12 +38,23 @@ describe("ListRow", () => {
 });
 
 describe("GroupHeader", () => {
-  it("is a plain tinted 30px bar with a heading when it doesn't collapse", () => {
+  it("is the section band with a heading when it doesn't collapse", () => {
     render(<GroupHeader headingLevel={3} title="CMSC216" meta="142 people" />);
     const heading = screen.getByRole("heading", { level: 3 });
     expect(heading).toHaveTextContent("CMSC216142 people");
-    expect(heading.parentElement).toHaveClass("h-7.5", "bg-panel");
+    expect(heading.parentElement).toHaveClass(
+      "h-(--band-height)",
+      "bg-band",
+      "border-y",
+    );
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("nested in a section, is a lighter band than the section's", () => {
+    render(<GroupHeader nested headingLevel={4} title="Grace Kowalczyk" />);
+    const band = screen.getByRole("heading", { level: 4 }).parentElement;
+    expect(band).toHaveClass("bg-band-soft");
+    expect(band).not.toHaveClass("bg-band");
   });
 
   it("collapses from its left part when it has a toggle", async () => {

@@ -118,7 +118,7 @@ export function SectionHeader({
     <div
       className={cn(
         SECTION_BAND,
-        "whitespace-nowrap bg-panel",
+        "whitespace-nowrap bg-band",
         sticky && "sticky top-0 z-20",
         className,
       )}

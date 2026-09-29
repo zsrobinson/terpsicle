@@ -440,7 +440,15 @@ describe("the palette", () => {
 
   it("keeps text at 4.5:1 on every surface, in both themes", () => {
     const text = ["fg", "muted", "faint", "ok", "warn", "error"];
-    const surfaces = ["bg", "panel", "raised", "hover", "accent-soft"];
+    const surfaces = [
+      "bg",
+      "panel",
+      "band",
+      "band-soft",
+      "raised",
+      "hover",
+      "accent-soft",
+    ];
     expect(
       lowContrast(
         text.flatMap((fg) => surfaces.map((bg): [string, string] => [fg, bg])),

@@ -102,7 +102,11 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - tooltips and shortcuts on every control (`v3/behavior-keys`: `e2e/tooltips.spec.ts` checks every page; menu options are the one exception, in `docs/decisions.md`);
   - focus order and keyboard (`v3/behavior-keys`: tabbed through every product at 1440; Esc closes the top layer, and a popover no longer needs two).
 
-- [x] Emphasis (owner, 2026-09-29; `v3/visual-hierarchy`): one ladder in every product, where darker and bolder means more important and a heading is never lighter than what it heads (docs/DESIGN.md §7.8). Title, Heading, Label, Body, Secondary, Meta and Disabled are `emph-*` utilities, built into `PageHeader`, `PageSection`, `ListRow`, `GroupHeader`, `SectionHeader`, `EmptyState`, `PanelNote`, the dialog and the menus' group labels. Content sits on the page's paper in every product; `bg-panel` is for group bands, the rail and a canvas's containers. The design-tokens test fails on a heading off the ladder or a bold-but-muted label.
+- [x] Hierarchy (owner, 2026-09-29; `v3/visual-hierarchy`; docs/DESIGN.md §7.8). Darker and bolder means more important, and a heading is never lighter than what it heads. It comes in two languages:
+  - **Workbench pages** (Schedule, Chat, Plan, Todo): one sidebar-section pattern, with Chat's room list as the reference. A section's band, then a lighter band for a group inside it, then rows, with a hairline above every band. Every sidebar section in the four products is `SectionHeader` or `GroupHeader` (`SECTION_BAND`); none are hand-rolled.
+  - **Reading pages** (Home, Reviews, Settings): larger type, with `PageSection`s and no bands.
+  - The kit's slots set ink and weight. Five `emph-*` utilities cover the words they don't draw.
+  - The design-tokens test fails on a heading off the ladder or a bold-but-muted label.
 
 ### Phase 5: first-time rounds, until happy
 - [ ] A scripted first visit to each product, as a new student with no account, then signed in:

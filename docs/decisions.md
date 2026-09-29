@@ -46,8 +46,13 @@ Revisit if: a product needs more than one action there.
 
 ### Darker and bolder means more important, everywhere
 2026-09-29 · owner · app-wide
-"we should have darker and bolder communicate more importance, and use the same system throughout the entire app." One emphasis ladder (Title, Heading, Label, Body, Secondary, Meta, Disabled; `emph-*` in `src/styles.css`, docs/DESIGN.md §7.8), built into the kit, and a heading is never lighter than what it heads. `src/components/design-tokens.test.ts` fails on a heading off the ladder or a bold-but-muted label.
+"we should have darker and bolder communicate more importance, and use the same system throughout the entire app." A heading is never lighter than what it heads, in every product (docs/DESIGN.md §7.8). The kit's slots set it, with five `emph-*` utilities (Title, Heading, Label, Secondary, Meta) for words they don't draw. `src/components/design-tokens.test.ts` fails on a heading off the ladder or a bold-but-muted label.
 Revisit if: never on its own.
+
+### Two design languages: bands on workbench pages, type on reading pages
+2026-09-29 · owner · app-wide
+"the fix i was looking for was a little simpler than a giant 7-step design system thing, it was more about standardizing how we do these types of sections in the sidebar. consider also that we sort of have two design languages, one for the dashboard sort of pages with the sidebar, and another for more public pages or things like the dashboard or settings where the hierarchy comes more from larger text and whatnot rather than darker backgrounds." Schedule, Chat, Plan and Todo are workbench pages. On them, section bands and borders carry the hierarchy, in one pattern: a section's band (`SectionHeader`, or `GroupHeader`), then a lighter band for a group inside it (`GroupHeader nested`), then rows on the page, with a hairline above every band. Chat's room list is the reference. Home, Reviews and Settings are reading pages, where larger type carries the hierarchy and there are no bands (docs/DESIGN.md §7.8).
+Revisit if: a page is both, or a new product doesn't fit either.
 
 ### Base UI for every primitive, styled in Ink
 2026-09-28 · owner · app-wide
