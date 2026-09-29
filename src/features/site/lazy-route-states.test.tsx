@@ -1,15 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import {
   NotFoundUnavailable,
   RouteErrorUnavailable,
 } from "./lazy-route-states";
-
-const reload = vi.hoisted(() => vi.fn());
-vi.mock("~/ui/reload", async (original) => ({
-  ...(await original<typeof import("~/ui/reload")>()),
-  reloadPage: reload,
-}));
 
 // The stand-ins for when the failure state's or the 404 page's own code
 // doesn't arrive (~/lib/lazy-component covers when they show, and that they
@@ -23,10 +17,9 @@ describe("the route states' stand-ins", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Check your connection, then reload.",
     );
-    const button = screen.getByRole("button", { name: "Reload" });
-    expect(button).toHaveAttribute("data-tooltip");
-    fireEvent.click(button);
-    expect(reload).toHaveBeenCalled();
+    const reload = screen.getByRole("link", { name: "Reload" });
+    expect(reload).toHaveAttribute("href", window.location.href);
+    expect(reload).toHaveAttribute("data-tooltip");
   });
 
   it("still says there's nothing at the address", () => {

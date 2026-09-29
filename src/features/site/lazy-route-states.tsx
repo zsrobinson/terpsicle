@@ -2,8 +2,6 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { LazyTooltip } from "~/components/lazy-tooltip";
 import { lazyComponent } from "~/lib/lazy-component";
-import { Button } from "~/ui/button";
-import { reloadPage } from "~/ui/reload";
 import { NotFoundPage } from "./not-found-page";
 import { RouteError, RoutePending } from "./route-states";
 
@@ -23,7 +21,7 @@ import { RouteError, RoutePending } from "./route-states";
 // A failure is exactly when their code may not arrive (offline, or a deploy
 // removed the chunk), so each has a plain stand-in without the bar that
 // needs nothing more than the page already has, and asks again when it's
-// back online (~/lib/lazy-component).
+// back online (~/lib/lazy-component). Only the browser draws them.
 
 /** When the failure state's own code didn't arrive: what happened, and Reload. */
 export function RouteErrorUnavailable() {
@@ -33,10 +31,20 @@ export function RouteErrorUnavailable() {
       <p role="status">
         Part of Terpsicle didn't arrive. Check your connection, then reload.
       </p>
+      {/* A link, not the kit's Button: the kit in the first load reshuffles
+          the build's chunks and costs every page about 5 KB. */}
       <LazyTooltip label="Load this page again">
-        <Button variant="outline" size="sm" onClick={() => reloadPage()}>
+        <a
+          href={window.location.href}
+          onClick={(event) => {
+            // A reload even when the address has a #fragment.
+            event.preventDefault();
+            window.location.reload();
+          }}
+          className="font-semibold underline underline-offset-4 hover:text-muted"
+        >
           Reload
-        </Button>
+        </a>
       </LazyTooltip>
     </main>
   );
