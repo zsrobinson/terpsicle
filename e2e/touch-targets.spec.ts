@@ -50,7 +50,10 @@ for (const path of ["/schedule?demo=1", "/reviews", "/todo"]) {
         timeout: 20_000,
       });
     const targets = await barTargets(page);
-    expect(targets.length).toBeGreaterThan(1);
+    // Every phone bar ends with the account (the bell and Feedback are in
+    // its menu), so it's always measured; the scheduler's has more.
+    expect(targets.map((t) => t.name)).toContain("Sign in");
+    if (path.startsWith("/schedule")) expect(targets.length).toBeGreaterThan(1);
     const short = targets.filter((t) => t.width < 24 || !t.hits.every(Boolean));
     expect(short).toEqual([]);
   });
