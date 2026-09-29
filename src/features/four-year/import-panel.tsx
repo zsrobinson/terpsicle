@@ -32,6 +32,7 @@ import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { Input, Textarea } from "~/ui/input";
+import { GroupHeader } from "~/ui/list-row";
 import { SegmentedControl } from "~/ui/segmented-control";
 import { WithTooltip } from "~/ui/tooltip";
 import { importTranscript } from "./actions";
@@ -350,16 +351,17 @@ function TermGroup({
   const inProgress = rows.some((r) => r.line.inProgress);
   return (
     <section aria-label={name}>
-      <h3 className="tnum flex items-baseline gap-2 border-hairline border-y bg-panel px-4 py-1 font-medium text-sm">
-        {name}
-        {inProgress ? (
-          <span className="font-normal text-muted text-xs">In progress</span>
-        ) : null}
-        <span className="ml-auto font-normal text-muted text-xs">
-          {read.length} {read.length === 1 ? "course" : "courses"} ·{" "}
-          {cr(credits)}
-        </span>
-      </h3>
+      <GroupHeader
+        headingLevel={3}
+        title={name}
+        meta={inProgress ? "In progress" : undefined}
+        right={
+          <span className="tnum">
+            {read.length} {read.length === 1 ? "course" : "courses"} ·{" "}
+            {cr(credits)}
+          </span>
+        }
+      />
       <ul>{children}</ul>
     </section>
   );
@@ -390,7 +392,7 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
   return (
     <section aria-labelledby="plan-import-check">
       <div className="space-y-1 px-4 py-3">
-        <h2 id="plan-import-check" className="font-medium">
+        <h2 id="plan-import-check" className="emph-heading">
           Check what we read
         </h2>
         <p role="status" className="text-muted text-sm">
@@ -424,19 +426,19 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
           );
         })}
         {unreadable.length > 0 ? (
-          <section
-            aria-label="Lines we couldn't read"
-            className="space-y-1 border-hairline border-t px-4 py-2"
-          >
-            <h3 className="font-medium text-sm">
-              {unreadable.length === 1
-                ? "One line we couldn't read"
-                : `${unreadable.length} lines we couldn't read`}
-            </h3>
-            <p className="text-muted text-xs">
+          <section aria-label="Lines we couldn't read">
+            <GroupHeader
+              headingLevel={3}
+              title={
+                unreadable.length === 1
+                  ? "One line we couldn't read"
+                  : `${unreadable.length} lines we couldn't read`
+              }
+            />
+            <p className="px-4 pt-2 text-muted text-xs">
               They're left out. Add them from Search if you need them.
             </p>
-            <ul className="space-y-0.5">
+            <ul className="space-y-0.5 px-4 pt-1 pb-2">
               {unreadable.map((raw, i) => (
                 <li
                   // By position: a key made of pasted text could reach a console warning.
@@ -558,7 +560,7 @@ export function ImportPanel() {
   return (
     <div className="flex flex-col">
       <div className="space-y-2 px-4 py-3">
-        <label htmlFor={IMPORT_INPUT_ID} className="block font-medium">
+        <label htmlFor={IMPORT_INPUT_ID} className="emph-label block">
           Paste your unofficial transcript
         </label>
         <p className="text-muted text-sm">

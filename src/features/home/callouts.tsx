@@ -205,11 +205,11 @@ export function HomeCallout({
       <Mark id={words.mark} size={20} className="mt-px shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex flex-col gap-0.5">
-          <h2 id={titleId} className="font-semibold text-base">
+          <h2 id={titleId} className="emph-heading text-base">
             {words.title}
           </h2>
           {/* A readable line in Now's wide column. */}
-          <p className="max-w-[62ch] text-pretty text-muted text-sm">
+          <p className="emph-secondary max-w-[62ch] text-pretty text-sm">
             {words.line}
           </p>
         </div>

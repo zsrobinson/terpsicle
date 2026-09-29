@@ -24,7 +24,7 @@ import { showAdded } from "./workbench-store";
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-0.5">
-      <dt className="font-medium text-muted text-xs">{label}</dt>
+      <dt className="emph-secondary text-sm">{label}</dt>
       <dd>{children}</dd>
     </div>
   );
@@ -65,7 +65,7 @@ export function CoursePanel({ code }: { code: CourseCode }) {
     <div className="flex flex-col">
       <div className="space-y-3 px-4 py-3">
         <div>
-          <h2 className="ident font-semibold text-lg">{code}</h2>
+          <h2 className="emph-title ident text-lg">{code}</h2>
           {course === undefined ? (
             <Skeleton className="mt-1 h-4 w-2/3" />
           ) : course === null ? (

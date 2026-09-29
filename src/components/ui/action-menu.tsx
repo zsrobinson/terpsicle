@@ -206,11 +206,11 @@ function ActionMenu({
           }}
         >
           <div className="shrink-0 px-4 pt-1.5 pb-2">
-            <p id={headingId} className="font-semibold text-base">
+            <p id={headingId} className="emph-heading text-base">
               {title}
             </p>
             {description ? (
-              <p className="text-muted text-sm">{description}</p>
+              <p className="emph-secondary text-sm">{description}</p>
             ) : null}
           </div>
           <div
@@ -696,13 +696,13 @@ function GroupLabel({ id, children }: { id: string; children: ReactNode }) {
     return (
       <Menu.GroupLabel
         id={id}
-        className="px-2 pt-1.5 pb-1 font-medium text-muted text-xs"
+        className="emph-heading px-2 pt-1.5 pb-1 text-xs"
       >
         {children}
       </Menu.GroupLabel>
     );
   return (
-    <div id={id} className="px-4 pt-2 pb-1 font-medium text-muted text-xs">
+    <div id={id} className="emph-heading px-4 pt-2 pb-1 text-xs">
       {children}
     </div>
   );

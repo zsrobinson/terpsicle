@@ -28,7 +28,7 @@ export function creditKind(entry: Pick<FourYearCreditEntry, "via">): string {
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-0.5">
-      <dt className="font-medium text-muted text-xs">{label}</dt>
+      <dt className="emph-secondary text-sm">{label}</dt>
       <dd>{children}</dd>
     </div>
   );
@@ -53,7 +53,7 @@ export function CreditPanel({ entryId }: { entryId: LocalId }) {
   return (
     <div className="space-y-3 px-4 py-3">
       <div>
-        <h2 className="font-semibold text-lg">{displayTitle(entry.title)}</h2>
+        <h2 className="emph-title text-lg">{displayTitle(entry.title)}</h2>
         <p className="text-muted text-sm">
           {creditKind(entry)} · {credits}
         </p>

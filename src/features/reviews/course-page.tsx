@@ -231,7 +231,7 @@ function TeachingNow({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="font-medium text-base text-muted">Teaching in {term}</h2>
+      <h2 className="emph-heading text-base">Teaching in {term}</h2>
       <ul className="flex flex-wrap gap-2">
         {rows.map((row) => (
           <li

@@ -102,6 +102,12 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - tooltips and shortcuts on every control (`v3/behavior-keys`: `e2e/tooltips.spec.ts` checks every page; menu options are the one exception, in `docs/decisions.md`);
   - focus order and keyboard (`v3/behavior-keys`: tabbed through every product at 1440; Esc closes the top layer, and a popover no longer needs two).
 
+- [x] Hierarchy (owner, 2026-09-29; `v3/visual-hierarchy`; docs/DESIGN.md §7.8). Darker and bolder means more important, and a heading is never lighter than what it heads. It comes in two languages:
+  - **Workbench pages** (Schedule, Chat, Plan, Todo): one sidebar-section pattern, with Chat's room list as the reference. A section's band, then a lighter band for a group inside it, then rows, with a hairline above every band. Every sidebar section in the four products is `SectionHeader` or `GroupHeader` (`SECTION_BAND`); none are hand-rolled.
+  - **Reading pages** (Home, Reviews, Settings): larger type, with `PageSection`s and no bands.
+  - The kit's slots set ink and weight. Five `emph-*` utilities cover the words they don't draw.
+  - The design-tokens test fails on a heading off the ladder or a bold-but-muted label.
+
 ### Phase 5: first-time rounds, until happy
 - [ ] A scripted first visit to each product, as a new student with no account, then signed in:
   - at phone and desktop widths, in light and dark;
@@ -121,7 +127,7 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - the bell (signed in), Feedback;
   - the account.
 - **Menu.** Below 1100px the tabs fold into the product menu, whose trigger names the product you're in.
-- **Tab bar.** On phones (below `md`) the product menu is a bottom tab bar (`TabBar`, `src/components/tab-bar.tsx`; docs/decisions.md, "Phones get a tab bar"): Home, then the five products, six labeled tabs edge to edge. The top bar keeps only the product's context: the term and plan in one control that opens the plans sheet (Schedule, Plan), the room (Chat), "Settings", the wordmark on Home, and elsewhere the product's name once the page's title has scrolled under the bar. The tab bar steps aside with the workbench drawer at full, under the keyboard and in a Chat room; the drawer's peek, toasts and pages sit above it (`--tab-bar-height`, `--tab-bar-space`). Pages without it (sign-in, admin, `/privacy`) keep the product menu.
+- **Tab bar.** On phones (below `md`) the product menu is a bottom tab bar (`TabBar`, `src/components/tab-bar.tsx`; docs/decisions.md, "Phones get a tab bar"): Home, then the five products, six labeled tabs edge to edge. The top bar keeps only the product's context: the term and plan in one control that opens the plans sheet (Schedule, Plan), the room (Chat), "Settings", the wordmark on Home, a Reviews course's code, and elsewhere the product's name, at rest: the left side is never empty. The bell, the coffee link and Send feedback are in the account menu on every phone bar. The tab bar steps aside with the workbench drawer at full, under the keyboard and in a Chat room; the drawer's peek, toasts and pages sit above it (`--tab-bar-height`, `--tab-bar-space`). Pages without it (sign-in, admin, `/privacy`) keep the product menu.
 - **One bar.** Nothing sits under the family bar on Schedule, Plan or Todo, at any width. Share is an icon in the family bar; the calendar's hint of the moment is a card floating over the grid (`CanvasHint`); Plan's credits are in its bar (from 1024px) and under the plan's name on a phone. Todo's views, Back, Today and Ahead, and its period and status line are its bar's context, and Add a task and the courses and ELMS open from bar icons (popovers on a desktop, sheets on a phone), so its calendar fills the page with no side panel; on a phone the views and dates are a sheet from a bar icon too (V3 §3.9, `v3/todo-top-bar`).
 - **Account menu.** It's one menu at every size, the kit's `ActionMenu` (a sheet on phones): the account or Sign in, then the theme, then Install. On phones it also holds "Send feedback", About Terpsicle and the Early access note (the product menu's foot). The theme has no other home, except a small toggle where sign-in is off.
 - **Menus are `ActionMenu`s.** The product, account, theme and term menus, and the phone's plans sheets, are the kit's ActionMenu: a menu from `md`, a sheet below. The scheduler's plan tabs keep their menus on a desktop, where their rename field takes focus from the menu.
@@ -162,7 +168,7 @@ The most visible items:
 9. ~~**Undo toasts.**~~ Fixed: one `undoToast()`, one 10-second window.
 10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. (Every route now shares one loading and one error state: `src/features/site/route-states.tsx`.)
 11. **Back.** Six back affordances.
-12. **Section headings.** Five section-heading styles.
+12. ~~**Section headings.** Five section-heading styles.~~ Fixed: one emphasis ladder (DESIGN.md §7.8).
 13. **Loading.** Three copies of `ListSkeleton`, one lone spinner, and pulsing in two places only.
 14. **Form controls.** No shared form controls:
     - four search boxes and five text inputs;

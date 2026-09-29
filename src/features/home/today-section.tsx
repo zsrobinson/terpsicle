@@ -134,7 +134,7 @@ function TodayBody({
       <HomeNote>{note}</HomeNote>
       {later ? (
         <div className="flex flex-col">
-          <h3 className="pt-1 font-medium text-muted text-sm">
+          <h3 className="emph-heading pt-1 text-sm">
             {laterDayWords(later.date, clock.today)}
           </h3>
           <ul

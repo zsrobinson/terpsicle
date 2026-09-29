@@ -42,7 +42,7 @@ export function NothingFits({
   });
   return (
     <div data-testid="nothing-fits">
-      <SectionHeader variant="label" title="No plans" />
+      <SectionHeader title="No plans" />
       {notes.map(({ id, note }) => (
         <p key={id} data-testid="wildcard-note" className="px-4 pb-2 text-base">
           {note}

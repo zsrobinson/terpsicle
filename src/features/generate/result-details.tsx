@@ -250,7 +250,7 @@ export function ResultDetails() {
     <>
       <PanelBody className="pb-6">
         <div className="px-4 pt-4 pb-4">
-          <h2 className="font-semibold text-lg">{optionLabel(found.rank)}</h2>
+          <h2 className="emph-title text-lg">{optionLabel(found.rank)}</h2>
           <p className="tnum mt-1 text-base text-muted">
             {problems.length === 1
               ? "1 problem"

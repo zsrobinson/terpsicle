@@ -146,11 +146,7 @@ function Connections() {
     <section aria-label="Connections">
       {near.length > 0 ? (
         <section aria-label="Back to back">
-          <SectionHeader
-            title="Back to back"
-            count={near.length}
-            className="border-t-0"
-          />
+          <SectionHeader title="Back to back" count={near.length} />
           <ConnectionRows groups={near} openId={openId} />
         </section>
       ) : null}

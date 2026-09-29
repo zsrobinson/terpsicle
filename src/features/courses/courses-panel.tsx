@@ -120,7 +120,6 @@ export function CoursesPanel() {
         {bookmarked.length > 0 || (placed.length > 0 && !readOnly) ? (
           <>
             <SectionHeader
-              variant="label"
               title="Bookmarked"
               count={bookmarked.length > 0 ? bookmarked.length : undefined}
             />

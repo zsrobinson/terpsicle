@@ -92,7 +92,7 @@ export function DetailsHeader({
             </span>
           ))}
         </div>
-        <h2 className="mt-1 text-balance font-semibold text-lg leading-5">
+        <h2 className="emph-title mt-1 text-balance text-lg leading-5">
           {course.title}
         </h2>
       </div>

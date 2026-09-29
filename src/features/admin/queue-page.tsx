@@ -377,7 +377,7 @@ export function QueueRow({
               Urgent
             </span>
           ) : null}
-          <h3 id={titleId} className="font-medium text-base">
+          <h3 id={titleId} className="emph-heading text-base">
             {itemTitle(item)}
           </h3>
           <span className="tnum ml-auto text-muted text-sm">
@@ -418,7 +418,7 @@ export function QueueRow({
 
         {reasons.length > 0 ? (
           <div className="mt-3 text-sm">
-            <h4 className="text-muted">Why it was held</h4>
+            <h4 className="emph-heading">Why it was held</h4>
             <ul className="mt-1 space-y-0.5">
               {reasons.map((r, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: reasons can repeat a code; order is fixed

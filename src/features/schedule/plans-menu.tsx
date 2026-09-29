@@ -100,7 +100,9 @@ export function PlansMenu({ termId }: { termId: TermId }) {
           aria-label={`${term.name}, ${active?.name ?? "no plan yet"}`}
           className="flex h-9 min-w-0 items-center gap-1.5 rounded-md px-1.5 text-base transition-colors hover:bg-hover data-popup-open:bg-hover"
         >
-          <span className="whitespace-nowrap font-semibold">
+          {/* The term is the plan's parent: Secondary, as on a desktop's
+              bar; the plan you're in is the Label (docs/DESIGN.md §7.8). */}
+          <span className="emph-secondary whitespace-nowrap">
             {shortTermName(term.name)}
           </span>
           <TermTag tag={termTagOf(term.id, tags)} />
@@ -108,7 +110,7 @@ export function PlansMenu({ termId }: { termId: TermId }) {
             /
           </span>
           {active && active.id === marked ? <MainPlanMark /> : null}
-          <span className="min-w-0 truncate font-medium">
+          <span className="emph-label min-w-0 truncate">
             {active?.name ?? "No plan yet"}
           </span>
           <ChevronDown

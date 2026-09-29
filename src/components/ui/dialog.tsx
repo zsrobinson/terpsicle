@@ -62,7 +62,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("font-semibold text-lg tracking-tight", className)}
+      className={cn("emph-title text-lg", className)}
       {...props}
     />
   );
@@ -77,7 +77,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-muted", className)}
+      className={cn("emph-secondary", className)}
       {...props}
       {...asChildRender(asChild, children)}
     />

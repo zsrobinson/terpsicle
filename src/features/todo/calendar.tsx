@@ -252,7 +252,7 @@ function Undated({ props }: { props: ViewProps }) {
     <section aria-labelledby="todo-no-date" className="mt-6">
       <h2
         id="todo-no-date"
-        className="border-hairline border-b pb-1 font-semibold text-base"
+        className="emph-heading border-hairline border-b pb-1 text-base"
       >
         {NO_DATE}
       </h2>
@@ -285,8 +285,9 @@ function DayHead({
   return (
     <h2
       className={cn(
-        "flex items-baseline gap-1.5 px-2 py-1.5 font-normal text-sm",
-        isToday ? "font-semibold text-fg" : "text-muted",
+        // A day's name heads its column of tasks: Label, and today Heading.
+        "flex items-baseline gap-1.5 px-2 py-1.5 text-sm",
+        isToday ? "emph-heading" : "emph-label",
         className,
       )}
     >
@@ -388,19 +389,17 @@ export function WeekAgenda({
             <h2
               id={`todo-day-${date}`}
               className={cn(
-                "flex items-baseline gap-2 border-hairline border-b pb-1 font-semibold text-base",
-                date !== props.today && "text-muted",
+                // Every day is a heading, today or not: never dimmed.
+                "emph-heading flex items-baseline gap-2 border-hairline border-b pb-1 text-base",
               )}
             >
               {dayLabel(date, props.today)}
               {date === props.today || date === addDays(props.today, 1) ? (
-                <span className="font-normal text-muted text-sm">
-                  {shortDayLabel(date)}
-                </span>
+                <span className="emph-meta">{shortDayLabel(date)}</span>
               ) : null}
             </h2>
             {items.length === 0 ? (
-              <p className="py-2 text-muted text-sm">Nothing due</p>
+              <p className="emph-secondary py-2 text-sm">Nothing due</p>
             ) : (
               <ul>
                 <Rows items={open} done={false} props={props} />
@@ -603,12 +602,12 @@ export function MonthPicker({
       <section aria-labelledby="todo-picked-day">
         <h2
           id="todo-picked-day"
-          className="border-hairline border-b pb-1 font-semibold text-base"
+          className="emph-heading border-hairline border-b pb-1 text-base"
         >
           {dayLabel(picked, props.today)}
         </h2>
         {items.length === 0 ? (
-          <p className="py-2 text-muted text-sm">Nothing due</p>
+          <p className="emph-secondary py-2 text-sm">Nothing due</p>
         ) : (
           <ul>
             <Rows items={open} done={false} props={props} />

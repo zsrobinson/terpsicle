@@ -68,7 +68,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block font-medium text-sm">
+      <label htmlFor={id} className="emph-label block text-sm">
         {label}
       </label>
       {children}
@@ -129,7 +129,7 @@ function GenEdToggles({
     );
   return (
     <fieldset className="space-y-1">
-      <legend className="font-medium text-sm">GenEds it counts for</legend>
+      <legend className="emph-label text-sm">GenEds it counts for</legend>
       <p className="text-muted text-sm">{note}</p>
       <div className="grid grid-cols-1 gap-1 pt-1">
         {GEN_ED_CODES.map((c) => {
@@ -291,7 +291,7 @@ export function CourseDetailsForm({
       className="space-y-3 border-hairline border-t pt-3"
     >
       <div className="space-y-1">
-        <h3 id={`${id}-heading`} className="font-semibold">
+        <h3 id={`${id}-heading`} className="emph-heading">
           {saved ? "Course info" : "Add course info"}
         </h3>
         <p className="text-muted text-sm">
@@ -412,7 +412,7 @@ export function CreditInfoForm({ entry }: { entry: FourYearCreditEntry }) {
       className="space-y-3 border-hairline border-t pt-3"
     >
       <div className="space-y-1">
-        <h3 id={`${id}-heading`} className="font-semibold">
+        <h3 id={`${id}-heading`} className="emph-heading">
           What it counts as
         </h3>
         <p className="text-muted text-sm">

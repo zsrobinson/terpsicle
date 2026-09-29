@@ -305,7 +305,7 @@ export function Allowed() {
         <p className="mb-2">{policy.intro}</p>
         {policy.sections.map((section) => (
           <div key={section.heading} className="mb-2">
-            <h3 className="font-semibold">{section.heading}</h3>
+            <h3 className="emph-heading">{section.heading}</h3>
             <ul className="list-disc pl-4 text-muted">
               {section.items.map((item) => (
                 <li key={item}>{item}</li>

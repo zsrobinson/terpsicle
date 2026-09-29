@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import type { ReactNode } from "react";
+import { SECTION_BAND } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
 
@@ -11,13 +12,16 @@ export { GroupHeader, ListRow } from "~/ui/list-row";
 //
 //   PanelHeader (48px, or the Back bar in a drill-in), outside the scroll
 //   PanelBody: the one scroll area
-//     SectionHeader "bar": sticky at top-0, "Sections  3 of 14 fit  …"
-//       GroupHeader (~/ui): sticky under the bar, collapsible ("▾ Grace Kowalczyk …")
+//     SectionHeader: the band, sticky at top-0, "Sections  3 of 14 fit  …"
+//       GroupHeader nested (~/ui): a lighter band, sticky under it,
+//       collapsible ("▾ Grace Kowalczyk …")
 //         ListRow (~/ui) …
-//     SectionHeader "label": a quiet heading for forms ("Filters")
+//     SectionHeader: every section, forms too ("Filters"), the same band
 //   PanelFooter (optional): sticky at the bottom, the panel's primary action
 //
-// At most two sticky levels inside a PanelBody: a bar, then a group header.
+// The bands carry the hierarchy (docs/DESIGN.md §7.8): a section's is the
+// darkest, a group's inside it lighter, rows the page. At most two sticky
+// levels inside a PanelBody: a section, then a group.
 
 /**
  * The 48px header at the top of a tab panel: a title, an optional muted line,
@@ -70,10 +74,10 @@ export function PanelBody({
         className,
       )}
       // A row focused while scrolling stops clear of the sticky Sections bar
-      // and group header above it (two 36px levels), never under them
+      // and group header above it (two bands), never under them
       // (WCAG 2.4.11).
       style={{
-        scrollPaddingTop: STICKY_LEVELS * 36 + 4,
+        scrollPaddingTop: `calc(${STICKY_LEVELS} * var(--band-height) + 4px)`,
         scrollPaddingBottom: 4,
       }}
     >
@@ -83,16 +87,15 @@ export function PanelBody({
 }
 
 /**
- * A section's heading inside a panel.
- * - `bar` (default): a 36px band with hairlines above and below, for lists;
- *   `sticky` pins it to the top of the PanelBody.
- * - `label`: a quiet heading with no lines, for forms and short groups.
+ * A section's heading inside a panel: the kit's band (`SECTION_BAND`), the
+ * same in every workbench product (docs/DESIGN.md §7.8), with the title,
+ * a muted count and anything at its right. `sticky` pins it to the top of
+ * the PanelBody; a `GroupHeader nested` goes under it.
  */
 export function SectionHeader({
   title,
   count,
   right,
-  variant = "bar",
   sticky = false,
   level = 3,
   className,
@@ -102,48 +105,26 @@ export function SectionHeader({
   count?: ReactNode;
   /** Filters, jump links, a freshness note. */
   right?: ReactNode;
-  variant?: "bar" | "label";
-  /** Bar only. */
   sticky?: boolean;
   /**
    * 3 under a panel's own h2 (the scheduler's sidebar); 2 where the panel's
-   * sections sit beside the page's h1 with no heading above them (Todo's).
+   * sections sit with no heading above them (Todo's panels).
    */
   level?: 2 | 3;
   className?: string;
 }) {
   const Heading = level === 2 ? "h2" : "h3";
-  if (variant === "label")
-    return (
-      <div
-        className={cn(
-          "flex items-baseline justify-between gap-2 px-4 pt-4 pb-1.5 font-medium text-muted text-xs",
-          className,
-        )}
-      >
-        {/* A heading, so a screen reader can jump between a form's parts
-            ("Courses", "Filters", "Preferences") like between panels. */}
-        <span className="flex items-baseline gap-1.5">
-          <Heading className="font-medium">{title}</Heading>
-          {count !== undefined ? (
-            <span className="tnum font-normal">{count}</span>
-          ) : null}
-        </span>
-        {right}
-      </div>
-    );
   return (
     <div
       className={cn(
-        "flex h-9 shrink-0 items-center gap-2 whitespace-nowrap border-hairline border-y bg-bg px-4 text-sm",
+        SECTION_BAND,
+        "whitespace-nowrap bg-band",
         sticky && "sticky top-0 z-20",
         className,
       )}
     >
-      <Heading className="font-medium">{title}</Heading>
-      {count !== undefined ? (
-        <span className="tnum text-muted">{count}</span>
-      ) : null}
+      <Heading className="emph-heading">{title}</Heading>
+      {count !== undefined ? <span className="emph-meta">{count}</span> : null}
       {right ? (
         <div className="ml-auto flex min-w-0 items-center gap-3">{right}</div>
       ) : null}
@@ -152,7 +133,7 @@ export function SectionHeader({
 }
 
 /**
- * A small section label ("Bookmarked"): `SectionHeader variant="label"`.
+ * A small section label ("Bookmarked"): the same band as `SectionHeader`.
  * Kept so panels migrate on their own schedule.
  */
 export function PanelLabel({
@@ -162,7 +143,7 @@ export function PanelLabel({
   children: ReactNode;
   right?: ReactNode;
 }) {
-  return <SectionHeader variant="label" title={children} right={right} />;
+  return <SectionHeader title={children} right={right} />;
 }
 
 /**
@@ -180,7 +161,7 @@ export function PanelNote({
   className?: string;
 }) {
   return (
-    <div className={cn("px-4 py-3 text-muted text-sm", className)}>
+    <div className={cn("emph-secondary px-4 py-3 text-sm", className)}>
       <div>{children}</div>
       {action ? <div className="mt-2">{action}</div> : null}
     </div>

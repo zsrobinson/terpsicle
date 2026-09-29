@@ -116,11 +116,9 @@ export function PageHeader({
                 {eyebrow}
               </div>
             ) : null}
-            <h1 className="text-balance font-semibold text-3xl tracking-tight">
-              {title}
-            </h1>
+            <h1 className="emph-title text-balance text-3xl">{title}</h1>
             {status ? (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg text-muted">
+              <div className="emph-secondary flex flex-wrap items-center gap-x-2 gap-y-1 text-lg">
                 {status}
               </div>
             ) : null}
@@ -143,10 +141,8 @@ export function PageHeader({
         >
           {back ? <BackLink {...back} /> : null}
           <div className="min-w-0 flex-1">
-            <h2 className="truncate font-semibold text-base">{title}</h2>
-            {status ? (
-              <div className="truncate text-muted text-sm">{status}</div>
-            ) : null}
+            <h2 className="emph-heading truncate text-base">{title}</h2>
+            {status ? <div className="emph-meta truncate">{status}</div> : null}
           </div>
           {actions}
         </div>
@@ -167,9 +163,9 @@ export function PageHeader({
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         {back ? <BackLink {...back} className="mb-1" /> : null}
-        <h1 className="font-semibold text-xl tracking-tight">{title}</h1>
+        <h1 className="emph-title text-xl">{title}</h1>
         {status ? (
-          <div className="flex flex-wrap items-center gap-1.5 text-muted text-sm">
+          <div className="emph-meta flex flex-wrap items-center gap-1.5">
             {status}
           </div>
         ) : null}
@@ -189,8 +185,8 @@ export function PageHeader({
 /**
  * A page's title and status line where the page has no header of its own,
  * in the family bar's context (Todo's week, docs/decisions.md "One bar at
- * the top"): the page's one `h1`, the status line under it in the bar's
- * small type, both cut short rather than wrapped.
+ * the top"): the page's one `h1` (Title), the status line under it (Meta,
+ * docs/DESIGN.md §7.8), both cut short rather than wrapped.
  */
 export function BarTitle({
   title,
@@ -203,11 +199,9 @@ export function BarTitle({
 }) {
   return (
     <div className={cn("flex min-w-0 flex-col justify-center", className)}>
-      <h1 className="truncate font-semibold text-base leading-tight">
-        {title}
-      </h1>
+      <h1 className="emph-title truncate text-base leading-tight">{title}</h1>
       {status ? (
-        <div className="flex min-w-0 items-center gap-1 truncate text-muted text-xs leading-tight">
+        <div className="emph-meta flex min-w-0 items-center gap-1 truncate">
           {status}
         </div>
       ) : null}

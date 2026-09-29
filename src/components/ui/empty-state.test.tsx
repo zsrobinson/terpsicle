@@ -22,7 +22,7 @@ describe("EmptyState", () => {
     expect(heading).toHaveClass("text-xl");
     expect(screen.getByTestId("mark").parentElement).toHaveClass("size-10");
     expect(screen.getByText("Find any course to open its chat.")).toHaveClass(
-      "text-muted",
+      "emph-secondary",
     );
     const primary = screen.getByRole("link", { name: "Find a course" });
     expect(primary).toHaveAttribute("href", "/chat");
