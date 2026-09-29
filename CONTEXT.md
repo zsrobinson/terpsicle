@@ -63,6 +63,10 @@ _Avoid_: modal, bottom sheet
 A menu written once that's a menu under its button from 768px up and a sheet of the same items on a phone, headed by the menu's title (the plans, the account, the term, a sort). Code says `ActionMenu`.
 _Avoid_: dropdown
 
+**Push, pop and tab**:
+How a navigation moves (a view transition). A **push** goes deeper (a list row to its details, a room from Chat's list): on a phone the new page slides in from the right over the old one, which shifts left and dims; a **pop** comes back out (Back, or a link up a level), the reverse. A **tab** switch (another product or another rail tab) cross-fades with the bars still. Under Reduce Motion every one is **none**: a short fade, nothing moves. Search params that stay on one screen (typing a search) don't move at all, and neither does a sheet or the drawer, which keep their own motion. Code says `ViewTransitionType`.
+_Avoid_: animation (for these), slide-over
+
 **Page kind**:
 How a page sits under the family bar: note (560px: Settings, sign-in), reading (720px: Reviews, Privacy), app (1120px: admin), or full (a workbench and Todo, or Chat's split).
 

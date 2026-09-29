@@ -55,9 +55,10 @@ import { ChatTermMenu } from "./term-menu";
 // the list of your classes and their rooms beside the room you're in, with
 // the term in the bar. The list is the one sidebar and stays put: opening a
 // room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
-// a new sidebar). On a phone (SPEC §2) one thing at a time: the room slides
-// in over the list, which stays mounted underneath, so Back finds it where
-// you left it; room info is the kit's sheet. Everything is plain text and
+// a new sidebar). On a phone (SPEC §2) one thing at a time: the room pushes
+// in over the list (the router's view transition), which stays mounted
+// underneath, so Back pops to it where you left it; room info is the kit's
+// sheet. Everything is plain text and
 // tokens; there are no sparkles anywhere in Chat.
 
 /** How often the list's unread counts refresh while /chat is open. */
@@ -243,9 +244,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
         hidden={listHidden}
         className={cn(
           "flex min-h-0 flex-col",
-          mobile
-            ? "flex-1 animate-in fade-in-0 duration-150 motion-reduce:animate-none"
-            : "w-80 shrink-0 border-hairline border-r",
+          mobile ? "flex-1" : "w-80 shrink-0 border-hairline border-r",
         )}
       >
         <RoomList view={view} go={goScoped} empty={empty} />
@@ -424,12 +423,10 @@ function CourseRoom({
     [go, courseCode, roomId],
   );
 
-  // A phone pushes the room in over the list; a desktop fills the pane.
-  const pane = cn(
-    "flex min-w-0 flex-1 flex-col",
-    mobile &&
-      "animate-in slide-in-from-right-8 fade-in-0 duration-200 motion-reduce:animate-none",
-  );
+  // A phone pushes the room in over the list and pops it back off, with the
+  // router's view transitions (src/styles/transitions.css); a desktop fills
+  // the pane. Either way the room is in its place from the first frame.
+  const pane = "flex min-w-0 flex-1 flex-col";
   const backToList: BackTo = {
     label: "Your classes",
     to: "/chat",

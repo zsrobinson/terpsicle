@@ -6,6 +6,10 @@ import type { PageRequestContext } from "~/core/routing";
 import { CSP_NONCE_HEADER } from "~/core/schema";
 import { RouteError, RoutePending } from "~/features/site/route-states";
 import { createQueryClient } from "~/lib/query-client";
+import {
+  defaultViewTransition,
+  settleViewTransitions,
+} from "~/lib/view-transition";
 import { routeTree } from "./routeTree.gen";
 
 /**
@@ -39,11 +43,16 @@ export function getRouter() {
     // `351` as a number, so every search schema takes numbers back as
     // text (`~/core/schema/schedule-url`).
     stringifySearch: stringifySearchWith(JSON.stringify),
+    // Push, pop, tab or none for each navigation, drawn by
+    // src/styles/transitions.css (~/lib/view-transition).
+    defaultViewTransition: defaultViewTransition(),
     ...(nonce ? { ssr: { nonce } } : {}),
   });
   // Streams what a server render's queries fetched into the page, hydrates
   // it in the browser, and wraps the app in QueryClientProvider.
   setupRouterSsrQueryIntegration({ router, queryClient });
+  // Each transition's new page, once the router has rendered it.
+  settleViewTransitions(router);
   return router;
 }
 

@@ -632,7 +632,102 @@ export const SCENARIOS: Scenario[] = [
       }
     },
   },
+  {
+    id: "swipe-back",
+    title:
+      "Open a course, then swipe back from the screen's left edge: the page moves once",
+    async run(lab) {
+      await open(lab);
+      await search(lab, "cmsc131");
+      await lab.hideKeyboard();
+      await lab.wait(SETTLE);
+      await lab.tap({ selector: '[data-course-result="CMSC131"]' });
+      await lab.wait(2000);
+      await lab.step("CMSC131 open", {
+        settled: true,
+        expect: (p) => [
+          expectation(
+            "course-open",
+            !!p.panel?.heading && p.panel.heading !== "Search",
+            `panel heading "${p.panel?.heading}"`,
+          ),
+        ],
+      });
+      const typed = await lab.device.evaluate<boolean>(MOTION_RECORDER);
+      if (lab.device.engine === "ios") {
+        // Safari's own Back gesture: a drag in from the screen's left edge,
+        // over the calendar (the drawer below has its own drags).
+        const { innerHeight } = await lab.device.evaluate<{
+          innerHeight: number;
+        }>("({ innerHeight })");
+        await lab.swipe(
+          { x: 1, y: innerHeight * 0.3 },
+          { dx: 280, dy: 0 },
+          350,
+        );
+      } else {
+        // No edge gesture to send here: the browser's Back, which it doesn't
+        // animate, so our pop is the one move.
+        await lab.device.evaluate("(history.back(), true)");
+      }
+      await lab.burst("swiping back", [100, 250]);
+      await lab.wait(1500);
+      const motion = await lab.device.evaluate<Motion | null>(
+        "window.__labMotion ?? null",
+      );
+      await lab.step("swiped back", {
+        settled: true,
+        expect: (p) => [
+          expectation(
+            "went-back",
+            p.panel?.heading === "Search",
+            `panel heading "${p.panel?.heading}"`,
+          ),
+          ...movedOnce(motion, typed),
+        ],
+      });
+    },
+  },
 ];
+
+/**
+ * Records, in the page, how each navigation moved it: the view transition
+ * types the app ran (`<html data-vt-type>`) and whether the browser
+ * animated a Back itself (`hasUAVisualTransition` on the popstate).
+ */
+const MOTION_RECORDER = `(() => {
+  const r = { types: [], ua: [] };
+  window.__labMotion = r;
+  new MutationObserver(() => {
+    const t = document.documentElement.dataset.vtType;
+    if (t) r.types.push(t);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-vt-type"] });
+  addEventListener("popstate", (e) => r.ua.push(e.hasUAVisualTransition === true), { capture: true });
+  return CSS.supports("selector(:active-view-transition-type(a))");
+})()`;
+
+interface Motion {
+  types: string[];
+  ua: boolean[];
+}
+
+/** The page moved once for a Back: Safari's own swipe, or our pop, never both. */
+function movedOnce(motion: Motion | null, typed: boolean): Check[] {
+  if (!motion) return [expectation("moved-once", false, "no motion record")];
+  const ua = motion.ua.some(Boolean);
+  const ours = motion.types.length;
+  const detail = `browser animated: ${ua}; our transitions: ${JSON.stringify(motion.types)}`;
+  return [
+    expectation("moved-once-not-twice", !(ua && ours > 0), detail),
+    // Without transition types (older engines) nothing of ours runs.
+    expectation(
+      "moved-once",
+      (ua ? 1 : 0) + ours === 1 || (!typed && !ua && ours === 0),
+      detail,
+      "warn",
+    ),
+  ];
+}
 
 /** The open panel's list ends on screen, not under a toolbar or the edge. */
 function bottomVisible(p: Probe): Check[] {

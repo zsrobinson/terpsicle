@@ -349,6 +349,8 @@ function CourseLink({ code, title }: { code: CourseCode; title: string }) {
       <Link
         to="/reviews/$slug"
         params={{ slug: courseSlug(code) }}
+        // Grows into the course page's header (~/lib/view-transition).
+        data-vt-course={code}
         className={cn(
           ROW_LINK,
           "flex min-w-0 items-baseline gap-2 text-lg hover:underline",

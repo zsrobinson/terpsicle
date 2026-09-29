@@ -1,0 +1,248 @@
+/*
+ * View transitions (docs/decisions.md, "Motion through view transitions";
+ * the iPhone plan §5). The router starts one per navigation with a type
+ * (~/core/routing/view-transition picks it, ~/lib/view-transition hands it
+ * over), and this file draws each:
+ *
+ *   push  a phone slides the new page in from the right over the old one,
+ *         which shifts left and dims (UIKit's push); a desktop cross-fades
+ *   pop   the reverse
+ *   tab   a cross-fade, with the bars holding still
+ *   none  Reduce Motion: a short fade, nothing moves
+ *
+ * Every duration and curve is a motion token (styles.css), and nothing runs
+ * longer than --dur-push. Pages share rules through the `page` class, not a
+ * shared name: the whole screen (`root`) is the page, except in the
+ * scheduler, where its sidebar's panel is.
+ */
+
+/* ---------- what holds still ---------- */
+
+/* The bars and the drawer are groups of their own, so a page slides under
+   them and they don't move. Each selector names one element per page. */
+[data-slot="app-bar"] {
+  view-transition-name: app-bar;
+}
+[data-family-bar] {
+  view-transition-name: family-bar;
+}
+[data-tab-bar] {
+  view-transition-name: tab-bar;
+}
+[data-workbench-drawer] {
+  view-transition-name: workbench-drawer;
+}
+
+:root {
+  view-transition-class: page;
+}
+/* The scheduler's page is its panel: the calendar beside it (or above the
+   drawer) stays put, and the panel slides inside its own box. */
+#sidebar-panel {
+  view-transition-name: sidebar-panel;
+  view-transition-class: page;
+}
+::view-transition-image-pair(.page) {
+  overflow: clip;
+}
+html:active-view-transition-type(push):has(#sidebar-panel),
+html:active-view-transition-type(pop):has(#sidebar-panel) {
+  &::view-transition-old(root),
+  &::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* The scheduler's drill-ins have their own small slide for browsers without
+   typed view transitions (~/lib/view-transition turns them off there); where
+   the push runs, it replaces that slide rather than doubling it. */
+@supports selector(:active-view-transition-type(a)) {
+  #sidebar-panel > [data-layer] {
+    animation: none;
+  }
+}
+
+/* ---------- timing, per type ---------- */
+
+html:active-view-transition-type(push) {
+  &::view-transition-group(*),
+  &::view-transition-image-pair(*),
+  &::view-transition-old(*),
+  &::view-transition-new(*) {
+    animation-duration: var(--dur-push);
+    animation-timing-function: var(--ease-sheet);
+  }
+}
+html:active-view-transition-type(pop) {
+  &::view-transition-group(*),
+  &::view-transition-image-pair(*),
+  &::view-transition-old(*),
+  &::view-transition-new(*) {
+    animation-duration: var(--dur-pop-back);
+    animation-timing-function: var(--ease-sheet);
+  }
+}
+html:active-view-transition-type(tab) {
+  &::view-transition-group(*),
+  &::view-transition-image-pair(*),
+  &::view-transition-old(*),
+  &::view-transition-new(*) {
+    animation-duration: var(--dur-tab);
+    animation-timing-function: var(--ease-control);
+  }
+}
+
+/* ---------- push and pop ---------- */
+
+@keyframes vt-enter-from-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes vt-leave-to-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+/* The page underneath: a quarter of the way over and a little dimmer. */
+@keyframes vt-shift-out {
+  to {
+    transform: translateX(-25%);
+    filter: brightness(0.9);
+  }
+}
+@keyframes vt-shift-in {
+  from {
+    transform: translateX(-25%);
+    filter: brightness(0.9);
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+/* A desktop's quiet version, as the scheduler's drill-ins had: half a rem. */
+@keyframes vt-nudge-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+}
+@keyframes vt-nudge-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-0.5rem);
+  }
+}
+
+@media (max-width: 767px) {
+  html:active-view-transition-type(push) {
+    &::view-transition-old(.page) {
+      animation-name: vt-shift-out;
+    }
+    &::view-transition-new(.page) {
+      animation-name: vt-enter-from-right;
+      /* The incoming page's edge, in ink's hairline. */
+      box-shadow: -1px 0 0 var(--hairline-strong);
+    }
+  }
+  html:active-view-transition-type(pop) {
+    &::view-transition-old(.page) {
+      animation-name: vt-leave-to-right;
+      box-shadow: -1px 0 0 var(--hairline-strong);
+      /* The leaving page is the one on top. */
+      z-index: 1;
+    }
+    &::view-transition-new(.page) {
+      animation-name: vt-shift-in;
+    }
+  }
+}
+
+@media (min-width: 768px) {
+  html:active-view-transition-type(push),
+  html:active-view-transition-type(pop) {
+    &::view-transition-group(*),
+    &::view-transition-image-pair(*),
+    &::view-transition-old(*),
+    &::view-transition-new(*) {
+      animation-duration: var(--dur-tab);
+    }
+  }
+  /* The whole screen cross-fades; the scheduler's panel nudges. */
+  html:active-view-transition-type(push)::view-transition-new(sidebar-panel) {
+    animation-name: vt-nudge-from-right;
+  }
+  html:active-view-transition-type(pop)::view-transition-new(sidebar-panel) {
+    animation-name: vt-nudge-from-left;
+  }
+  html:active-view-transition-type(push)::view-transition-old(sidebar-panel),
+  html:active-view-transition-type(pop)::view-transition-old(sidebar-panel) {
+    animation-name: vt-fade-out;
+  }
+}
+
+/* ---------- a course row growing into its details ---------- */
+
+/* ~/lib/view-transition names the pressed row and the header it opens for
+   the length of one push, and the pair again on its pop. */
+[data-vt-course] {
+  view-transition-class: course;
+}
+::view-transition-group(.course) {
+  z-index: 1;
+}
+::view-transition-old(.course),
+::view-transition-new(.course) {
+  /* Row and header differ in size: each keeps its text's scale, pinned to
+     the top left, and the growing box clips it. */
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+/* A header that wasn't ready to be captured: the row leaves with its page. */
+::view-transition-old(.course):only-child {
+  animation-name: vt-fade-out;
+  animation-duration: var(--dur-tab);
+}
+::view-transition-new(.course):only-child {
+  animation-name: vt-fade-in;
+}
+
+/* ---------- Reduce Motion ---------- */
+
+/* Nothing slides or grows: every group changes in place with a short fade,
+   as iOS does under Reduce Motion. The router asks for `none` then; the
+   media query holds even for a transition that started otherwise, since
+   styles.css's global rule can't reach these pseudo-elements (`*` doesn't
+   match them). */
+html:active-view-transition-type(none) {
+  &::view-transition-group(*) {
+    animation-name: none;
+  }
+  &::view-transition-old(*),
+  &::view-transition-new(*) {
+    animation-duration: var(--dur-pop);
+    animation-timing-function: var(--ease-pop);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    /* biome-ignore lint/complexity/noImportantStyles: beats every type's rules */
+    animation-name: none !important;
+  }
+  ::view-transition-old(*) {
+    /* biome-ignore lint/complexity/noImportantStyles: beats every type's rules */
+    animation: var(--dur-pop) var(--ease-pop) both vt-fade-out !important;
+  }
+  ::view-transition-new(*) {
+    /* biome-ignore lint/complexity/noImportantStyles: beats every type's rules */
+    animation: var(--dur-pop) var(--ease-pop) both vt-fade-in !important;
+  }
+}

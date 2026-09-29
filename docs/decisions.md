@@ -69,6 +69,11 @@ Revisit if: a choice is too costly to make on every arrow press; that one gets i
 The owner wants "great support for view transitions and all those animation improvements". Navigations animate through TanStack Router's view transitions, with one set of motion tokens (durations and curves), direction for Back and Forward, shared elements where something grows into its page, and Reduce Motion honored everywhere.
 Revisit if: a transition slows a navigation people repeat often.
 
+### The scheduler's sidebar starts its own view transitions
+2026-09-29 · agent · Schedule
+The router's `defaultViewTransition` animates every navigation (`src/lib/view-transition.ts`), but the scheduler's sidebar follows the history itself so a click answers before the route's chunk arrives; by the time the router starts its transition the sidebar has already moved, and both snapshots would be the new view. So a move inside the scheduler starts its transition from the history listener (`historyFollower`), renders the new view in the transition's update, and the router skips that navigation. Everything else is the router's. Browsers without transition types (Safari before 18.2) get no transitions, rather than the router's untyped cross-fade on every navigation, search typing included. Reduce Motion's type is `none`: a 100 ms fade, as iOS does.
+Revisit if: the sidebar renders from the router's matches (then the router's transition covers it too), or TanStack Router starts view transitions at history-change time.
+
 ### The page behind a sheet scales back from the root
 2026-09-28 · agent · app-wide
 Every route renders inside `SheetIndent` (Base UI's Drawer provider and indent, in `src/routes/__root.tsx`), so any kit sheet scales the page back on phones; toasts stay outside it. While it's scaled the page is a containing block, so a fixed element inside it is placed against the page: full-screen shells don't notice, a scrolling page's fixed bar would move. A sheet with detents dims the page at medium and large alike, where Base UI's default leaves medium undimmed (Maps).
