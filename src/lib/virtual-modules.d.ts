@@ -18,3 +18,12 @@ declare module "virtual:terpsicle/inline-scripts" {
     Record<import("./inline-scripts").InlineScriptName, string>
   >;
 }
+
+/**
+ * The router's loading, failure and 404 states' files, for pages other than
+ * `/` to preload (scripts/pwa-precache.ts). Filled only in the Worker's
+ * build, which renders the head; empty in dev and in the browser's build.
+ */
+declare module "virtual:terpsicle/route-states-preload" {
+  export const ROUTE_STATES_PRELOAD: readonly string[];
+}

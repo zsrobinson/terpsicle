@@ -115,6 +115,14 @@ jobs:
       - name: Bundle budget
         run: pnpm check:bundle
 
+      # What only the production build has (hashed, split chunks and Vite's
+      # loader): a page that loses a chunk while starting still starts.
+      - uses: ./.github/actions/playwright
+        with:
+          only-shell: "true"
+      - name: e2e against the build
+        run: pnpm test:e2e:build
+
       - name: Route tree is committed and current
         run: git diff --exit-code -- src/routeTree.gen.ts || (echo "::error::src/routeTree.gen.ts is stale. Run pnpm build (or pnpm dev) and commit it." && exit 1)
 

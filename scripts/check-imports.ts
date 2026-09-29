@@ -8,7 +8,12 @@
 //   link: its `url_enc` column and `openFeedLink` (docs/V3.md §5.1);
 // - only the kit (src/components/ui) imports the haptic trick: controls
 //   tick through their `haptic` prop, never feature code (docs/decisions.md,
-//   "Haptics live in the kit").
+//   "Haptics live in the kit");
+// - no module of ours is imported only for what it does on import: the
+//   browser's build treats every module under src/ as free of side effects,
+//   so it would leave one out in production, though dev (which doesn't
+//   tree-shake) runs it (docs/decisions.md, "Our modules have no side effects
+//   on import"). Stylesheets and packages are fine; tests may.
 import path from "node:path";
 import {
   isMain,
@@ -23,6 +28,8 @@ import {
 const CODE = /\.(ts|tsx)$/;
 // `from "x"`, `import "x"`, `import("x")`, `export … from "x"`.
 const SPECIFIER = /(?:\bfrom|\bimport)\s*\(?\s*["']([^"'\n]+)["']/g;
+/** `import "x";`: an import with no bindings, run for its effect alone. */
+const BARE_IMPORT = /^[ \t]*import\s*["']([^"'\n]+)["']/gm;
 const CLOCK = /\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)/g;
 const FEED_LINK = /\burl_enc\b|\bopenFeedLink\b/g;
 /** The files that may read, write or open the sealed feed link. */
@@ -107,6 +114,17 @@ export function findImportProblems(rel: string, text: string): string[] {
     } else if (to !== from && (CODE.test(target) || !path.extname(target))) {
       problems.push(
         `${at(match.index)}  "${spec}": crosses from src/${from} into src/${to}; import it as "~/${aliasFolder(target)}/…"`,
+      );
+    }
+  }
+
+  if (from !== null && !isTestFile(rel)) {
+    for (const match of text.matchAll(BARE_IMPORT)) {
+      const spec = match[1] ?? "";
+      const ours = spec.startsWith("~/") || spec.startsWith(".");
+      if (!ours || /\.css(\?|$)/.test(spec)) continue;
+      problems.push(
+        `${at(match.index)}  "${spec}": imported only for its effect, which the browser's build leaves out; export something and call it (docs/decisions.md, "Our modules have no side effects on import")`,
       );
     }
   }

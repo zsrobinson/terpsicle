@@ -46,6 +46,27 @@ describe("findImportProblems", () => {
     ).toEqual([]);
   });
 
+  it("flags our modules imported only for their effect, outside tests", () => {
+    const text = [
+      'import "~/lib/register-things";',
+      'import "./boot";',
+      'import "../styles.css";',
+      'import "maplibre-gl/dist/maplibre-gl.css";',
+      'import "fake-indexeddb/auto";',
+      'import { used } from "./used";',
+      'import type { T } from "~/core/t";',
+    ].join("\n");
+    expect(
+      findImportProblems("src/features/x/y.tsx", text).map(
+        (p) => p.split(": ")[0],
+      ),
+    ).toEqual([
+      'src/features/x/y.tsx:1:1  "~/lib/register-things"',
+      'src/features/x/y.tsx:2:1  "./boot"',
+    ]);
+    expect(findImportProblems("src/features/x/y.test.tsx", text)).toEqual([]);
+  });
+
   it("flags imports from reference/", () => {
     const text = 'import { x } from "../../reference/prototype/src/core";';
     expect(findImportProblems("src/lib/x.ts", text)[0]).toContain(

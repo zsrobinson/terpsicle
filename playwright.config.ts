@@ -23,8 +23,9 @@ const executablePath = chromiumExecutable();
 
 export default defineConfig({
   testDir: "e2e",
-  // Real data, against a deployment: playwright.live.config.ts.
-  testIgnore: "live/**",
+  // Real data, against a deployment: playwright.live.config.ts. Against the
+  // production build: playwright.build.config.ts.
+  testIgnore: ["live/**", "build/**"],
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,

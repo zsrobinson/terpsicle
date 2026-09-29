@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { WithTooltip } from "~/ui/tooltip";
+import type { WithTooltip } from "~/ui/tooltip";
 
 // "Early access" (the owner, 2026-09-28): a small chip beside the wordmark
 // that says Terpsicle is still changing. The family bar shows it where
@@ -12,11 +12,19 @@ export const EARLY_ACCESS_NOTE =
 
 /**
  * The chip. Not a control: the tooltip is for a pointer, and a screen reader
- * reads the note with the words.
+ * reads the note with the words. `Tooltip` is the kit's `WithTooltip`, or
+ * the marketing page's stand-in that loads it on first use (so `/` doesn't
+ * carry it up front).
  */
-export function EarlyAccessChip({ className }: { className?: string }) {
+export function EarlyAccessChip({
+  className,
+  Tooltip,
+}: {
+  className?: string;
+  Tooltip: typeof WithTooltip;
+}) {
   return (
-    <WithTooltip label={EARLY_ACCESS_NOTE} side="bottom">
+    <Tooltip label={EARLY_ACCESS_NOTE} side="bottom">
       <span
         data-testid="early-access"
         className={cn(
@@ -27,6 +35,6 @@ export function EarlyAccessChip({ className }: { className?: string }) {
         {EARLY_ACCESS}
         <span className="sr-only">: {EARLY_ACCESS_NOTE}</span>
       </span>
-    </WithTooltip>
+    </Tooltip>
   );
 }

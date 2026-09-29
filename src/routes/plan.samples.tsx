@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ChunkLoadError } from "~/components/panel-load-boundary";
 import {
   SamplesFailed,
   SamplesView,
 } from "~/features/four-year/template-panel";
+import { ChunkLoadError } from "~/lib/chunk-load-error";
 
 // Plan's Samples view (V3 §2.11): sample plans to start from, in the
 // sidebar, in their own chunk. The loader brings the sample plans, so the
