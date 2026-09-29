@@ -245,6 +245,7 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 | Disabled | `emph-disabled` | `faint` | What you can't use yet; separators (`MetaSep`) |
 
 - **Never bold and muted together** on words that aren't a control: that's a heading lighter than its content. A control's resting state is the exception (a tab, a segmented option, a quiet link), because it darkens to `fg` as you use it.
+- **A calendar's day names head their columns:** Label, and today Heading. The hours are an axis and stay faint.
 - **Codes keep `ident` and 600** where a code names its row (CMSC351 in a course row): Geist Mono draws lighter than Bricolage at the same weight.
 - **Surfaces, the same in every product.** Content sits on the page's paper (`bg-bg`): pages, sidebars, sheets. `bg-panel` is only a band that names a group (`GroupHeader`), the workbench's rail, and the containers on a canvas (Plan's semesters, the calendar's days). A raised, keylined box is a `Card`, for one thing you press or that floats. A section is never a box: it's a `PageSection`, a hairline and a heading.
 - **The top bar** follows the same ladder: the product you're in and the thing you're in (the plan, the room) are Label, a switcher to their parent (the term) is Secondary, and a name the bar holds as a title (Settings, Admin, a phone's small product title) is Heading.
