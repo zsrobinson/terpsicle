@@ -83,25 +83,37 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   isMobile,
 }) => {
   await signIn(page);
-  // On a phone the side panel's ELMS part is folded above the calendar.
-  if (isMobile)
-    await page.getByRole("button", { name: /^Courses and ELMS/ }).click();
+  // The courses and ELMS open from the bar.
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "Courses and ELMS" })
+    .click();
   await page
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
   await page.getByRole("button", { name: "Connect ELMS" }).click();
   await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
 
-  // The week's header links to its classes.
-  await page.getByRole("link", { name: "View schedule" }).click();
+  // The week's title links to its classes (on a phone, in the bar's
+  // calendar sheet).
+  if (isMobile) {
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: "Views and dates" })
+      .click();
+    await page.getByRole("menuitem", { name: /^View schedule/ }).click();
+  } else await page.getByRole("link", { name: "View schedule" }).click();
   await expect(page).toHaveURL(/\/schedule\//);
   await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 
   // Each course in the side panel links to its chat room.
   await page.goBack();
   await expect(page.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
-  if (isMobile)
-    await page.getByRole("button", { name: /^Courses and ELMS/ }).click();
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "Courses and ELMS" })
+    .click();
   await page.getByRole("link", { name: "View chat for CMSC216" }).click();
   await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);
 });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
+import { WithTooltip } from "~/ui/tooltip";
 import { ContactEmail } from "./contact-email";
 import { SitePage } from "./site-page";
 
@@ -249,7 +250,7 @@ export function PrivacyPage() {
 
         <Section title="Contact">
           <p>Questions about your data, or a request to delete it:</p>
-          <ContactEmail />
+          <ContactEmail Tooltip={WithTooltip} />
         </Section>
       </article>
     </SitePage>

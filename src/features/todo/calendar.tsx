@@ -475,7 +475,9 @@ export function MonthGrid({
     <>
       <section
         aria-label="The month"
-        className="border-hairline border-t border-l"
+        // Fills the page under the bar, as the week does: its weeks share
+        // the height.
+        className="flex flex-1 flex-col border-hairline border-t border-l"
       >
         <div aria-hidden="true" className="grid grid-cols-7">
           {names.map((name) => (
@@ -488,7 +490,7 @@ export function MonthGrid({
           ))}
         </div>
         {weeks.map((week) => (
-          <div key={week[0]} className="grid grid-cols-7">
+          <div key={week[0]} className="grid flex-1 grid-cols-7">
             {week.map((date) => {
               const items = due.get(date) ?? [];
               const inMonth = monthOf(date) === month;

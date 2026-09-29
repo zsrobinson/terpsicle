@@ -156,7 +156,7 @@ export function AppBar({
           {/* From 1536px only, on every bar: below that the scheduler's and
               Plan's bars need its room, and a chip on the other bars alone
               would move the tabs as you switch products. */}
-          <EarlyAccessChip className="max-2xl:hidden" />
+          <EarlyAccessChip className="max-2xl:hidden" Tooltip={WithTooltip} />
           <ProductTabs current={current} />
         </div>
       )}

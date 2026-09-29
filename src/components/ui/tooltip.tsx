@@ -8,20 +8,11 @@ import {
   asChildRender,
   radixPositionerProps,
 } from "./radix-compat";
+import { TooltipProvider } from "./tooltip-provider";
 
 // The kit's tooltip, on Base UI, in Ink: an inverted fg/bg chip that fades
 // in. Base UI opens it on hover with a mouse and on keyboard focus, never on
 // a finger's touch.
-
-function TooltipProvider({
-  delayDuration = 300,
-  ...props
-}: Omit<TooltipPrimitive.Provider.Props, "delay"> & {
-  /** How long a pointer rests on a control before its tooltip opens. */
-  delayDuration?: number;
-}) {
-  return <TooltipPrimitive.Provider delay={delayDuration} {...props} />;
-}
 
 function Tooltip(props: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root {...props} />;

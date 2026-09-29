@@ -104,6 +104,11 @@ Revisit if: the persister's API leaves `experimental_`, or something per person 
 The seat poll is the manifest query's `refetchInterval`, paused while the page is hidden. Visible tabs queue for a Web Lock per term and catalog format (`terpsicle:seat-poll:<kind>:catalog@<version>:<term>`); only the holder polls, and it posts each manifest on the `terpsicle:catalog` BroadcastChannel, which the other tabs put in their own cache (newer only). A hidden, closed or out-of-date tab gives the lock up, and so does one whose last three polls failed. Without Web Locks every visible tab polls. Two visible windows would otherwise ask twice a minute, and switching tabs would refetch in each.
 Revisit if: another poll (the bell) needs the same, or TanStack ships cross-tab dedupe.
 
+### Our modules have no side effects on import, in the browser's build
+2026-09-29 · agent · app-wide
+The client build tells Rolldown that every module under `src/` has no side effects when imported (`vite.config.ts`, `treeshake.moduleSideEffects`), so a module none of whose exports is used is left out: a barrel like `~/core/schema` no longer brings every schema along. It cut every page, `/` by about 9 KB. Code that must run on import (a registration, a listener) lives in a module whose exports are used, as `activity-log-boot.tsx` does; never in one imported only for its effect. `scripts/check-imports.ts` flags a bare `import "~/…"` or relative one outside tests and stylesheets, since dev (which doesn't tree-shake) would still run it.
+Revisit if: something needs a bare `import "~/…"` for its effect.
+
 ### Back and Forward undo navigation
 2026-09-26 · owner · app-wide
 Whatever a person expects Back to undo (the open course, the tab, a filter, a chat room, a settings page) lives in the path or search params and pushes a history entry. Transient UI never pushes, and typing in search replaces. The browser's Back and the in-app Back are one thing.
@@ -363,6 +368,11 @@ Revisit if: the owner asks for another round, or a product's own UI moves far fr
 The electron-orbit "atom" is rejected ("i don't like the atom idea even one bit"), and the detangle hero it followed is gone with its inline script. The strands concept stays out of the page's motion; motion is the screen gathering the products.
 Revisit if: the owner brings the strands back.
 
+### The marketing page loads its tooltips on first use
+2026-09-29 · agent · one feature
+`/` shows no popup but tooltips, so its controls get the kit's tooltip once a mouse moves, a key is pressed or something takes focus (`components/lazy-tooltip.tsx`); a finger never opens one. Each control is made anew inside its tooltip when the code arrives, after any press ends, keeping focus. About 30 KB of the first load (docs/BUILD.md §5).
+Revisit if: the kit's tooltip gets small enough to carry, or someone notices the swap.
+
 ### Install prompt after key moments
 2026-09-26 · owner · one feature
 A dismissible dialog after the first sign-in, joining a chat or turning on a watch; remembered, with a long cooldown, never a banner, never when installed.
@@ -534,10 +544,15 @@ Revisit if: Gradescope offers students an API or feed.
 Todo marks no item as an exam. The owner wasn't sure how exams were marked and asked to keep it only if it's plain from the ELMS feed and the calendar shows it clearly; the feed never says which items are exams (it was a keyword guess on the title that called "Final exam review session" an exam), so it goes.
 Revisit if: ELMS's feed starts saying what an item is beyond assignment or event.
 
+### Todo's controls are in its bar
+2026-09-29 · owner · one feature
+Todo has no side panel: its views, Back, Today and Ahead, and the period's title are the family bar's context, and Add a task (+) and the courses and ELMS (This week, ELMS, Weeks start on) open from bar icons, as popovers on a desktop and sheets on a phone, so the calendar fills the page in every view. The owner: "the todo app has lots of things in the main content area that are more like controls and should really be at the top, and the calendar in its forms should be taking up that whole area." Weeks start on stays with the courses and ELMS rather than moving to Settings (the agent's call): it changes the calendar you're looking at. This changes "Todo is a calendar"'s side panel.
+Revisit if: people miss the composer or the courses' chart now that they're a click away.
+
 ### Todo is a calendar
 2026-09-28 · owner · one feature
 Todo's main view is a calendar: the week by default, then the month and a list, each a URL, with weeks starting Monday "since so many things are due sunday nights" and a synced pref for Sunday. It takes the workbench's shape with a side panel (adding a task in plain words, each course's weekly completion, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The side panel has no tabs (the agent's call): four short parts fit one column, and a rail would hide the composer.
-Revisit if: the side panel grows past what one column holds.
+Revisit if: the side panel grows past what one column holds. Changed 2026-09-29: the side panel's parts open from the bar ("Todo's controls are in its bar").
 
 ### Todo reads tasks with its own grammar
 2026-09-28 · agent · one feature

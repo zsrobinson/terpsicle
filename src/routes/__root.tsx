@@ -1,27 +1,63 @@
+import { ROUTE_STATES_PRELOAD } from "virtual:terpsicle/route-states-preload";
 import {
   createRootRouteWithContext,
   HeadContent,
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
 import { LazyTabBar } from "~/components/lazy-tab-bar";
 import { AccountBoot } from "~/features/auth/account-boot";
 import { Pwa } from "~/features/pwa/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
-import { NotFoundPage } from "~/features/site/not-found-page";
+import { routeStates } from "~/features/site/lazy-route-states";
 import { ActivityLogBoot } from "~/lib/activity-log-boot";
+import { markBooted } from "~/lib/booted";
 import { InlineScript } from "~/lib/inline-script";
+import { lazyComponent } from "~/lib/lazy-component";
 import type { RouterContext } from "~/lib/query-client";
 import { SheetIndent } from "~/ui/sheet-indent";
-import { Toaster } from "~/ui/sonner";
-import { TooltipProvider } from "~/ui/tooltip";
+import { TooltipProvider } from "~/ui/tooltip-provider";
 import appCss from "../styles.css?url";
 
+// Toasts show only after something happens, so sonner loads once the page
+// has, in a chunk of its own (scripts/check-bundle.ts), which the service
+// worker keeps for offline (scripts/pwa-precache.ts). A toast raised before
+// it mounts isn't lost: sonner replays what's still up when its Toaster
+// subscribes. If the chunk doesn't arrive, it's asked for again once the
+// browser is back online (~/lib/lazy-component): Undo toasts are how this
+// app does without confirmation dialogs.
+const Toaster = lazyComponent<object>(
+  () => import("~/ui/sonner").then((m) => m.Toaster),
+  () => null,
+  { Loading: null },
+);
+
+function Toasts() {
+  const [mounted, setMounted] = useState(false);
+  // Once the browser is idle, so its code isn't parsed while the page is
+  // still getting ready to answer a tap.
+  useEffect(() => {
+    if (typeof requestIdleCallback !== "function") {
+      const timer = setTimeout(() => setMounted(true), 1);
+      return () => clearTimeout(timer);
+    }
+    const idle = requestIdleCallback(() => setMounted(true), { timeout: 2000 });
+    return () => cancelIdleCallback(idle);
+  }, []);
+  if (!mounted) return null;
+  return <Toaster />;
+}
+
+/** The leaf route is `/` (the root's own types know only itself). */
+function isMarketingPage(matches: readonly { routeId: string }[]): boolean {
+  return matches.at(-1)?.routeId === "/";
+}
+
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       // `viewport-fit=cover`: edge to edge on an iPhone, under the notch, the
@@ -65,11 +101,21 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         sizes: "180x180",
       },
       ...pwaLinks,
+      // Every page but `/` may be drawn as loading, or fail, before its code
+      // arrives: fetch the router's states alongside the page's own code
+      // (~/features/site/lazy-route-states). `/` has its own frame.
+      ...(isMarketingPage(matches)
+        ? []
+        : ROUTE_STATES_PRELOAD.map((href) => ({
+            rel: "modulepreload",
+            href,
+          }))),
     ],
   }),
   shellComponent: RootDocument,
   component: RootLayout,
-  notFoundComponent: NotFoundPage,
+  // With the family bar, so a chunk of its own in the browser.
+  notFoundComponent: routeStates().NotFoundPage,
 });
 
 // The HTML shell is server-rendered (theme before first paint, fonts, CSS);
@@ -110,6 +156,9 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootLayout() {
+  // React has taken over the page: load recovery may now show its note
+  // without breaking hydration (~/lib/load-recovery).
+  useEffect(markBooted, []);
   return (
     <TooltipProvider>
       {/* The page scales back behind a sheet; the phone's tab bar and
@@ -121,7 +170,7 @@ function RootLayout() {
         <Pwa />
       </SheetIndent>
       <LazyTabBar />
-      <Toaster />
+      <Toasts />
     </TooltipProvider>
   );
 }
