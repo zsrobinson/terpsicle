@@ -55,9 +55,10 @@ import { ChatTermMenu } from "./term-menu";
 // the list of your classes and their rooms beside the room you're in, with
 // the term in the bar. The list is the one sidebar and stays put: opening a
 // room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
-// a new sidebar). On a phone (SPEC §2) one thing at a time: the room slides
-// in over the list, which stays mounted underneath, so Back finds it where
-// you left it; room info is the kit's sheet. Everything is plain text and
+// a new sidebar). On a phone (SPEC §2) one thing at a time: the room pushes
+// in over the list (the router's view transition), which stays mounted
+// underneath, so Back pops to it where you left it; room info is the kit's
+// sheet. Everything is plain text and
 // tokens; there are no sparkles anywhere in Chat.
 
 /** How often the list's unread counts refresh while /chat is open. */
@@ -241,6 +242,9 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       <nav
         aria-label="Rooms"
         hidden={listHidden}
+        // Its fade back in is for browsers without typed view transitions;
+        // elsewhere the pop draws it (src/styles/transitions.css).
+        data-vt-fallback={mobile ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-col",
           mobile
@@ -424,14 +428,18 @@ function CourseRoom({
     [go, courseCode, roomId],
   );
 
-  // A phone pushes the room in over the list; a desktop fills the pane.
-  // The room's composer takes the phone's bottom edge, so the tab bar steps
-  // aside while it's open (`data-hides-tab-bar`, styles.css).
+  // A phone pushes the room in over the list and pops it back off, with the
+  // router's view transitions (src/styles/transitions.css); a desktop fills
+  // the pane. Browsers without typed view transitions keep a small slide of
+  // its own, which data-vt-fallback turns off everywhere else. The room's
+  // composer takes the phone's bottom edge, so the tab bar steps aside while
+  // it's open (`data-hides-tab-bar`, styles.css).
   const pane = cn(
     "flex min-w-0 flex-1 flex-col",
     mobile &&
       "animate-in slide-in-from-right-8 fade-in-0 duration-200 motion-reduce:animate-none",
   );
+  const fallback = mobile ? "" : undefined;
   const backToList: BackTo = {
     label: "Your classes",
     to: "/chat",
@@ -440,7 +448,11 @@ function CourseRoom({
 
   if (!tree || !room)
     return (
-      <section data-hides-tab-bar="" className={pane}>
+      <section
+        data-hides-tab-bar=""
+        className={pane}
+        data-vt-fallback={fallback}
+      >
         {course === null && !missing ? (
           // The room's own shape, so nothing moves when it arrives.
           <RoomSkeleton back={mobile ? backToList : undefined} />
@@ -485,7 +497,12 @@ function CourseRoom({
 
   return (
     <>
-      <section data-hides-tab-bar="" className={pane} aria-label={room.label}>
+      <section
+        data-hides-tab-bar=""
+        className={pane}
+        data-vt-fallback={fallback}
+        aria-label={room.label}
+      >
         <RoomView
           courseCode={courseCode}
           room={room}

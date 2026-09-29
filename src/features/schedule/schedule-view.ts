@@ -18,6 +18,7 @@ import {
   ResultIdSchema,
   ScheduleHistoryStateSchema,
 } from "~/core/schema/schedule-url";
+import { historyFollower } from "~/lib/view-transition";
 import type { DrillEntry } from "~/state/drill";
 import { optionLabel, useGenerateRun } from "~/state/generate-run-store";
 import { useUi } from "~/state/ui-store";
@@ -117,13 +118,16 @@ export function viewAt(
  * The URL's location as soon as it changes: the history tells its
  * subscribers at once, while the router's state follows once the route has
  * loaded. The sidebar answers a click in the same frame (a route whose chunk
- * is still coming shows its skeleton).
+ * is still coming shows its skeleton), except that a move with a view
+ * transition waits for the transition to capture the page it leaves
+ * (`historyFollower`, ~/lib/view-transition).
  */
 export function useLatestLocation(): ParsedLocation {
   const router = useRouter();
+  const follower = historyFollower(router);
   const raw = useSyncExternalStore(
-    router.history.subscribe,
-    () => router.history.location,
+    follower.subscribe,
+    follower.getSnapshot,
     () => router.history.location,
   );
   return useMemo(() => router.parseLocation(raw), [router, raw]);
