@@ -11,9 +11,10 @@ import { encodeShare } from "../../src/core/share/share";
 
 // Real data on a deployment (playwright.live.config.ts): the default term's
 // catalog loads from /data (production R2 on a PR preview), a real section
-// shows on the calendar, and the next visit starts from the IndexedDB cache
-// without refetching departments. Logs what the first visit downloaded, and
-// holds it to the budgets below (BUILD §5: regressions fail CI).
+// shows on the calendar, and the next visit starts from the query cache in
+// IndexedDB (DATA.md §5.5) without refetching departments. Logs what the
+// first visit downloaded, and holds it to the budgets below (BUILD §5:
+// regressions fail CI).
 
 /**
  * BUILD §5's "first load < 1.5 MB compressed": everything over the wire until
@@ -101,10 +102,21 @@ test("the default term's real courses load, then come from the cache", async ({
   const sectionMs = Date.now() - started;
   const firstLoad = first.app + first.data;
   await expect(page.getByRole("alert")).toHaveCount(0);
-  // Every department is in once the manifest is committed to the cache.
+  // The whole term is saved: the manifest (saved first, DATA.md §5.5) and
+  // every department it lists.
+  const termFiles = [
+    manifestKey(term.id),
+    ...manifest.departments.map((d) => deptChunkKey(term.id, d.code, d.hash)),
+  ];
   await expect
-    .poll(() => page.evaluate(savedKeys), { timeout: 60_000 })
-    .toContain(manifestKey(term.id));
+    .poll(
+      async () => {
+        const saved = new Set(await page.evaluate(savedKeys));
+        return termFiles.filter((k) => !saved.has(k));
+      },
+      { timeout: 60_000 },
+    )
+    .toEqual([]);
   const catalogMs = Date.now() - started;
   const firstVisit = { ...first };
 
@@ -139,25 +151,40 @@ test("the default term's real courses load, then come from the cache", async ({
   );
 });
 
-/** Pointer keys in the app's IndexedDB cache (runs in the page; closes its connection). */
+/**
+ * The R2 keys of the live files saved in the query cache (runs in the page;
+ * closes its connection so it never blocks the app's).
+ */
 function savedKeys(): Promise<string[]> {
   return new Promise((resolve, reject) => {
-    const open = indexedDB.open("terpsicle");
+    const open = indexedDB.open("terpsicle-query");
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const db = open.result;
-      if (!db.objectStoreNames.contains("manifests")) {
+      if (!db.objectStoreNames.contains("rows")) {
         db.close();
         resolve([]);
         return;
       }
-      const request = db
-        .transaction("manifests")
-        .objectStore("manifests")
-        .getAllKeys();
+      const request = db.transaction("rows").objectStore("rows").getAllKeys();
       request.onsuccess = () => {
         db.close();
-        resolve(request.result.map(String));
+        // `published:<family>-["published","live","<R2 key>"]`
+        resolve(
+          request.result.flatMap((key) => {
+            const text = String(key);
+            try {
+              const parsed: unknown = JSON.parse(
+                text.slice(text.indexOf("-") + 1),
+              );
+              return Array.isArray(parsed) && parsed[1] === "live"
+                ? [String(parsed[2])]
+                : [];
+            } catch {
+              return [];
+            }
+          }),
+        );
       };
       request.onerror = () => {
         db.close();

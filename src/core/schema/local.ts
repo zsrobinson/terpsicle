@@ -14,7 +14,6 @@ import {
   SectionKeySchema,
   TermIdSchema,
 } from "./primitives";
-import { SchemaFamilySchema } from "./versions";
 
 // Everything the browser keeps in IndexedDB (Dexie). Tables and versions: docs/DATA.md §5.
 
@@ -216,33 +215,3 @@ export type FourYearPrefs = z.infer<typeof FourYearPrefsSchema>;
 
 // The `settings` table's rows live in settings.ts: one of them (Generate's
 // drafts) needs generate.ts, which imports this file.
-
-// ---------- data cache ----------
-
-/**
- * `manifests` table: the last manifest whose referenced files are all in
- * `files`. Keyed by its R2 key (`catalog/<term>/manifest.json`,
- * `planetterp/manifest.json`, `geo/manifest.json`). `data` is the parsed JSON.
- */
-export const CachedManifestSchema = z.object({
-  key: z.string().min(1),
-  data: z.unknown(),
-  /** Last time we confirmed it with the server (200 or 304). */
-  checkedAt: IsoDateTimeSchema,
-  etag: z.string().nullable(),
-});
-export type CachedManifest = z.infer<typeof CachedManifestSchema>;
-
-/**
- * `files` table: immutable content-hashed files, keyed by R2 key. `data` is
- * parsed, already-validated JSON, or an ArrayBuffer for the routes binary.
- */
-export const CachedFileSchema = z.object({
-  key: z.string().min(1),
-  family: SchemaFamilySchema,
-  /** Set for per-term files so a term's cache can be dropped together. */
-  termId: TermIdSchema.nullable(),
-  data: z.unknown(),
-  storedAt: IsoDateTimeSchema,
-});
-export type CachedFile = z.infer<typeof CachedFileSchema>;

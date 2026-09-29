@@ -150,21 +150,28 @@ function useSnapOnRoot(snap: DrawerSnap) {
 
 /**
  * The status bar's and the home indicator's insets (`--safe-top` and
- * `--safe-bottom`, styles.css), in pixels, off a probe padded by them: full
- * stops that much lower, under the family bar, and peek rests that much
- * higher, with its panel ending above the indicator. They change as the
- * phone turns.
+ * `--safe-bottom`, styles.css) and the tab bar's height (`--tab-bar-height`),
+ * in pixels, off a probe padded by them: full stops that much lower, under
+ * the family bar, and peek rests that much higher, on the tab bar, with its
+ * panel ending above it. They change as the phone turns.
  */
 function useSafeInsets(): [SafeInsets, (probe: HTMLElement | null) => void] {
-  const [insets, setInsets] = useState<SafeInsets>({ top: 0, bottom: 0 });
+  const [insets, setInsets] = useState<SafeInsets>({
+    top: 0,
+    bottom: 0,
+    tabBar: 0,
+  });
   const measure = useCallback((probe: HTMLElement | null) => {
     if (!probe) return;
     const read = () => {
       const style = getComputedStyle(probe);
       const top = Number.parseFloat(style.paddingTop) || 0;
       const bottom = Number.parseFloat(style.paddingBottom) || 0;
+      const tabBar = Number.parseFloat(style.paddingLeft) || 0;
       setInsets((was) =>
-        was.top === top && was.bottom === bottom ? was : { top, bottom },
+        was.top === top && was.bottom === bottom && was.tabBar === tabBar
+          ? was
+          : { top, bottom, tabBar },
       );
     };
     read();
@@ -218,6 +225,9 @@ export function WorkbenchDrawer({
   const viewport = useViewportHeight();
   const [safe, measureSafeInsets] = useSafeInsets();
   const heights = snapHeights(viewport, safe);
+  // What the panel ends above: the tab bar and the indicator, or at full,
+  // where the tab bar has stepped aside, the indicator alone.
+  const cover = safe.bottom + (snap === "full" ? 0 : safe.tabBar);
   const keyboardUp = useKeyboardUp();
   const painted = usePainted();
   const popup = useRef<HTMLDivElement>(null);
@@ -323,7 +333,7 @@ export function WorkbenchDrawer({
       <span
         ref={measureSafeInsets}
         aria-hidden="true"
-        className="pointer-events-none invisible fixed bottom-0 left-0 h-0 w-px pt-(--safe-top) pb-(--safe-bottom)"
+        className="pointer-events-none invisible fixed bottom-0 left-0 h-0 w-0 pt-(--safe-top) pb-(--safe-bottom) pl-(--tab-bar-height)"
       />
       <div ref={setHost} className="contents" />
       {/* Its own provider: the page's (the sheet indent) counts open
@@ -395,11 +405,11 @@ export function WorkbenchDrawer({
                     className="flex flex-col"
                     // The drawer is full height and slides down; size the
                     // inside to what's showing so its scroll area ends above
-                    // the home indicator, or at the keyboard when it's up
-                    // (the paper runs on under both). Never less than the
-                    // header.
+                    // the tab bar and the home indicator, or at the keyboard
+                    // when it's up (the paper runs on under them). Never
+                    // less than the header.
                     style={{
-                      height: `max(calc(${heights[snap]}px - max(var(--drawer-keyboard-inset, 0px), ${safe.bottom}px)), ${Math.min(heights[snap], PEEK_HEIGHT)}px)`,
+                      height: `max(calc(${heights[snap]}px - max(var(--drawer-keyboard-inset, 0px), ${cover}px)), ${Math.min(heights[snap], PEEK_HEIGHT)}px)`,
                     }}
                   >
                     <Grabber snap={snap} onSnap={setSnap} />

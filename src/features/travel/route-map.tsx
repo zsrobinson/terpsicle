@@ -9,8 +9,8 @@ import {
 import { type Connection, TILES_KEY } from "~/core/schema";
 import { track } from "~/lib/analytics";
 import { clientConfig } from "~/lib/config";
-import { useCatalog } from "~/state/catalog-store";
 import { useRouteGeometry } from "~/state/data-hooks";
+import { usePublishedSource } from "~/state/query/published";
 import { Skeleton } from "~/ui/skeleton";
 import { RouteDrawing } from "./route-drawing";
 
@@ -36,7 +36,7 @@ function tilesUrl(): string {
 
 export function RouteMap({ connection }: { connection: Connection }) {
   const { from, to, mode } = connection;
-  const kind = useCatalog((s) => s.reader?.kind ?? null);
+  const kind = usePublishedSource((s) => s.source?.kind ?? null);
   const { geometry, state } = useRouteGeometry(
     from.building,
     to.building,

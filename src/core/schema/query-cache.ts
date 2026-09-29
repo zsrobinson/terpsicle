@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ManifestSchema } from "./catalog";
+import { TermIdSchema } from "./primitives";
 
 // The query cache's rows in IndexedDB (docs/DATA.md §5.5): one per persisted
 // query, as TanStack Query's per-query persister writes it. Read back
@@ -17,6 +19,19 @@ export const PersistedQueryRowSchema = z.looseObject({
   }),
 });
 export type PersistedQueryRow = z.infer<typeof PersistedQueryRowSchema>;
+
+/**
+ * What the tab that polls a term's manifest tells this browser's other
+ * tabs on the `terpsicle:catalog` channel (DATA.md §5.1 step 5): the
+ * manifest it fetched, and when. Checked like any other read.
+ */
+export const ManifestBroadcastSchema = z.object({
+  kind: z.enum(["mock", "live"]),
+  termId: TermIdSchema,
+  updatedAt: z.number(),
+  manifest: ManifestSchema,
+});
+export type ManifestBroadcast = z.infer<typeof ManifestBroadcastSchema>;
 
 /** The query cache's own database, apart from the plans in `terpsicle`. */
 export const QUERY_CACHE_DB_NAME = "terpsicle-query";

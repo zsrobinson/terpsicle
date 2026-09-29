@@ -73,7 +73,7 @@ export interface AnalyticsEvents {
   };
   catalog_load_failed: {
     termId: TermId | null;
-    reason: "missing" | "network" | "invalid" | "newer-data";
+    reason: "missing" | "network" | "invalid" | "timeout" | "newer-data";
   };
   generate_run: {
     /** Courses listed by code (a wildcard's matches aren't counted). */

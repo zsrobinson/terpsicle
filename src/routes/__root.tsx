@@ -8,6 +8,7 @@ import {
 import { type ReactNode, useEffect, useState } from "react";
 // Not the barrel: its settings page pulls the scheduler's stores into every
 // page (scripts/check-bundle.ts keeps them out of `/`).
+import { LazyTabBar } from "~/components/lazy-tab-bar";
 import { AccountBoot } from "~/features/auth/account-boot";
 import { Pwa } from "~/features/pwa/pwa";
 import { pwaLinks, pwaMeta, themeColorMeta } from "~/features/pwa/pwa-head";
@@ -160,13 +161,15 @@ function RootLayout() {
   useEffect(markBooted, []);
   return (
     <TooltipProvider>
-      {/* The page scales back behind a sheet; toasts stay put over it. */}
+      {/* The page scales back behind a sheet; the phone's tab bar and
+          toasts stay put over it. */}
       <SheetIndent>
         <AccountBoot />
         <ActivityLogBoot />
         <Outlet />
         <Pwa />
       </SheetIndent>
+      <LazyTabBar />
       <Toasts />
     </TooltipProvider>
   );

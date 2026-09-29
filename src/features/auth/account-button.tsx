@@ -14,14 +14,13 @@ import { InstallAppMenuItem } from "~/features/pwa/install-entry";
 import { SyncStatusLine } from "~/features/sync/status-view";
 import { track } from "~/lib/analytics";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
-import { WithTooltip } from "~/ui/tooltip";
+  ActionMenu,
+  ActionMenuItem,
+  ActionMenuLinkItem,
+  ActionMenuSeparator,
+  ActionMenuText,
+  usePhoneMenus,
+} from "~/ui/action-menu";
 import { REMOVE_TOOLTIP, signOutFailure, useAccount } from "./account-store";
 import { Avatar } from "./avatar";
 import { currentPath } from "./sign-in-panel";
@@ -30,8 +29,9 @@ import { currentPath } from "./sign-in-panel";
  * The account entry at the right end of every page's bar (V2.md §1.1,
  * docs/COHESION.md): the avatar when signed in, a quiet "Sign in" when
  * not, and nothing while /api/me loads or where signing in is off. One menu
- * at every size: the account (or Sign in), then the theme and Install, then
- * `items` (on phones, "Send feedback"). Sign-in is invited, never required.
+ * at every size, the kit's ActionMenu (a sheet on phones): the account (or
+ * Sign in), then the theme and Install, then `items` (on phones, "Send
+ * feedback"). Sign-in is invited, never required.
  * `fallback` shows while there's no menu (the theme toggle), so the theme
  * is always one click away.
  */
@@ -69,7 +69,7 @@ export function useAccountButtonShown(): boolean {
 }
 
 const triggerClass =
-  "flex h-7 items-center gap-1.5 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg";
+  "flex h-7 items-center gap-1.5 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg";
 
 function AccountMenu({
   compact,
@@ -81,56 +81,59 @@ function AccountMenu({
   note: string | null;
 }) {
   const user = useAccount((s) => s.user);
+  const [open, setOpen] = useState(false);
   return (
-    <DropdownMenu>
-      <WithTooltip
-        label={user ? "Your account and theme" : signInPitch(pagePathname())}
-        side="bottom"
-      >
-        <DropdownMenuTrigger asChild>
-          {user ? (
-            <button
-              type="button"
-              aria-label={
-                note
-                  ? `Account: ${user.name}, ${note}`
-                  : `Account: ${user.name}`
-              }
-              className={`${triggerClass} relative px-1.5`}
-            >
-              <Avatar name={user.name} />
-              {note ? (
-                <span
-                  aria-hidden="true"
-                  data-testid="account-note"
-                  className="absolute top-0.5 right-0.5 size-2 rounded-full bg-fg ring-2 ring-bg"
-                />
-              ) : null}
-            </button>
-          ) : compact ? (
-            <button
-              type="button"
-              aria-label="Sign in"
-              className="flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7"
-            >
-              <LogIn size={15} strokeWidth={1.75} aria-hidden="true" />
-            </button>
-          ) : (
-            <button type="button" className={triggerClass}>
-              <LogIn size={14} aria-hidden="true" />
-              Sign in
-            </button>
-          )}
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent side="bottom" align="end" className="w-[260px]">
-        {user ? <AccountItems user={user} /> : <SignInItems />}
-        <DropdownMenuSeparator />
-        <ThemeMenuItems />
-        <InstallAppMenuItem />
-        {items}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ActionMenu
+      open={open}
+      onOpenChange={setOpen}
+      title={user ? "Account" : "Sign in"}
+      tooltip={user ? "Your account and theme" : signInPitch(pagePathname())}
+      align="end"
+      className="w-[260px]"
+      trigger={
+        user ? (
+          <button
+            type="button"
+            aria-label={
+              note ? `Account: ${user.name}, ${note}` : `Account: ${user.name}`
+            }
+            className={`${triggerClass} relative px-1.5`}
+          >
+            <Avatar name={user.name} />
+            {note ? (
+              <span
+                aria-hidden="true"
+                data-testid="account-note"
+                className="absolute top-0.5 right-0.5 size-2 rounded-full bg-fg ring-2 ring-bg"
+              />
+            ) : null}
+          </button>
+        ) : compact ? (
+          <button
+            type="button"
+            aria-label="Sign in"
+            className="flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg max-[380px]:size-7"
+          >
+            <LogIn size={15} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        ) : (
+          <button type="button" className={triggerClass}>
+            <LogIn size={14} aria-hidden="true" />
+            Sign in
+          </button>
+        )
+      }
+    >
+      {user ? (
+        <AccountItems user={user} onSignedOut={() => setOpen(false)} />
+      ) : (
+        <SignInItems />
+      )}
+      <ActionMenuSeparator />
+      <ThemeMenuItems />
+      <InstallAppMenuItem />
+      {items}
+    </ActionMenu>
   );
 }
 
@@ -146,43 +149,61 @@ function pagePathname(): string {
 /** The menu's sign-in: this product's pitch, then the Google (or test mode) link. */
 function SignInItems() {
   const testMode = useAccount((s) => s.flags.authTestMode);
+  const phone = usePhoneMenus();
   return (
     <>
-      <DropdownMenuLabel>Sign in</DropdownMenuLabel>
-      <p className="px-2 pb-2 text-muted text-sm">
+      <ActionMenuText>
+        {/* A phone's sheet is headed by the menu's title already. */}
+        {phone ? null : (
+          <span className="block pb-0.5 font-medium text-fg">Sign in</span>
+        )}
         {signInPitch(pagePathname())}
-      </p>
-      <DropdownMenuItem asChild>
-        <a
-          href={signInStartHref(SIGN_IN_START_PATH, currentPath())}
-          onClick={() => track("signin_started", { from: "topbar" })}
-        >
-          {testMode ? (
+      </ActionMenuText>
+      <ActionMenuLinkItem
+        icon={
+          testMode ? (
             <LogIn aria-hidden="true" className="text-muted" />
           ) : (
             <img src="/google-g.svg" alt="" width={16} height={16} />
-          )}
-          {testMode ? "Sign in (test mode)" : "Sign in with Google"}
-        </a>
-      </DropdownMenuItem>
+          )
+        }
+        render={
+          <a
+            href={signInStartHref(SIGN_IN_START_PATH, currentPath())}
+            onClick={() => track("signin_started", { from: "topbar" })}
+          />
+        }
+      >
+        {testMode ? "Sign in (test mode)" : "Sign in with Google"}
+      </ActionMenuLinkItem>
     </>
   );
 }
 
 /** Who's signed in, then Settings, Admin (admins) and the two sign-outs. */
-function AccountItems({ user }: { user: MeUser }) {
+function AccountItems({
+  user,
+  onSignedOut,
+}: {
+  user: MeUser;
+  /** Closes the menu: it stays open through a sign-out to say if it failed. */
+  onSignedOut: () => void;
+}) {
   const signOut = useAccount((s) => s.signOut);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   const [failed, setFailed] = useState<string | null>(null);
   const run = (removeLocal: boolean) => {
     setFailed(null);
     signOut({ removeLocal })
-      .then(() => track("signed_out", { removedLocal: removeLocal }))
+      .then(() => {
+        track("signed_out", { removedLocal: removeLocal });
+        onSignedOut();
+      })
       .catch((error: unknown) => setFailed(signOutFailure(error)));
   };
   return (
     <>
-      <DropdownMenuLabel className="flex items-center gap-2 py-2">
+      <ActionMenuText className="flex items-center gap-2 py-2">
         <Avatar name={user.name} />
         <span className="min-w-0">
           <span
@@ -191,72 +212,56 @@ function AccountItems({ user }: { user: MeUser }) {
           >
             {user.name}
           </span>
-          <span
-            data-private=""
-            className="block truncate font-normal text-muted text-sm"
-          >
+          <span data-private="" className="block truncate text-muted text-sm">
             {user.email}
           </span>
         </span>
-      </DropdownMenuLabel>
+      </ActionMenuText>
       <SyncStatusLine />
-      <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <a href="/settings">
-          <Settings aria-hidden="true" className="text-muted" />
-          Settings
-        </a>
-      </DropdownMenuItem>
+      <ActionMenuSeparator />
+      <ActionMenuLinkItem
+        href="/settings"
+        icon={<Settings aria-hidden="true" className="text-muted" />}
+      >
+        Settings
+      </ActionMenuLinkItem>
       {seatAlerts ? (
-        <WithTooltip
-          label="The sections you're watching for a seat"
-          side="left"
+        <ActionMenuLinkItem
+          href="/settings#watching"
+          tooltip="The sections you're watching for a seat"
+          icon={<Bell aria-hidden="true" className="text-muted" />}
         >
-          <DropdownMenuItem asChild>
-            <a href="/settings#watching">
-              <Bell aria-hidden="true" className="text-muted" />
-              Watching for a seat
-            </a>
-          </DropdownMenuItem>
-        </WithTooltip>
+          Watching for a seat
+        </ActionMenuLinkItem>
       ) : null}
       {user.isAdmin ? (
-        <DropdownMenuItem asChild>
-          <a href="/admin">
-            <ShieldCheck aria-hidden="true" className="text-muted" />
-            Admin
-          </a>
-        </DropdownMenuItem>
+        <ActionMenuLinkItem
+          href="/admin"
+          icon={<ShieldCheck aria-hidden="true" className="text-muted" />}
+        >
+          Admin
+        </ActionMenuLinkItem>
       ) : null}
-      <WithTooltip label="Your plans stay on this device" side="left">
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            run(false);
-          }}
-        >
-          <LogOut aria-hidden="true" className="text-muted" />
-          Sign out
-        </DropdownMenuItem>
-      </WithTooltip>
-      <WithTooltip label={REMOVE_TOOLTIP} side="left">
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            run(true);
-          }}
-        >
-          <Trash2 aria-hidden="true" className="text-muted" />
-          Sign out and remove plans from this device
-        </DropdownMenuItem>
-      </WithTooltip>
+      <ActionMenuItem
+        keepOpen
+        tooltip="Your plans stay on this device"
+        icon={<LogOut aria-hidden="true" className="text-muted" />}
+        onSelect={() => run(false)}
+      >
+        Sign out
+      </ActionMenuItem>
+      <ActionMenuItem
+        keepOpen
+        tooltip={REMOVE_TOOLTIP}
+        icon={<Trash2 aria-hidden="true" className="text-muted" />}
+        onSelect={() => run(true)}
+      >
+        Sign out and remove plans from this device
+      </ActionMenuItem>
       {failed ? (
-        <p
-          role="status"
-          className="max-w-[240px] px-2 py-1.5 text-muted text-sm"
-        >
-          {failed}
-        </p>
+        <ActionMenuText className="max-w-[240px]">
+          <p role="status">{failed}</p>
+        </ActionMenuText>
       ) : null}
     </>
   );

@@ -218,7 +218,7 @@ Six pixel marks, drawn by the owner (2026-09-28), each a 9×9 tile (`src/lib/bra
 
 ### 7.6 The product menu
 
-Every page has the family bar (docs/COHESION.md §4): from 1100px, the five products are labeled tabs beside the wordmark. Narrower, the umbrella and the product you're in open the product menu (`src/components/product-menu.tsx`, docs/V2.md §1.1): each product with its mark and a one-line description.
+Every page has the family bar (docs/COHESION.md §4): from 1100px, the five products are labeled tabs beside the wordmark. Narrower, the umbrella and the product you're in open the product menu (`src/components/product-menu.tsx`, docs/V2.md §1.1): each product with its mark and a one-line description. Below `md` the phone's tab bar takes its place (`src/components/tab-bar.tsx`): Home and the five products, labeled, marks always in color, the current one in its soft color.
 - The product you're in wears its soft color and a check. There are no paths, counts or badges: nothing here pulls you into another product.
 - Links between products say what you'll see: "View schedule", "View reviews", "View chat".
 

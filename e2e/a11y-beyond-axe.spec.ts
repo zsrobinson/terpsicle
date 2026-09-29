@@ -12,7 +12,7 @@ async function open(page: Page, path = "/schedule?demo=1") {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(path);
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible({
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible({
     timeout: 20_000,
   });
   if (path.includes("demo"))
@@ -66,12 +66,10 @@ test.describe("desktop", () => {
     page,
   }) => {
     await open(page);
-    // Skip to the calendar; Share comes first (the canvas's top left), then
-    // the next Tab lands on the week's first class.
+    // Skip to the calendar; the next Tab lands on the week's first class
+    // (Share is in the family bar).
     await page.keyboard.press("Tab");
     await page.keyboard.press("Enter");
-    await page.keyboard.press("Tab");
-    await expect(focused(page)).toHaveAccessibleName("Share");
     await page.keyboard.press("Tab");
     await expect(focused(page)).toHaveAccessibleName(
       /^STAT400 0101, Monday 10am/,
@@ -109,13 +107,10 @@ test.describe("desktop", () => {
     await page.keyboard.press("Home");
     await expect(focused(page)).toHaveAccessibleName(/, Tuesday 9:30am/);
 
-    // Shift+Tab leaves the calendar (for Share, then the sidebar's edge),
-    // and Tab comes back to where you were.
-    await page.keyboard.press("Shift+Tab");
-    await expect(focused(page)).toHaveAccessibleName("Share");
+    // Shift+Tab leaves the calendar (for the sidebar's edge), and Tab comes
+    // back to where you were.
     await page.keyboard.press("Shift+Tab");
     await expect(focused(page)).toHaveAccessibleName("Sidebar width");
-    await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     await expect(focused(page)).toHaveAccessibleName(/, Tuesday 9:30am/);
   });

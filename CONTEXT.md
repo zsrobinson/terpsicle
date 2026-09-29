@@ -28,7 +28,11 @@ Terpsicle Todo, deadlines from ELMS and your own tasks on a calendar at `/todo`,
 Schedule, Reviews, Chat, Plan, Todo (red, purple, blue, green, yellow). Menus, marketing and docs list the products in this order.
 
 **Product menu**:
-The small menu for moving between products. The owner sometimes says "app switcher".
+The small menu for moving between products, where the family bar has no room for their tabs (from 768 to 1100px). The owner sometimes says "app switcher".
+
+**Tab bar**:
+The phone's bottom bar: Home and the five products, six labeled tabs, the one you're on tinted. It replaces the product menu on phones, and steps aside while the workbench drawer is pulled all the way up, the keyboard is up, or a Chat room is open. Code says `TabBar`.
+_Avoid_: bottom nav, dock
 
 **View link**:
 A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
@@ -41,14 +45,14 @@ _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
 _Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
 
 **Family bar**:
-The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens), the product's context, then the bell (signed in), the coffee button, Feedback and the account. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. On phones, and on the scheduler's and Plan's bars below 1536px, the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
+The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens, and into the tab bar on phones, where the bar keeps only the product's context), the product's context, then a workbench's Share, the bell (signed in), the coffee button, Feedback and the account. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. On phones, and on the scheduler's and Plan's bars below 1536px, the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
 
 **Mark**:
 One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/lib/brand/marks.ts`.
 _Avoid_: logo (that's the umbrella and the wordmark together), icon (for a product's mark)
 
 **Early access**:
-The small chip beside the wordmark saying Terpsicle's still in active development and may change, from 1536px wide; narrower screens and phones show it in the product menu instead, and `/`'s header always has it.
+The small chip beside the wordmark saying Terpsicle's still in active development and may change, from 1536px wide; narrower screens show it in the product menu instead, phones in the account menu, and `/`'s header always has it.
 _Avoid_: beta, preview
 
 **Coffee button**:
@@ -219,9 +223,9 @@ _Avoid_: Export, checklist tab
 A placed section you've marked as registered for in Testudo, in the Register tab. It's part of the plan: it syncs, it's no longer a problem for being full, and its calendar block shows a small check.
 _Avoid_: checked, done, enrolled
 
-**Canvas bar**:
-The strip across the top of a workbench's canvas (the calendar, Plan's semesters): Share at its left, and the calendar's hint of the moment beside it. Code says `CanvasBar`.
-_Avoid_: toolbar, hint strip
+**Canvas hint**:
+The calendar's hint of the moment ("Showing every section of CMSC351. Click one to switch."), a small card floating over the top of the grid while there's something to say. Never a bar of its own: Share is in the family bar. Code says `CanvasHint`.
+_Avoid_: toolbar, hint strip, canvas bar
 
 **Panel**:
 What the sidebar shows for the open rail tab.

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { MessageSquareText } from "lucide-react";
 import type { ReactNode } from "react";
+import { HOME_PATH, tabBarAt } from "~/core/routing";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { AccountButton } from "~/features/auth/account-button";
 import { useAccount } from "~/features/auth/account-store";
@@ -16,26 +17,37 @@ import {
   useBellShown,
   useUnreadNote,
 } from "~/features/notifications/bell";
-import { useIsMobile } from "~/hooks/use-media-query";
+import { useIsMobile, useMediaQuery } from "~/hooks/use-media-query";
 import { useScrolled } from "~/hooks/use-scrolled";
-import { listedProducts, type ProductId } from "~/lib/products";
-import { DropdownMenuItem, DropdownMenuSeparator } from "~/ui/dropdown-menu";
+import { listedProducts, PRODUCTS, type ProductId } from "~/lib/products";
+import {
+  ActionMenuItem,
+  ActionMenuSeparator,
+  usePhoneMenus,
+} from "~/ui/action-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
 import { EarlyAccessChip } from "./early-access";
-import { ProductMenu } from "./product-menu";
+import { AboutItems, ProductMenu } from "./product-menu";
 import { ThemeToggle } from "./theme-toggle";
 
 // The one bar on every page (docs/COHESION.md §4, the "family bar"): the
 // wordmark (a link to Home), the "Early access" chip and the five products as labeled tabs,
 // in color order, then a divider and the product's own context (the term
-// and plan, a course…), then its status, the bell (signed in), the coffee
-// button, Feedback and the account. Below 1100px the tabs fold into the
-// product menu, whose trigger names the product you're in. The chip shows
-// from 1536px, on every bar alike, so the tabs never move between products;
-// narrower, the product menu says it. Phones
-// fold the coffee button and the theme into the account menu, and
+// and plan, a course…), then its status, Share (a workbench's), the bell
+// (signed in), the coffee button, Feedback and the account. Below 1100px
+// the tabs fold into the product menu, whose trigger names the product
+// you're in. The chip shows from 1536px, on every bar alike, so the tabs
+// never move between products; narrower, the product menu says it.
+//
+// Below `md`, on a page with the phone's tab bar (~/components/tab-bar), the
+// tab bar is how you move between products, so the bar keeps only the
+// product's context (docs/decisions.md, "One bar at the top"): the term and
+// plan, the room, "Settings"; on Home the wordmark; elsewhere the product's
+// name, once the page's own title has scrolled under the bar. The account
+// menu takes the product menu's About Terpsicle and Early access note.
+// Phones fold the coffee button and the theme into the account menu, and
 // Feedback and the bell too where the bar is crowded. The same bar,
 // everywhere.
 
@@ -56,6 +68,7 @@ export function AppBar({
   current,
   context,
   status,
+  share,
   feedback,
   pathname,
   compact = false,
@@ -69,6 +82,8 @@ export function AppBar({
   context?: ReactNode;
   /** Before Feedback: credits, problems, "Offline". */
   status?: ReactNode;
+  /** A workbench's Share, an icon beside the bell (`ShareButton`). */
+  share?: ReactNode;
   /** Where feedback is filed; null where there's no Feedback (`/privacy`). */
   feedback: FeedbackProduct | null;
   /** Where an admin's pinned notes are looked up. */
@@ -87,7 +102,12 @@ export function AppBar({
   /** Reviews' public pages: no rule under the bar until the page scrolls. */
   borderOnScroll?: boolean;
 }) {
-  const scrolled = useScrolled(borderOnScroll);
+  // Below `md` the phone's tab bar moves between products, where the page
+  // has one: the product menu gives way to the product's context.
+  const tabbed = tabBarAt(pathname) !== null;
+  const phoneMenus = usePhoneMenus();
+  const phoneTitle = tabbed && !context;
+  const scrolled = useScrolled(borderOnScroll || phoneTitle);
   // Phones: where the bar also carries the product's context (the scheduler,
   // Chat's term), "Send feedback" and the bell move into the account menu so
   // the context reads whole; the avatar wears a dot for what's unread. Until
@@ -108,12 +128,16 @@ export function AppBar({
   return (
     <header
       data-slot="app-bar"
+      // The shell's view transitions name the bar by this (transitions.css).
+      data-family-bar=""
       // Which product's bar this is ("site" off the products), for tests.
       data-bar={current ?? "site"}
       className={cn(
         // 48px under whatever the status bar or the notch covers.
         "flex h-[calc(--spacing(12)+var(--safe-top))] shrink-0 items-center border-hairline border-b pt-(--safe-top)",
         borderOnScroll && !scrolled && "border-b-transparent",
+        // The bar's rule appears with the small title, as iOS's bars do.
+        phoneTitle && !scrolled && "max-md:border-b-transparent",
         compact ? "gap-1 px-2" : "gap-2 px-3",
       )}
     >
@@ -136,9 +160,22 @@ export function AppBar({
           <ProductTabs current={current} />
         </div>
       )}
-      <Brand className={cn("flex shrink-0", compact ? null : NARROW)}>
+      <Brand
+        className={cn(
+          "flex shrink-0",
+          compact ? null : NARROW,
+          tabbed && "max-md:hidden",
+        )}
+      >
         <ProductMenu current={current} compact={compact} />
       </Brand>
+      {heading && tabbed ? (
+        // A phone's bar has no product menu to be the page's heading: the
+        // tab bar shows where you are, and this says it.
+        <Brand className="sr-only md:hidden">
+          {PRODUCTS.find((p) => p.id === current)?.label ?? "Terpsicle"}
+        </Brand>
+      ) : null}
       {context ? (
         <>
           <span
@@ -146,14 +183,29 @@ export function AppBar({
             className={cn(
               "h-5 w-px shrink-0 bg-hairline",
               compact ? "hidden" : "mx-1",
+              tabbed && "max-md:hidden",
             )}
           />
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-2",
+              // Leading the bar, it lines up with the page's text below.
+              tabbed && "max-md:pl-1",
+            )}
+          >
             {context}
           </div>
         </>
       ) : (
-        <div className="flex-1" />
+        <div className="flex min-w-0 flex-1 items-center">
+          {phoneTitle ? (
+            <PhoneTitle
+              current={current}
+              home={pathname === HOME_PATH}
+              shown={pathname === HOME_PATH || scrolled}
+            />
+          ) : null}
+        </div>
       )}
       <div
         className={cn(
@@ -162,6 +214,7 @@ export function AppBar({
         )}
       >
         {status}
+        {share}
         <NotificationsBell showButton={!crowded} />
         {feedback && !coffeeInMenu ? (
           <CoffeeButton
@@ -192,6 +245,7 @@ export function AppBar({
                     : "never"
               }
               bell={crowded && bellShown}
+              about={tabbed && phoneMenus}
             />
           }
           note={crowded ? unreadNote : null}
@@ -228,36 +282,82 @@ function ProductTabs({ current }: { current: ProductId | null }) {
   );
 }
 
+/** From 1536px, where a crowded bar shows its coffee button again. */
+const WIDE_2XL = "(min-width: 1536px)";
+
 /** What a phone's bar moves into the account menu. */
 function MenuItems({
   feedback,
   coffee,
   bell,
+  about,
 }: {
   feedback: boolean;
-  /** "below-2xl": only where the bar hides its coffee button (CSS). */
+  /** "below-2xl": only where the bar hides its coffee button. */
   coffee: "always" | "below-2xl" | "never";
   bell: boolean;
+  /** The product menu's foot, where the tab bar took its place. */
+  about: boolean;
 }) {
-  if (!feedback && coffee === "never" && !bell) return null;
-  const onlyBelow2xl = !feedback && !bell && coffee === "below-2xl";
+  // Read as the menu opens: it's only drawn then.
+  const wide = useMediaQuery(WIDE_2XL);
+  const coffeeShown = coffee === "always" || (coffee === "below-2xl" && !wide);
+  if (!feedback && !coffeeShown && !bell && !about) return null;
   return (
     <>
-      <DropdownMenuSeparator
-        className={onlyBelow2xl ? "2xl:hidden" : undefined}
-      />
+      {feedback || coffeeShown || bell ? <ActionMenuSeparator /> : null}
       {bell ? <NotificationsMenuItem /> : null}
       {feedback ? (
-        <DropdownMenuItem onSelect={() => openFeedbackSheet()}>
-          <MessageSquareText aria-hidden="true" className="text-muted" />
+        <ActionMenuItem
+          icon={<MessageSquareText aria-hidden="true" className="text-muted" />}
+          onSelect={() => openFeedbackSheet()}
+        >
           Send feedback
-        </DropdownMenuItem>
+        </ActionMenuItem>
       ) : null}
-      {coffee === "never" ? null : (
-        <CoffeeMenuItem
-          className={coffee === "below-2xl" ? "2xl:hidden" : undefined}
-        />
-      )}
+      {coffeeShown ? <CoffeeMenuItem /> : null}
+      {about ? (
+        <>
+          <ActionMenuSeparator />
+          <AboutItems />
+        </>
+      ) : null}
     </>
+  );
+}
+
+/**
+ * A phone's bar with no context of its own leads with where you are, quietly:
+ * the wordmark on Home; a product's mark and name once the page's own title
+ * has scrolled under the bar (the tab bar says it until then).
+ */
+function PhoneTitle({
+  current,
+  home,
+  shown,
+}: {
+  current: ProductId | null;
+  home: boolean;
+  shown: boolean;
+}) {
+  const product = PRODUCTS.find((p) => p.id === current);
+  if (!home && !product) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex min-w-0 items-center gap-1.5 pl-1 font-semibold text-base transition-opacity duration-(--dur-control) md:hidden",
+        !shown && "opacity-0",
+      )}
+    >
+      {home ? (
+        <Wordmark />
+      ) : product ? (
+        <>
+          <Mark id={product.id} size={20} />
+          <span className="truncate">{product.label}</span>
+        </>
+      ) : null}
+    </span>
   );
 }

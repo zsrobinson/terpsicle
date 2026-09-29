@@ -80,11 +80,13 @@ test("a catalog that didn't load says so in place, and Try again loads it", asyn
   await page.route(TERMS_FILE, (route) => route.abort("internetdisconnected"));
   await page.goto("/schedule");
 
+  // While the browser says it's online, a network failure is tried twice
+  // more, a second and then two apart (DATA.md §5.5), before it shows.
   await expect(
     page.getByText(
       "Couldn't reach terpsicle.com to load the course catalog. Check your connection and try again.",
     ),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("alert")).toHaveCount(0);
 
   await page.unroute(TERMS_FILE);

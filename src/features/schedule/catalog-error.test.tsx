@@ -4,7 +4,6 @@ import { mockDataSource } from "~/fixtures";
 import { useCatalog } from "~/state/catalog-store";
 import {
   createBucketDataSource,
-  createDataReader,
   DataError,
   type DataSource,
 } from "~/state/data-source";
@@ -42,10 +41,10 @@ describe("catalog load failures", () => {
   });
 
   it("with nothing saved, says what went wrong in place of the calendar, and retries", async () => {
-    const { user } = await renderShell();
+    const { user, queryClient } = await renderShell();
     const flaky = flakySource();
     await act(async () => {
-      useCatalog.getState().setReader(createDataReader(flaky.source));
+      useCatalog.getState().connect(queryClient, flaky.source);
       await useCatalog.getState().loadTerms();
     });
 

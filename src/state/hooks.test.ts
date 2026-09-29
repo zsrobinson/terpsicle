@@ -4,8 +4,9 @@ import { courseDept } from "~/core/catalog";
 import type { Problem } from "~/core/schema";
 import { demoPlanB, fixtureTermId, mockDataSource } from "~/fixtures";
 import { useCatalog } from "./catalog-store";
-import { createBucketDataSource, createDataReader } from "./data-source";
+import { createBucketDataSource } from "./data-source";
 import { usePlanProblemsState } from "./hooks";
+import { createTestQueryClient } from "./query/testing";
 import { loadStores } from "./testing";
 import { useWorkspace } from "./workspace-store";
 
@@ -64,7 +65,7 @@ describe("usePlanProblemsState", () => {
           ? Promise.resolve(null)
           : mockDataSource.get(key),
     });
-    useCatalog.getState().setReader(createDataReader(source));
+    useCatalog.getState().connect(createTestQueryClient(), source);
     await useCatalog.getState().loadTerms();
     const { result } = renderHook(() => usePlanProblemsState());
     await act(() => useCatalog.getState().ensureDepts(TERM, planDepts));

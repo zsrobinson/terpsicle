@@ -1,12 +1,18 @@
-import { cn } from "cn";
 import { Bell } from "lucide-react";
-import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { create } from "zustand";
 import { bellCount, bellLabel } from "~/core/notifications/bell";
 import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
-import { DropdownMenuItem } from "~/ui/dropdown-menu";
+import { ActionMenuItem } from "~/ui/action-menu";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { useUnread, useUnreadPolling } from "./queries";
 
@@ -179,18 +185,16 @@ function BellCount({ unread }: { unread: number }) {
 /** The account menu's way in, where a phone's bar has no room for the bell. */
 export function NotificationsMenuItem() {
   const unread = useUnread() ?? 0;
+  // The inbox's code starts loading with the menu that holds its way in.
+  useEffect(prefetch, []);
   return (
-    <DropdownMenuItem
+    <ActionMenuItem
+      icon={<Bell aria-hidden="true" className="text-muted" />}
+      hint={unread > 0 ? `${unread} unread` : undefined}
       onSelect={() => openNotifications()}
-      onPointerEnter={prefetch}
-      onFocus={prefetch}
     >
-      <Bell aria-hidden="true" className="text-muted" />
-      <span className="flex-1">Notifications</span>
-      {unread > 0 ? (
-        <span className={cn("tnum text-muted text-sm")}>{unread} unread</span>
-      ) : null}
-    </DropdownMenuItem>
+      Notifications
+    </ActionMenuItem>
   );
 }
 

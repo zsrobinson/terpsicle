@@ -36,7 +36,7 @@ Revisit if: people land on Home and look for Schedule.
 
 ### Phones get a tab bar: Home and the five products
 2026-09-28 · owner · app-wide
-Below `md`, a bottom tab bar replaces the product menu: six labeled tabs, Home (the Terpsicle mark) first, then the products in color order, edge to edge, marks always in color. A sheet or drawer pulled all the way up hides it; at every other height it stays. The top bar keeps only the product's context. Mockups: the iPhone plan (https://claude.ai/artifact/2n51EifS1pjTzmBP8U8g7a).
+Below `md`, a bottom tab bar replaces the product menu: six labeled tabs, Home (the Terpsicle mark) first, then the products in color order, edge to edge, marks always in color. A sheet or drawer pulled all the way up hides it; at every other height it stays. The top bar keeps only the product's context. Mockups: the iPhone plan (https://claude.ai/artifact/2n51EifS1pjTzmBP8U8g7a). (changed 2026-09-29, `v3/shell-tab-bar`: it also steps aside while a text field has the keyboard up on a touch screen, and in an open Chat room, whose composer takes the bottom edge, as the approved mockups show.)
 Revisit if: a seventh place arrives.
 
 ### One bar at the top
@@ -94,6 +94,11 @@ Revisit if: never on its own.
 The disk copy is TanStack's per-query persister (`experimental_createQueryPersister`) over its own IndexedDB database, `terpsicle-query`, one row per query, busted per schema family. Only published-file factories opt in; nothing per person is written (Todo never is). The whole-client persister would rewrite about a megabyte of catalog on every change.
 Revisit if: the persister's API leaves `experimental_`, or something per person needs to work offline.
 
+### One tab polls seats for the browser
+2026-09-29 · agent · app-wide
+The seat poll is the manifest query's `refetchInterval`, paused while the page is hidden. Visible tabs queue for a Web Lock per term and catalog format (`terpsicle:seat-poll:<kind>:catalog@<version>:<term>`); only the holder polls, and it posts each manifest on the `terpsicle:catalog` BroadcastChannel, which the other tabs put in their own cache (newer only). A hidden, closed or out-of-date tab gives the lock up, and so does one whose last three polls failed. Without Web Locks every visible tab polls. Two visible windows would otherwise ask twice a minute, and switching tabs would refetch in each.
+Revisit if: another poll (the bell) needs the same, or TanStack ships cross-tab dedupe.
+
 ### Our modules have no side effects on import, in the browser's build
 2026-09-29 · agent · app-wide
 The client build tells Rolldown that every module under `src/` has no side effects when imported (`vite.config.ts`, `treeshake.moduleSideEffects`), so a module none of whose exports is used is left out: a barrel like `~/core/schema` no longer brings every schema along. It cut every page, `/` by about 9 KB. Code that must run on import (a registration, a listener) lives in a module whose exports are used, as `activity-log-boot.tsx` does; never in one imported only for its effect. `scripts/check-imports.ts` flags a bare `import "~/…"` or relative one outside tests and stylesheets, since dev (which doesn't tree-shake) would still run it.
@@ -137,6 +142,7 @@ Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 ### Crowded bars give their context the room below 1536px
 2026-09-28 · agent · one feature
 On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The Early access chip hides below 1536px on every bar, not only these two (changed 2026-09-28, QA round 4, the orchestrator): hidden on two bars alone, it moved the five product tabs about 78px whenever you went between Schedule or Plan and another product. From 1536px it sits beside the wordmark on every bar, as the owner placed it; narrower, the product menu and `/`'s header say it (e2e/brand-bar.spec.ts checks the tabs don't move).
+(changed 2026-09-29, `v3/shell-tab-bar`: Share joined the scheduler's bar as an icon, so its credits show from 1536px too, not 1280px; the Courses panel's header says them.)
 Revisit if: the scheduler's bar changes its context or status, or the owner wants the chip on every bar at every width.
 
 ### Sign in with Google, UMD only
@@ -572,9 +578,9 @@ Revisit if: another route needs the same, or feedback needs sign-in.
 
 ### Send feedback on a workbench's phone bar
 2026-09-27 · agent · one feature
-On phones a workbench's bar (the scheduler's, and Plan's since `v3/plan-workbench`) has no room for another button beside the plan's name and its context, so "Send feedback" is an item in its account menu there, as the theme toggle is. Every other product's header shows the icon, with the wordmark hidden on phones to make room.
-(changed 2026-09-27: Plan moved onto the workbench, and its phone bar is the scheduler's compact one.)
-Revisit if: the phone top bar is redesigned.
+On phones a workbench's bar (the scheduler's, and Plan's since `v3/plan-workbench`) has no room for another button beside its term and plan control, its problems and Share, so "Send feedback" is an item in its account menu there, as the theme is. Every other product's phone bar shows the icon.
+(changed 2026-09-27: Plan moved onto the workbench, and its phone bar is the scheduler's compact one.) (changed 2026-09-29, `v3/shell-tab-bar`: the phone's top bar was redesigned. The tab bar took the product menu's place and Share joined the bar as an icon, so the room it freed went to Share; Feedback stays in the menu there.)
+Revisit if: people on phones stop finding Send feedback, or a workbench's phone bar loses Share or its problems.
 
 ### Feedback groups by Workers AI, issues without words
 2026-09-27 · agent · one feature
@@ -605,6 +611,6 @@ Revisit if: agents start missing contract changes that the docs used to catch.
 
 ### The family bar
 2026-09-27 · agent · app-wide
-Every page has one bar: the five products as labeled tabs from 1100px (the product menu from `md` to 1100px, the phone tab bar below `md`), the product's context, then Feedback and one account menu, which holds the theme. (changed 2026-09-28: phones moved to the tab bar.) This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4).
+Every page has one bar: the five products as labeled tabs from 1100px (the product menu from `md` to 1100px, the phone tab bar below `md`), the product's context, then a workbench's Share (an icon), Feedback and one account menu, which holds the theme. (changed 2026-09-28: phones moved to the tab bar.) This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4). (changed 2026-09-29, `v3/shell-tab-bar`: Share moved in from the canvas; on phones the bar keeps only the context, and the tab bar also steps aside under the keyboard and in a Chat room, whose composer takes the bottom edge.)
 Revisit if: a sixth product arrives, or the scheduler's bar can't fit its term and plans beside the tabs at 1100–1300px.
 
