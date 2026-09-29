@@ -140,12 +140,14 @@ export function YourReviewsColumn() {
           // Where your classes come from: a transcript knows them all.
           <p className="text-muted">
             Import your transcript in{" "}
-            <Link
-              to="/plan"
-              className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
-            >
-              Plan
-            </Link>
+            <WithTooltip label="Your four-year plan, where a transcript imports">
+              <Link
+                to="/plan"
+                className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
+              >
+                Plan
+              </Link>
+            </WithTooltip>
             , and the classes you took show up here.
           </p>
         ) : rows ? (
