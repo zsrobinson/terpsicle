@@ -76,18 +76,21 @@ test("anyone can find a course or an instructor and read their reviews", async (
     }),
   ).toBeVisible();
   await hydrated(page);
-  const search = page.getByPlaceholder(/Search instructors and courses/);
-  // Instructors and courses are found alike.
+  const search = page.getByRole("combobox", {
+    name: "Search instructors and courses",
+  });
+  // Instructors and courses are found alike, in the search's results.
   await search.fill("ashdown");
+  const results = page.getByRole("listbox");
   await expect(
-    page
-      .getByRole("list", { name: "Instructors" })
-      .getByRole("link", { name: "Keiko Ashdown" }),
+    results.getByRole("group", { name: "Instructors" }).getByRole("option", {
+      name: /Keiko Ashdown/,
+    }),
   ).toHaveAttribute("href", "/reviews/ashdown-keiko");
   await search.fill("cmsc 351");
-  await page
-    .getByRole("list", { name: "Courses" })
-    .getByRole("link", { name: /CMSC351\s*Algorithms/ })
+  await results
+    .getByRole("group", { name: "Courses" })
+    .getByRole("option", { name: /CMSC351\s*Algorithms/ })
     .click();
 
   await expect(page).toHaveURL(/\/reviews\/cmsc351$/);

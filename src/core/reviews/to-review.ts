@@ -23,6 +23,11 @@ export const LATE_IN_TERM_DAYS = 42;
 /** Instructor names Testudo prints when nobody's assigned yet. */
 const NOBODY = /^(tba|staff|instructor:?\s*tba)$/i;
 
+/** Whether a section's instructor name is a real person, not "TBA" or "Staff". */
+export function isNamedInstructor(name: string): boolean {
+  return !NOBODY.test(name.trim());
+}
+
 const DAY_MS = 86_400_000;
 
 export interface InstructorToReview {
@@ -74,7 +79,7 @@ export function instructorsToReview(
     for (const course of plan.courses)
       for (const name of course.snapshot?.instructors ?? []) {
         const key = reviewedKey(course.courseCode, name);
-        if (NOBODY.test(name.trim()) || seen.has(key) || reviewed.has(key))
+        if (!isNamedInstructor(name) || seen.has(key) || reviewed.has(key))
           continue;
         seen.add(key);
         out.push({ termId: plan.termId, course: course.courseCode, name });

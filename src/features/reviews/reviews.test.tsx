@@ -9,14 +9,18 @@ import {
   planetTerpIndexKey,
   TERMS_KEY,
 } from "~/core/schema";
+import { NO_LOCAL } from "~/features/home/local";
 import {
   aManifest,
   aMyReview,
   aPageReview,
+  aPlan,
+  aPlanCourse,
   aPlanetTerpDept,
   aPlanetTerpIndex,
   aPlanetTerpManifest,
   aPlanetTerpReview,
+  aSectionSnapshot,
   aTermsFile,
   FIXTURE_HASH,
   fixtureTermId,
@@ -51,11 +55,25 @@ vi.mock("~/features/prefs/account-sync", () => ({
   stopPrefsSync: () => {},
 }));
 
+// Your plans on this device, as the review box reads them; none unless a
+// test says so.
+const yourPlans = vi.hoisted(() => ({
+  value: null as import("~/features/home/local").HomeLocal | null,
+}));
+vi.mock("~/features/home/local", async (original) => {
+  const actual = await original<typeof import("~/features/home/local")>();
+  return {
+    ...actual,
+    readHomeLocal: async () => yourPlans.value ?? actual.NO_LOCAL,
+  };
+});
+
 // PlanetTerp (the fixtures): Ada Brandt ("brandt"), 4.2 from 61 reviews.
 const BODY =
   "Lectures were clear and the exams matched the homework. Office hours helped a lot.";
 
 beforeEach(() => {
+  yourPlans.value = null;
   resetReviewsUi();
   publishFiles({
     "planetterp/manifest.json": aPlanetTerpManifest(),
@@ -292,11 +310,15 @@ describe("an instructor's page", () => {
     fakeReviewsClient({ page: answer([aPageReview()]) });
     const user = userEvent.setup();
     await instructor();
-    await user.click(
-      await screen.findByRole("button", { name: /Write a review/ }),
-    );
+    // Signed out, the review box asks, and signs you in right there.
+    const box = await screen.findByRole("region", {
+      name: /Took CMSC351 with Ada Brandt\?/,
+    });
     expect(
-      screen.getByText(/Sign in with your UMD account to write a review/),
+      within(box).getByText(/Sign in with your UMD account to review it/),
+    ).toBeInTheDocument();
+    expect(
+      await within(box).findByRole("link", { name: /^Sign in/ }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Report" }));
     expect(
@@ -590,7 +612,9 @@ describe("a course's page", () => {
       screen.getByRole("heading", { name: /^CMSC351/, level: 1 }),
     ).toBeInTheDocument();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /Write a review/ }));
+    await user.click(
+      await screen.findByRole("button", { name: /Write a review/ }),
+    );
     // Picking who taught you opens the form for them, in one step.
     await user.click(
       await screen.findByRole("menuitem", { name: /Ada Brandt/ }),
@@ -605,21 +629,86 @@ describe("a course's page", () => {
     );
   });
 
-  it("asks you to sign in right after you pick, when you aren't", async () => {
+  it("asks you to sign in in its review box, when you aren't", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient();
     await course();
+    const box = await screen.findByRole("region", {
+      name: /^Took CMSC351\s?\?$/,
+    });
+    expect(
+      within(box).getByText(/Sign in with your UMD account to review it/),
+    ).toBeInTheDocument();
+    expect(
+      await within(box).findByRole("link", { name: /^Sign in/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(box).queryByRole("button", { name: /Write a review/ }),
+    ).toBeNull();
+  });
+
+  it("names the class you took and haven't reviewed, and fills in the term", async () => {
+    setAccount({ reviews: "on", user: STUDENT });
+    fakeReviewsClient();
+    yourPlans.value = {
+      ...NO_LOCAL,
+      plans: [
+        aPlan({
+          termId: "202601",
+          courses: [
+            aPlanCourse({
+              courseCode: "CMSC351",
+              sectionCode: "0101",
+              snapshot: aSectionSnapshot({ instructors: ["Ada Brandt"] }),
+            }),
+          ],
+        }),
+      ],
+    };
+    await course();
+    const box = await screen.findByRole("region", {
+      name: "You took CMSC351 with Ada Brandt in Spring 2026",
+    });
     const user = userEvent.setup();
     await user.click(
-      await screen.findByRole("button", { name: /Write a review/ }),
+      within(box).getByRole("button", { name: /Write a review/ }),
     );
-    await user.click(
-      await screen.findByRole("menuitem", { name: /Ada Brandt/ }),
+    const form = await screen.findByRole("form", { name: "Write a review" });
+    expect(within(form).getByText(/Ada Brandt/)).toBeInTheDocument();
+    expect(within(form).getByLabelText("When you took it")).toHaveTextContent(
+      "Spring 2026",
     );
+  });
+
+  it("says you've reviewed it, with Edit, once you have", async () => {
+    setAccount({ reviews: "on", user: STUDENT });
+    fakeReviewsClient({
+      mine: async () => ({
+        reviews: [aMyReview({ createdAt: "2026-05-02T14:00:00.000Z" })],
+      }),
+    });
+    yourPlans.value = {
+      ...NO_LOCAL,
+      plans: [
+        aPlan({
+          termId: "202601",
+          courses: [
+            aPlanCourse({
+              courseCode: "CMSC351",
+              sectionCode: "0101",
+              snapshot: aSectionSnapshot({ instructors: ["Ada Brandt"] }),
+            }),
+          ],
+        }),
+      ],
+    };
+    await course();
+    const box = await screen.findByRole("region", {
+      name: "You reviewed Ada Brandt in CMSC351",
+    });
+    expect(within(box).getByText(/May 2026 · Posted/)).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        /Sign in with your UMD account to write a review/,
-      ),
+      within(box).getByRole("button", { name: "Edit your review" }),
     ).toBeInTheDocument();
   });
 });

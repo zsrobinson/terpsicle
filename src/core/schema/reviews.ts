@@ -413,6 +413,18 @@ export const PageReviewsSchema = z.strictObject({
   planetTerp: z.array(PlanetTerpReviewSchema),
   /** Pass to `planetterp/reviews` for more; null when that's all. */
   next: PlanetTerpCursorSchema.nullable(),
+  /**
+   * A course's page only: the average and count of every PlanetTerp review
+   * of the course, for its rating box. Null when there are none; absent on
+   * an instructor's page, whose numbers are PlanetTerp's own.
+   */
+  planetTerpCourse: z
+    .strictObject({
+      rating: z.number().min(1).max(5),
+      reviewCount: z.number().int().min(1),
+    })
+    .nullable()
+    .optional(),
 });
 export type PageReviews = z.infer<typeof PageReviewsSchema>;
 

@@ -75,6 +75,23 @@ export async function planetTerpReviews(
   };
 }
 
+/** The average and count of PlanetTerp's reviews of a course; null when there are none. */
+export async function planetTerpCourseNumbers(
+  db: D1Database,
+  course: CourseCode,
+): Promise<{ rating: number; reviewCount: number } | null> {
+  const row = await db
+    .prepare(
+      `SELECT AVG(rating) AS rating, COUNT(*) AS count
+       FROM planetterp_reviews WHERE course = ?1`,
+    )
+    .bind(course)
+    .first<{ rating: number | null; count: number }>();
+  return row && row.count > 0 && row.rating !== null
+    ? { rating: row.rating, reviewCount: row.count }
+    : null;
+}
+
 /**
  * The month of each page's newest PlanetTerp review, for the sitemap:
  * instructors by id, courses by code.

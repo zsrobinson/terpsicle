@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from "react";
 import { SiteHeader } from "~/features/site/site-page";
 import { initAnalytics, track } from "~/lib/analytics";
 import { ProductPage } from "~/ui/product-page";
+import { BarSearch, PhoneSearchButton } from "./search";
 
 // The frame of Terpsicle Reviews' pages (V2 §1.1): the family bar over a
 // reading page (docs/COHESION.md §4), with its footer. Reviews is the one
@@ -9,30 +10,52 @@ import { ProductPage } from "~/ui/product-page";
 // it reads as a public website rather than a dashboard (owner, 2026-09-28):
 // the bar stays at the top as you scroll, with no rule under it until you
 // do, so the page first reads as one piece; the kit's `display` sizes set
-// its type larger and its sections roomier.
+// its type larger and its sections roomier. The other products' tabs fold
+// to their marks at rest, and past the front door the bar has the search
+// (owner, 2026-09-29).
 
 export type ReviewsPageName = "home" | "instructor" | "course";
 
 export function ReviewsFrame({
   page,
+  wide = false,
   children,
 }: {
   /** Counted as a page view; left out on /reviews/mine and the policy. */
   page?: ReviewsPageName;
+  /**
+   * Two columns from `lg` (owner, 2026-09-29): the front door, and an
+   * instructor's or a course's page. The rest stay one reading column.
+   */
+  wide?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
     void initAnalytics();
     if (page) track("reviews_page_viewed", { page });
   }, [page]);
+  // Past the front door, the bar carries the search: the small box from
+  // `md`, and a phone's magnifier, which opens it in a sheet.
+  const search = page !== "home";
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <div className="sticky top-0 z-20 bg-bg">
-        <SiteHeader borderOnScroll />
+        <SiteHeader
+          borderOnScroll
+          collapseTabs
+          context={search ? <BarSearch /> : undefined}
+          status={search ? <PhoneSearchButton /> : undefined}
+        />
       </div>
-      <ProductPage width="reading" className="gap-6">
-        {children}
-      </ProductPage>
+      {wide ? (
+        <ProductPage width="app" footer className="gap-6">
+          {children}
+        </ProductPage>
+      ) : (
+        <ProductPage width="reading" className="gap-6">
+          {children}
+        </ProductPage>
+      )}
     </div>
   );
 }

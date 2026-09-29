@@ -445,6 +445,16 @@ Revisit if: an instructor's slug ever matches a course code, or `/reviews/<word>
 "reviews are more important to display than grades"; instructors and courses are equals. Reviews' pages use the kit's `display` sizes (bigger type, roomier sections), the product's purple as an accent, and a bar with no rule until the page scrolls.
 Revisit if: the other products want a public page too.
 
+### Reviews in two columns, with the search over the page
+2026-09-29 · owner · one feature
+"i like that 2/3 1/3 layout we have on the dashboard, and i think we can carry over some of that into this tab." An instructor's or a course's page puts the name, the rating box, the "review them yourself" box and the reviews in the wide column, and the filter (courses by instructor, instructors by course), the AI summary and the grades in the narrow one; `/reviews` keeps the search and browsing wide and puts your instructors to review, your reviews and your classes narrow. One column below `lg`, the wide one first (a phone keeps an instructor's course switch under the name, since it filters the reviews). Home's grid is the kit's `SplitLayout`. The search's results open over the page as Base UI's Autocomplete, never in its place; "Every result" and a department's link are `/reviews?q=`, a page of its own for search engines. Past the front door the family bar has a smaller search, and a phone a magnifier that opens it in a sheet. The review box says what your plans know: the class you took and haven't reviewed, naming the term; your review, with Edit; or, signed out, the plain question and Sign in. A course's rating box rates the course from every PlanetTerp review of it (`reviews/page`'s `planetTerpCourse`) plus ours.
+Revisit if: the narrow column's filter is missed on phones, or people search from the bar more than from `/reviews`.
+
+### The family bar's other products can fold to their marks
+2026-09-29 · owner · one feature
+"when you're not hovering up there, we could condense it to only show the icons for the components you're not on", Reviews first: `AppBar`'s `collapseTabs`. At rest the product you're on keeps its name and the others show only their marks (with their tooltips and accessible names); hovering or tabbing into the tabs opens every name, and moving between a folded and an unfolded bar animates the change. Reduce Motion drops the movement.
+Revisit if: the owner wants it on every product, or people miss the names.
+
 ### Published review numbers carry a month, never a time or text
 2026-09-26 · agent · one feature
 R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. Summaries count our newest review by month for the same reason, and go stale when our published count changes.

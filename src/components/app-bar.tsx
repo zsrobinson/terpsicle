@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { MessageSquareText } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { HOME_PATH, tabBarAt } from "~/core/routing";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { AccountButton } from "~/features/auth/account-button";
@@ -75,6 +75,7 @@ export function AppBar({
   heading = false,
   crowdedBelow2xl = false,
   borderOnScroll = false,
+  collapseTabs = false,
 }: {
   /** The product you're in; null on Settings and the site's own pages. */
   current: ProductId | null;
@@ -101,6 +102,11 @@ export function AppBar({
   crowdedBelow2xl?: boolean;
   /** Reviews' public pages: no rule under the bar until the page scrolls. */
   borderOnScroll?: boolean;
+  /**
+   * Desktop: the other products' tabs show only their marks until you hover
+   * or tab into them (owner, 2026-09-29, Reviews first).
+   */
+  collapseTabs?: boolean;
 }) {
   // Below `md` the phone's tab bar moves between products, where the page
   // has one: the product menu gives way to the product's context.
@@ -157,7 +163,7 @@ export function AppBar({
               Plan's bars need its room, and a chip on the other bars alone
               would move the tabs as you switch products. */}
           <EarlyAccessChip className="max-2xl:hidden" Tooltip={WithTooltip} />
-          <ProductTabs current={current} />
+          <ProductTabs current={current} collapse={collapseTabs} />
         </div>
       )}
       <Brand
@@ -255,26 +261,90 @@ export function AppBar({
   );
 }
 
-/** The five products, labeled, as tabs; each a link, the current one tinted. */
-function ProductTabs({ current }: { current: ProductId | null }) {
+/**
+ * Whether the last bar drawn folded its tabs, so the next one (another
+ * product's page) starts from it and animates the change. Null until a bar
+ * has drawn, as on the server and a fresh load, which draw it as asked.
+ */
+let lastFolded: boolean | null = null;
+
+/**
+ * A folded tab's name: no width and no ink at rest; hovering the tabs or
+ * focusing one opens every name. Opening waits a beat, so passing over the
+ * bar doesn't set it off, and closing a little longer, so a slip off it
+ * doesn't either. Reduce Motion drops the movement (styles.css).
+ */
+const FOLDED_NAME =
+  "grid-cols-[0fr] opacity-0 delay-200 group-hover/tabs:grid-cols-[1fr] group-hover/tabs:opacity-100 group-hover/tabs:delay-75 group-has-focus-visible/tabs:grid-cols-[1fr] group-has-focus-visible/tabs:opacity-100 group-has-focus-visible/tabs:delay-0";
+
+/**
+ * The five products as tabs; each a link, the current one tinted. Folded
+ * (`collapse`, Reviews' public pages so far), the other products show just
+ * their marks until you reach for them; the current one keeps its name.
+ */
+function ProductTabs({
+  current,
+  collapse,
+}: {
+  current: ProductId | null;
+  collapse: boolean;
+}) {
   const flags = useAccount((s) => s.flags);
+  // From another product's bar, start where it was and move to this one's.
+  const [folded, setFolded] = useState(() => lastFolded ?? collapse);
+  useEffect(() => {
+    lastFolded = collapse;
+    if (folded === collapse) return;
+    // Two frames: the first paint keeps the old bar, so the change animates.
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setFolded(collapse));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [collapse, folded]);
   return (
-    <nav aria-label="Products" className="ml-1 flex items-center gap-0.5">
+    <nav
+      aria-label="Products"
+      data-folded={folded ? "" : undefined}
+      className="group/tabs ml-1 flex items-center gap-0.5"
+    >
       {listedProducts(flags, current).map((p) => (
         <WithTooltip key={p.id} label={p.view} side="bottom">
           <Link
             to={p.to}
             aria-current={p.id === current ? "page" : undefined}
             className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2 font-medium text-base text-muted transition-colors hover:bg-hover hover:text-fg aria-[current=page]:text-fg",
+              "flex h-7 items-center rounded-md px-2 font-medium text-base text-muted transition-colors hover:bg-hover hover:text-fg aria-[current=page]:text-fg",
               // Below 1536px the 20px marks' extra width comes back out of
               // the padding, so two plan tabs show whole at 1280px.
-              "max-2xl:gap-1 max-2xl:px-1.5",
+              "max-2xl:px-1.5",
               CURRENT[p.id],
             )}
           >
             <Mark id={p.id} size={20} />
-            {p.label}
+            {/* The name's width animates as a grid track, from 0fr to 1fr;
+                its gap from the mark is its own padding, so it folds too.
+                Still read out folded: it's clipped, never hidden. */}
+            <span
+              data-tab-name=""
+              className={cn(
+                "grid transition-[grid-template-columns,opacity] duration-250 ease-(--ease-sheet)",
+                folded && p.id !== current
+                  ? FOLDED_NAME
+                  : "grid-cols-[1fr] opacity-100",
+              )}
+            >
+              {/* The padding sits inside the clip: a track's item keeps its
+                  own padding however narrow the track. */}
+              <span className="overflow-hidden">
+                <span className="block whitespace-nowrap pl-1.5 max-2xl:pl-1">
+                  {p.label}
+                </span>
+              </span>
+            </span>
           </Link>
         </WithTooltip>
       ))}

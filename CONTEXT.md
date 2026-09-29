@@ -321,7 +321,14 @@ The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **m
 _Avoid_: popular, top-rated
 
 **Review your instructors**:
-The quiet list on `/reviews`, signed in, of the instructors of the sections in your main plans for terms that are over (or in their last six weeks), each one tap from the form. Never a banner.
+The quiet list in `/reviews`' narrow column, signed in, of the instructors of the sections in your main plans for terms that are over (or in their last six weeks), newest first, each one tap from the form; under it, your reviews, newest first. Signed out it's "Your instructors", theirs to read about, with a line on signing in. Never a banner.
+
+**Review box**:
+On an instructor's or a course's page, the box between the rating and the reviews that asks you to review them yourself. From your plans it can name the class you took and haven't reviewed ("You took CMSC351 with Keiko Ashdown in Spring 2026"), or show your review with Edit; otherwise, and always signed out, it asks "Took CMSC351?". Code says `ReviewBox`.
+_Avoid_: banner, nudge (in copy)
+
+**Folded tabs**:
+The family bar's product tabs at rest on Reviews: the product you're on with its name, the others only their marks, every name opening when you hover or tab into them. Code says `collapseTabs`.
 
 **Most taken**:
 The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.

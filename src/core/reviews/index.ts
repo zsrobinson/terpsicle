@@ -34,9 +34,19 @@ export {
 export {
   type InstructorToReview,
   instructorsToReview,
+  isNamedInstructor,
   isReviewableTerm,
   reviewedKey,
 } from "./to-review";
+export {
+  type ClassTaken,
+  classesTaken,
+  reviewedHere,
+  reviewsByRecency,
+  type TookHere,
+  tookHere,
+  type YourPlans,
+} from "./took";
 export {
   notPostedWords,
   REPORT_REASON_WORDS,

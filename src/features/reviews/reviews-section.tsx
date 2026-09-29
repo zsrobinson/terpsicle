@@ -1,5 +1,4 @@
 import { useRouter } from "@tanstack/react-router";
-import { PenLine } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { PanelNote } from "~/components/panel";
 import { mergeReviews } from "~/core/reviews";
@@ -15,21 +14,18 @@ import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { PageSection } from "~/ui/page-section";
 import { WithTooltip } from "~/ui/tooltip";
-import { Composer, type ComposerTarget } from "./composer";
 import { forgetPageReviews } from "./data";
 import { PAGE_NOTE } from "./frame";
 import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
 import { PlanetTerpReviewCard } from "./planetterp-review";
 import { OwnReviewCard, ReviewCard } from "./review-card";
 import { reviewsClient, useReviews } from "./reviews-store";
-import { SignInPrompt } from "./sign-in-prompt";
 
 // A page's reviews: ours and PlanetTerp's as one list, newest first, each of
 // PlanetTerp's marked as theirs (V2 §7.6). The route's loader read the first
 // of them, so they're in the server's HTML; "Show more" reads on through
 // PlanetTerp's. On an instructor's page your own come first, with where
-// each stands, and "Write a review" (the page header's action) opens the
-// form here.
+// each stands; the form opens in the page's review box.
 
 /** What the composer is open on: a new review, one of yours, or nothing. */
 export type Composing = MyReview | "new" | null;
@@ -87,18 +83,6 @@ export function useOwnHere(
       (course === null || r.course === course) &&
       !deleting[r.id],
   );
-}
-
-/** Your live review of the target's class, which "Write a review" edits. */
-export function existingReview(
-  ownHere: readonly MyReview[],
-  target: ComposerTarget | null,
-): MyReview | null {
-  return target
-    ? (ownHere.find(
-        (r) => r.course === target.course && r.status !== "rejected",
-      ) ?? null)
-    : null;
 }
 
 /** More of PlanetTerp's, a page at a time, after the loader's first. */
@@ -218,15 +202,17 @@ export function ReviewList({
   );
 }
 
-/** An instructor's reviews, with your own and the form. */
+/**
+ * An instructor's reviews, with your own that aren't up yet first. The form
+ * opens in the page's review box, over this, on Edit.
+ */
 export function ReviewsSection({
   instructorId,
   course,
   reviews,
   count,
-  target,
   composing,
-  onCompose,
+  onEdit,
 }: {
   instructorId: InstructorId;
   /** Only this course's reviews; null for all of them. */
@@ -234,39 +220,13 @@ export function ReviewsSection({
   reviews: PageReviews;
   /** How many there are in all, when known. */
   count: number | null;
-  /** What the composer writes about; null until a course is picked. */
-  target: ComposerTarget | null;
-  /** The page's "Write a review" and each review's Edit open the form here. */
+  /** What the form is open on: the review it edits is left out here. */
   composing: Composing;
-  onCompose: (next: Composing) => void;
+  onEdit: (review: MyReview) => void;
 }) {
   const level = useReviewsLevel();
-  const signedIn = useSignedIn();
   const ownHere = useOwnHere(instructorId, course);
-  const formRef = useRef<HTMLDivElement>(null);
   useReloadOnChange();
-
-  // The header's button can be a screen away: bring the form to it.
-  useEffect(() => {
-    if (composing !== null)
-      formRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [composing]);
-
-  const existing = existingReview(ownHere, target);
-  const edit = (review: MyReview) => onCompose(review);
-  const composer =
-    composing === "new" && signedIn !== true ? (
-      <SignInPrompt>
-        Sign in with your UMD account to write a review. Readers won't see who
-        wrote it.
-      </SignInPrompt>
-    ) : composing !== null && target ? (
-      <Composer
-        target={target}
-        existing={composing === "new" ? existing : composing}
-        onClose={() => onCompose(null)}
-      />
-    ) : null;
   const waiting = ownHere.filter(
     (r) => r.status !== "published" && r !== composing,
   );
@@ -277,11 +237,6 @@ export function ReviewsSection({
       title="Reviews"
       aside={count ? count.toLocaleString("en-US") : undefined}
     >
-      {composer ? (
-        <div ref={formRef} className="scroll-mt-16">
-          {composer}
-        </div>
-      ) : null}
       {waiting.length > 0 ? (
         <ul>
           {waiting.map((r) => (
@@ -290,7 +245,7 @@ export function ReviewsSection({
               review={r}
               level={level}
               showCourse={course === null}
-              onEdit={edit}
+              onEdit={onEdit}
             />
           ))}
         </ul>
@@ -303,76 +258,18 @@ export function ReviewsSection({
         hideId={
           composing !== null && composing !== "new" ? composing.id : undefined
         }
-        onEdit={edit}
+        onEdit={onEdit}
         empty={
-          <>
-            {/* Yours may be right above, held: it isn't the first "yet". */}
-            {ownHere.length > 0
-              ? course
-                ? `No one else has reviewed ${course} yet.`
-                : "No one else has reviewed them yet."
-              : course
-                ? `No reviews of ${course} yet.`
-                : "No reviews yet."}
-            {level === "on" && target && ownHere.length === 0
-              ? " Took it? Yours could be the first."
-              : ""}
-          </>
+          // Yours may be right above, held: it isn't the first "yet".
+          ownHere.length > 0
+            ? course
+              ? `No one else has reviewed ${course} yet.`
+              : "No one else has reviewed them yet."
+            : course
+              ? `No reviews of ${course} yet.`
+              : "No reviews yet."
         }
       />
     </PageSection>
-  );
-}
-
-/**
- * "Write a review", or what stands in its way. `page`: the page header's one
- * filled action; `row`: a row's small ghost action.
- */
-export function WriteButton({
-  level,
-  target,
-  existing,
-  onWrite,
-  label,
-  size = "page",
-}: {
-  level: ReviewsLevel;
-  target: ComposerTarget | null;
-  existing: MyReview | null;
-  onWrite: () => void;
-  label?: string;
-  size?: "page" | "row";
-}) {
-  const signedIn = useSignedIn();
-  if (level !== "on" || signedIn === "loading") return null;
-  const words = label ?? (existing ? "Edit your review" : "Write a review");
-  if (!target)
-    return (
-      <span className="text-base text-muted">
-        Pick a course below to review it
-      </span>
-    );
-  return (
-    <WithTooltip
-      label={
-        !signedIn
-          ? "Sign in with your UMD account to write one"
-          : existing
-            ? `You've reviewed ${target.course}: change what you wrote`
-            : `Review ${target.reviewedName} in ${target.course}`
-      }
-    >
-      {size === "row" ? (
-        <Button variant="ghost" size="row" onClick={onWrite}>
-          <PenLine size={12} aria-hidden="true" />
-          {words}
-        </Button>
-      ) : (
-        <Button size="lg" onClick={onWrite}>
-          <PenLine aria-hidden="true" />
-          {words}
-        </Button>
-      )}
-    </WithTooltip>
   );
 }

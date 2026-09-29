@@ -67,17 +67,22 @@ type Failure =
 export function Composer({
   target,
   existing,
+  termId: tookIn = null,
   onClose,
 }: {
   target: ComposerTarget;
   /** Your live review of this class: the form edits it. */
   existing: MyReview | null;
+  /** When your plans say you took it: "When you took it" starts there. */
+  termId?: TermId | null;
   onClose: () => void;
 }) {
   // A waiting edit is what you last wrote, so the form starts from it.
   const start = existing?.pendingEdit ?? existing;
   const [rating, setRating] = useState<number | null>(start?.rating ?? null);
-  const [termId, setTermId] = useState<TermId | null>(start?.termId ?? null);
+  const [termId, setTermId] = useState<TermId | null>(
+    start ? start.termId : tookIn,
+  );
   const [grade, setGrade] = useState<ReviewGrade | null>(start?.grade ?? null);
   const [body, setBody] = useState(start?.body ?? "");
   const [sending, setSending] = useState(false);

@@ -22,9 +22,12 @@ import { Skeleton } from "~/ui/skeleton";
 export function GradesBlock({
   record,
   gradesThrough,
+  courses,
 }: {
   record: GradeRecord;
   gradesThrough: TermId | null;
+  /** Summed over an instructor's courses: how many, for the credit line. */
+  courses?: number;
 }) {
   const summary = gradeSummary(record.counts);
   const sentence = gradeSentence(summary);
@@ -38,9 +41,11 @@ export function GradesBlock({
       ) : null}
       <Bars bars={gradeBars(record.counts)} />
       <p className="mt-2 text-faint text-xs">
-        {summary.students.toLocaleString("en-US")} students over{" "}
-        {record.semesters} semester{record.semesters === 1 ? "" : "s"},{" "}
-        {gradesSourceWords(gradesThrough)}.
+        {summary.students.toLocaleString("en-US")} students{" "}
+        {courses !== undefined && courses > 1
+          ? `in ${courses} courses`
+          : `over ${record.semesters} semester${record.semesters === 1 ? "" : "s"}`}
+        , {gradesSourceWords(gradesThrough)}.
       </p>
     </div>
   );

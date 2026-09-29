@@ -20,7 +20,7 @@ import {
   type ReviewsRecentResult,
 } from "~/core/schema";
 import { toPublicReview } from "./api";
-import { planetTerpReviews } from "./planetterp";
+import { planetTerpCourseNumbers, planetTerpReviews } from "./planetterp";
 import {
   instructorWithDepts,
   listPublishedForPage,
@@ -78,7 +78,10 @@ export async function pageReviews(
   input: ReviewsPageInput,
 ): Promise<PageReviews> {
   const off = FeatureVarsSchema.parse(env).REVIEWS_ENABLED === "off";
-  const [ours, theirs] = await Promise.all([
+  // A course's page rates the course from PlanetTerp's reviews of it; an
+  // instructor's uses PlanetTerp's own numbers for them.
+  const coursePage = input.instructorId === null ? input.course : null;
+  const [ours, theirs, courseNumbers] = await Promise.all([
     off
       ? null
       : listPublishedForPage(env.DB, { ...input, limit: PAGE_REVIEWS_MAX }),
@@ -87,6 +90,7 @@ export async function pageReviews(
       cursor: null,
       limit: PLANETTERP_PAGE_MAX,
     }),
+    coursePage ? planetTerpCourseNumbers(env.DB, coursePage) : undefined,
   ]);
   return {
     terpsicle:
@@ -96,6 +100,7 @@ export async function pageReviews(
       })) ?? null,
     planetTerp: theirs.reviews,
     next: theirs.next,
+    ...(courseNumbers === undefined ? {} : { planetTerpCourse: courseNumbers }),
   };
 }
 

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { writeResultWords } from "~/core/reviews";
 import {
   type MyReview,
+  PageReviewsSchema,
   PublicReviewSchema,
   QueueListResultSchema,
   ReportCreateResultSchema,
@@ -27,6 +28,7 @@ import { handleApi } from "../api/router";
 import { markDeleting } from "../auth/store";
 import { retryHeld } from "../moderation/service";
 import { decisionsFor } from "../moderation/store";
+import { replacePlanetTerpReviews } from "./planetterp";
 import { reviewsServerData } from "./public";
 import {
   advance,
@@ -323,6 +325,55 @@ describe("numbers and recent reviews, without the reviews", () => {
       depts: ["CMSC"],
     });
     expect(await data.instructor("nobody")).toBeNull();
+  });
+
+  it("rates a course's page from PlanetTerp's reviews of the course", async () => {
+    const review = (id: string, course: string, rating: number) => ({
+      id,
+      course,
+      rating,
+      expectedGrade: null,
+      body: "Hard but fair.",
+      created: "2026-04-29T15:02:11.000Z",
+    });
+    await env.DB.batch([
+      ...replacePlanetTerpReviews(
+        env.DB,
+        "kruskal",
+        [review("aaaa000000000001", "CMSC351", 4)],
+        "hash-1",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+      ...replacePlanetTerpReviews(
+        env.DB,
+        "brandt",
+        [
+          review("aaaa000000000002", "CMSC351", 2),
+          review("aaaa000000000003", "CMSC250", 5),
+        ],
+        "hash-2",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+    ]);
+    const course = PageReviewsSchema.parse(
+      await (
+        await call("reviews/page", { instructorId: null, course: "CMSC351" })
+      ).json(),
+    );
+    expect(course.planetTerpCourse).toEqual({ rating: 3, reviewCount: 2 });
+    const none = PageReviewsSchema.parse(
+      await (
+        await call("reviews/page", { instructorId: null, course: "CMSC420" })
+      ).json(),
+    );
+    expect(none.planetTerpCourse).toBeNull();
+    // An instructor's page keeps PlanetTerp's own numbers for them.
+    const instructor = PageReviewsSchema.parse(
+      await (
+        await call("reviews/page", { instructorId: "brandt", course: null })
+      ).json(),
+    );
+    expect(instructor.planetTerpCourse).toBeUndefined();
   });
 });
 

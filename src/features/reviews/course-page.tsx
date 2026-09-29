@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, PenLine } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useRef, useState } from "react";
 import { PanelNote } from "~/components/panel";
 import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
@@ -10,12 +10,16 @@ import {
   combineRatings,
   hasTermStarted,
   instructorSlug,
+  reviewedHere,
+  reviewedKey,
+  tookHere,
 } from "~/core/reviews";
-import type {
-  CourseCode,
-  InstructorId,
-  MyReview,
-  PageReviews,
+import {
+  type CourseCode,
+  type InstructorId,
+  instructorNameKey,
+  type MyReview,
+  type PageReviews,
 } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
 import { crossLinkClicked, viewWords } from "~/lib/cross-link";
@@ -30,27 +34,37 @@ import {
 import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
+import { SplitLayout } from "~/ui/split-layout";
 import { WithTooltip } from "~/ui/tooltip";
 import { Composer, type ComposerTarget } from "./composer";
-import { PAGE_NOTE, PAGE_ROW, ReviewsFrame } from "./frame";
-import { type ReviewsLevel, useReviewsLevel, useSignedIn } from "./level";
+import { FilterRow } from "./filter-list";
+import { PAGE_NOTE, ReviewsFrame } from "./frame";
+import { RatingSummary } from "./instructor-page";
+import { useReviewsLevel, useSignedIn } from "./level";
 import { GradesBlock } from "./planetterp-blocks";
 import { CombinedRatingBadge } from "./rating";
 import {
-  ReviewList,
-  useMine,
-  useReloadOnChange,
-  WriteButton,
-} from "./reviews-section";
+  ReviewBox,
+  type ReviewBoxState,
+  useBringFormIn,
+  useClassesTaken,
+  WriteReviewButton,
+} from "./review-box";
+import { ReviewList, useMine, useReloadOnChange } from "./reviews-section";
 import { SignInPrompt } from "./sign-in-prompt";
 
-// /reviews/<course> (V2 §1.1): who teaches it now, then its reviews, ours
-// and PlanetTerp's about every instructor, then everyone who's taught it
-// with their numbers, and last its grades (owner, 2026-09-28: "reviews are
-// more important to display than grades"). The route's loader read it all,
-// so the server's HTML has it.
+// /reviews/<course> (V2 §1.1), in two columns (owner, 2026-09-29). The wide
+// one reads top to bottom: the course, its rating from every review of it,
+// the box to review it yourself, then the reviews, ours and PlanetTerp's
+// about every instructor. The narrow one holds everyone who's taught it
+// (each a link to their reviews in this course) and its grades. On a phone
+// it's one column, the wide one first, with who teaches it now under the
+// title. The route's loader read it all, so the server's HTML has it.
 
 type Row = CourseInstructorRow;
+
+/** What the form is open on: a new review of someone, one of yours, or nothing. */
+type Writing = { name: string } | MyReview | null;
 
 /** The route's page: what the loader read (page-data.ts). */
 export function CoursePage({
@@ -60,24 +74,99 @@ export function CoursePage({
 }: {
   data: CoursePageData;
   reviews: PageReviews;
-  /** `?write=<name>`: open the form under who taught you. */
+  /** `?write=<name>`: open the form for who taught you. */
   write: string | null;
 }) {
   const { code, title, term, grades } = data;
   const level = useReviewsLevel();
+  const signedIn = useSignedIn();
   const rows = data.instructors;
-  const [writingFor, setWritingFor] = useState<string | null>(
-    write && rows.some((r) => r.name === write) ? write : null,
-  );
   const mine = useMine();
+  const taken = useClassesTaken();
   useReloadOnChange();
+  const [writing, setWriting] = useState<Writing>(
+    write && rows.some((r) => r.name === write) ? { name: write } : null,
+  );
+  const boxRef = useRef<HTMLDivElement>(null);
+  useBringFormIn(boxRef, writing);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   const freshness = planetTerpFreshnessWords(data.source);
   const today = newYorkClock(Date.now()).date;
   const teaching = rows.filter((r) => r.teaching);
 
+  // Every review of the course: PlanetTerp's of it, and ours.
+  const combined = combineRatings([
+    {
+      source: "planetterp",
+      rating: reviews.planetTerpCourse?.rating ?? null,
+      reviewCount: reviews.planetTerpCourse?.reviewCount ?? 0,
+    },
+    {
+      source: "terpsicle",
+      rating: data.terpsicle?.rating ?? null,
+      reviewCount: data.terpsicle?.reviewCount ?? 0,
+    },
+  ]);
+
+  const reviewedKeys = new Set(
+    mine
+      .filter((r) => r.status !== "rejected")
+      .map((r) => reviewedKey(r.course, r.reviewedName)),
+  );
+  const took = taken
+    ? tookHere(taken, { course: code, instructorName: null }, reviewedKeys)
+    : null;
+  const reviewed = reviewedHere(mine, { instructorId: null, course: code });
+  const boxState: ReviewBoxState = took
+    ? { kind: "took", took }
+    : reviewed
+      ? { kind: "reviewed", review: reviewed }
+      : { kind: "ask" };
+
+  const targetFor = (name: string): ComposerTarget => ({
+    instructorId:
+      rows.find((r) => instructorNameKey(r.name) === instructorNameKey(name))
+        ?.id ?? null,
+    reviewedName: name,
+    dept: code.slice(0, 4),
+    course: code,
+  });
+  const existingFor = (name: string) =>
+    mine.find(
+      (r) =>
+        r.course === code &&
+        r.status !== "rejected" &&
+        instructorNameKey(r.reviewedName) === instructorNameKey(name),
+    ) ?? null;
+
+  const composer =
+    writing === null ? null : signedIn !== true ? (
+      <SignInPrompt>
+        Sign in with your UMD account to write a review. Readers won't see who
+        wrote it.
+      </SignInPrompt>
+    ) : "id" in writing ? (
+      <Composer
+        target={{
+          instructorId: writing.instructorId,
+          reviewedName: writing.reviewedName,
+          dept: code.slice(0, 4),
+          course: code,
+        }}
+        existing={writing}
+        onClose={() => setWriting(null)}
+      />
+    ) : (
+      <Composer
+        target={targetFor(writing.name)}
+        existing={existingFor(writing.name)}
+        termId={took?.instructor === writing.name ? took.termId : null}
+        onClose={() => setWriting(null)}
+      />
+    );
+
   return (
-    <ReviewsFrame page="course">
+    <ReviewsFrame page="course" wide>
       <PageHeader
         size="display"
         back={{ label: "Reviews", to: "/reviews" }}
@@ -107,85 +196,120 @@ export function CoursePage({
             "Not offered this term"
           )
         }
-        actions={
-          level === "on" && rows.length > 0 ? (
-            <WriteMenu
-              code={code}
-              rows={rows}
-              term={term && hasTermStarted(term.id, today) ? term.name : null}
-              onWrite={setWritingFor}
-            />
+        views={
+          term && teaching.length > 0 ? (
+            // A phone's way to who teaches it: the side's list comes last there.
+            <div className="lg:hidden">
+              <TeachingNow term={term.name} code={code} rows={teaching} />
+            </div>
           ) : undefined
         }
       />
-
-      {term && teaching.length > 0 ? (
-        <TeachingNow term={term.name} code={code} rows={teaching} />
-      ) : null}
-
-      <PageSection size="display" title="Reviews">
-        <ReviewList
-          reviews={reviews}
-          query={{ instructorId: null, course: code }}
-          level={level}
-          showCourse={false}
-          about={(id) => (
-            <AboutInstructor
-              id={id}
-              code={code}
-              name={nameOf.get(id) ?? null}
-            />
-          )}
-          empty={`No reviews of ${code} yet.`}
-        />
-      </PageSection>
-
-      <PageSection
+      <SplitLayout
         size="display"
-        title="Everyone who's taught it"
-        aside={rows.length > 0 ? rows.length : undefined}
-      >
-        {rows.length === 0 ? (
-          <PanelNote className={PAGE_NOTE}>
-            We don't know who's taught {code} yet.
-          </PanelNote>
-        ) : (
-          <ul>
-            {rows.map((row) => (
-              <InstructorRow
-                key={row.id ?? row.name}
-                row={row}
-                code={code}
-                term={term?.name ?? null}
+        main={
+          <>
+            <RatingSummary combined={combined} freshness={null} />
+            <div ref={boxRef} className="scroll-mt-20">
+              {composer ?? (
+                <ReviewBox
+                  state={boxState}
+                  page="course"
+                  question={
+                    <>
+                      Took <span className="ident">{code}</span>?
+                    </>
+                  }
+                  write={
+                    rows.length === 0 ? null : took?.instructor ? (
+                      <WriteReviewButton
+                        tooltip={`Review ${took.instructor} in ${code}`}
+                        onClick={() =>
+                          setWriting({ name: took.instructor ?? "" })
+                        }
+                      />
+                    ) : (
+                      <WriteMenu
+                        code={code}
+                        rows={rows}
+                        term={
+                          term && hasTermStarted(term.id, today)
+                            ? term.name
+                            : null
+                        }
+                        onWrite={(name) => setWriting({ name })}
+                      />
+                    )
+                  }
+                  onEdit={setWriting}
+                />
+              )}
+            </div>
+            <PageSection size="display" title="Reviews">
+              <ReviewList
+                reviews={reviews}
+                query={{ instructorId: null, course: code }}
                 level={level}
-                existing={
-                  mine.find(
-                    (r) =>
-                      r.instructorId === row.id &&
-                      r.course === code &&
-                      r.status !== "rejected",
-                  ) ?? null
+                showCourse={false}
+                hideId={
+                  writing !== null && "id" in writing ? writing.id : undefined
                 }
-                writing={writingFor === row.name}
-                onWrite={() => setWritingFor(row.name)}
-                onClose={() => setWritingFor(null)}
+                onEdit={setWriting}
+                about={(id) => (
+                  <AboutInstructor
+                    id={id}
+                    code={code}
+                    name={nameOf.get(id) ?? null}
+                  />
+                )}
+                empty={`No reviews of ${code} yet.`}
               />
-            ))}
-          </ul>
-        )}
-        {/* About the ratings beside each name, which are PlanetTerp's. */}
-        {freshness ? <p className="text-faint text-sm">{freshness}</p> : null}
-      </PageSection>
-
-      <PageSection size="display" title="Grades">
-        {grades ? (
-          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
-        ) : (
-          <PanelNote className={PAGE_NOTE}>
-            PlanetTerp has no grades for {code} yet.
-          </PanelNote>
-        )}
-      </PageSection>
+            </PageSection>
+          </>
+        }
+        sideProps={{ "aria-label": `More about ${code}` }}
+        side={
+          <>
+            <PageSection
+              title="Instructors"
+              aside={rows.length > 0 ? rows.length : undefined}
+            >
+              {rows.length === 0 ? (
+                <PanelNote className={PAGE_NOTE}>
+                  We don't know who's taught {code} yet.
+                </PanelNote>
+              ) : (
+                <ul aria-label="Instructors">
+                  {rows.map((row) => (
+                    <InstructorRow
+                      key={row.id ?? row.name}
+                      row={row}
+                      code={code}
+                      term={term?.name ?? null}
+                    />
+                  ))}
+                </ul>
+              )}
+              {/* About the ratings beside each name, which are PlanetTerp's. */}
+              {freshness ? (
+                <p className="text-faint text-sm">{freshness}</p>
+              ) : null}
+            </PageSection>
+            <PageSection title="Grades">
+              {grades ? (
+                <GradesBlock
+                  record={grades}
+                  gradesThrough={data.gradesThrough}
+                />
+              ) : (
+                <PanelNote className={PAGE_NOTE}>
+                  PlanetTerp has no grades for {code} yet.
+                </PanelNote>
+              )}
+            </PageSection>
+          </>
+        }
+      />
     </ReviewsFrame>
   );
 }
@@ -277,10 +401,10 @@ function rowRating(row: Row) {
 }
 
 /**
- * The page's one filled action. A review is of an instructor in a course,
- * so it asks who taught you, then opens the form for them under their row:
- * one pick and you're writing (or asked to sign in). The term beside a name
- * is only one that's begun: nobody's taken a class in a term still ahead.
+ * The box's action when we don't know who taught you: a review is of an
+ * instructor in a course, so it asks who, then opens the form. The term
+ * beside a name is only one that's begun: nobody's taken a class in a term
+ * still ahead.
  */
 function WriteMenu({
   code,
@@ -294,17 +418,14 @@ function WriteMenu({
   term: string | null;
   onWrite: (name: string) => void;
 }) {
-  const signedIn = useSignedIn();
-  // A pick opens the form a screen away and focuses it there; the menu
-  // mustn't hand focus back to its button, which scrolled back up to it.
+  // A pick opens the form in the menu's place and focuses it there; the
+  // menu mustn't hand focus back to its button, which is gone.
   const picked = useRef(false);
-  if (signedIn === "loading") return null;
   return (
     <DropdownMenu>
       <WithTooltip label={`Pick who taught you ${code}`}>
         <DropdownMenuTrigger asChild>
           <Button size="lg">
-            <PenLine aria-hidden="true" />
             Write a review
             <ChevronDown aria-hidden="true" />
           </Button>
@@ -338,102 +459,48 @@ function WriteMenu({
   );
 }
 
+/** One of everyone who's taught it: their page in this course, and numbers. */
 function InstructorRow({
   row,
   code,
   term,
-  level,
-  existing,
-  writing,
-  onWrite,
-  onClose,
 }: {
   row: Row;
   code: CourseCode;
   term: string | null;
-  level: ReviewsLevel;
-  /** Your live review of them in this course, which the form edits. */
-  existing: MyReview | null;
-  writing: boolean;
-  onWrite: () => void;
-  onClose: () => void;
 }) {
-  const signedIn = useSignedIn();
-  const formRef = useRef<HTMLDivElement>(null);
-  // The header's menu can be a screen away: bring the form to it, and
-  // focus its first control (the rating, or Sign in).
-  useEffect(() => {
-    if (!writing) return;
-    const form = formRef.current;
-    form?.scrollIntoView?.({ block: "center" });
-    form
-      ?.querySelector<HTMLElement>("input, textarea, select, button, a[href]")
-      ?.focus({ preventScroll: true });
-  }, [writing]);
-  const target: ComposerTarget = {
-    instructorId: row.id,
-    reviewedName: row.name,
-    dept: code.slice(0, 4),
-    course: code,
-  };
-  return (
-    // The row, then the form it opens under it: one item of the list.
-    <li>
-      <ListRow
-        className={PAGE_ROW}
-        trail={
-          <span className="flex items-center gap-4 text-base">
-            <CombinedRatingBadge combined={rowRating(row)} />
-            {row.gpa !== null ? (
-              <span className="tnum text-muted">GPA {formatGpa(row.gpa)}</span>
-            ) : null}
-            {row.id === null && (!writing || signedIn !== true) ? (
-              <WriteButton
-                level={level}
-                target={target}
-                existing={null}
-                onWrite={writing ? onClose : onWrite}
-                label="Write the first review"
-                size="row"
-              />
-            ) : null}
-          </span>
-        }
-      >
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {row.id ? (
-            <WithTooltip label={`${row.name}'s reviews and grades in ${code}`}>
-              <Link
-                to="/reviews/$slug"
-                params={{ slug: instructorSlug(row.id) }}
-                search={{ course: code }}
-                className="font-medium text-lg hover:underline"
-              >
-                {row.name}
-              </Link>
-            </WithTooltip>
-          ) : (
-            <span className="font-medium text-lg">{row.name}</span>
-          )}
-          {row.teaching && term ? (
-            <span className="border border-hairline-strong px-1.5 text-muted text-xs">
-              Teaching {term}
-            </span>
-          ) : null}
-        </div>
-      </ListRow>
-      {writing ? (
-        <div ref={formRef} className="scroll-mt-16 pb-3">
-          {signedIn !== true ? (
-            <SignInPrompt>
-              Sign in with your UMD account to write a review. Readers won't see
-              who wrote it.
-            </SignInPrompt>
-          ) : (
-            <Composer target={target} existing={existing} onClose={onClose} />
-          )}
-        </div>
+  const trail = (
+    <span className="flex flex-col items-end gap-0.5">
+      <CombinedRatingBadge combined={rowRating(row)} />
+      {row.gpa !== null ? (
+        <span className="text-muted text-xs">GPA {formatGpa(row.gpa)}</span>
       ) : null}
-    </li>
+    </span>
+  );
+  const secondary = row.teaching && term ? `Teaching ${term}` : undefined;
+  if (row.id)
+    return (
+      <FilterRow
+        label={<span className="font-medium">{row.name}</span>}
+        secondary={secondary}
+        trail={trail}
+        tooltip={`${row.name}'s reviews and grades in ${code}`}
+        link={{
+          to: "/reviews/$slug",
+          params: { slug: instructorSlug(row.id) },
+          search: { course: code },
+        }}
+      />
+    );
+  // PlanetTerp doesn't know them yet: no page of theirs to go to.
+  return (
+    <ListRow
+      as="li"
+      className="-mx-2 border-b-0 px-2"
+      secondary={secondary}
+      trail={trail}
+    >
+      <span className="block truncate font-medium text-base">{row.name}</span>
+    </ListRow>
   );
 }
