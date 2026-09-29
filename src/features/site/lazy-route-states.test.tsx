@@ -11,9 +11,7 @@ import {
 describe("the route states' stand-ins", () => {
   it("says the page didn't load, with Reload", () => {
     render(<RouteErrorUnavailable />);
-    expect(
-      screen.getByRole("heading", { name: "This page didn't load" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("This page didn't load")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
       "Check your connection, then reload.",
     );
@@ -24,9 +22,7 @@ describe("the route states' stand-ins", () => {
 
   it("still says there's nothing at the address", () => {
     render(<NotFoundUnavailable />);
-    expect(
-      screen.getByRole("heading", { name: "Page not found" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Page not found")).toBeInTheDocument();
     expect(
       screen.getByText("There's nothing at this address."),
     ).toBeInTheDocument();

@@ -27,7 +27,9 @@ import { RouteError, RoutePending } from "./route-states";
 export function RouteErrorUnavailable() {
   return (
     <main className="flex min-h-dvh flex-col items-start gap-2 bg-bg p-4 text-fg">
-      <h1 className="font-semibold text-lg">This page didn't load</h1>
+      {/* Not a heading: every page's title is the kit's PageHeader, which
+          brings the kit's tooltip, and this has to load without it. */}
+      <p className="font-semibold text-lg">This page didn't load</p>
       <p role="status">
         Part of Terpsicle didn't arrive. Check your connection, then reload.
       </p>
@@ -54,7 +56,7 @@ export function RouteErrorUnavailable() {
 export function NotFoundUnavailable() {
   return (
     <main className="flex min-h-dvh flex-col items-start gap-2 bg-bg p-4 text-fg">
-      <h1 className="font-semibold text-lg">Page not found</h1>
+      <p className="font-semibold text-lg">Page not found</p>
       <p>There's nothing at this address.</p>
     </main>
   );
