@@ -76,7 +76,7 @@ function Card({ item }: { item: SampleItem }) {
 export function SamplePreview() {
   return (
     <figure className="flex flex-col gap-2">
-      <figcaption className="font-medium text-muted text-sm">
+      <figcaption className="emph-secondary text-sm">
         A week in Todo: your deadlines and your own tasks, in each course's
         color
       </figcaption>
@@ -103,7 +103,7 @@ export function SamplePreview() {
       <ul aria-hidden="true" className="space-y-3 md:hidden">
         {DAYS.filter((d) => d.items.length > 0).map((day) => (
           <li key={day.name}>
-            <p className="border-hairline border-b pb-1 font-semibold text-muted text-sm">
+            <p className="emph-heading border-hairline border-b pb-1 text-sm">
               {day.name}
             </p>
             <ul className="space-y-1 pt-1">

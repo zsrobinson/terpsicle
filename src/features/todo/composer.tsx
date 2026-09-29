@@ -364,10 +364,7 @@ export function Composer({
       {open ? chips : null}
       <div hidden={!open} className="grid grid-cols-[1fr_auto] gap-2">
         <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor={dateId}
-            className="font-medium text-muted text-xs max-md:text-sm"
-          >
+          <label htmlFor={dateId} className="emph-label text-sm">
             Due date
           </label>
           <WithTooltip label="When it's due. Leave it empty for no date.">
@@ -382,10 +379,7 @@ export function Composer({
           </WithTooltip>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor={timeId}
-            className="font-medium text-muted text-xs max-md:text-sm"
-          >
+          <label htmlFor={timeId} className="emph-label text-sm">
             Time
           </label>
           <WithTooltip
@@ -408,10 +402,7 @@ export function Composer({
           </WithTooltip>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor={courseId}
-            className="font-medium text-muted text-xs max-md:text-sm"
-          >
+          <label htmlFor={courseId} className="emph-label text-sm">
             Course
           </label>
           <Select

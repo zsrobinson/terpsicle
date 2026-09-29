@@ -163,7 +163,9 @@ export function WeekFrame({
             {days.map((day) => (
               <div
                 key={day}
-                className="flex items-center px-2 text-muted text-sm"
+                // A day's name heads its column (Label); the hours are an
+                // axis, and stay faint.
+                className="emph-label flex items-center px-2 text-sm"
               >
                 {DAY_SHORT_NAMES[day]}
               </div>

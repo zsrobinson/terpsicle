@@ -191,7 +191,7 @@ function DayBlock({
   return (
     <div id={`day-${day.date ?? "none"}`} className="scroll-mt-4">
       {heading ? (
-        <h3 className="border-hairline border-b pt-3 pb-1 font-semibold text-muted text-sm">
+        <h3 className="emph-heading border-hairline border-b pt-3 pb-1 text-sm">
           {day.label}
         </h3>
       ) : null}
@@ -200,7 +200,7 @@ function DayBlock({
           <Rows items={day.open} done={false} props={props} />
         </ul>
       ) : day.done.length === 0 ? (
-        <p className="py-2 text-muted text-sm">Nothing due</p>
+        <p className="emph-secondary py-2 text-sm">Nothing due</p>
       ) : null}
       <DoneFold count={day.done.length}>
         <Rows items={day.done} done props={props} />
@@ -222,12 +222,12 @@ export function DayList(props: ViewProps) {
         <section key={section.id} aria-labelledby={`todo-${section.id}`}>
           <h2
             id={`todo-${section.id}`}
-            className="border-hairline border-b pb-1 font-semibold text-base"
+            className="emph-heading border-hairline border-b pb-1 text-base"
           >
             {section.label}
           </h2>
           {section.days.length === 0 ? (
-            <p className="py-2 text-muted text-sm">{section.empty}</p>
+            <p className="emph-secondary py-2 text-sm">{section.empty}</p>
           ) : (
             section.days.map((day) => (
               <DayBlock
