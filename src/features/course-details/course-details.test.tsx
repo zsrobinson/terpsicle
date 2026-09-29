@@ -226,13 +226,15 @@ describe("Course details", () => {
       useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
       try {
         const { user } = await renderDetails();
-        const jada = within(screen.getByTestId("sections")).getByRole(
-          "button",
-          { expanded: true, name: /^Jada/ },
-        );
+        // The row on screen now: it re-renders as Terpsicle's numbers land.
+        const jada = () =>
+          within(screen.getByTestId("sections")).getByRole("button", {
+            expanded: true,
+            name: /^Jada/,
+          });
         // 88 on PlanetTerp at 4.6, and the mock's 9 on Terpsicle at 3.33.
-        await waitFor(() => expect(jada).toHaveTextContent(/4\.5\(97\)$/));
-        expect(jada).toHaveAccessibleName(
+        await waitFor(() => expect(jada()).toHaveTextContent(/4\.5\(97\)$/));
+        expect(jada()).toHaveAccessibleName(
           /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews$/,
         );
         // The rating re-renders as the numbers settle, so hover the one on
