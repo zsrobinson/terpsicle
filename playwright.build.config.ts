@@ -25,7 +25,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm db:local && vite preview --port ${PORT} --strictPort`,
+    // Mock mode, as `pnpm dev:mock`: no remote bindings (Workers AI), which
+    // need a Cloudflare login CI doesn't have. The build under test is the
+    // production one either way.
+    command: `pnpm db:local && vite preview --mode mock --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}/?stay`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
