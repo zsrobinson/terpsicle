@@ -45,10 +45,16 @@ export function SitePage({
 export function SiteHeader({
   notFound = false,
   borderOnScroll = false,
+  context,
+  status,
 }: {
   notFound?: boolean;
   /** Reviews' public pages: the bar's rule shows once the page scrolls. */
   borderOnScroll?: boolean;
+  /** A product's own context in the bar (Todo's views and week), for the path's. */
+  context?: ReactNode;
+  /** Its controls at the bar's end, before the bell and Feedback. */
+  status?: ReactNode;
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   // The Worker renders a 404 at its own path (NOT_FOUND_PATH) and the page
@@ -62,7 +68,8 @@ export function SiteHeader({
       current={current}
       feedback={notFound ? null : feedbackProduct(path)}
       pathname={path}
-      context={notFound ? null : pageContext(path)}
+      context={notFound ? null : (context ?? pageContext(path))}
+      status={status}
       borderOnScroll={borderOnScroll}
       phoneTitle={notFound ? undefined : phoneTitle(path)}
     />

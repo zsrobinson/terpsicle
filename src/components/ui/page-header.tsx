@@ -181,3 +181,30 @@ export function PageHeader({
     </header>
   );
 }
+
+/**
+ * A page's title and status line where the page has no header of its own,
+ * in the family bar's context (Todo's week, docs/decisions.md "One bar at
+ * the top"): the page's one `h1` (Title), the status line under it (Meta,
+ * docs/DESIGN.md §7.8), both cut short rather than wrapped.
+ */
+export function BarTitle({
+  title,
+  status,
+  className,
+}: {
+  title: ReactNode;
+  status?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col justify-center", className)}>
+      <h1 className="emph-title truncate text-base leading-tight">{title}</h1>
+      {status ? (
+        <div className="emph-meta flex min-w-0 items-center gap-1 truncate">
+          {status}
+        </div>
+      ) : null}
+    </div>
+  );
+}
