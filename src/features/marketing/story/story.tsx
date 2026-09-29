@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import {
-  lazy,
+  type ComponentProps,
   Suspense,
   useCallback,
   useEffect,
@@ -10,6 +10,7 @@ import {
 import { Mark } from "~/components/brand/mark";
 import { LazyTooltip } from "~/components/lazy-tooltip";
 import { useMediaQuery } from "~/hooks/use-media-query";
+import { lazyComponent } from "~/lib/lazy-component";
 import { STEPS } from "../copy";
 import { HeroWords } from "../hero";
 import { Misprint } from "../misprint";
@@ -27,8 +28,11 @@ import { STEP_PRODUCT, type Stage, toStage } from "./stages";
 // Reduced motion gets each stage's final frame with no transition
 // (marketing.css).
 
-const Pieces = lazy(() =>
-  import("./pieces").then((m) => ({ default: m.Pieces })),
+// If their code doesn't arrive, the screen stays the plain week, and asks
+// again once the browser is back online (~/lib/lazy-component).
+const Pieces = lazyComponent<ComponentProps<typeof import("./pieces").Pieces>>(
+  () => import("./pieces").then((m) => m.Pieces),
+  () => null,
 );
 
 /** While the page scrolls to a step it was sent to, scrolling doesn't restage. */
