@@ -329,7 +329,7 @@ On an instructor's or a course's page, the box between the rating and the review
 _Avoid_: banner, nudge (in copy)
 
 **Who taught it**:
-A course's page's side column: everyone who's taught the course, grouped under the newest term each taught it (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course.
+A course's page's side column: each term, newest first, with everyone who taught the course then, from our instructor history (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course.
 _Avoid_: Instructors (the old heading)
 
 **Recent reviews**:

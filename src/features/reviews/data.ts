@@ -14,6 +14,8 @@ import {
   courseIndexDeptKey,
   courseSearchKey,
   type DeptCode,
+  HISTORY_MANIFEST_KEY,
+  historyDeptKey,
   type InstructorId,
   type Manifest,
   type PageReviews,
@@ -30,6 +32,11 @@ import {
   type Term,
   type TermId,
 } from "~/core/schema";
+import {
+  type HistoryDept,
+  HistoryDeptSchema,
+  HistoryManifestSchema,
+} from "~/core/schema/history";
 import { clientConfig } from "~/lib/config";
 import {
   createDataReader,
@@ -310,6 +317,36 @@ export function loadCourseSearch(
       "courses",
     );
     return file.courses;
+  });
+}
+
+/**
+ * A department's instructor history (DATA.md §3.5): who taught each of its
+ * courses, term by term. Null before the history job has run.
+ */
+export function loadHistoryDept(
+  reader: Reader,
+  dept: DeptCode,
+): Promise<HistoryDept | null> {
+  return reader.memo(`history:${dept}`, async () => {
+    const manifest = await orNull(
+      readParsed(
+        reader.source,
+        HISTORY_MANIFEST_KEY,
+        HistoryManifestSchema,
+        "history",
+      ),
+    );
+    const entry = manifest?.departments.find((d) => d.code === dept);
+    if (!entry) return null;
+    return orNull(
+      readParsed(
+        reader.source,
+        historyDeptKey(entry.code, entry.hash),
+        HistoryDeptSchema,
+        "history",
+      ),
+    );
   });
 }
 

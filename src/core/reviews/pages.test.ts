@@ -194,16 +194,53 @@ describe("coursePageData", () => {
       source: null,
       terpsicle: null,
     });
-    const groups = courseTermGroups(data?.instructors ?? []);
+    if (!data) throw new Error("no page");
+    const groups = courseTermGroups(data);
     expect(groups.map((g) => [g.termId, g.rows.map((r) => r.name)])).toEqual([
       ["202608", ["Pat New"]],
       // The most reviewed first.
       ["202601", ["Clyde Kruskal", "Ada Brandt"]],
       ["201808", ["Jo Old"]],
     ]);
-    const brandt = data?.instructors.find((r) => r.id === "brandt");
+    const brandt = data.instructors.find((r) => r.id === "brandt");
     expect(brandt?.gpa).toBeCloseTo(4);
     expect(brandt?.overallGpa).toBeCloseTo(3);
+  });
+
+  it("lists everyone under every term our history has them", () => {
+    const data = coursePageData({
+      code: "CMSC351",
+      entry: aCourseIndexEntry(),
+      current: {
+        term,
+        course: aCourse({
+          sections: [aSection({ instructors: ["Clyde Kruskal"] })],
+        }),
+      },
+      ptDept: cmsc,
+      gradesThrough: "202501",
+      source: null,
+      terpsicle: null,
+      offerings: [
+        { termId: "202608", instructors: ["Clyde Kruskal"] },
+        { termId: "202601", instructors: ["Ada Brandt", "Clyde Kruskal"] },
+        // Before PlanetTerp knew them: a row of their own, no id.
+        { termId: "201908", instructors: ["Jo Early"] },
+      ],
+    });
+    if (!data) throw new Error("no page");
+    expect(
+      courseTermGroups(data).map((g) => [g.termId, g.rows.map((r) => r.name)]),
+    ).toEqual([
+      ["202608", ["Clyde Kruskal"]],
+      ["202601", ["Ada Brandt", "Clyde Kruskal"]],
+      ["201908", ["Jo Early"]],
+    ]);
+    expect(data.instructors.find((r) => r.name === "Jo Early")).toMatchObject({
+      id: null,
+      teaching: false,
+      lastTermId: "201908",
+    });
   });
 
   it("is null (a 404) when nothing published knows the course", () => {

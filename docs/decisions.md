@@ -452,8 +452,8 @@ Revisit if: the owner brings summaries back.
 
 ### Course pages work like PlanetTerp's
 2026-09-29 · owner · one feature
-"planetterp deprioritizes viewing results per course, not filtered by instructor... their main page for courses just groups by term and shows what professors taught it, their average GPAs (across all their courses). i want users who use our site to already be familiar with it because they've used planetterp before." A course's page shows every review of it, never filtered by default. Its side column, "Who taught it", groups everyone under the newest term they taught it (this term for who teaches it now), each with their average GPA across all their courses in the department's file and their rating; each name is the filter, their page for the course.
-Revisit if: PlanetTerp's per-term data lands in our files, so a term can list everyone who taught it then.
+"planetterp deprioritizes viewing results per course, not filtered by instructor... their main page for courses just groups by term and shows what professors taught it, their average GPAs (across all their courses). i want users who use our site to already be familiar with it because they've used planetterp before." A course's page shows every review of it, never filtered by default. Its side column, "Who taught it", lists each term newest first with everyone who taught it then, from our instructor history (`history/`, #221), so an instructor appears under every term they taught; whoever teaches it now is under this term, and anyone the history lacks is under the newest term PlanetTerp's grades know. Each has their average GPA across all their courses in the department's file and their rating; each name is the filter, their page for the course.
+Revisit if: a course's term list grows too long to scan (then fold the older terms).
 
 ### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
 2026-09-29 · owner · one feature

@@ -285,7 +285,7 @@ export function CoursePage({
                 </PanelNote>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {courseTermGroups(rows).map((group) => (
+                  {courseTermGroups(data).map((group) => (
                     <TermGroup
                       key={group.termId ?? "earlier"}
                       group={group}

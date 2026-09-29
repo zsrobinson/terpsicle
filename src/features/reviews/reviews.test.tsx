@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REVIEW_HELD_WORDS } from "~/core/reviews";
 import {
+  HISTORY_MANIFEST_KEY,
+  historyDeptKey,
   type MyReview,
   manifestKey,
   planetTerpIndexKey,
@@ -608,6 +610,58 @@ describe("a course's page", () => {
       name: "Taught CMSC351 in Spring 2025",
     });
     expect(spring).toHaveTextContent(/Ada Brandt.*Average GPA \d\.\d\d/);
+  });
+
+  it("lists who taught it in every term our instructor history has", async () => {
+    setAccount({ reviews: "on" });
+    fakeReviewsClient();
+    publishFiles({
+      [TERMS_KEY]: LISTED,
+      "planetterp/manifest.json": aPlanetTerpManifest(),
+      [`planetterp/dept/CMSC.${FIXTURE_HASH}.json`]: aPlanetTerpDept(),
+      [HISTORY_MANIFEST_KEY]: {
+        schemaVersion: 1,
+        generatedAt: "2026-09-29T12:00:00.000Z",
+        terms: [],
+        departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
+      },
+      [historyDeptKey("CMSC", FIXTURE_HASH)]: {
+        schemaVersion: 1,
+        dept: "CMSC",
+        courses: [
+          {
+            code: "CMSC351",
+            title: "Algorithms",
+            offerings: [
+              {
+                termId: "202601",
+                source: "terpsicle",
+                instructors: ["Ada Brandt"],
+                sections: [{ code: "0101", instructors: ["Ada Brandt"] }],
+              },
+              {
+                termId: "202508",
+                source: "terpsicle",
+                instructors: ["Ada Brandt", "Jo Early"],
+                sections: [],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    await course();
+    expect(
+      await screen.findByRole("list", {
+        name: "Taught CMSC351 in Spring 2026",
+      }),
+    ).toHaveTextContent("Ada Brandt");
+    // Brandt again, beside someone PlanetTerp doesn't know.
+    const fall = screen.getByRole("list", {
+      name: "Taught CMSC351 in Fall 2025",
+    });
+    expect(fall).toHaveTextContent("Ada Brandt");
+    expect(fall).toHaveTextContent("Jo Early");
   });
 
   it("lists every instructor's reviews, each saying who it's about", async () => {

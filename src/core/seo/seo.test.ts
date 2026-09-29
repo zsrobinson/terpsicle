@@ -45,6 +45,7 @@ const course: CoursePageData = {
       lastTermId: "202501",
     },
   ],
+  terms: [],
   terpsicle: null,
 };
 

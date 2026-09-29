@@ -1,3 +1,4 @@
+import { courseOfferings } from "~/core/history";
 import {
   type CoursePageData,
   courseFromSlug,
@@ -38,6 +39,7 @@ import {
   loadCourseSearch,
   loadCurrentCourse,
   loadCurrentTerm,
+  loadHistoryDept,
   loadOurNumbers,
   loadPlanetTerp,
   loadPlanetTerpIndex,
@@ -70,21 +72,25 @@ export async function loadCoursePage(
 ): Promise<CoursePageData | null> {
   const reader = await readerFor(serverContext);
   const dept = code.slice(0, 4);
-  const [entry, current, planetTerp, terpsicle] = await Promise.all([
+  const [entry, current, planetTerp, terpsicle, history] = await Promise.all([
     loadCourseEntry(reader, code),
     loadCurrentCourse(reader, code),
     loadPlanetTerp(reader, dept),
     reader.reviews?.courseNumbers(code) ?? null,
+    // Without it, "Who taught it" falls back to PlanetTerp's newest terms.
+    loadHistoryDept(reader, dept).catch(() => null),
   ]);
+  const offerings = courseOfferings(history, code);
   const ids = Object.keys(
     planetTerp.dept?.courses[code]?.byInstructor ?? {},
   ).concat(
-    (current?.course?.sections ?? []).flatMap((s) =>
-      s.instructors.flatMap((name) => {
-        const id = planetTerp.dept?.names[instructorNameKey(name)];
-        return id ? [id] : [];
-      }),
-    ),
+    [
+      ...(current?.course?.sections ?? []).flatMap((s) => s.instructors),
+      ...offerings.flatMap((o) => o.instructors),
+    ].flatMap((name) => {
+      const id = planetTerp.dept?.names[instructorNameKey(name)];
+      return id ? [id] : [];
+    }),
   );
   const ourNumbers = await loadOurNumbers(reader, [...new Set(ids)], [dept]);
   return coursePageData({
@@ -95,6 +101,7 @@ export async function loadCoursePage(
     gradesThrough: planetTerp.gradesThrough,
     source: planetTerp.source,
     terpsicle,
+    offerings,
     ourNumbers,
   });
 }
