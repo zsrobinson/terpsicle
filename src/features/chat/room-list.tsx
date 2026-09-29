@@ -117,7 +117,6 @@ function CourseGroup({
     <li className="border-hairline border-b last:border-b-0">
       <GroupHeader
         headingLevel={3}
-        className="max-md:h-11"
         title={
           <span className="block max-w-full truncate">
             <span className="ident">{courseCode}</span>

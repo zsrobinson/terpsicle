@@ -734,6 +734,21 @@
   }
 }
 
+/*
+ * The section band's height (SECTION_BAND in src/components/ui/list-row.tsx):
+ * 30px, and 44px on phones, where the band's controls are touch targets.
+ * Sticky groups sit under a sticky section by it.
+ */
+:root {
+  --band-height: 30px;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --band-height: 44px;
+  }
+}
+
 @utility w-sidebar {
   width: clamp(var(--sidebar-min), var(--sidebar-width), var(--sidebar-max));
 }

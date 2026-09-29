@@ -190,16 +190,10 @@ function SectionList(props: SectionsProps) {
         }
       />
       {many && placed ? (
-        <div className="emph-heading flex h-7 items-center px-4 text-sm">
-          Your section
-        </div>
+        <GroupHeader nested headingLevel={3} title="Your section" />
       ) : null}
       {many && placed ? (
-        <ul
-          aria-label="Your section"
-          className="border-hairline border-y"
-          data-testid="your-section"
-        >
+        <ul aria-label="Your section" data-testid="your-section">
           <SectionRow {...props} section={placed} pinned />
         </ul>
       ) : null}
@@ -277,6 +271,7 @@ function InstructorGroupRows({
   return (
     <div data-group={key}>
       <GroupHeader
+        nested
         sticky
         open={!closed}
         onToggle={onToggle}

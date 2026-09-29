@@ -224,8 +224,6 @@ function WeekSection({
         level={2}
         title={title}
         count={total.total === 0 ? undefined : `${ofWords(total)} done`}
-        // First in its popover or sheet.
-        className="border-t-0"
       />
       {rows.length === 0 ? (
         <p className="px-4 py-3 text-muted text-sm">
@@ -404,7 +402,7 @@ export function TaskPanel({
 }) {
   return (
     <section aria-label="Add a task">
-      <SectionHeader level={2} title="Add a task" className="border-t-0" />
+      <SectionHeader level={2} title="Add a task" />
       <Composer
         courses={courses}
         colors={colors}

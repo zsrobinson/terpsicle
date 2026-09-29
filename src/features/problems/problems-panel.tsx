@@ -72,15 +72,12 @@ export function ProblemsPanel() {
           SEVERITY_ORDER.map((severity) => {
             const group = problems.filter((p) => p.severity === severity);
             if (group.length === 0) return null;
-            const first = severity === problems[0]?.severity;
             return (
               <section key={severity} aria-label={GROUP_LABEL[severity]}>
                 <SectionHeader
                   sticky
                   title={GROUP_LABEL[severity]}
                   count={group.length}
-                  // The panel header's hairline is right above the first bar.
-                  className={first ? "border-t-0" : undefined}
                 />
                 <ul>
                   {group.map((p) => (

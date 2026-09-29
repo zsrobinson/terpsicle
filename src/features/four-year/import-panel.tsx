@@ -32,6 +32,7 @@ import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { Input, Textarea } from "~/ui/input";
+import { GroupHeader } from "~/ui/list-row";
 import { SegmentedControl } from "~/ui/segmented-control";
 import { WithTooltip } from "~/ui/tooltip";
 import { importTranscript } from "./actions";
@@ -350,14 +351,17 @@ function TermGroup({
   const inProgress = rows.some((r) => r.line.inProgress);
   return (
     <section aria-label={name}>
-      <h3 className="emph-heading tnum flex items-baseline gap-2 border-hairline border-y bg-panel px-4 py-1 text-sm">
-        {name}
-        {inProgress ? <span className="emph-meta">In progress</span> : null}
-        <span className="emph-meta ml-auto">
-          {read.length} {read.length === 1 ? "course" : "courses"} ·{" "}
-          {cr(credits)}
-        </span>
-      </h3>
+      <GroupHeader
+        headingLevel={3}
+        title={name}
+        meta={inProgress ? "In progress" : undefined}
+        right={
+          <span className="tnum">
+            {read.length} {read.length === 1 ? "course" : "courses"} ·{" "}
+            {cr(credits)}
+          </span>
+        }
+      />
       <ul>{children}</ul>
     </section>
   );
