@@ -16,7 +16,7 @@ export function liveToasts(page: Page): Locator {
  */
 export async function expectToastAboveDrawer(page: Page): Promise<void> {
   const toast = liveToasts(page).first();
-  const drawer = page.locator("[data-vaul-drawer]");
+  const drawer = page.locator("[data-workbench-drawer]");
   await expect(toast).toBeVisible();
   await expect
     .poll(async () => {

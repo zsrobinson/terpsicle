@@ -95,7 +95,7 @@ export class Lab {
   /** Waits for the app shell and the drawer, then starts recording. */
   async ready(timeout = 30_000): Promise<void> {
     const ok = await this.waitFor(
-      "!!document.querySelector('[data-vaul-drawer]') && !!document.querySelector('[data-calendar-scroll]')",
+      "!!document.querySelector('[data-workbench-drawer]') && !!document.querySelector('[data-calendar-scroll]')",
       timeout,
       "the app shell",
     );

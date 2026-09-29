@@ -69,6 +69,10 @@ describe("bundle check", () => {
   });
 
   it("keeps the scheduler's lazy tabs, drawer and search index out of its first load", () => {
+    // Base UI's Drawer, as pnpm lays it out: only the sheet indent's parts
+    // may be eager.
+    const BASE_UI =
+      "node_modules/.pnpm/@base-ui+react@1.8.0/node_modules/@base-ui/react";
     const eager: BundleGraph = {
       "assets/s.js": chunk(
         [],
@@ -82,8 +86,12 @@ describe("bundle check", () => {
           "src/features/register/register-panel.tsx",
           "src/core/ics/ics.ts",
           "src/core/search/search.ts",
-          "node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
+          `${BASE_UI}/drawer/viewport/DrawerViewport.mjs`,
+          `${BASE_UI}/drawer/provider/DrawerProvider.mjs`,
+          `${BASE_UI}/drawer/indent/DrawerIndent.mjs`,
+          "src/components/ui/sheet-indent.tsx",
           "src/features/schedule/mobile-drawer.tsx",
+          "src/components/workbench/drawer.tsx",
         ],
       ),
     };
@@ -96,8 +104,9 @@ describe("bundle check", () => {
       "assets/s.js: src/features/register/register-panel.tsx",
       "assets/s.js: src/core/ics/ics.ts",
       "assets/s.js: src/core/search/search.ts",
-      "assets/s.js: node_modules/.pnpm/vaul@1.1.2/node_modules/vaul/dist/index.mjs",
+      `assets/s.js: ${BASE_UI}/drawer/viewport/DrawerViewport.mjs`,
       "assets/s.js: src/features/schedule/mobile-drawer.tsx",
+      "assets/s.js: src/components/workbench/drawer.tsx",
     ]);
   });
 

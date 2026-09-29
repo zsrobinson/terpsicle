@@ -46,7 +46,7 @@ for (const path of ["/schedule?demo=1", "/reviews", "/todo"]) {
     });
     await page.waitForLoadState("networkidle");
     if (path.startsWith("/schedule"))
-      await expect(page.locator("[data-vaul-drawer]")).toBeVisible({
+      await expect(page.locator("[data-workbench-drawer]")).toBeVisible({
         timeout: 20_000,
       });
     const targets = await barTargets(page);

@@ -278,7 +278,7 @@ test.describe("phone", () => {
     await searchBox(page).fill("cmsc 351");
     await page.locator('[data-course-result="CMSC351"]').tap();
 
-    const drawer = page.locator("[data-vaul-drawer]");
+    const drawer = page.locator("[data-workbench-drawer]");
     await expect(
       drawer.getByRole("heading", { name: "Algorithms" }),
     ).toBeVisible();
@@ -298,7 +298,7 @@ test.describe("phone", () => {
     await tabs.getByRole("button", { name: "Search" }).tap();
     await searchBox(page).fill("cmsc131");
     await page.locator('[data-course-result="CMSC131"]').tap();
-    const drawer = page.locator("[data-vaul-drawer]");
+    const drawer = page.locator("[data-workbench-drawer]");
     const row = drawer.getByTestId("sections").locator('[data-section="0102"]');
     await row.getByRole("button", { name: "Add 0102" }).tap();
     await expect(row).toContainText("In Plan A");

@@ -86,9 +86,9 @@ Frame chrome:
 
 ## 8. Sheets, drawers, popovers, dialogs
 
-- **vaul Drawer**:
-  - The workbench's phone sidebar (`components/workbench/drawer.tsx`), for Schedule (`features/schedule/mobile-drawer.tsx`) and Plan (`four-year/plan-drawer.tsx`): full `h-dvh`, z-40, no overlay, grabber `h-1 w-8` in an `h-6 w-16` hit area.
-  - Chat room info on phones, **built separately** (`chat/chat-page.tsx:322-354`): z-50, `bg-fg/20` overlay, `max-h-[85dvh]`, handle `h-1 w-10 mt-2`, its header the kit's panel `PageHeader`.
+- **Base UI Drawer** (vaul until v3/workbench-drawer):
+  - The workbench's phone sidebar (`components/workbench/drawer.tsx`), for Schedule (`features/schedule/mobile-drawer.tsx`) and Plan (`four-year/plan-drawer.tsx`): full height under the family bar, z-40, no backdrop, never closed, grabber `h-1 w-8` in an `h-6 w-16` hit area.
+  - Chat room info on phones: the kit's `Sheet` (`chat/room-info-sheet.tsx`), its header the kit's panel `PageHeader`.
   - Todo, Reviews and Settings use no sheets.
 - **Radix Popover** (`~/ui/popover`):
   - Account sign-in (`account-button.tsx:73`)

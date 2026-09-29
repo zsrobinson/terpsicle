@@ -8,7 +8,7 @@ import { expect, type Page } from "@playwright/test";
  * person would, to pick one. The grabber steps half → full → peek.
  */
 export async function lowerPlanDrawer(page: Page): Promise<void> {
-  const drawer = page.locator("[data-vaul-drawer]");
+  const drawer = page.locator("[data-workbench-drawer]");
   await expect(drawer).not.toHaveAttribute("data-snap", "peek");
   const grabber = page.getByRole("button", {
     name: /^(Lower|Raise) the panel$/,

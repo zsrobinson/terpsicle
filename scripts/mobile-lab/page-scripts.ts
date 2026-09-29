@@ -64,7 +64,7 @@ export const INSTALL = `(() => {
   // Only frames where something moved, so a still screen costs nothing.
   let last = "";
   const tick = () => {
-    const d = document.querySelector("[data-vaul-drawer]");
+    const d = document.querySelector("[data-workbench-drawer]");
     const a = document.activeElement;
     const focused = a && a !== document.body && (a.tagName === "INPUT" || a.tagName === "TEXTAREA");
     const f = [
@@ -117,7 +117,7 @@ export const PROBE = `(() => {
   };
   const describe = lab ? lab.describe : (el) => el && el.tagName;
   const scroller = (el) => el ? { scrollTop: Math.round(el.scrollTop), scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, rect: rect(el) } : null;
-  const drawer = document.querySelector("[data-vaul-drawer]");
+  const drawer = document.querySelector("[data-workbench-drawer]");
   const a = document.activeElement;
   const nonText = ["button","checkbox","color","file","image","radio","range","reset","submit"];
   const textEntry = !!a && ((a.tagName === "INPUT" && !nonText.includes(a.type)) || a.tagName === "TEXTAREA" || a.isContentEditable === true);
@@ -141,7 +141,7 @@ export const PROBE = `(() => {
     visualViewport: vv ? { width: r1(vv.width), height: r1(vv.height), offsetTop: r1(vv.offsetTop), offsetLeft: r1(vv.offsetLeft), pageTop: r1(vv.pageTop), scale: +vv.scale.toFixed(3) } : null,
     scrollX: r1(scrollX), scrollY: r1(scrollY),
     document: { scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight },
-    drawer: drawer ? { snap: drawer.getAttribute("data-snap"), rect: rect(drawer), transform: getComputedStyle(drawer).transform, contentHeight: [...drawer.children].reduce((m, c) => Math.max(m, r1(c.getBoundingClientRect().height)), 0) } : null,
+    drawer: drawer ? { snap: drawer.getAttribute("data-snap"), rect: rect(drawer), transform: getComputedStyle(drawer).transform, contentHeight: [...drawer.children].reduce((m, c) => Math.max(m, r1(c.getBoundingClientRect().height)), 0), ...(() => { const s = document.createElement("div"); s.style.cssText = "position:fixed;visibility:hidden;height:0;padding-top:var(--safe-top, 0px);padding-bottom:var(--safe-bottom, 0px)"; document.body.appendChild(s); const cs = getComputedStyle(s); const safe = { safeTop: parseFloat(cs.paddingTop) || 0, safeBottom: parseFloat(cs.paddingBottom) || 0 }; s.remove(); return safe; })() } : null,
     activeElement: a && a !== document.body ? { describe: describe(a), textEntry, rect: rect(a), hit, value: "value" in a ? String(a.value).slice(0, 40) : null } : null,
     panel: panel ? { heading: heading ? heading.textContent.trim().slice(0, 60) : null, body: scroller(panel.querySelector("[data-panel-body]")), layer: scroller(panel) } : null,
     searchResults: scroller(document.querySelector("#search-results")),
