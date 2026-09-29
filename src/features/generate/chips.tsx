@@ -377,7 +377,7 @@ function CreditsFilter({
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent className="w-60">
-        <p className="mb-2 font-medium text-muted text-xs">Credits</p>
+        <p className="emph-label mb-2 text-sm">Credits</p>
         <div className="flex items-center gap-1.5 text-sm">
           <WithTooltip label="At least this many credits">
             <Input

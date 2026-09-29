@@ -20,7 +20,7 @@ describe("ListRow", () => {
       </ListRow>,
     );
     const secondary = screen.getByText("Algorithms · J. Whitfield");
-    expect(secondary).toHaveClass("text-muted", "text-sm");
+    expect(secondary).toHaveClass("emph-secondary", "text-sm");
     expect(secondary.previousSibling).toHaveTextContent("0201");
     const row = secondary.parentElement?.parentElement;
     expect(row).toHaveClass("items-start", "border-b", "px-4", "py-2");

@@ -114,7 +114,7 @@ export function ReportForm({
         }}
       >
         <fieldset>
-          <legend className="mb-1 font-medium">What's wrong with it?</legend>
+          <legend className="emph-label mb-1">What's wrong with it?</legend>
           {/* The kit's rows, a native radio leading each: the reasons stay
               in view, and arrow keys move between them. */}
           <ul>
@@ -154,7 +154,7 @@ export function ReportForm({
           </ul>
         </fieldset>
         <div className="flex flex-col gap-1">
-          <label htmlFor={noteId} className="text-muted text-sm">
+          <label htmlFor={noteId} className="emph-label text-sm">
             Anything a moderator should know? (optional)
           </label>
           <WithTooltip label="A note for the moderator; the author never sees it">

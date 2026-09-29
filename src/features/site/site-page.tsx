@@ -80,7 +80,7 @@ function pageContext(path: string): ReactNode {
       : null;
   if (!page) return null;
   return (
-    <span className="flex items-center gap-1.5 font-semibold text-base">
+    <span className="emph-heading flex items-center gap-1.5 text-base">
       <page.icon size={15} aria-hidden="true" className="text-muted" />
       {page.label}
     </span>

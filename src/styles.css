@@ -657,6 +657,59 @@
 }
 
 /*
+ * Emphasis (docs/DESIGN.md §7.8): one ladder for every product. More
+ * important is darker and bolder, and a heading is never lighter than what
+ * it heads. In dark, "darker" is higher contrast: `fg` is the paper there.
+ * These set ink and weight; the size is the kit's (a page's title is 18px, a
+ * display page's 32px), except Meta, which is always small.
+ *
+ *   emph-title      the page's name              fg, 600, tight
+ *   emph-heading    a section or group           fg, 600
+ *   emph-label      a row's name, a field label  fg, 500
+ *   emph-body       content                      fg, 400
+ *   emph-secondary  a supporting line            muted, 400
+ *   emph-meta       counts, times, freshness     muted, 400, 12px, tabular
+ *   emph-disabled   what you can't use yet       faint
+ */
+@utility emph-title {
+  color: var(--fg);
+  font-weight: 600;
+  letter-spacing: -0.025em; /* tracking-tight */
+}
+
+@utility emph-heading {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+@utility emph-label {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+@utility emph-body {
+  color: var(--fg);
+  font-weight: 400;
+}
+
+@utility emph-secondary {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+@utility emph-meta {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+@utility emph-disabled {
+  color: var(--faint);
+}
+
+/*
  * Mono vs sans (docs/UX-REVIEW.md §2.7): `ident` is for identifiers (course,
  * section, building and gen-ed codes) and the calendar's block text. Times,
  * counts, seats and GPAs are `tnum` sans. Never set a sentence in `ident`.

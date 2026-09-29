@@ -17,7 +17,7 @@ describe("PageHeader at page size", () => {
     );
     const h1 = await screen.findByRole("heading", { level: 1 });
     expect(h1).toHaveTextContent("CMSC216 · Introduction to Computer Systems");
-    expect(h1).toHaveClass("text-xl", "font-semibold");
+    expect(h1).toHaveClass("text-xl", "emph-title");
     expect(screen.getByText("Offered in Spring 2027")).toHaveClass(
       "text-sm",
       "text-muted",
@@ -61,7 +61,7 @@ describe("PageHeader at display size", () => {
     );
     const h1 = await screen.findByRole("heading", { level: 1 });
     expect(h1).toHaveTextContent("Clyde Kruskal");
-    expect(h1).toHaveClass("text-3xl", "font-semibold");
+    expect(h1).toHaveClass("text-3xl", "emph-title");
     expect(screen.getByText("Instructor")).toHaveClass(
       "text-product-reviews-text",
     );

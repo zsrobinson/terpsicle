@@ -521,6 +521,10 @@ _Avoid_: design system (that's the whole line from tokens to pages)
 The tick an iPhone plays when a finger taps a kit control: a segment, a view, a switch, Undo, and later a tab, a menu item or a sheet's grabber. The kit decides which controls tick; feature code never does. Only a tap can tick, never a drag, a long press or a result. Code says a control's `haptic` prop, and `HapticTap` inside the kit.
 _Avoid_: vibration, buzz
 
+**Emphasis level**:
+How much a line of text says "read me first", one of seven in every product: **Title**, **Heading**, **Label**, **Body**, **Secondary**, **Meta** and **Disabled** (`emph-*`, docs/DESIGN.md §7.8). Darker and bolder is more important, and a heading is never lighter than what it heads.
+_Avoid_: hierarchy color, text style
+
 **Page width**:
 How wide a page's column is, picked by how it's read: **note** (560), **reading** (720), **app** (1120) or **full** (edge to edge). A page picks one and never invents its own.
 

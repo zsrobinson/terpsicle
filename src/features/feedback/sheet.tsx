@@ -638,9 +638,7 @@ function FeedbackPopover({
           anchor.current?.focus();
         }}
       >
-        <h2 className="mb-3 font-semibold text-lg tracking-tight">
-          Send feedback
-        </h2>
+        <h2 className="emph-title mb-3 text-lg">Send feedback</h2>
         <FeedbackForm
           product={product}
           onSent={() => onOpenChange(false)}

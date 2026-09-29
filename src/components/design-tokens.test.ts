@@ -96,7 +96,51 @@ const RULES = {
    * on a first visit), so every product's title looks and reads the same.
    */
   pageTitle: { pattern: /<h1\b/g, tsxOnly: true },
+  /**
+   * "font-medium text-muted": bold but light, the look of a heading lighter
+   * than what it heads (docs/DESIGN.md §7.8). Use a level: `emph-heading`,
+   * `emph-label`, or `emph-secondary` for a line that supports. A control's
+   * resting state (a tab, a quiet link) may be, since it darkens as you use
+   * it: its string says so with a hover, aria-, data- or transition class.
+   */
+  lightBold: {
+    pattern: /(["'`])[^"'`\n]*\1/g,
+    tsxOnly: true,
+    allow: (m: string) =>
+      !(
+        /\bfont-(?:medium|semibold|bold)\b/.test(m) &&
+        /\btext-(?:muted|faint)\b/.test(m)
+      ) || /\b(?:hover|aria-\S+|data-\S+|group-\S+):|\btransition/.test(m),
+  },
 } satisfies Record<string, Rule>;
+
+/**
+ * A hand-written heading (`<h2>`…`<h6>`, `<legend>`) takes its ink from the
+ * emphasis ladder: `emph-title`, `emph-heading` or `emph-label`, never
+ * `text-muted` or a raw weight (docs/DESIGN.md §7.8). The kit's own headings
+ * (PageHeader, PageSection, SectionHeader, EmptyState) already do. Headings
+ * with no class inherit, and the marketing page's `mk-` headings have their
+ * own design.
+ */
+const HEADING =
+  /<(h[2-6]|legend)\b[^>]*?className=(?:"([^"]*)"|\{cn\(\s*"([^"]*)")/gs;
+
+/** "file: <h3 class>" for every heading off the ladder. */
+function headingsOffTheLadder(sources: Record<string, string>): string[] {
+  const found: string[] = [];
+  for (const [file, source] of Object.entries(sources)) {
+    if (!file.endsWith(".tsx")) continue;
+    for (const m of source.matchAll(HEADING)) {
+      const classes = m[2] ?? m[3] ?? "";
+      if (
+        /\b(?:emph-(?:title|heading|label)|sr-only|mk-[\w-]+)\b/.test(classes)
+      )
+        continue;
+      found.push(`${file}: <${m[1]} "${classes}">`);
+    }
+  }
+  return found;
+}
 
 /**
  * Pages that set their own column today (docs/cohesion-inventory.md §11).
@@ -175,6 +219,34 @@ describe("the rules", () => {
     expect(
       bad(`className="max-w-[460px] max-w-xs max-w-[7200px]"`, RULES.pageWidth),
     ).toBe(0);
+
+    expect(
+      bad(
+        `<h3 className="font-semibold text-muted text-sm"> <p className="text-faint font-medium">`,
+        RULES.lightBold,
+      ),
+    ).toBe(2);
+    expect(
+      bad(
+        `"font-medium text-muted hover:text-fg" "font-medium aria-[current=page]:text-fg text-muted" "emph-heading text-muted-x" "font-semibold text-fg" "text-muted text-sm"`,
+        RULES.lightBold,
+      ),
+    ).toBe(0);
+  });
+
+  it("find headings off the emphasis ladder", () => {
+    const off = (source: string) =>
+      headingsOffTheLadder({ "x.tsx": source }).length;
+    expect(off(`<h2 className="font-medium text-muted text-sm">A</h2>`)).toBe(
+      1,
+    );
+    expect(off(`<h3\n  id={id}\n  className="font-semibold">A</h3>`)).toBe(1);
+    expect(off(`<legend className={cn("text-muted", x)}>A</legend>`)).toBe(1);
+    expect(
+      off(
+        `<h2 className="emph-heading text-base">A</h2> <h3 className="sr-only">B</h3> <h2 className="mk-display mk-h2">C</h2> <h4>D</h4> <legend className="emph-label">E</legend>`,
+      ),
+    ).toBe(0);
   });
 });
 
@@ -215,6 +287,16 @@ describe("the UI", () => {
       Object.entries(SOURCES).filter(([file]) => !OWN_H1.has(file)),
     );
     expect(scan(pages, RULES.pageTitle)).toEqual([]);
+  });
+
+  // docs/DESIGN.md §7.8: more important is darker and bolder, and a heading
+  // is never lighter than what it heads, in every product.
+  it("puts every heading on the emphasis ladder", () => {
+    expect(headingsOffTheLadder(SOURCES)).toEqual([]);
+  });
+
+  it("never sets a label bold but light (font-medium text-muted)", () => {
+    expect(scan(SOURCES, RULES.lightBold)).toEqual([]);
   });
 
   it("keeps the list of pages with their own h1 honest", () => {

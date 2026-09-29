@@ -44,6 +44,11 @@ Revisit if: a seventh place arrives.
 "i'm not a big fan of having two different bars at the top." Share is an icon in the family bar beside the others, not a second bar over the canvas, and switching semesters or plans happens in a sheet, so the bar isn't cramped.
 Revisit if: a product needs more than one action there.
 
+### Darker and bolder means more important, everywhere
+2026-09-29 · owner · app-wide
+"we should have darker and bolder communicate more importance, and use the same system throughout the entire app." One emphasis ladder (Title, Heading, Label, Body, Secondary, Meta, Disabled; `emph-*` in `src/styles.css`, docs/DESIGN.md §7.8), built into the kit, and a heading is never lighter than what it heads. `src/components/design-tokens.test.ts` fails on a heading off the ladder or a bold-but-muted label.
+Revisit if: never on its own.
+
 ### Base UI for every primitive, styled in Ink
 2026-09-28 · owner · app-wide
 Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.

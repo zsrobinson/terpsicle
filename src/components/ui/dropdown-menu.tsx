@@ -277,10 +277,7 @@ function DropdownMenuLabel({
   return (
     <div
       data-slot="dropdown-menu-label"
-      className={cn(
-        "px-2 pt-1.5 pb-1 font-medium text-xs text-muted",
-        className,
-      )}
+      className={cn("emph-heading px-2 pt-1.5 pb-1 text-xs", className)}
       {...props}
     />
   );

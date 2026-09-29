@@ -76,7 +76,7 @@ export function ListRow({
       <div className="min-w-0 flex-1">
         {children}
         {secondary !== undefined ? (
-          <div className="mt-0.5 text-muted text-sm">{secondary}</div>
+          <div className="emph-secondary mt-0.5 text-sm">{secondary}</div>
         ) : null}
       </div>
       {trail !== undefined ? (
@@ -125,11 +125,13 @@ export function GroupHeader({
 )) {
   const label = (
     <>
-      <span className="truncate font-semibold text-fg">{title}</span>
+      <span className="emph-heading truncate">{title}</span>
       {/* The title keeps its room; the meta takes what's left and gives it
           up first (QA S8: "Farid Kinc…" beside a whole rating and GPA). */}
       {meta ? (
-        <span className="tnum min-w-0 flex-1 truncate text-muted">{meta}</span>
+        <span className="emph-secondary tnum min-w-0 flex-1 truncate">
+          {meta}
+        </span>
       ) : null}
     </>
   );

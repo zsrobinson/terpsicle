@@ -111,7 +111,7 @@ function AddButton({
           focusSearch("column");
         }}
         className={cn(
-          "w-full justify-start px-2 font-medium text-muted",
+          "w-full justify-start px-2 font-medium text-muted hover:text-fg",
           compact && "w-auto",
         )}
       >
@@ -160,7 +160,7 @@ export function TermColumn({
       )}
     >
       <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
-        <Heading id={id} className="font-semibold">
+        <Heading id={id} className="emph-heading">
           {fourYearTermLabel(term)}
         </Heading>
         {tag ? (
@@ -184,7 +184,7 @@ export function TermColumn({
       </ul>
       {readOnly ? (
         entries.length === 0 ? (
-          <p className="px-2 pb-2 text-faint text-sm">No courses yet</p>
+          <p className="emph-secondary px-2 pb-2 text-sm">No courses yet</p>
         ) : (
           <div className="pb-1.5" />
         )
@@ -224,7 +224,7 @@ function BeforeRow() {
       )}
     >
       <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
-        <h2 id="term-before" className="font-semibold">
+        <h2 id="term-before" className="emph-heading">
           Before UMD
         </h2>
         <span className="text-muted text-xs">AP, exam and transfer credit</span>
@@ -243,7 +243,7 @@ function BeforeRow() {
             ))}
           </ul>
         ) : readOnly ? (
-          <p className="px-0.5 pb-0.5 text-faint text-sm">None</p>
+          <p className="emph-secondary px-0.5 pb-0.5 text-sm">None</p>
         ) : null}
         {readOnly ? null : <AddButton term="before" compact />}
       </div>
@@ -270,9 +270,9 @@ export function Board() {
             key={year}
             aria-label={`Year ${i + 1}, ${academicYearLabel(year)}`}
           >
-            <h2 className="mb-1.5 flex items-baseline gap-2 text-muted text-xs">
-              <span className="font-medium text-fg">Year {i + 1}</span>
-              <span className="tnum">{academicYearLabel(year)}</span>
+            <h2 className="emph-heading mb-1.5 flex items-baseline gap-2 text-base">
+              <span>Year {i + 1}</span>
+              <span className="emph-meta">{academicYearLabel(year)}</span>
             </h2>
             {/* A year's semesters side by side, or stacked in a narrow
                 canvas (a tablet, with the sidebar open). */}

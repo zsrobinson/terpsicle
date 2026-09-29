@@ -190,7 +190,7 @@ function SectionList(props: SectionsProps) {
         }
       />
       {many && placed ? (
-        <div className="flex h-7 items-center px-4 font-medium text-muted text-xs">
+        <div className="emph-heading flex h-7 items-center px-4 text-sm">
           Your section
         </div>
       ) : null}

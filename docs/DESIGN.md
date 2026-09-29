@@ -135,7 +135,7 @@ Use these when the spec is silent:
 - **Don't yell.** Problems are information, not alarms. No banners, no red outlines on choices a person is still weighing, no confirmation dialogs (use undo). Stopping a seat watch is no exception: it has Undo like everything else (V2.md §6.5).
 - **People arrive cold, a few times a semester.** Text labels on navigation, a numbered first-visit guide, tooltips everywhere, and shortcuts as a bonus rather than a requirement.
 - **Dense and precise, like Linear or Vercel.** Compact type, hairline rules inside panels, an ink accent, square corners. Motion is quick and quiet. A left rail with a boxed active state risks looking "like Slack", so keep it restrained. The brand (§7) dresses this density; it never loosens it.
-- **One system, not per-panel taste.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, color tokens only, and the shared panel pieces in `src/components/panel.tsx` (`docs/UX-REVIEW.md` §2). `src/components/design-tokens.test.ts` holds the line.
+- **One system, not per-panel taste.** Six type sizes (`text-2xs`…`text-xl`), a 4px spacing rhythm, color tokens only, one emphasis ladder (§7.8: darker and bolder is more important), and the shared panel pieces in `src/components/panel.tsx` (`docs/UX-REVIEW.md` §2). `src/components/design-tokens.test.ts` holds the line.
 - **Design for 1, a few, and many sections.** Upper-level courses often have one section; intro courses have dozens. Every section-bearing surface (course details, search results, calendar ghosts, generate results) must be great at both extremes. In the owner's words: "my socy4xx classes all are just one section, but the intro CS and math courses have like a billion sections. our UI should be great in both scenarios."
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
 - **Honest numbers.** Show the math behind estimates. Never draw something that implies a simpler calculation than the one we did (a straight route line, for example).
@@ -227,6 +227,28 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 - Colors: [Flexoki](https://stephango.com/flexoki) by Steph Ango, MIT License.
 - Type: Bricolage Grotesque (The Bricolage Grotesque Project Authors) and Geist Mono (Vercel), both SIL Open Font License 1.1, self-hosted from Fontsource.
 - iPhone haptics: the native-switch trick from [`@haptics/core`](https://github.com/howdoiusekeyboard/haptics), Copyright (c) 2026 Howdoiusekeyboard, MIT License, rewritten in `src/components/ui/haptic.tsx`.
+
+### 7.8 Emphasis (owner, 2026-09-29)
+
+> "i kept thinking about why so many things in the UI just felt off and hard to grok, and realized it was because we have no consistent color scheme for visual hierarchy, like on one tab it might be sections in light and content dark and the other way around on another tab and then all the same on another. we should have darker and bolder communicate more importance, and use the same system throughout the entire app."
+
+**More important is darker and bolder, and a heading is never lighter than what it heads.** In dark, "darker" means more contrast, so brighter: the levels use `fg`, `muted` and `faint`, which flip with the theme. Seven levels, as utilities in `src/styles.css` that set ink and weight (the size stays the kit's):
+
+| Level | Utility | Ink, weight | For |
+|---|---|---|---|
+| Title | `emph-title` | `fg`, 600, tight | The page's name (`PageHeader`), a first visit's headline (`EmptyState`), a drill-in's name (a course, a result, a connection), a dialog's title |
+| Heading | `emph-heading` | `fg`, 600 | A section (`PageSection`, `SectionHeader`), a group (`GroupHeader`), a panel's title, a menu's group label, the bar's small title on a phone |
+| Label | `emph-label` | `fg`, 500 | A row's name, a field's label or legend, the plan or room you're in |
+| Body | `emph-body` | `fg`, 400 | Content: descriptions, reviews, messages, a property's value |
+| Secondary | `emph-secondary` | `muted`, 400 | A supporting line (`ListRow`'s `secondary`), an empty list's note (`PanelNote`), a property's name (a `dt`: the value is what you came for), the term above a plan |
+| Meta | `emph-meta` | `muted`, 400, 12px, tabular | Counts, times and freshness: a page header's status line, a section's aside, a heading's count |
+| Disabled | `emph-disabled` | `faint` | What you can't use yet; separators (`MetaSep`) |
+
+- **Never bold and muted together** on words that aren't a control: that's a heading lighter than its content. A control's resting state is the exception (a tab, a segmented option, a quiet link), because it darkens to `fg` as you use it.
+- **Codes keep `ident` and 600** where a code names its row (CMSC351 in a course row): Geist Mono draws lighter than Bricolage at the same weight.
+- **Surfaces, the same in every product.** Content sits on the page's paper (`bg-bg`): pages, sidebars, sheets. `bg-panel` is only a band that names a group (`GroupHeader`), the workbench's rail, and the containers on a canvas (Plan's semesters, the calendar's days). A raised, keylined box is a `Card`, for one thing you press or that floats. A section is never a box: it's a `PageSection`, a hairline and a heading.
+- **The top bar** follows the same ladder: the product you're in and the thing you're in (the plan, the room) are Label, a switcher to their parent (the term) is Secondary, and a name the bar holds as a title (Settings, Admin, a phone's small product title) is Heading.
+- The kit applies all of this: build with `PageHeader`, `PageSection`, `ListRow`, `GroupHeader`, `SectionHeader`, `EmptyState` and `PanelNote`, and reach for an `emph-*` utility only where the kit has no slot. `src/components/design-tokens.test.ts` fails on an `<h2>`–`<h6>` or `<legend>` off the ladder, and on a bold-but-muted label.
 
 ## 8. The marketing page (owner, 2026-09-28)
 

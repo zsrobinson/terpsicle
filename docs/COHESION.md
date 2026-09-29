@@ -102,6 +102,8 @@ Easiest to hardest, so the kit is tested before the scheduler takes it on:
   - tooltips and shortcuts on every control (`v3/behavior-keys`: `e2e/tooltips.spec.ts` checks every page; menu options are the one exception, in `docs/decisions.md`);
   - focus order and keyboard (`v3/behavior-keys`: tabbed through every product at 1440; Esc closes the top layer, and a popover no longer needs two).
 
+- [x] Emphasis (owner, 2026-09-29; `v3/visual-hierarchy`): one ladder in every product, where darker and bolder means more important and a heading is never lighter than what it heads (docs/DESIGN.md §7.8). Title, Heading, Label, Body, Secondary, Meta and Disabled are `emph-*` utilities, built into `PageHeader`, `PageSection`, `ListRow`, `GroupHeader`, `SectionHeader`, `EmptyState`, `PanelNote`, the dialog and the menus' group labels. Content sits on the page's paper in every product; `bg-panel` is for group bands, the rail and a canvas's containers. The design-tokens test fails on a heading off the ladder or a bold-but-muted label.
+
 ### Phase 5: first-time rounds, until happy
 - [ ] A scripted first visit to each product, as a new student with no account, then signed in:
   - at phone and desktop widths, in light and dark;
@@ -162,7 +164,7 @@ The most visible items:
 9. ~~**Undo toasts.**~~ Fixed: one `undoToast()`, one 10-second window.
 10. **Errors.** Error handling differs everywhere: red toasts in Schedule, plain ones in Chat, and "reload the page" with no button in Reviews and Settings. (Every route now shares one loading and one error state: `src/features/site/route-states.tsx`.)
 11. **Back.** Six back affordances.
-12. **Section headings.** Five section-heading styles.
+12. ~~**Section headings.** Five section-heading styles.~~ Fixed: one emphasis ladder (DESIGN.md §7.8).
 13. **Loading.** Three copies of `ListSkeleton`, one lone spinner, and pulsing in two places only.
 14. **Form controls.** No shared form controls:
     - four search boxes and five text inputs;

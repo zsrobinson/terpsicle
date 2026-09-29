@@ -350,12 +350,10 @@ function TermGroup({
   const inProgress = rows.some((r) => r.line.inProgress);
   return (
     <section aria-label={name}>
-      <h3 className="tnum flex items-baseline gap-2 border-hairline border-y bg-panel px-4 py-1 font-medium text-sm">
+      <h3 className="emph-heading tnum flex items-baseline gap-2 border-hairline border-y bg-panel px-4 py-1 text-sm">
         {name}
-        {inProgress ? (
-          <span className="font-normal text-muted text-xs">In progress</span>
-        ) : null}
-        <span className="ml-auto font-normal text-muted text-xs">
+        {inProgress ? <span className="emph-meta">In progress</span> : null}
+        <span className="emph-meta ml-auto">
           {read.length} {read.length === 1 ? "course" : "courses"} ·{" "}
           {cr(credits)}
         </span>
@@ -390,7 +388,7 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
   return (
     <section aria-labelledby="plan-import-check">
       <div className="space-y-1 px-4 py-3">
-        <h2 id="plan-import-check" className="font-medium">
+        <h2 id="plan-import-check" className="emph-heading">
           Check what we read
         </h2>
         <p role="status" className="text-muted text-sm">
@@ -428,7 +426,7 @@ export function ImportCheck({ columns = false }: { columns?: boolean }) {
             aria-label="Lines we couldn't read"
             className="space-y-1 border-hairline border-t px-4 py-2"
           >
-            <h3 className="font-medium text-sm">
+            <h3 className="emph-heading text-sm">
               {unreadable.length === 1
                 ? "One line we couldn't read"
                 : `${unreadable.length} lines we couldn't read`}
@@ -558,7 +556,7 @@ export function ImportPanel() {
   return (
     <div className="flex flex-col">
       <div className="space-y-2 px-4 py-3">
-        <label htmlFor={IMPORT_INPUT_ID} className="block font-medium">
+        <label htmlFor={IMPORT_INPUT_ID} className="emph-label block">
           Paste your unofficial transcript
         </label>
         <p className="text-muted text-sm">

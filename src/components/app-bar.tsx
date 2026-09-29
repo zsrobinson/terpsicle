@@ -346,7 +346,7 @@ function PhoneTitle({
     <span
       aria-hidden="true"
       className={cn(
-        "flex min-w-0 items-center gap-1.5 pl-1 font-semibold text-base transition-opacity duration-(--dur-control) md:hidden",
+        "emph-heading flex min-w-0 items-center gap-1.5 pl-1 text-base transition-opacity duration-(--dur-control) md:hidden",
         !shown && "opacity-0",
       )}
     >

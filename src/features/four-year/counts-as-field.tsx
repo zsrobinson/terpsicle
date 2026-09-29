@@ -106,7 +106,7 @@ export function CountsAsField({
   const searching = query.trim() !== "";
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block font-medium text-sm">
+      <label htmlFor={id} className="emph-label block text-sm">
         Counts as
       </label>
       <CourseSearchField

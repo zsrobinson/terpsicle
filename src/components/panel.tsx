@@ -86,7 +86,7 @@ export function PanelBody({
  * A section's heading inside a panel.
  * - `bar` (default): a 36px band with hairlines above and below, for lists;
  *   `sticky` pins it to the top of the PanelBody.
- * - `label`: a quiet heading with no lines, for forms and short groups.
+ * - `label`: a small heading with no lines, for forms and short groups.
  */
 export function SectionHeader({
   title,
@@ -117,16 +117,16 @@ export function SectionHeader({
     return (
       <div
         className={cn(
-          "flex items-baseline justify-between gap-2 px-4 pt-4 pb-1.5 font-medium text-muted text-xs",
+          "flex items-baseline justify-between gap-2 px-4 pt-4 pb-1.5 text-sm",
           className,
         )}
       >
         {/* A heading, so a screen reader can jump between a form's parts
             ("Courses", "Filters", "Preferences") like between panels. */}
         <span className="flex items-baseline gap-1.5">
-          <Heading className="font-medium">{title}</Heading>
+          <Heading className="emph-heading">{title}</Heading>
           {count !== undefined ? (
-            <span className="tnum font-normal">{count}</span>
+            <span className="emph-meta">{count}</span>
           ) : null}
         </span>
         {right}
@@ -140,10 +140,8 @@ export function SectionHeader({
         className,
       )}
     >
-      <Heading className="font-medium">{title}</Heading>
-      {count !== undefined ? (
-        <span className="tnum text-muted">{count}</span>
-      ) : null}
+      <Heading className="emph-heading">{title}</Heading>
+      {count !== undefined ? <span className="emph-meta">{count}</span> : null}
       {right ? (
         <div className="ml-auto flex min-w-0 items-center gap-3">{right}</div>
       ) : null}
@@ -180,7 +178,7 @@ export function PanelNote({
   className?: string;
 }) {
   return (
-    <div className={cn("px-4 py-3 text-muted text-sm", className)}>
+    <div className={cn("emph-secondary px-4 py-3 text-sm", className)}>
       <div>{children}</div>
       {action ? <div className="mt-2">{action}</div> : null}
     </div>

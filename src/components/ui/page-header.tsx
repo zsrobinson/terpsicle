@@ -116,11 +116,9 @@ export function PageHeader({
                 {eyebrow}
               </div>
             ) : null}
-            <h1 className="text-balance font-semibold text-3xl tracking-tight">
-              {title}
-            </h1>
+            <h1 className="emph-title text-balance text-3xl">{title}</h1>
             {status ? (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg text-muted">
+              <div className="emph-secondary flex flex-wrap items-center gap-x-2 gap-y-1 text-lg">
                 {status}
               </div>
             ) : null}
@@ -143,10 +141,8 @@ export function PageHeader({
         >
           {back ? <BackLink {...back} /> : null}
           <div className="min-w-0 flex-1">
-            <h2 className="truncate font-semibold text-base">{title}</h2>
-            {status ? (
-              <div className="truncate text-muted text-sm">{status}</div>
-            ) : null}
+            <h2 className="emph-heading truncate text-base">{title}</h2>
+            {status ? <div className="emph-meta truncate">{status}</div> : null}
           </div>
           {actions}
         </div>
@@ -167,9 +163,9 @@ export function PageHeader({
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         {back ? <BackLink {...back} className="mb-1" /> : null}
-        <h1 className="font-semibold text-xl tracking-tight">{title}</h1>
+        <h1 className="emph-title text-xl">{title}</h1>
         {status ? (
-          <div className="flex flex-wrap items-center gap-1.5 text-muted text-sm">
+          <div className="emph-meta flex flex-wrap items-center gap-1.5">
             {status}
           </div>
         ) : null}

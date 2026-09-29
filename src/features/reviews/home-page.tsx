@@ -519,7 +519,7 @@ function ResultGroup({
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <h2 id={id} className="font-medium text-muted text-sm">
+      <h2 id={id} className="emph-heading text-sm">
         {title}
       </h2>
       <ul aria-labelledby={id}>{children}</ul>

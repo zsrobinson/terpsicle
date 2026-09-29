@@ -94,7 +94,7 @@ function Details({
     <PanelBody className="pb-6">
       <div className="px-4 pt-3">
         <div className="text-muted text-xs">Every {daysInWords(days)}</div>
-        <h2 className="mt-0.5 flex items-center gap-2 font-semibold text-lg">
+        <h2 className="emph-title mt-0.5 flex items-center gap-2 text-lg">
           <span className="ident">{from}</span>
           <ArrowRight size={14} className="text-muted" aria-label="to" />
           <span className="ident">{to}</span>
@@ -193,7 +193,7 @@ function verdictBody(c: Connection): Message {
 function Row({ term, children }: { term: string; children: ReactNode }) {
   return (
     <>
-      <dt className="text-muted text-sm">{term}</dt>
+      <dt className="emph-secondary text-sm">{term}</dt>
       <dd className="min-w-0">{children}</dd>
     </>
   );

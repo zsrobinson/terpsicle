@@ -59,7 +59,7 @@ describe("PageSection at display size", () => {
       </PageSection>,
     );
     const heading = screen.getByRole("heading", { level: 2, name: "Reviews" });
-    expect(heading).toHaveClass("text-2xl", "font-semibold");
+    expect(heading).toHaveClass("text-2xl", "emph-title");
     expect(heading.closest("section")).toHaveClass("border-t", "pt-6", "gap-4");
     expect(screen.getByText("171")).toHaveClass("text-base");
   });
