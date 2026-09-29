@@ -100,11 +100,17 @@ export function ReviewsHomePage({
             />
             {typed ? <Results q={typed} results={data.results} /> : null}
             <Browse data={data} />
-            <About level={level} signedIn={signedIn} />
           </>
         }
         sideProps={{ "aria-label": "Yours" }}
         side={<YourReviewsColumn />}
+      />
+      {/* Under both columns, in the wide one's width: on a phone, what's
+          yours comes before the fine print. */}
+      <SplitLayout
+        size="display"
+        main={<About level={level} signedIn={signedIn} />}
+        side={null}
       />
     </ReviewsFrame>
   );
@@ -337,7 +343,12 @@ function About({
   signedIn: ReturnType<typeof useSignedIn>;
 }) {
   return (
-    <PageSection size="display" title="Where this comes from">
+    <PageSection
+      size="display"
+      title="Where this comes from"
+      // It follows the columns above: it keeps its rule.
+      className="first:border-t first:pt-6"
+    >
       <div className="flex flex-col gap-3 text-lg text-muted">
         <p>
           Reviews come from students here and on PlanetTerp, a separate UMD

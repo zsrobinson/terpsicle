@@ -115,7 +115,7 @@ export function ReviewBox({
     line = (
       <>
         {formatMonthYear(review.createdAt.slice(0, 7))} · {standing.label}
-        {standing.detail ? `. ${standing.detail}` : ""}
+        {/* What it means is on your review itself, below, and in Your reviews. */}
       </>
     );
     action = standing.editable ? (
