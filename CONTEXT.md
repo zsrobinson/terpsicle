@@ -165,18 +165,14 @@ _Avoid_: permission prompt, opt-in, enable push (in UI)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's.
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (Todo's week start, the **room rules** you've closed) beside Schedule's.
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
 _Avoid_: close account, deactivate
 
 **Sparkles**:
-The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. It shows only while **AI features** are on.
-
-**AI features**:
-Everything a model wrote that students see, marked with the sparkles: today, the review summary. On by default. "Show AI summaries" in Settings, or "Hide AI summaries" in an AI box's ⋯ menu, turns them all off, everywhere; signed in, the choice follows the account. Every new sparkles feature respects it (`useAiFeatures`).
-_Avoid_: AI mode, smart features
+The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. Students see none today (the owner removed Reviews' summaries on 2026-09-29); only the owner's feedback groups carry it.
 
 **Feedback**:
 What someone sends from the feedback sheet: "Report a bug" or "Suggest a feature". The owner's own notes on a page are **pinned notes**.
@@ -306,9 +302,6 @@ A URL that carries a whole plan. It opens read-only as a **shared plan** with "S
 **Review**:
 A signed-in student's rating and text for a course and professor. Readers, moderation and the admin never see who wrote it.
 
-**Review summary**:
-The LLM summary of a professor's reviews, with theme chips. It carries the sparkles.
-
 **PlanetTerp**:
 The outside site whose ratings, reviews and grade data we show, with credit and a link.
 
@@ -324,12 +317,24 @@ _Avoid_: slug (in copy), `/reviews/instructors/…` (the old address, which move
 The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **most taken**, as equals.
 _Avoid_: popular, top-rated
 
-**Review your instructors**:
-The quiet list in `/reviews`' narrow column, signed in, of the instructors of the sections in your main plans for terms that are over (or in their last six weeks), newest first, each one tap from the form; under it, your reviews, newest first. Signed out it's "Your instructors", theirs to read about, with a line on signing in. Never a banner.
+**Review your classes**:
+The quiet list in `/reviews`' narrow column, signed in, of the classes you took and haven't reviewed, newest first, each one tap from the form: from the four-year plan's past terms (the course only) and from Schedule's main plans for terms the Schedule of Classes still lists (the course and its instructors). A class without its instructor opens the course's page, which asks who taught you. Under it, your reviews, newest first, then "Courses in your plans". Signed out it's "Classes you took", to read about, with a line on signing in. Never a banner.
+_Avoid_: Review your instructors (the old name)
 
 **Review box**:
-On an instructor's or a course's page, the box between the rating and the reviews that asks you to review them yourself. From your plans it can name the class you took and haven't reviewed ("You took CMSC351 with Keiko Ashdown in Spring 2026"), or show your review with Edit; otherwise, and always signed out, it asks "Took CMSC351?". Code says `ReviewBox`.
+On an instructor's or a course's page, the box between the rating and the reviews that asks you to review them yourself. From your plans it can name the class you took and haven't reviewed ("You took CMSC351 with Keiko Ashdown in Spring 2026"), or show your review with Edit; otherwise, and always signed out, it asks "Took CMSC351?". When your plans know the course but not who taught it, it asks instead of claiming: "You took CMSC351 in Fall 2025" with "Who taught you?" on a course's page, "Did you take CMSC351 with Keiko Ashdown?" on an instructor's. Code says `ReviewBox`.
 _Avoid_: banner, nudge (in copy)
+
+**Who taught it**:
+A course's page's side column: everyone who's taught the course, grouped under the newest term each taught it (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course.
+_Avoid_: Instructors (the old heading)
+
+**Recent reviews**:
+The newest reviews anywhere, ours and PlanetTerp's, on `/reviews`, each saying who and which course it's about.
+
+**Reviews preview**:
+In Schedule's course details, the popover (a sheet on phones) an instructor's "Reviews" button opens, wearing Reviews' mark: their rating, the grades sentence, their three newest reviews and "View reviews". Code says `ReviewsPreview`.
+_Avoid_: reviews tab, summary
 
 **Folded tabs**:
 The family bar's product tabs at rest on Reviews: the product you're on with its name, the others only their marks, every name opening when you hover or tab into them. Code says `collapseTabs`.

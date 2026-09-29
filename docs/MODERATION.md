@@ -141,7 +141,7 @@ Chat and reviews share these actions: hate, threats and violence, sexual content
 Only clear spam and clear non-reviews are removed without a person, and only in reviews. Every other label holds: a wrong hold costs the owner a click, a wrong removal silences someone. Chat's bars are high because what the small model over-reads there (a study group's numbers, a link, a textbook for sale) is allowed. Chat's definitions say so too: sharing your own details or a room to meet in, pointing to a website or a study group, and selling a used textbook all score 0.
 
 **Models** (`POLICY_MODELS` in `models.ts`, V2 §9.2's measurement):
-- **Reviews:** `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, the model summaries already use. Reviews are few and each matters, and on held-out cases it caught a comment on an instructor's age that the 8B model scored 0.
+- **Reviews:** `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, the model review summaries used (they were removed on 2026-09-29). Reviews are few and each matters, and on held-out cases it caught a comment on an instructor's age that the 8B model scored 0.
 - **Chat:** `@cf/meta/llama-3.1-8b-instruct-fp8-fast`. It's small and fast: chat p95 end to end was 1.4 s over 75 messages, against V2's 2 s. It missed no `graded-work` case, and costs about a sixth of the 70B's price per token. The plain `-fp8` variant rejects JSON schemas.
 
 ## 6. The owner's queue and the admin API

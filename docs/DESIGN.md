@@ -16,7 +16,7 @@ Terpsicle started as a Bitcamp hackathon project ([`terpsicle-bitcamp`](https://
 - blocks for time you can't take classes;
 - share links;
 - seat-fill notifications;
-- review summaries;
+- review summaries (removed 2026-09-29, by the owner);
 - right-click menus and keyboard shortcuts.
 
 The owner's framing for v2:
@@ -140,7 +140,7 @@ Use these when the spec is silent:
 - **Don't prefill or over-model.** Blocks are just labeled time. Don't add fields people didn't ask for.
 - **Honest numbers.** Show the math behind estimates. Never draw something that implies a simpler calculation than the one we did (a straight route line, for example).
 - **Sparkles icon only for LLM output.** Generation is algorithms and gets no sparkles.
-- **AI can be turned off, and everything with sparkles respects it** (owner, 2026-09-27: "some users really don't like AI"). "Show AI summaries" (Settings, or "Hide AI summaries" in an AI box's ⋯ menu) is on by default and follows the account. Every sparkles feature, today's and future ones, checks `useAiFeatures()` (`src/features/ai`) before it asks a model for anything or shows what one wrote, and draws the icon with `AiSparkles`; off, it leaves nothing behind. `src/features/ai/sparkles-guard.test.ts` holds the line.
+- **No AI in Reviews** (owner, 2026-09-29: "let's remove all AI features for reviews. we can add it back later, but i'm making that decision now."). Review summaries were the only AI students saw, so the "Show AI summaries" switch (owner, 2026-09-27: "some users really don't like AI") went with them; a visible AI feature that returns brings it back. `src/components/sparkles-guard.test.ts` keeps the sparkles to the owner's admin tools.
 - **Returning people land straight in the app.** A marketing page at `/` greets first visits only; anyone with saved plans or a session goes to `/schedule` (`docs/V2.md` §2).
 - **Nothing to babysit.** Terms, buildings and routes are discovered from the data. A new semester needs no code change.
 - **Make each feature excellent rather than adding more.** The owner cut finals, compare, image export and NL input to keep what remains excellent.
@@ -149,7 +149,7 @@ Use these when the spec is silent:
 ---
 
 ## 6. Infrastructure decisions (owner's)
-- Cloudflare, "relying on the more tried-and-true Cloudflare Workers things", on the **Workers Paid** plan: Workers, static assets, Cron Triggers, R2, D1, and **Workers AI** for the review summaries ("we can use cloudflare ai stuff for that ai stuff … no extra tokens needed").
+- Cloudflare, "relying on the more tried-and-true Cloudflare Workers things", on the **Workers Paid** plan: Workers, static assets, Cron Triggers, R2, D1, and **Workers AI** for moderation ("we can use cloudflare ai stuff for that ai stuff … no extra tokens needed"; it wrote review summaries until the owner removed them on 2026-09-29).
 - The data pipeline runs as Worker **cron triggers**, not GitHub Actions. GitHub Actions is for CI and deploys only.
 - TanStack Start, chosen for typed server functions and end-to-end type safety.
 - One package at the repo root with unified TypeScript tooling (no monorepo).

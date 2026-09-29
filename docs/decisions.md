@@ -180,15 +180,20 @@ Revisit if: never on its own.
 After the week, the daily purge removes every row with the person's directory ID or addresses and their chat messages in every course object (there are no pictures to remove). Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
 
-### LLMs only in three places
+### A product's part inside another wears its mark
+2026-09-29 · owner · app-wide
+Where one product shows a piece of another (Reviews' preview in Schedule's course details, first), the control that opens it carries that product's mark, as the family bar's tabs do, so people learn which product they're reaching into.
+Revisit if: a product's mark gets in the way where space is tight.
+
+### LLMs only in moderation
 2026-09-26 · owner · app-wide
-Review summaries, their small generated chips, and moderation. No other LLM features.
+Moderation (and grouping the owner's feedback in admin). No LLM feature anyone else sees. (changed 2026-09-29: the owner removed review summaries and their chips; see "No AI features in Reviews".)
 Revisit if: the owner asks for one.
 
 ### AI features can be turned off
 2026-09-27 · owner · app-wide
-"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`.
-Revisit if: never on its own.
+"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`. (changed 2026-09-29: Reviews' summaries were the only AI feature anyone saw, and the owner removed them, so the pref, Settings' "Show AI summaries" and `useAiFeatures()` went with them. A new visible AI feature brings the switch back with it.)
+Revisit if: a visible AI feature returns.
 
 ### Moderation is model-first
 2026-09-26 · owner · app-wide
@@ -437,8 +442,33 @@ Revisit if: never on its own.
 
 ### Full reviews live at /reviews
 2026-09-26 · owner · one feature
-The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`.
+The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".)
 Revisit if: people don't find reviews from the scheduler.
+
+### No AI features in Reviews
+2026-09-29 · owner · one feature
+"let's remove all AI features for reviews. we can add it back later, but i'm making that decision now. clean up anything that references it or relies on that." Gone: the review summaries and their theme chips, `review-summary` and `src/server/summaries`, the private copy of PlanetTerp's review text kept for them (`_jobs/planetterp/reviews/`), `SUMMARIES_DAILY_CAP`, their analytics events, and the "Show AI summaries" pref with its Settings row and ⋯ menus. Moderation still uses models; nothing a reader sees does.
+Revisit if: the owner brings summaries back.
+
+### Course pages work like PlanetTerp's
+2026-09-29 · owner · one feature
+"planetterp deprioritizes viewing results per course, not filtered by instructor... their main page for courses just groups by term and shows what professors taught it, their average GPAs (across all their courses). i want users who use our site to already be familiar with it because they've used planetterp before." A course's page shows every review of it, never filtered by default. Its side column, "Who taught it", groups everyone under the newest term they taught it (this term for who teaches it now), each with their average GPA across all their courses in the department's file and their rating; each name is the filter, their page for the course.
+Revisit if: PlanetTerp's per-term data lands in our files, so a term can list everyone who taught it then.
+
+### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
+2026-09-29 · owner · one feature
+"the whole app is free... if you're on that page and not signed in you've already proved that point." The page's title is the product's name, with no "free, no sign-in" line. Like PlanetTerp's front page it has recent reviews (ours and PlanetTerp's, newest first), grades across every course, and a row of counts (courses, professors, reviews, course grades) that counts up from 0 once when it comes into view, and doesn't move with Reduce Motion. The counts are PlanetTerp's data (the index's `totals`).
+Revisit if: our own reviews outnumber PlanetTerp's, so the counts should be ours.
+
+### What Reviews knows you took
+2026-09-29 · owner · one feature
+Your classes come from the four-year plan's past terms (a transcript import fills them), which know the course but not who taught it, and from Schedule's main plan only for terms the Schedule of Classes still lists, which know the instructor. Where the instructor isn't known, Reviews asks ("Who taught you?", "Did you take CMSC351 with …?") and never claims. No copy tells anyone to build a past term's schedule: Testudo doesn't list old terms.
+Revisit if: transcripts start carrying instructors.
+
+### PlanetTerp's reviews fill on a page's first visit
+2026-09-29 · agent · one feature
+The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
+Revisit if: PlanetTerp asks us not to call its API from page loads.
 
 ### Search markup never borrows PlanetTerp's ratings
 2026-09-26 · agent · one feature
@@ -462,7 +492,7 @@ Revisit if: the other products want a public page too.
 
 ### Reviews in two columns, with the search over the page
 2026-09-29 · owner · one feature
-"i like that 2/3 1/3 layout we have on the dashboard, and i think we can carry over some of that into this tab." An instructor's or a course's page puts the name, the rating box, the "review them yourself" box and the reviews in the wide column, and the filter (courses by instructor, instructors by course), the AI summary and the grades in the narrow one; `/reviews` keeps the search and browsing wide and puts your instructors to review, your reviews and your classes narrow. One column below `lg`, the wide one first (a phone keeps an instructor's course switch under the name, since it filters the reviews). Home's grid is the kit's `SplitLayout`. The search's results open over the page as Base UI's Autocomplete, never in its place; "Every result" and a department's link are `/reviews?q=`, a page of its own for search engines. Past the front door the family bar has a smaller search, and a phone a magnifier that opens it in a sheet. The review box says what your plans know: the class you took and haven't reviewed, naming the term; your review, with Edit; or, signed out, the plain question and Sign in. A course's rating box rates the course from every PlanetTerp review of it (`reviews/page`'s `planetTerpCourse`) plus ours.
+"i like that 2/3 1/3 layout we have on the dashboard, and i think we can carry over some of that into this tab." An instructor's or a course's page puts the name, the rating box, the "review them yourself" box and the reviews in the wide column, and the filter (courses by instructor, instructors by course) and the grades in the narrow one; `/reviews` keeps the search and browsing wide and puts your instructors to review, your reviews and your classes narrow. One column below `lg`, the wide one first (a phone keeps an instructor's course switch under the name, since it filters the reviews). Home's grid is the kit's `SplitLayout`. The search's results open over the page as Base UI's Autocomplete, never in its place; "Every result" and a department's link are `/reviews?q=`, a page of its own for search engines. Past the front door the family bar has a smaller search, and a phone a magnifier that opens it in a sheet. The review box says what your plans know: the class you took and haven't reviewed, naming the term; your review, with Edit; or, signed out, the plain question and Sign in. A course's rating box rates the course from every PlanetTerp review of it (`reviews/page`'s `planetTerpCourse`) plus ours.
 Revisit if: the narrow column's filter is missed on phones, or people search from the bar more than from `/reviews`.
 
 ### The family bar's other products can fold to their marks
@@ -472,7 +502,7 @@ Revisit if: the owner wants it on every product, or people miss the names.
 
 ### Published review numbers carry a month, never a time or text
 2026-09-26 · agent · one feature
-R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. Summaries count our newest review by month for the same reason, and go stale when our published count changes.
+R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. `reviews/latest`, /reviews' "Recent reviews", orders ours by month, then id, for the same reason.
 Revisit if: readers need finer freshness than a month.
 
 ## Chat

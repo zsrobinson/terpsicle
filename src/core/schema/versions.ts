@@ -6,7 +6,6 @@ export const SchemaFamilySchema = z.enum([
   "planetterp",
   "geo",
   "calendar",
-  "summaries",
   "courses",
   "reviews",
 ]);
@@ -24,7 +23,6 @@ export const SCHEMA_VERSIONS = {
   planetterp: 1,
   geo: 1,
   calendar: 1,
-  summaries: 1,
   courses: 1,
   reviews: 1,
 } as const satisfies Record<SchemaFamily, number>;

@@ -71,7 +71,7 @@ test("anyone can find a course or an instructor and read their reviews", async (
   await page.goto("/reviews");
   await expect(
     page.getByRole("heading", {
-      name: "UMD course and instructor reviews",
+      name: "Terpsicle Reviews",
       level: 1,
     }),
   ).toBeVisible();
@@ -269,9 +269,15 @@ test("course details in the scheduler link to the instructor's reviews", async (
   await box.fill("cmsc 351");
   await page.locator('[data-course-result="CMSC351"]').click();
   await expect(page.getByRole("heading", { name: "Algorithms" })).toBeVisible();
-  // Keiko Ashdown's group, the open one (the plan has her 0301).
-  await page.getByRole("button", { name: "Reviews" }).last().click();
-  const read = page.getByRole("link", { name: "View reviews" }).first();
+  // Keiko Ashdown's group, the open one (the plan has her 0301). Its
+  // Reviews button wears Reviews' mark and opens a preview over the list.
+  const reviews = page.getByRole("button", { name: "Reviews" }).last();
+  await expect(reviews.locator('[data-mark="reviews"]')).toBeVisible();
+  await reviews.click();
+  const preview = page.locator('[data-instructor="Keiko Ashdown"]');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText("reviews on PlanetTerp");
+  const read = preview.getByRole("link", { name: "View reviews" });
   await expect(read).toHaveAttribute(
     "href",
     /^\/reviews\/[^/?]+\?course=CMSC351$/,

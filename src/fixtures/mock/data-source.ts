@@ -35,7 +35,6 @@ import {
   routeGeometryKey,
   routesKey,
   seatsKey,
-  summaryKey,
   TERMS_KEY,
   type TermId,
   TRAVEL_MODES,
@@ -54,7 +53,6 @@ import {
   MOCK_GRADES_THROUGH,
   MOCK_LATEST_REVIEW_AT,
   mockPlanetTerpDepts,
-  mockReviewSummaries,
 } from "./planetterp";
 import { mockPublishedReviews, mockReviewNames } from "./reviews";
 import { MOCK_SEATS_FETCHED_AT, mockArchivedSeats, mockSeats } from "./seats";
@@ -204,8 +202,6 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     },
   };
   put(PLANETTERP_MANIFEST_KEY, jsonBytes(ptManifest));
-  for (const summary of mockReviewSummaries)
-    put(summaryKey(summary.slug), jsonBytes(summary));
 
   // Terpsicle reviews' numbers, built by the same code the reviews-publish job runs.
   const reviewsDepartments: ReviewsManifest["departments"] = [];
@@ -260,8 +256,7 @@ export function buildMockDataFiles(): Promise<MockDataFiles> {
 
 /**
  * The mock bucket, read by R2 key (no `/data/` prefix). `get` returns null
- * where R2 would 404. Summaries sit under `summaries/` for the mock server fn;
- * `/data` doesn't serve them (see `dataCachePolicy`). There are no map tiles.
+ * where R2 would 404. There are no map tiles.
  */
 export const mockDataSource = {
   async keys(): Promise<string[]> {

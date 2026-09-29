@@ -113,9 +113,6 @@ export interface AnalyticsEvents {
   search_result_opened: { position: number };
   course_details_tab: { tab: "instructors" | "grades" | "about" };
   course_added: { via: "details" | "ghost" };
-  review_summary_viewed: { state: "shown" | "unavailable" };
-  /** "Show AI summaries": the box's ⋯ menu (and its Undo), or Settings. */
-  ai_features_changed: { on: boolean; via: "box" | "settings" };
   travel_settings_changed:
     | { setting: "pace"; value: Pace }
     | { setting: "accessible"; value: boolean }

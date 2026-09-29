@@ -31,6 +31,8 @@ const course: CoursePageData = {
       planetTerp: { rating: 3.4, reviewCount: 210 },
       terpsicle: null,
       gpa: 2.6,
+      overallGpa: 2.7,
+      lastTermId: "202608",
     },
     {
       id: "brandt",
@@ -39,6 +41,8 @@ const course: CoursePageData = {
       planetTerp: { rating: 4.2, reviewCount: 61 },
       terpsicle: null,
       gpa: 3.1,
+      overallGpa: 3.2,
+      lastTermId: "202501",
     },
   ],
   terpsicle: null,

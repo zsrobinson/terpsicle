@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GRADE_KEYS, type GradeKey } from "~/core/schema";
 import {
   aCourse,
   aCourseIndexEntry,
@@ -10,8 +11,12 @@ import {
   someCourseGrades,
   someGrades,
 } from "~/fixtures";
-import { coursePageData, instructorPageData } from "./pages";
+import { coursePageData, courseTermGroups, instructorPageData } from "./pages";
 import { buildPlanetTerpIndex } from "./planetterp-index";
+
+/** Every grade a given one. */
+const only = (key: GradeKey, n: number) =>
+  someGrades(Object.fromEntries(GRADE_KEYS.map((k) => [k, k === key ? n : 0])));
 
 const kruskal = anInstructor({ slug: "kruskal", name: "Clyde Kruskal" });
 const cmsc = aPlanetTerpDept({
@@ -38,9 +43,22 @@ describe("buildPlanetTerpIndex", () => {
   it("lists every instructor with each department that lists them", () => {
     const index = buildPlanetTerpIndex([math, cmsc], new Map());
     expect(index.instructors).toEqual({
-      brandt: ["Ada Brandt", ["CMSC"]],
-      kruskal: ["Clyde Kruskal", ["CMSC", "MATH"]],
+      brandt: ["Ada Brandt", ["CMSC"], 61],
+      kruskal: ["Clyde Kruskal", ["CMSC", "MATH"], 61],
     });
+  });
+
+  it("counts what the files hold, each instructor once", () => {
+    const { totals } = buildPlanetTerpIndex([math, cmsc], new Map());
+    expect(totals).toMatchObject({
+      // CMSC351, CMSC250 and MATH141, each with grades.
+      courses: 3,
+      professors: 2,
+      // Kruskal is in both files: his 61 reviews count once.
+      reviews: 122,
+    });
+    expect(totals?.grades).toBe(totals?.counts.reduce((a, b) => a + b, 0));
+    expect(totals?.grades).toBeGreaterThan(0);
   });
 
   it("ranks professors by reviews, leaving out TAs and the unreviewed", () => {
@@ -120,6 +138,72 @@ describe("coursePageData", () => {
       ["Pat New", null, true],
       ["Ada Brandt", "brandt", false],
     ]);
+  });
+
+  it("groups who taught it by the newest term each did, like PlanetTerp", () => {
+    const dept = aPlanetTerpDept({
+      instructors: {
+        brandt: anInstructor({ reviewCount: 61 }),
+        kruskal: anInstructor({
+          slug: "kruskal",
+          name: "Clyde Kruskal",
+          reviewCount: 111,
+        }),
+        old: anInstructor({ slug: "old", name: "Jo Old", reviewCount: 3 }),
+      },
+      names: {
+        "ada brandt": "brandt",
+        "clyde kruskal": "kruskal",
+        "jo old": "old",
+      },
+      courses: {
+        CMSC351: someCourseGrades({
+          byInstructor: {
+            brandt: aGradeRecord({
+              latestTermId: "202601",
+              counts: only("A", 10),
+            }),
+            kruskal: aGradeRecord({
+              latestTermId: "202601",
+              counts: only("C", 10),
+            }),
+            old: aGradeRecord({ latestTermId: "201808" }),
+          },
+        }),
+        // Brandt grades harder elsewhere: their average is every course's.
+        CMSC132: someCourseGrades({
+          byInstructor: {
+            brandt: aGradeRecord({
+              counts: only("C", 10),
+            }),
+          },
+        }),
+      },
+    });
+    const data = coursePageData({
+      code: "CMSC351",
+      entry: aCourseIndexEntry(),
+      current: {
+        term,
+        course: aCourse({
+          sections: [aSection({ instructors: ["Pat New"] })],
+        }),
+      },
+      ptDept: dept,
+      gradesThrough: "202601",
+      source: null,
+      terpsicle: null,
+    });
+    const groups = courseTermGroups(data?.instructors ?? []);
+    expect(groups.map((g) => [g.termId, g.rows.map((r) => r.name)])).toEqual([
+      ["202608", ["Pat New"]],
+      // The most reviewed first.
+      ["202601", ["Clyde Kruskal", "Ada Brandt"]],
+      ["201808", ["Jo Old"]],
+    ]);
+    const brandt = data?.instructors.find((r) => r.id === "brandt");
+    expect(brandt?.gpa).toBeCloseTo(4);
+    expect(brandt?.overallGpa).toBeCloseTo(3);
   });
 
   it("is null (a 404) when nothing published knows the course", () => {

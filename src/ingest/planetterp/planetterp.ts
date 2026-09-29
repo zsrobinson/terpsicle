@@ -39,11 +39,7 @@ import {
 import { activeTermIds } from "../soc/terms";
 import aliasFile from "./aliases.json";
 import { createNameMatcher, MATCH_RULES, type MatchRule } from "./names";
-import {
-  createReviewKeeper,
-  ReviewApiSchema,
-  type ReviewKeeper,
-} from "./reviews";
+import { ReviewApiSchema, type ReviewKeeper } from "./reviews";
 import {
   implausibleReason,
   SOURCE_STATE_KEY,
@@ -140,33 +136,19 @@ export interface PlanetTerpOptions {
   /** Grade requests per run; courses never fetched go first, then the stalest. */
   gradeRequests?: number;
   /**
-   * Keep review text in the private store (DATA.md §2.6). Off until the
-   * owner decides whether we may keep PlanetTerp's reviewers' writing.
-   */
-  keepReviewText?: boolean;
-  /**
    * Where the reviews Reviews shows go (D1's `planetterp_reviews`, written
-   * by src/jobs/planetterp-reviews.ts): a keeper like the private store's,
-   * fed the same pages as they arrive.
+   * by src/jobs/planetterp-reviews.ts), fed each page as it arrives.
    */
   reviewSink?: ReviewKeeper;
 }
 
-/** Drops review text: nothing is stored when keeping it is off. */
+/** Drops review text: where no sink is given (tests, local ingest). */
 const DISCARD_REVIEWS: ReviewKeeper = {
   async keep() {},
   async finish() {
     return { written: 0, kept: 0 };
   },
 };
-
-/** Both keepers get each page, in turn. The caller finishes each. */
-function bothKeepers(a: ReviewKeeper, b: ReviewKeeper): ReviewKeeper["keep"] {
-  return async (professors) => {
-    await a.keep(professors);
-    await b.keep(professors);
-  };
-}
 
 export interface PlanetTerpResult {
   professors: number;
@@ -179,8 +161,6 @@ export interface PlanetTerpResult {
   coursesWithGrades: number;
   testudoNames: number;
   unmatchedNames: number;
-  /** Review files written to the private store this run. */
-  reviewFilesWritten: number;
   /** Instructors whose shown reviews were rewritten this run. */
   reviewSetsWritten: number;
   /** Testudo names matched by each rule. */
@@ -218,20 +198,15 @@ export async function runPlanetTerp(
   // The professor list, checked against the last good run before anything
   // is published: an empty or truncated list that parses must not replace
   // good data (DATA.md §4.1).
-  const keeper = options.keepReviewText
-    ? await createReviewKeeper(store, log)
-    : DISCARD_REVIEWS;
   let professors: ProfessorSummary[];
   const sink = options.reviewSink ?? DISCARD_REVIEWS;
-  let reviewFilesWritten = 0;
   let reviewSetsWritten = 0;
   try {
-    professors = await fetchProfessors(http, bothKeepers(keeper, sink));
+    professors = await fetchProfessors(http, sink.keep);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw await sourceFailure(store, log, now, lastState, reason, {});
   } finally {
-    reviewFilesWritten = (await keeper.finish()).written;
     reviewSetsWritten = (await sink.finish()).written;
   }
   const bySlug = new Map<string, Instructor & { courses: Set<string> }>();
@@ -481,7 +456,6 @@ export async function runPlanetTerp(
     coursesWithGrades,
     testudoNames: slugForTestudo.size,
     unmatchedNames: unmatched.length,
-    reviewFilesWritten,
     reviewSetsWritten,
     matchedBy,
     latestReviewAt,

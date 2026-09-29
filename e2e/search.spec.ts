@@ -204,7 +204,7 @@ test.describe("desktop", () => {
     await header.getByRole("button", { name: /^Reviews/ }).click();
     await expect(
       page.locator('[data-instructor="Farid Kincaid"]'),
-    ).toContainText(/reviews on PlanetTerp|Summary of/);
+    ).toContainText(/reviews on PlanetTerp/);
   });
 
   test("course details: facts first, Grades a click away", async ({ page }) => {

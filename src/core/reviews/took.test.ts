@@ -9,7 +9,13 @@ import {
   aSectionSnapshot,
 } from "~/fixtures";
 import { reviewedKey } from "./to-review";
-import { classesTaken, reviewedHere, reviewsByRecency, tookHere } from "./took";
+import {
+  classesTaken,
+  classesToReview,
+  reviewedHere,
+  reviewsByRecency,
+  tookHere,
+} from "./took";
 
 const placed = (courseCode: string, ...instructors: string[]) =>
   aPlanCourse({
@@ -41,7 +47,11 @@ describe("classesTaken", () => {
       }),
     ];
     expect(
-      classesTaken({ plans, mainPlans: {}, fourYear: null }, today),
+      classesTaken(
+        { plans, mainPlans: {}, fourYear: null },
+        today,
+        new Set(["202601", "202508", "202608"]),
+      ),
     ).toEqual([
       { termId: "202601", course: "CMSC351", instructors: ["Clyde Kruskal"] },
       { termId: "202601", course: "MATH240", instructors: [] },
@@ -64,9 +74,44 @@ describe("classesTaken", () => {
         courses: [placed("CMSC351", "Clyde Kruskal")],
       }),
     ];
-    expect(classesTaken({ plans, mainPlans: {}, fourYear }, today)).toEqual([
+    expect(
+      classesTaken(
+        { plans, mainPlans: {}, fourYear },
+        today,
+        new Set(["202601"]),
+      ),
+    ).toEqual([
       { termId: "202601", course: "CMSC351", instructors: ["Clyde Kruskal"] },
       { termId: "202501", course: "MATH141", instructors: [] },
+    ]);
+  });
+
+  it("reads a schedule only for a term the Schedule of Classes still lists", () => {
+    // In the fall, Testudo lists back to the summer: a spring schedule is
+    // one nobody could have built there, so only the four-year plan counts.
+    const plans = [
+      aPlan({
+        termId: "202601",
+        courses: [placed("CMSC351", "Clyde Kruskal")],
+      }),
+      aPlan({
+        id: "plan_summer",
+        termId: "202605",
+        courses: [placed("MATH240", "Ada Brandt")],
+      }),
+    ];
+    const fourYear = aFourYear({
+      entries: [aFourYearEntry({ id: "e1", term: "202601", code: "CMSC351" })],
+    });
+    expect(
+      classesTaken(
+        { plans, mainPlans: {}, fourYear },
+        today,
+        new Set(["202605", "202608", "202701"]),
+      ),
+    ).toEqual([
+      { termId: "202605", course: "MATH240", instructors: ["Ada Brandt"] },
+      { termId: "202601", course: "CMSC351", instructors: [] },
     ]);
   });
 
@@ -74,9 +119,9 @@ describe("classesTaken", () => {
     const fourYear = aFourYear({
       entries: [aFourYearEntry({ id: "old", term: "201908", code: "CMSC131" })],
     });
-    expect(classesTaken({ plans: [], mainPlans: {}, fourYear }, today)).toEqual(
-      [],
-    );
+    expect(
+      classesTaken({ plans: [], mainPlans: {}, fourYear }, today, new Set()),
+    ).toEqual([]);
   });
 });
 
@@ -137,6 +182,54 @@ describe("tookHere", () => {
     expect(
       tookHere(list, { course: "MATH141", instructorName: null }, reviewed),
     ).toBeNull();
+  });
+});
+
+describe("a class whose instructor isn't known", () => {
+  const taken = [{ termId: "202601", course: "CMSC351", instructors: [] }];
+
+  it("is asked about on an instructor's page only for a course they taught", () => {
+    expect(
+      tookHere(taken, {
+        course: null,
+        instructorName: "Clyde Kruskal",
+        taught: new Set(["CMSC351", "CMSC451"]),
+      }),
+    ).toEqual({ termId: "202601", course: "CMSC351", instructor: null });
+    expect(
+      tookHere(taken, {
+        course: null,
+        instructorName: "Ada Brandt",
+        taught: new Set(["MATH240"]),
+      }),
+    ).toBeNull();
+  });
+
+  it("is one to review until you've reviewed the course", () => {
+    const mixed = [
+      ...taken,
+      {
+        termId: "202508",
+        course: "CMSC250",
+        instructors: ["Ada Brandt", "Jo Canada"],
+      },
+    ];
+    expect(classesToReview(mixed, new Set())).toEqual([
+      { termId: "202601", course: "CMSC351", instructor: null },
+      { termId: "202508", course: "CMSC250", instructor: "Ada Brandt" },
+      { termId: "202508", course: "CMSC250", instructor: "Jo Canada" },
+    ]);
+    expect(
+      classesToReview(
+        mixed,
+        new Set([
+          reviewedKey("CMSC351", "Clyde Kruskal"),
+          reviewedKey("CMSC250", "Jo Canada"),
+        ]),
+      ),
+    ).toEqual([
+      { termId: "202508", course: "CMSC250", instructor: "Ada Brandt" },
+    ]);
   });
 });
 

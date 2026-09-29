@@ -14,13 +14,14 @@ import {
   reviewStanding,
   type TookHere,
 } from "~/core/reviews";
-import type { MyReview } from "~/core/schema";
+import type { MyReview, TermId } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
 import { newYorkClock } from "~/core/todo/list";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { readHomeLocal } from "~/features/home/local";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
+import { browserReader, loadTerms } from "./data";
 import { useReviewsLevel, useSignedIn } from "./level";
 import { useReviews } from "./reviews-store";
 
@@ -31,14 +32,30 @@ import { useReviews } from "./reviews-store";
 // question. Signed out, the same question and the sign-in. Never a banner:
 // one quiet box, one action, and it's gone where reviews can't be written.
 
+/**
+ * The terms the Schedule of Classes still lists, the only ones whose
+ * schedules say what you took; none when the terms file won't load.
+ */
+async function listedTerms(): Promise<ReadonlySet<TermId>> {
+  try {
+    const terms = await loadTerms(await browserReader());
+    return new Set(terms.map((t) => t.id));
+  } catch {
+    return new Set();
+  }
+}
+
 /** Your classes from this device's plans; null until they're read. */
 export function useClassesTaken(): ClassTaken[] | null {
   const [taken, setTaken] = useState<ClassTaken[] | null>(null);
   useEffect(() => {
     let live = true;
-    void readHomeLocal().then((local) => {
-      if (live) setTaken(classesTaken(local, newYorkClock(Date.now()).date));
-    });
+    void Promise.all([readHomeLocal(), listedTerms()]).then(
+      ([local, listed]) => {
+        if (live)
+          setTaken(classesTaken(local, newYorkClock(Date.now()).date, listed));
+      },
+    );
     return () => {
       live = false;
     };
@@ -58,31 +75,55 @@ export type ReviewBoxState =
   | { kind: "took"; took: TookHere }
   | { kind: "ask" };
 
-/** "Keiko Ashdown in CMSC351", "CMSC351 with Keiko Ashdown": who and what. */
-function tookWords(took: TookHere, page: "instructor" | "course"): ReactNode {
+/**
+ * What the box says about a class of yours. Your plans may know the course
+ * but not who taught it (a transcript's term): then it asks, never claims.
+ */
+function tookWords(
+  took: TookHere,
+  who: string | undefined,
+): { title: ReactNode; line: string } {
   const course = <span className="ident">{took.course}</span>;
-  return page === "course" || took.instructor === null ? (
-    <>
-      You took {course}
-      {took.instructor ? ` with ${took.instructor}` : ""} in{" "}
-      {termLabel(took.termId)}
-    </>
-  ) : (
-    <>
-      You took {course} with {took.instructor} in {termLabel(took.termId)}
-    </>
-  );
+  const term = termLabel(took.termId);
+  if (took.instructor !== null)
+    return {
+      title: (
+        <>
+          You took {course} with {took.instructor} in {term}
+        </>
+      ),
+      line: "How did it go? A few honest sentences help whoever takes it next. Readers won't see who wrote it.",
+    };
+  // An instructor's page: was it them?
+  if (who)
+    return {
+      title: (
+        <>
+          Did you take {course} with {who}?
+        </>
+      ),
+      line: `You took it in ${term}. If they taught you, a few honest sentences help whoever takes it next.`,
+    };
+  return {
+    title: (
+      <>
+        You took {course} in {term}
+      </>
+    ),
+    line: "Who taught you? Pick them and say how it went. Readers won't see who wrote it.",
+  };
 }
 
 export function ReviewBox({
   state,
-  page,
+  who,
   question,
   write,
   onEdit,
 }: {
   state: ReviewBoxState;
-  page: "instructor" | "course";
+  /** An instructor's page: their name, to ask whether a class was theirs. */
+  who?: string;
   /** Knowing nothing: "Took a class with Keiko Ashdown?" */
   question: ReactNode;
   /** The write action: a button, or a menu asking who or which course. */
@@ -127,9 +168,7 @@ export function ReviewBox({
       </WithTooltip>
     ) : null;
   } else if (shown.kind === "took") {
-    title = tookWords(shown.took, page);
-    line =
-      "How did it go? A few honest sentences help whoever takes it next. Readers won't see who wrote it.";
+    ({ title, line } = tookWords(shown.took, who));
     action = write;
   } else {
     title = question;
@@ -157,8 +196,11 @@ export function ReviewBox({
       data-review-box={shown.kind}
       className={cn(
         "flex flex-col gap-3 border border-hairline-strong p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6",
-        // Your class and your review: the box wears the product's color.
-        shown.kind === "took" && "border-product-reviews",
+        // Your class: the box wears the product's color. A question about
+        // one (was it with them?) doesn't claim it.
+        shown.kind === "took" &&
+          (shown.took.instructor !== null || !who) &&
+          "border-product-reviews",
       )}
     >
       <div className="flex min-w-0 flex-col gap-1">

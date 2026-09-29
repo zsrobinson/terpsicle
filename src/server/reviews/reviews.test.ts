@@ -6,6 +6,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { writeResultWords } from "~/core/reviews";
 import {
+  LatestReviewsSchema,
   type MyReview,
   PageReviewsSchema,
   PublicReviewSchema,
@@ -14,7 +15,6 @@ import {
   ResolveResultSchema,
   ReviewListResultSchema,
   ReviewsMineResultSchema,
-  ReviewsRecentResultSchema,
   ReviewWriteResultSchema,
 } from "~/core/schema";
 import {
@@ -273,39 +273,38 @@ describe("writing and reading", () => {
   });
 });
 
-describe("numbers and recent reviews, without the reviews", () => {
-  it("lists reviewed courses and instructors, one row each, by month rather than minute", async () => {
+describe("numbers and the newest reviews", () => {
+  it("lists the newest reviews anywhere, by month rather than minute, with who they're about", async () => {
     await author.submit(aReviewSubmitInput());
-    advance(HOUR);
-    await reader.submit(aReviewSubmitInput({ body: BODY_2 }));
     advance(HOUR);
     await author.submit(
       aReviewSubmitInput({ reviewedName: "Clyde Kruskal", body: BODY_2 }),
     );
-    const response = await call("reviews/recent", { limit: 5 });
+    const response = await call("reviews/latest", { limit: 5 });
     expect(response.status).toBe(200);
-    expect(ReviewsRecentResultSchema.parse(await response.json())).toEqual({
-      // Kruskal's review went up last, but the same month: more reviews
-      // come first, so the order doesn't say who was reviewed a minute ago.
-      reviews: [
-        {
-          course: "CMSC351",
-          instructorId: "brandt",
-          instructorName: "Ada Brandt",
-          month: "2027-02",
-        },
-        {
-          course: "CMSC351",
-          instructorId: "kruskal",
-          instructorName: "Clyde Kruskal",
-          month: "2027-02",
-        },
-      ],
+    const latest = LatestReviewsSchema.parse(await response.json());
+    // The same month: ordered by id, so the order doesn't say which went up
+    // a minute ago.
+    const ids = latest.terpsicle?.map((r) => r.id) ?? [];
+    expect(ids).toEqual([...ids].sort());
+    expect(latest.terpsicle?.map((r) => r.instructorId).sort()).toEqual([
+      "brandt",
+      "kruskal",
+    ]);
+    expect(latest.instructors).toEqual({
+      brandt: "Ada Brandt",
+      kruskal: "Clyde Kruskal",
     });
-    const off = await call("reviews/recent", { limit: 5 }, "", {
+    // Off, ours aren't anyone's to read; PlanetTerp's still are.
+    const off = await call("reviews/latest", { limit: 5 }, "", {
       REVIEWS_ENABLED: "off",
     });
-    expect(off.status).not.toBe(200);
+    expect(off.status).toBe(200);
+    expect(LatestReviewsSchema.parse(await off.json())).toEqual({
+      terpsicle: null,
+      planetTerp: [],
+      instructors: {},
+    });
   });
 
   it("sums published reviews per instructor and per course for server renders", async () => {

@@ -49,7 +49,7 @@ import { Composer, type ComposerTarget } from "./composer";
 import { FilterRow } from "./filter-list";
 import { PAGE_NOTE, ReviewsFrame } from "./frame";
 import { useSignedIn } from "./level";
-import { GradesBlock, SummaryBlock } from "./planetterp-blocks";
+import { GradesBlock } from "./planetterp-blocks";
 import { Stars } from "./rating";
 import {
   ReviewBox,
@@ -65,7 +65,7 @@ import { SignInPrompt } from "./sign-in-prompt";
 // wide one reads top to bottom: who they are, their combined rating, the
 // box to review them yourself, then the reviews, ours and PlanetTerp's. The
 // narrow one holds what goes with them: their courses (each a view of the
-// page, `?course=`), the AI summary and their grades. On a phone it's one
+// page, `?course=`) and their grades. On a phone it's one
 // column, the wide one first, with the courses as the header's switch. The
 // route's loader read it all, so the server's HTML has it.
 
@@ -132,7 +132,15 @@ export function InstructorPage({
   );
   const took =
     taken && data.name
-      ? tookHere(taken, { course, instructorName: data.name }, reviewedKeys)
+      ? tookHere(
+          taken,
+          {
+            course,
+            instructorName: data.name,
+            taught: new Set(data.courses.map((c) => c.code)),
+          },
+          reviewedKeys,
+        )
       : null;
   const reviewed = reviewedHere(mine, { instructorId: id, course });
   const boxState: ReviewBoxState = took
@@ -233,7 +241,7 @@ export function InstructorPage({
               {composer ?? (
                 <ReviewBox
                   state={boxState}
-                  page="instructor"
+                  who={name}
                   question={
                     course ? (
                       <>
@@ -288,14 +296,6 @@ export function InstructorPage({
                   }}
                 />
               </PageSection>
-            ) : null}
-            {data.slug &&
-            (data.planetTerp?.reviewCount ?? 0) > 0 &&
-            (course ?? courseList[0]) ? (
-              <SummaryBlock
-                slug={data.slug}
-                course={course ?? courseList[0] ?? ""}
-              />
             ) : null}
             <InstructorGrades data={data} name={name} />
           </>
@@ -379,7 +379,7 @@ function InstructorGrades({
     >
       {all.latestTermId ? (
         <GradesBlock
-          record={{ ...all, latestTermId: all.latestTermId }}
+          record={all}
           gradesThrough={gradesThrough}
           courses={data.courses.length}
         />

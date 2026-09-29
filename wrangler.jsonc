@@ -64,8 +64,6 @@
     // "false" turns off /api/alerts/* and the seats cron's alert emails
     // (the app hides the bell); subscriptions stay in D1.
     "SEAT_ALERTS_ENABLED": "true",
-    // Review summaries generated per UTC day, at most (Workers AI cost).
-    "SUMMARIES_DAILY_CAP": "200",
     // Sign in with Google (docs/AUTH.md). It's on only with all of these
     // plus the secrets GOOGLE_CLIENT_SECRET and AUTH_SECRET; until then the
     // app hides sign-in and the start lands on /signin?error=unavailable.

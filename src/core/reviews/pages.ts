@@ -1,4 +1,4 @@
-import { gradeSummary } from "../grades/grades";
+import { addGradeCounts, gradeSummary } from "../grades/grades";
 import {
   type Course,
   type CourseCode,
@@ -41,7 +41,15 @@ export interface CourseInstructorRow {
   planetTerp: { rating: number | null; reviewCount: number } | null;
   /** Ours, every course; null when there are none (or Reviews is off). */
   terpsicle: TerpsicleNumbers | null;
+  /** Their average GPA in this course, from PlanetTerp's grade data. */
   gpa: number | null;
+  /**
+   * Their average GPA across every course of theirs the department's file
+   * has: how they grade, as PlanetTerp's course pages show it.
+   */
+  overallGpa: number | null;
+  /** The newest term they taught it: this term when teaching, else PlanetTerp's newest. */
+  lastTermId: TermId | null;
 }
 
 export interface CoursePageData {
@@ -97,6 +105,7 @@ export function coursePageData(input: CoursePageInput): CoursePageData | null {
       course,
       ptDept,
       input.ourNumbers ?? {},
+      course && input.current ? input.current.term.id : null,
     ),
     terpsicle: input.terpsicle,
   };
@@ -108,6 +117,7 @@ export function courseInstructorRows(
   current: Course | null,
   ptDept: PlanetTerpDept | null,
   ourNumbers: Readonly<Record<InstructorId, TerpsicleNumbers>> = {},
+  currentTermId: TermId | null = null,
 ): CourseInstructorRow[] {
   const grades = ptDept?.courses[code] ?? null;
   const byKey = new Map<string, CourseInstructorRow>();
@@ -122,6 +132,8 @@ export function courseInstructorRows(
       planetTerp: null,
       terpsicle: null,
       gpa: null,
+      overallGpa: null,
+      lastTermId: null,
     });
   }
   for (const slug of Object.keys(grades?.byInstructor ?? {}))
@@ -133,6 +145,8 @@ export function courseInstructorRows(
         planetTerp: null,
         terpsicle: null,
         gpa: null,
+        overallGpa: null,
+        lastTermId: null,
       });
   for (const row of byKey.values()) {
     const pt = row.id ? ptDept?.instructors[row.id] : undefined;
@@ -143,6 +157,11 @@ export function courseInstructorRows(
     row.terpsicle = row.id ? (ourNumbers[row.id] ?? null) : null;
     const record = row.id ? grades?.byInstructor[row.id] : undefined;
     row.gpa = record ? gradeSummary(record.counts).averageGpa : null;
+    row.lastTermId =
+      row.teaching && currentTermId
+        ? currentTermId
+        : (record?.latestTermId ?? null);
+    row.overallGpa = row.id ? overallGpa(ptDept, row.id) : null;
   }
   return [...byKey.values()].sort(
     (a, b) =>
@@ -150,6 +169,51 @@ export function courseInstructorRows(
       (b.planetTerp?.reviewCount ?? 0) - (a.planetTerp?.reviewCount ?? 0) ||
       a.name.localeCompare(b.name),
   );
+}
+
+/** An instructor's average GPA over every course of theirs in a department's file. */
+function overallGpa(
+  ptDept: PlanetTerpDept | null,
+  id: InstructorId,
+): number | null {
+  const all = Object.values(ptDept?.courses ?? {}).flatMap((c) => {
+    const record = c.byInstructor[id];
+    return record ? [record.counts] : [];
+  });
+  return all.length > 0 ? gradeSummary(addGradeCounts(all)).averageGpa : null;
+}
+
+/** Who taught a course in one term: a group of `courseTermGroups`. */
+export interface CourseTermGroup {
+  /** Null for instructors with no term PlanetTerp or Testudo knows. */
+  termId: TermId | null;
+  rows: CourseInstructorRow[];
+}
+
+/**
+ * Everyone who's taught a course, by the newest term each taught it, newest
+ * first (owner, 2026-09-29: PlanetTerp's course pages "group by term and
+ * show what professors taught it"). Within a term, the most reviewed first.
+ */
+export function courseTermGroups(
+  rows: readonly CourseInstructorRow[],
+): CourseTermGroup[] {
+  const groups = new Map<TermId | null, CourseInstructorRow[]>();
+  for (const row of rows) {
+    const group = groups.get(row.lastTermId) ?? [];
+    group.push(row);
+    groups.set(row.lastTermId, group);
+  }
+  return [...groups]
+    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : b.localeCompare(a)))
+    .map(([termId, group]) => ({
+      termId,
+      rows: group.sort(
+        (a, b) =>
+          (b.planetTerp?.reviewCount ?? 0) - (a.planetTerp?.reviewCount ?? 0) ||
+          a.name.localeCompare(b.name),
+      ),
+    }));
 }
 
 export interface InstructorCourse {
@@ -231,15 +295,6 @@ export type Suggestion =
   | { kind: "instructor"; id: InstructorId; label: string }
   | { kind: "course"; code: CourseCode; label: string };
 
-/** A course and instructor with a newly published Terpsicle review. */
-export interface RecentReview {
-  course: CourseCode;
-  instructorId: InstructorId;
-  instructorName: string;
-  /** "YYYY-MM", as readers see review dates. */
-  month: string;
-}
-
 /**
  * What the Worker reads from D1 for a server render (null while
  * REVIEWS_ENABLED is off). Nothing here carries an author.
@@ -255,6 +310,4 @@ export interface ReviewsServerData {
   instructor(
     id: InstructorId,
   ): Promise<{ name: string; depts: DeptCode[] } | null>;
-  /** The newest reviewed (course, instructor) pairs, one each. */
-  recent(limit: number): Promise<RecentReview[]>;
 }

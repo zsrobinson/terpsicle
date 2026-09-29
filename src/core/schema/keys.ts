@@ -57,19 +57,8 @@ export const TILES_KEY = "geo/tiles.pmtiles";
 export const calendarKey = (termId: TermId): string =>
   `calendar/${termId}.json`;
 
-/** Read and written only by the reviewSummary server fn; not served under /data. */
-export const summaryKey = (slug: InstructorSlug): string =>
-  `summaries/${slug}.json`;
-
 /** Job state (resume cursors, last crawl snapshots). Never served. */
 export const JOBS_PREFIX = "_jobs/";
-
-/**
- * Review text kept for summaries (DATA.md §2.6). Under `_jobs/`, so
- * `dataCachePolicy` never serves it.
- */
-export const planetTerpReviewsKey = (slug: InstructorSlug): string =>
-  `${JOBS_PREFIX}planetterp/reviews/${slug}.json`;
 
 export const planetTerpUrl = (slug: InstructorSlug): string =>
   `https://planetterp.com/professor/${encodeURIComponent(slug)}`;
@@ -99,6 +88,8 @@ const YEAR = 365 * 24 * 3600;
 export function dataCachePolicy(key: string): DataCachePolicy | null {
   if (
     key.startsWith(JOBS_PREFIX) ||
+    // Review summaries were stored here until Reviews dropped its AI
+    // features (docs/decisions.md): whatever is left is never served.
     key.startsWith("summaries/") ||
     key.includes("..")
   )

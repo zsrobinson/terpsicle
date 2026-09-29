@@ -11,6 +11,8 @@ import {
 } from "~/core/schema";
 import { NO_LOCAL } from "~/features/home/local";
 import {
+  aFourYear,
+  aFourYearEntry,
   aManifest,
   aMyReview,
   aPageReview,
@@ -21,9 +23,11 @@ import {
   aPlanetTerpManifest,
   aPlanetTerpReview,
   aSectionSnapshot,
+  aTerm,
   aTermsFile,
   FIXTURE_HASH,
   fixtureTermId,
+  someGrades,
 } from "~/fixtures";
 import { dismissToast } from "~/ui/toast";
 import { CoursePage } from "./course-page";
@@ -48,8 +52,8 @@ import {
   setAccount,
 } from "./testing";
 
-// Signed in, an instructor's page syncs the AI features pref with the
-// account (~/features/prefs); these tests have no sync server.
+// Signed in, the account's prefs sync (~/features/prefs); these tests have
+// no sync server.
 vi.mock("~/features/prefs/account-sync", () => ({
   syncPrefs: () => {},
   stopPrefsSync: () => {},
@@ -72,10 +76,22 @@ vi.mock("~/features/home/local", async (original) => {
 const BODY =
   "Lectures were clear and the exams matched the homework. Office hours helped a lot.";
 
+/**
+ * The Schedule of Classes' terms: a schedule says what you took only for a
+ * term it still lists. Spring 2026 is over, and still listed here.
+ */
+const LISTED = aTermsFile({
+  terms: [
+    aTerm(),
+    aTerm({ id: "202601", name: "Spring 2026", season: "spring", year: 2026 }),
+  ],
+});
+
 beforeEach(() => {
   yourPlans.value = null;
   resetReviewsUi();
   publishFiles({
+    [TERMS_KEY]: LISTED,
     "planetterp/manifest.json": aPlanetTerpManifest(),
     [`planetterp/dept/CMSC.${FIXTURE_HASH}.json`]: aPlanetTerpDept(),
   });
@@ -586,6 +602,12 @@ describe("a course's page", () => {
     const [link] = await screen.findAllByRole("link", { name: "Ada Brandt" });
     expect(link).toHaveAttribute("href", "/reviews/brandt?course=CMSC351");
     expect(screen.getAllByTestId("grade-bars")).toHaveLength(1);
+    // By the newest term each taught it, as PlanetTerp's course pages
+    // group them, with how they grade across all their courses.
+    const spring = screen.getByRole("list", {
+      name: "Taught CMSC351 in Spring 2025",
+    });
+    expect(spring).toHaveTextContent(/Ada Brandt.*Average GPA \d\.\d\d/);
   });
 
   it("lists every instructor's reviews, each saying who it's about", async () => {
@@ -680,6 +702,40 @@ describe("a course's page", () => {
     );
   });
 
+  it("asks who taught you when your plans know only the course", async () => {
+    setAccount({ reviews: "on", user: STUDENT });
+    fakeReviewsClient();
+    // A transcript's term: the course, not who taught it; and a schedule
+    // of a term Testudo no longer lists, which doesn't count.
+    yourPlans.value = {
+      ...NO_LOCAL,
+      plans: [
+        aPlan({
+          termId: "202508",
+          courses: [
+            aPlanCourse({
+              courseCode: "CMSC351",
+              sectionCode: "0101",
+              snapshot: aSectionSnapshot({ instructors: ["Ada Brandt"] }),
+            }),
+          ],
+        }),
+      ],
+      fourYear: aFourYear({
+        entries: [aFourYearEntry({ term: "202508", code: "CMSC351" })],
+      }),
+    };
+    await course();
+    const box = await screen.findByRole("region", {
+      name: "You took CMSC351 in Fall 2025",
+    });
+    expect(within(box).getByText(/^Who taught you\?/)).toBeInTheDocument();
+    expect(
+      within(box).getByRole("button", { name: /Write a review/ }),
+    ).toBeInTheDocument();
+    expect(box).not.toHaveTextContent("Ada Brandt");
+  });
+
   it("says you've reviewed it, with Edit, once you have", async () => {
     setAccount({ reviews: "on", user: STUDENT });
     fakeReviewsClient({
@@ -714,18 +770,21 @@ describe("a course's page", () => {
 });
 
 describe("/reviews", () => {
-  it("shows a first-time visitor what's most taken, what's new and every department", async () => {
+  it("shows a first-time visitor its numbers, the newest reviews, what's most taken and every department", async () => {
     setAccount({ reviews: "on" });
     fakeReviewsClient({
-      recent: async () => ({
-        reviews: [
-          {
-            course: "CMSC351",
-            instructorId: "brandt",
-            instructorName: "Ada Brandt",
-            month: "2027-02",
-          },
+      latest: async () => ({
+        terpsicle: [
+          aPageReview({ createdMonth: "2027-02", body: "Ours, just posted." }),
         ],
+        planetTerp: [
+          aPlanetTerpReview({
+            createdMonth: "2026-11",
+            course: null,
+            body: "Theirs, from the fall.",
+          }),
+        ],
+        instructors: { brandt: "Ada Brandt" },
       }),
     });
     publishFiles({
@@ -734,25 +793,61 @@ describe("/reviews", () => {
       "planetterp/manifest.json": aPlanetTerpManifest({
         index: { hash: FIXTURE_HASH },
       }),
-      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex(),
+      [planetTerpIndexKey(FIXTURE_HASH)]: aPlanetTerpIndex({
+        totals: {
+          courses: 4512,
+          professors: 3121,
+          reviews: 21044,
+          grades: 100,
+          counts: someGrades(),
+        },
+      }),
     });
     const data = await loadReviewsHome(undefined);
     await renderPage(<ReviewsHomePage data={data} q="" />);
+    // The product by name; being free goes without saying.
+    expect(
+      screen.getByRole("heading", { name: "Terpsicle Reviews", level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no sign-in/)).toBeNull();
+    // The numbers, as PlanetTerp's front page counts them.
+    for (const [label, n] of [
+      ["Courses", "4,512"],
+      ["Professors", "3,121"],
+      ["Reviews", "21,044"],
+    ] as const)
+      expect(
+        screen
+          .getByText(label, { selector: "dt" })
+          .closest("div")
+          ?.querySelector(".sr-only"),
+      ).toHaveTextContent(n);
+    // The newest reviews, ours and PlanetTerp's, each saying who it's about.
+    const recent = screen
+      .getByRole("heading", { name: "Recent reviews" })
+      .closest("section") as HTMLElement;
+    const cards = [...recent.querySelectorAll("article[data-review]")];
+    expect(cards.map((c) => c.textContent)).toEqual([
+      expect.stringMatching(/^Ada Brandt in CMSC351.*Ours, just posted\./),
+      expect.stringMatching(/^Ada Brandt.*Theirs, from the fall\./),
+    ]);
+    expect(
+      within(recent).getByRole("link", { name: /Ada Brandt\s*in\s*CMSC351/ }),
+    ).toHaveAttribute("href", "/reviews/brandt?course=CMSC351");
+    expect(
+      screen.getByRole("heading", { name: "Grades across UMD" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /CMSC351\s*Algorithms/ }),
     ).toHaveAttribute("href", "/reviews/cmsc351");
     expect(screen.getByText("13,592")).toBeInTheDocument();
     // Instructors and courses as equals.
+    const most = screen
+      .getByRole("heading", { name: "Most reviewed", level: 2 })
+      .closest("section") as HTMLElement;
     expect(
-      screen.getByRole("heading", { name: "Most reviewed", level: 2 }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ada Brandt" })).toHaveAttribute(
-      "href",
-      "/reviews/brandt",
-    );
-    expect(
-      screen.getByRole("link", { name: /Ada Brandt\s*in\s*CMSC351/ }),
-    ).toHaveAttribute("href", "/reviews/brandt?course=CMSC351");
+      within(most).getByRole("link", { name: "Ada Brandt" }),
+    ).toHaveAttribute("href", "/reviews/brandt");
     expect(
       screen.getByRole("link", { name: /CMSC\s*Computer Science/ }),
     ).toHaveAttribute("href", "/reviews?q=CMSC");

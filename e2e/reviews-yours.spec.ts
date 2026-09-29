@@ -3,12 +3,13 @@ import { expect, type Page, test } from "@playwright/test";
 // Terpsicle Reviews in two columns (owner, 2026-09-29), on `pnpm dev:mock`:
 // the search as an autocomplete over the page, the smaller one in the family
 // bar past the front door, the review box that knows what you took, the
-// front door's narrow column of your instructors, and the family bar's
+// front door's narrow column of your classes, and the family bar's
 // product tabs folded to their marks.
 //
-// The demo's plan (Spring 2027, the mock term) is copied into Spring 2026, a
-// term that's over, so its CMSC351 section, Keiko Ashdown's, is a class you
-// took.
+// The demo's plan (Spring 2027, the mock term) is copied into Summer 2026, a
+// term that's over and that the Schedule of Classes still lists (only those
+// terms' schedules count), so its CMSC351 section, Keiko Ashdown's, is a
+// class you took.
 
 let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -28,8 +29,8 @@ async function hydrated(page: Page) {
   ).toBeVisible();
 }
 
-/** The demo's main plan on this device, copied into Spring 2026. */
-async function tookLastSpring(page: Page) {
+/** The demo's main plan on this device, copied into Summer 2026. */
+async function tookLastSummer(page: Page) {
   await page.goto("/schedule/courses?demo=1");
   await expect(
     page.getByRole("banner").getByRole("button", { name: "Share" }),
@@ -50,9 +51,10 @@ async function tookLastSpring(page: Page) {
     const tx = db.transaction("plans", "readwrite");
     tx.objectStore("plans").put({
       ...main,
-      id: "e2e_spring_2026",
-      termId: "202601",
-      name: "Spring plan",
+      // In place of the demo's own summer plan, so it's the term's main plan.
+      id: "plan_demo_summer",
+      termId: "202605",
+      name: "Summer plan",
     });
     await new Promise((resolve) => {
       tx.oncomplete = resolve;
@@ -188,18 +190,18 @@ test("the review box names the class you took, and the form starts from its term
   isMobile,
 }) => {
   test.skip(isMobile, "the same box on phones; one writer is enough");
-  await tookLastSpring(page);
+  await tookLastSummer(page);
   await signIn(page, "e2ereviewbox");
   await page.goto("/reviews/cmsc351");
   const box = page.getByRole("region", {
-    name: "You took CMSC351 with Keiko Ashdown in Spring 2026",
+    name: "You took CMSC351 with Keiko Ashdown in Summer 2026",
   });
   await expect(box).toContainText("How did it go?");
   await box.getByRole("button", { name: "Write a review" }).click();
   const form = page.getByRole("form", { name: "Write a review" });
   await expect(form).toContainText("Keiko Ashdown");
   await expect(form.getByLabel("When you took it")).toContainText(
-    "Spring 2026",
+    "Summer 2026",
   );
 
   // Signed out, the box asks, and never guesses.
@@ -214,17 +216,17 @@ test("the review box names the class you took, and the form starts from its term
   );
 });
 
-test("the front door's narrow column lists who taught you", async ({
+test("the front door's narrow column lists the classes you took", async ({
   page,
   isMobile,
 }) => {
-  await tookLastSpring(page);
+  await tookLastSummer(page);
   await page.goto("/reviews");
   await hydrated(page);
-  const yours = page.getByRole("list", { name: "Instructors to review" });
+  const yours = page.getByRole("list", { name: "Classes to review" });
   // Signed out: theirs to read about, and one quiet line on signing in.
   await expect(
-    page.getByRole("heading", { name: "Your instructors", level: 2 }),
+    page.getByRole("heading", { name: "Classes you took", level: 2 }),
   ).toBeVisible();
   const row = yours.getByRole("link", { name: /Keiko Ashdown in CMSC351/ });
   await expect(row).toHaveAttribute(
@@ -247,7 +249,7 @@ test("the front door's narrow column lists who taught you", async ({
   await signIn(page, isMobile ? "e2eyoursphone" : "e2eyoursdesk");
   await page.goto("/reviews");
   await expect(
-    page.getByRole("heading", { name: "Review your instructors", level: 2 }),
+    page.getByRole("heading", { name: "Review your classes", level: 2 }),
   ).toBeVisible();
   await expect(row).toHaveAttribute(
     "href",

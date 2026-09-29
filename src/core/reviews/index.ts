@@ -41,6 +41,7 @@ export {
 export {
   type ClassTaken,
   classesTaken,
+  classesToReview,
   reviewedHere,
   reviewsByRecency,
   type TookHere,

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type ReasonCode, ReasonCodeSchema } from "./moderation";
+import { PlanetTerpTotalsSchema } from "./planetterp";
 import {
   CourseCodeSchema,
   DeptCodeSchema,
@@ -18,7 +19,7 @@ import {
 /**
  * An instructor we mint when PlanetTerp doesn't know the name: `t~` and 10
  * base32 characters (V2 §7.2). `InstructorSlugSchema` accepts these too, so
- * summaries and links key on either kind.
+ * links key on either kind.
  */
 export const MintedInstructorIdSchema = z
   .string()
@@ -317,30 +318,6 @@ export const ReviewRowSchema = z.object({
 });
 export type ReviewRow = z.infer<typeof ReviewRowSchema>;
 
-/** How many pairs `reviews/recent` answers, at most. */
-export const REVIEWS_RECENT_MAX = 12;
-
-export const ReviewsRecentInputSchema = z.strictObject({
-  limit: z.number().int().min(1).max(REVIEWS_RECENT_MAX),
-});
-export type ReviewsRecentInput = z.infer<typeof ReviewsRecentInputSchema>;
-
-/**
- * The newest reviewed courses and instructors, for /reviews: which course
- * and instructor, and the month. No review id, text or author (V2 §7.5).
- */
-export const ReviewsRecentResultSchema = z.strictObject({
-  reviews: z.array(
-    z.strictObject({
-      course: CourseCodeSchema,
-      instructorId: InstructorIdSchema,
-      instructorName: InstructorNameSchema,
-      month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-    }),
-  ),
-});
-export type ReviewsRecentResult = z.infer<typeof ReviewsRecentResultSchema>;
-
 // ---------- a page's reviews: ours and PlanetTerp's (V2 §7.6) ----------
 
 const MonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
@@ -402,7 +379,15 @@ const hasTarget = (t: { instructorId: unknown; course: unknown }) =>
 
 /** `reviews/page`: the first of a page's reviews, from both sources. */
 export const ReviewsPageInputSchema = z
-  .strictObject(pageTarget)
+  .strictObject({
+    ...pageTarget,
+    /**
+     * PlanetTerp's name for the instructor, when the page knows it. If the
+     * nightly job hasn't stored their reviews yet, the server fetches them
+     * from PlanetTerp once by this name and stores them.
+     */
+    planetTerpName: z.string().min(1).max(120).optional(),
+  })
   .refine(hasTarget, "Name an instructor or a course");
 export type ReviewsPageInput = z.infer<typeof ReviewsPageInputSchema>;
 
@@ -427,6 +412,30 @@ export const PageReviewsSchema = z.strictObject({
     .optional(),
 });
 export type PageReviews = z.infer<typeof PageReviewsSchema>;
+
+/** `planetterp/totals`: what PlanetTerp's data holds in all; takes nothing. */
+export const PlanetTerpTotalsInputSchema = z.strictObject({});
+
+/** `reviews/latest`: the newest reviews anywhere, for /reviews. */
+export const ReviewsLatestInputSchema = z.strictObject({
+  limit: z.number().int().min(1).max(PLANETTERP_PAGE_MAX),
+});
+export type ReviewsLatestInput = z.infer<typeof ReviewsLatestInputSchema>;
+
+/** The newest of each source's; merge them for one list, newest first. */
+export const LatestReviewsSchema = z.strictObject({
+  /** Ours; null while REVIEWS_ENABLED is off. */
+  terpsicle: z.array(PageReviewSchema).nullable(),
+  planetTerp: z.array(PlanetTerpReviewSchema),
+  /** Who ours are about, by id; PlanetTerp's index names theirs. */
+  instructors: z.record(InstructorIdSchema, InstructorNameSchema),
+});
+export type LatestReviews = z.infer<typeof LatestReviewsSchema>;
+
+/** `planetterp/totals`' answer. */
+export const PlanetTerpTotalsResultSchema = z.strictObject({
+  totals: PlanetTerpTotalsSchema.nullable(),
+});
 
 /** `planetterp/reviews`: the next page of PlanetTerp's. */
 export const PlanetTerpReviewsInputSchema = z

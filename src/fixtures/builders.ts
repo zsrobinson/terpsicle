@@ -50,9 +50,7 @@ import {
   PROBLEM_SEVERITY,
   type Problem,
   type PublicReview,
-  type Review,
   type ReviewSubmitInput,
-  type ReviewSummary,
   type ReviewsDept,
   type ReviewsManifest,
   type RouteGeometry,
@@ -64,7 +62,6 @@ import {
   type SettingsDoc,
   type SettingsSyncDoc,
   type SharePayload,
-  type StoredReviews,
   type Term,
   type TermsFile,
   type TimedMeeting,
@@ -615,55 +612,6 @@ export function aPlanetTerpSource(
     lastSuccessAt: FIXTURE_NOW,
     gradesThrough: "202501",
     latestReviewAt: "2026-04-29T15:02:11.000Z",
-    ...overrides,
-  };
-}
-
-export function aReview(overrides: Partial<Review> = {}): Review {
-  return {
-    course: "CMSC351",
-    text: "Clear lectures and fair exams. Go to office hours.",
-    rating: 4,
-    expectedGrade: "A-",
-    created: "2026-04-29T15:02:11.000Z",
-    ...overrides,
-  };
-}
-
-/** The private review copy the PlanetTerp job keeps; `count` distinct reviews, oldest first. */
-export function someStoredReviews(
-  count: number,
-  overrides: Partial<StoredReviews> = {},
-): StoredReviews {
-  return {
-    slug: "brandt",
-    name: "Ada Brandt",
-    reviews: Array.from({ length: count }, (_, i) =>
-      aReview({
-        text: `Stored review ${i + 1}: clear lectures, fair exams.`,
-        created: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
-      }),
-    ),
-    ...overrides,
-  };
-}
-
-export function aReviewSummary(
-  overrides: Partial<ReviewSummary> = {},
-): ReviewSummary {
-  return {
-    schemaVersion: 1,
-    slug: "brandt",
-    summary:
-      "Mock summary for fixtures. Clear, well-paced lectures; exams are hard but the curve is generous.",
-    themes: [
-      { label: "clear lectures", sentiment: "positive" },
-      { label: "hard exams", sentiment: "negative" },
-    ],
-    basedOnReviewCount: 61,
-    latestReviewAt: "2026-04-29T15:02:11.000Z",
-    generatedAt: FIXTURE_NOW,
-    model: "mock-fixture",
     ...overrides,
   };
 }

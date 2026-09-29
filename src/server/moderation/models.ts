@@ -23,8 +23,8 @@ export const GUARD_MODEL = "@cf/meta/llama-guard-3-8b";
  * mode. Chat is busy and wants answers in well under a second, so it gets
  * the small 8B model (about a sixth of the 70B's price per token; the plain
  * `-fp8` variant rejects JSON schemas). Reviews are few and each one
- * matters, so they get the 70B model summaries already use: on the eval
- * set's held-out cases (2026-09) it caught a comment on an instructor's age
+ * matters, so they get the 70B model: on the eval set's held-out cases
+ * (2026-09) it caught a comment on an instructor's age
  * that the 8B model scored 0, for about $0.0003 more per review.
  * scripts/moderation-eval.ts is how to judge a swap.
  */

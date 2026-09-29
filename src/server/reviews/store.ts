@@ -620,45 +620,21 @@ export async function instructorWithDepts(
   return { name: instructor.name, depts: results.map((r) => r.dept) };
 }
 
-/**
- * (course, instructor) pairs with a published review, newest publication
- * first, with how many reviews each has and its newest review's created_at.
- * Callers order what they show by month, never by this order (V2 §7.5).
- */
-export async function reviewedPairs(
+/** These instructors' names, by id; ids nobody's registered are left out. */
+export async function instructorNames(
   db: D1Database,
-  limit: number,
-): Promise<
-  {
-    course: CourseCode;
-    instructor_id: InstructorId;
-    name: string;
-    count: number;
-    created_at: string;
-  }[]
-> {
+  ids: readonly InstructorId[],
+): Promise<Record<InstructorId, string>> {
+  if (ids.length === 0) return {};
   const { results } = await db
     .prepare(
-      `SELECT r.course, r.instructor_id, i.name, COUNT(*) AS count,
-         MAX(r.created_at) AS created_at
-       FROM reviews r JOIN instructors i ON i.id = r.instructor_id
-       WHERE r.status = 'published'
-       GROUP BY r.course, r.instructor_id
-       ORDER BY MAX(r.published_at) DESC
-       LIMIT ?1`,
+      `SELECT id, name FROM instructors
+       WHERE id IN (SELECT value FROM json_each(?1))`,
     )
-    .bind(limit)
-    .all();
-  return z.array(ReviewedPairRowSchema).parse(results);
+    .bind(JSON.stringify(ids))
+    .all<{ id: InstructorId; name: string }>();
+  return Object.fromEntries(results.map((r) => [r.id, r.name]));
 }
-
-const ReviewedPairRowSchema = z.object({
-  course: CourseCodeSchema,
-  instructor_id: InstructorIdSchema,
-  name: z.string().min(1),
-  count: z.number().int().min(1),
-  created_at: z.string(),
-});
 
 /** Instructors we minted ids for who have a published review (the sitemap). */
 export async function mintedWithReviews(
@@ -864,7 +840,7 @@ export function forgetAuthorStatement(
     .bind(userId, guard.at);
 }
 
-// ---------- published numbers (the reviews-publish job) and summaries ----------
+// ---------- published numbers (the reviews-publish job) ----------
 
 const PublishedFactRowSchema = z.object({
   instructor_id: InstructorIdSchema,
@@ -915,53 +891,4 @@ export async function publishableNameFacts(
       rule: r.rule,
     };
   });
-}
-
-const SummarySourceRowSchema = z.object({
-  course: CourseCodeSchema,
-  body: z.string(),
-  rating: ReviewRatingSchema,
-  created_at: IsoDateTimeSchema,
-});
-
-/** An instructor's published reviews for their summary, newest first. */
-export async function publishedForSummary(
-  db: D1Database,
-  instructorId: InstructorId,
-  limit: number,
-): Promise<
-  { course: string; body: string; rating: number; createdAt: string }[]
-> {
-  const { results } = await db
-    .prepare(
-      `SELECT course, body, rating, created_at FROM reviews
-       WHERE instructor_id = ?1 AND status = 'published'
-       ORDER BY published_at DESC, id DESC LIMIT ?2`,
-    )
-    .bind(instructorId, limit)
-    .all();
-  return results.map((row) => {
-    const r = SummarySourceRowSchema.parse(row);
-    return {
-      course: r.course,
-      body: r.body,
-      rating: r.rating,
-      createdAt: r.created_at,
-    };
-  });
-}
-
-/** How many published reviews an instructor has, and when the newest went up. */
-export async function publishedStats(
-  db: D1Database,
-  instructorId: InstructorId,
-): Promise<{ count: number; latestPublishedAt: string | null }> {
-  const row = await db
-    .prepare(
-      `SELECT COUNT(*) AS count, MAX(published_at) AS latest FROM reviews
-       WHERE instructor_id = ?1 AND status = 'published'`,
-    )
-    .bind(instructorId)
-    .first<{ count: number; latest: string | null }>();
-  return { count: row?.count ?? 0, latestPublishedAt: row?.latest ?? null };
 }

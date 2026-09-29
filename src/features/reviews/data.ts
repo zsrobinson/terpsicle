@@ -106,8 +106,10 @@ export function forgetPageReviews(): void {
 
 /** The browser asks the API, once per page and visit. */
 function browserPageReviews(input: ReviewsPageInput): Promise<PageReviews> {
-  return once(`page-reviews:${input.instructorId}:${input.course}`, () =>
-    reviewsClient().reviews.page(input),
+  const name = input.planetTerpName ?? "";
+  return once(
+    `page-reviews:${input.instructorId}:${input.course}:${name}`,
+    () => reviewsClient().reviews.page(input),
   );
 }
 

@@ -25,9 +25,7 @@ import {
   PlanetTerpManifestSchema,
   planetTerpDeptKey,
   planetTerpIndexKey,
-  planetTerpReviewsKey,
   SeatsFileSchema,
-  StoredReviewsSchema,
   seatsKey,
   TERMS_KEY,
   TermsFileSchema,
@@ -54,7 +52,7 @@ import socIndex from "~/ingest/__fixtures__/soc/index.html?raw";
 import { planetTerpReviews } from "~/server/reviews/planetterp";
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
-import { keepsReviewText, runPlanetTerpJob } from "./planetterp";
+import { runPlanetTerpJob } from "./planetterp";
 import { runSeatsJob } from "./seats";
 
 // Cron handlers against a fake internet built from the saved pages in
@@ -401,26 +399,6 @@ describe("seats job", () => {
 });
 
 describe("planetterp job", () => {
-  /** Keeping review text is off unless the var says so (`keepsReviewText`). */
-  const keepingText = { ...env, PLANETTERP_KEEP_REVIEW_TEXT: "true" };
-
-  it("keeps no review text unless it's turned on", async () => {
-    const fake = fakeInternet();
-    await runCatalogJob({
-      env,
-      now: at("2026-09-25T12:00:00Z"),
-      fetch: fake.fetch,
-    });
-    await runPlanetTerpJob({
-      env,
-      now: at("2026-09-26T05:17:00Z"),
-      fetch: fake.fetch,
-    });
-    expect(await env.DATA.get(planetTerpReviewsKey("kruskal"))).toBeNull();
-    expect(keepsReviewText({})).toBe(false);
-    expect(keepsReviewText({ PLANETTERP_KEEP_REVIEW_TEXT: "true" })).toBe(true);
-  });
-
   it("stores PlanetTerp's reviews for Reviews' pages, then only what changed", async () => {
     const fake = fakeInternet();
     await runCatalogJob({
@@ -495,7 +473,7 @@ describe("planetterp job", () => {
       fetch: fake.fetch,
     });
     await runPlanetTerpJob({
-      env: keepingText,
+      env,
       now: at("2026-09-26T05:17:00Z"),
       fetch: fake.fetch,
     });
@@ -530,7 +508,7 @@ describe("planetterp job", () => {
       planetTerpIndexKey(manifest.index?.hash ?? ""),
       PlanetTerpIndexSchema,
     );
-    expect(index.instructors.kruskal).toEqual(["Clyde Kruskal", ["CMSC"]]);
+    expect(index.instructors.kruskal).toEqual(["Clyde Kruskal", ["CMSC"], 111]);
     expect(index.mostTaken[0]).toEqual([
       "CMSC351",
       "Algorithms",
@@ -545,13 +523,6 @@ describe("planetterp job", () => {
       gradesThrough: "202501",
       latestReviewAt: "2026-04-19T23:53:54.033Z",
     });
-    // Review text is kept privately for summaries.
-    const kept = await readJson(
-      planetTerpReviewsKey("kruskal"),
-      StoredReviewsSchema,
-    );
-    expect(kept.reviews).toHaveLength(111);
-    expect(kept.reviews[0]?.text.length).toBeGreaterThan(0);
   });
 
   /** A good run, then one with PlanetTerp answering `professors`; returns what was captured. */
@@ -566,7 +537,7 @@ describe("planetterp job", () => {
       fetch: fake.fetch,
     });
     await runPlanetTerpJob({
-      env: keepingText,
+      env,
       now: at("2026-09-26T05:17:00Z"),
       fetch: fake.fetch,
     });
@@ -574,14 +545,13 @@ describe("planetterp job", () => {
       PLANETTERP_MANIFEST_KEY,
       PlanetTerpManifestSchema,
     );
-    const reviewsBefore = await env.DATA.get(planetTerpReviewsKey("kruskal"));
 
     fake.professors = professors;
     const events: { event: string; properties: Record<string, unknown> }[] = [];
     const run = runPlanetTerpJob({
       // Telemetry on, so the failure event reaches the fake PostHog below.
       env: {
-        ...keepingText,
+        ...env,
         POSTHOG_TOKEN: "test-token" as Env["POSTHOG_TOKEN"],
       },
       now: at(brokenAt),
@@ -593,11 +563,11 @@ describe("planetterp job", () => {
         return fake.fetch(input, init);
       },
     });
-    return { before, reviewsBefore, run, events };
+    return { before, run, events };
   }
 
   it("keeps the last good files and marks PlanetTerp stale when its list comes back empty", async () => {
-    const { before, reviewsBefore, run, events } = await goodThenBroken(() =>
+    const { before, run, events } = await goodThenBroken(() =>
       Response.json([]),
     );
     await expect(run).rejects.toThrow(/PlanetTerp listed no professors/);
@@ -620,10 +590,6 @@ describe("planetterp job", () => {
       PlanetTerpDeptSchema,
     );
     expect(file.instructors.kruskal?.reviewCount).toBe(111);
-    // Stored review text isn't touched either.
-    expect((await env.DATA.get(planetTerpReviewsKey("kruskal")))?.etag).toBe(
-      reviewsBefore?.etag,
-    );
 
     const state = (await (
       await env.DATA.get("_jobs/planetterp/state.json")

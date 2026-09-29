@@ -12,11 +12,9 @@ import type { ModerationEnv } from "../moderation/service";
 import type { NotificationsEnv } from "../notifications/api";
 import type { PushEnv } from "../push/config";
 import type { ReviewsEnv } from "../reviews/api";
-import type { SummaryEnv } from "../summaries/service";
 import type { TodoEnv } from "../todo/config";
 
 export type ApiEnv = AlertsEnv &
-  SummaryEnv &
   AuthEnv &
   ModerationEnv &
   ChatApiEnv &

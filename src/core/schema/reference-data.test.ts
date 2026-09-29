@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ReviewSummaryResultSchema } from "./api";
 import { AcademicCalendarSchema } from "./calendar";
 import {
   BuildingsFileSchema,
@@ -12,7 +11,6 @@ import {
   deptChunkKey,
   instructorNameKey,
   manifestKey,
-  planetTerpReviewsKey,
   routeGeometryKey,
   seatsKey,
   TERMS_KEY,
@@ -203,7 +201,7 @@ describe("server fn contracts", () => {
     ).toBe(false);
   });
 
-  it("covers every watch and summary outcome", () => {
+  it("covers every watch outcome", () => {
     const watch = {
       termId: TERM,
       sectionKey: "CMSC351-0101",
@@ -226,12 +224,6 @@ describe("server fn contracts", () => {
         ),
       }).success,
     ).toBe(false);
-    expect(
-      ReviewSummaryResultSchema.safeParse({
-        status: "unavailable",
-        reason: "daily-limit",
-      }).success,
-    ).toBe(true);
   });
 });
 
@@ -259,10 +251,7 @@ describe("R2 keys", () => {
     expect(dataCachePolicy(TERMS_KEY)?.edgeTtlSeconds).toBe(60);
     expect(dataCachePolicy("_jobs/routes-progress.json")).toBeNull();
     expect(dataCachePolicy("summaries/kruskal.json")).toBeNull();
-    expect(planetTerpReviewsKey("kruskal")).toBe(
-      "_jobs/planetterp/reviews/kruskal.json",
-    );
-    expect(dataCachePolicy(planetTerpReviewsKey("kruskal"))).toBeNull();
+    expect(dataCachePolicy("_jobs/planetterp/reviews/kruskal.json")).toBeNull();
   });
 
   it("normalizes instructor names for the PlanetTerp join", () => {

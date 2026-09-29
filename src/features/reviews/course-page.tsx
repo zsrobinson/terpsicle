@@ -2,12 +2,15 @@ import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 import { PanelNote } from "~/components/panel";
+import { termLabel } from "~/core/catalog/terms";
 import { formatGpa } from "~/core/grades/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import {
   type CourseInstructorRow,
   type CoursePageData,
+  type CourseTermGroup,
   combineRatings,
+  courseTermGroups,
   hasTermStarted,
   instructorSlug,
   reviewedHere,
@@ -56,8 +59,9 @@ import { SignInPrompt } from "./sign-in-prompt";
 // /reviews/<course> (V2 §1.1), in two columns (owner, 2026-09-29). The wide
 // one reads top to bottom: the course, its rating from every review of it,
 // the box to review it yourself, then the reviews, ours and PlanetTerp's
-// about every instructor. The narrow one holds everyone who's taught it
-// (each a link to their reviews in this course) and its grades. On a phone
+// about every instructor, never filtered to one (owner, 2026-09-29: as on
+// PlanetTerp). The narrow one holds who taught it, by term, each a link to
+// their reviews in this course, and its grades. On a phone
 // it's one column, the wide one first, with who teaches it now under the
 // title. The route's loader read it all, so the server's HTML has it.
 
@@ -216,7 +220,6 @@ export function CoursePage({
               {composer ?? (
                 <ReviewBox
                   state={boxState}
-                  page="course"
                   question={
                     <>
                       Took <span className="ident">{code}</span>?
@@ -273,7 +276,7 @@ export function CoursePage({
         side={
           <>
             <PageSection
-              title="Instructors"
+              title="Who taught it"
               aside={rows.length > 0 ? rows.length : undefined}
             >
               {rows.length === 0 ? (
@@ -281,20 +284,25 @@ export function CoursePage({
                   We don't know who's taught {code} yet.
                 </PanelNote>
               ) : (
-                <ul aria-label="Instructors">
-                  {rows.map((row) => (
-                    <InstructorRow
-                      key={row.id ?? row.name}
-                      row={row}
+                <div className="flex flex-col gap-4">
+                  {courseTermGroups(rows).map((group) => (
+                    <TermGroup
+                      key={group.termId ?? "earlier"}
+                      group={group}
                       code={code}
-                      term={term?.name ?? null}
+                      now={group.termId !== null && group.termId === term?.id}
                     />
                   ))}
-                </ul>
+                </div>
               )}
-              {/* About the ratings beside each name, which are PlanetTerp's. */}
-              {freshness ? (
-                <p className="text-faint text-sm">{freshness}</p>
+              {/* About the numbers beside each name, which are PlanetTerp's. */}
+              {rows.some((r) => r.overallGpa !== null) || freshness ? (
+                <p className="text-faint text-sm">
+                  {rows.some((r) => r.overallGpa !== null)
+                    ? "Each GPA is the average across all their courses. "
+                    : ""}
+                  {freshness}
+                </p>
               ) : null}
             </PageSection>
             <PageSection title="Grades">
@@ -461,25 +469,45 @@ function WriteMenu({
   );
 }
 
-/** One of everyone who's taught it: their page in this course, and numbers. */
-function InstructorRow({
-  row,
+/**
+ * One term of "Who taught it" (owner, 2026-09-29: like PlanetTerp's course
+ * pages, which "group by term and show what professors taught it, their
+ * average GPAs (across all their courses)"). Each instructor is under the
+ * newest term they taught it.
+ */
+function TermGroup({
+  group,
   code,
-  term,
+  now,
 }: {
-  row: Row;
+  group: CourseTermGroup;
   code: CourseCode;
-  term: string | null;
+  /** The term the scheduler's on. */
+  now: boolean;
 }) {
-  const trail = (
-    <span className="flex flex-col items-end gap-0.5">
-      <CombinedRatingBadge combined={rowRating(row)} />
-      {row.gpa !== null ? (
-        <span className="text-muted text-xs">GPA {formatGpa(row.gpa)}</span>
-      ) : null}
-    </span>
+  const label = group.termId ? termLabel(group.termId) : "Earlier";
+  return (
+    <div className="flex flex-col gap-1">
+      <h3 className="emph-label flex items-baseline gap-2 text-sm">
+        {label}
+        {now ? <span className="text-muted">Teaching now</span> : null}
+      </h3>
+      <ul aria-label={`Taught ${code} in ${label}`}>
+        {group.rows.map((row) => (
+          <InstructorRow key={row.id ?? row.name} row={row} code={code} />
+        ))}
+      </ul>
+    </div>
   );
-  const secondary = row.teaching && term ? `Teaching ${term}` : undefined;
+}
+
+/** One of everyone who's taught it: their page in this course, and numbers. */
+function InstructorRow({ row, code }: { row: Row; code: CourseCode }) {
+  const trail = <CombinedRatingBadge combined={rowRating(row)} />;
+  const secondary =
+    row.overallGpa !== null
+      ? `Average GPA ${formatGpa(row.overallGpa)}`
+      : undefined;
   if (row.id)
     return (
       <FilterRow

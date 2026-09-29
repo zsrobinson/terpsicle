@@ -1,20 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { planetTerpReviewsKey, StoredReviewsSchema } from "~/core/schema";
-import { createMemoryBlobStore } from "../blob-store";
 import { createHttpClient } from "../http";
-import { silentLogger } from "../publish";
 import {
   buildCourseGrades,
   fetchGrades,
   mergeCourseGrades,
   summarizeGrades,
 } from "./planetterp";
-import {
-  createReviewKeeper,
-  normalizeReviews,
-  type ReviewApi,
-} from "./reviews";
+import { normalizeReviews } from "./reviews";
 import {
   implausibleReason,
   statusAfterFailure,
@@ -197,7 +190,7 @@ describe("PlanetTerp sanity floors", () => {
   });
 });
 
-describe("stored review text", () => {
+describe("PlanetTerp's review text", () => {
   const kruskal = read("professor-kruskal-reviews.json");
 
   it("normalizes PlanetTerp's reviews, oldest first", () => {
@@ -208,41 +201,5 @@ describe("stored review text", () => {
       reviews.every((r, i) => r.created >= (reviews[i - 1]?.created ?? "")),
     ).toBe(true);
     expect(reviews.find((r) => r.expectedGrade === "A")).toBeDefined();
-  });
-
-  it("writes changed files only, and never replaces reviews with fewer", async () => {
-    const store = createMemoryBlobStore();
-    const keep = async (reviews: ReviewApi[]) => {
-      const keeper = await createReviewKeeper(store, silentLogger);
-      await keeper.keep([{ slug: "kruskal", name: "Clyde Kruskal", reviews }]);
-      return keeper.finish();
-    };
-    const key = planetTerpReviewsKey("kruskal");
-
-    expect(await keep(kruskal.reviews)).toEqual({ written: 1, kept: 0 });
-    const stored = StoredReviewsSchema.parse(
-      JSON.parse(new TextDecoder().decode((await store.get(key)) ?? undefined)),
-    );
-    expect(stored.reviews).toHaveLength(111);
-
-    // Unchanged: no write. Empty or shortened: the stored copy stays.
-    expect(await keep(kruskal.reviews)).toEqual({ written: 0, kept: 0 });
-    expect(await keep([])).toEqual({ written: 0, kept: 1 });
-    expect(await keep(kruskal.reviews.slice(0, 50))).toEqual({
-      written: 0,
-      kept: 1,
-    });
-    expect(store.writes.filter((k) => k === key)).toHaveLength(1);
-
-    // A new review is written.
-    const newer = {
-      ...kruskal.reviews[0],
-      review: "A new one.",
-      created: "2026-09-01T00:00:00Z",
-    };
-    expect(await keep([...kruskal.reviews, newer])).toEqual({
-      written: 1,
-      kept: 0,
-    });
   });
 });

@@ -5,7 +5,6 @@ import { type ReactNode, useId, useRef, useState } from "react";
 import { PanelNote } from "~/components/panel";
 import { combineRatings, courseSlug, instructorSlug } from "~/core/reviews";
 import type { CourseCode, InstructorId } from "~/core/schema";
-import { formatMonthYear } from "~/core/time/format";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
@@ -17,21 +16,28 @@ import { PAGE_NOTE, PAGE_ROW, ReviewsFrame, ROW_LINK } from "./frame";
 import { useReviewsLevel, useSignedIn } from "./level";
 import {
   isDeptQuery,
+  type LatestReview,
   type ReviewsHomeData,
   type SearchResults,
 } from "./page-data";
+import { GradesBlock } from "./planetterp-blocks";
+import { PlanetTerpReviewCard } from "./planetterp-review";
 import { CombinedRatingBadge } from "./rating";
+import { ReviewCard } from "./review-card";
 import { ReviewsSearch } from "./search";
+import { StatsRow } from "./stats-row";
 import { YourReviewsColumn } from "./to-review";
 
 // /reviews (V2 §1.1), Reviews' front door, which people often reach from a
 // search engine: a public website, not a dashboard (owner, 2026-09-28). In
-// two columns (owner, 2026-09-29). The wide one: one search, whose results
-// open over the page, finding instructors and courses alike, as equals;
-// then the most-reviewed instructors beside the most-taken courses, what
-// was reviewed lately and every department. `?q=` lists every match above
-// them. The narrow one is yours: who you could review, what you've
-// reviewed, your classes.
+// two columns (owner, 2026-09-29). The wide one: Terpsicle Reviews by name,
+// one search, whose results open over the page, finding instructors and
+// courses alike, as equals; the numbers, counting up; the newest reviews;
+// the most-reviewed instructors beside the most-taken courses; grades
+// across every course; and every department. Like PlanetTerp's front page
+// (owner, 2026-09-29), so it's familiar to anyone who's used it. `?q=`
+// lists every match under the search. The narrow one is yours: your
+// classes to review, and what you've reviewed.
 
 /** Rows each of the two lists shows. */
 const SHOWN = 10;
@@ -59,9 +65,13 @@ export function ReviewsHomePage({
     <ReviewsFrame page="home" wide>
       <PageHeader
         size="display"
-        eyebrow="Terpsicle Reviews"
-        title="UMD course and instructor reviews"
-        status="What students say about University of Maryland instructors and courses, here and on PlanetTerp. Free to read, no sign-in."
+        // The product's name is the page's (owner, 2026-09-29): anyone here
+        // has already found it's free to read.
+        title={
+          <span className="block text-4xl md:text-5xl">
+            Terpsicle <span className="text-product-reviews-text">Reviews</span>
+          </span>
+        }
         actions={
           level === "on" ? (
             <WithTooltip label="Find who taught you, or the course you took">
@@ -99,6 +109,9 @@ export function ReviewsHomePage({
               }
             />
             {typed ? <Results q={typed} results={data.results} /> : null}
+            {data.totals && data.totals.reviews > 0 ? (
+              <StatsRow totals={data.totals} />
+            ) : null}
             <Browse data={data} />
           </>
         }
@@ -188,8 +201,21 @@ function Results({ q, results }: { q: string; results: SearchResults }) {
 
 /** The front door's lists: who's most reviewed, what's most taken, and more. */
 function Browse({ data }: { data: ReviewsHomeData }) {
+  const level = useReviewsLevel();
   return (
     <>
+      {data.latest.length > 0 ? (
+        <PageSection size="display" title="Recent reviews">
+          {/* A taste of each: the whole review is a click away, on the
+              instructor's page for the course. */}
+          <ul className="[&_[data-private]]:line-clamp-6">
+            {data.latest.map((item) => (
+              <LatestRow key={item.shown.review.id} item={item} level={level} />
+            ))}
+          </ul>
+        </PageSection>
+      ) : null}
+
       {/* Instructors and courses as equals, side by side. min-w-0: long
           titles truncate instead of widening a column. */}
       <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 [&>*]:min-w-0">
@@ -255,40 +281,16 @@ function Browse({ data }: { data: ReviewsHomeData }) {
         ) : null}
       </div>
 
-      {data.recent.length > 0 ? (
-        <PageSection size="display" title="Recently reviewed">
-          <ul>
-            {data.recent.map((r) => (
-              <ListRow
-                key={`${r.course}:${r.instructorId}`}
-                as="li"
-                className={cn(PAGE_ROW, "relative")}
-                trail={
-                  <span className="tnum text-muted">
-                    {formatMonthYear(r.month)}
-                  </span>
-                }
-              >
-                <WithTooltip
-                  label={`Reviews of ${r.instructorName} in ${r.course}`}
-                >
-                  <Link
-                    to="/reviews/$slug"
-                    params={{ slug: instructorSlug(r.instructorId) }}
-                    search={{ course: r.course }}
-                    className={cn(
-                      ROW_LINK,
-                      "block truncate text-lg hover:underline",
-                    )}
-                  >
-                    <span className="font-medium">{r.instructorName}</span>{" "}
-                    <span className="text-muted">in</span>{" "}
-                    <span className="ident">{r.course}</span>
-                  </Link>
-                </WithTooltip>
-              </ListRow>
-            ))}
-          </ul>
+      {data.totals && data.totals.grades > 0 ? (
+        <PageSection size="display" title="Grades across UMD">
+          <GradesBlock
+            record={{
+              counts: data.totals.counts,
+              semesters: 0,
+            }}
+            gradesThrough={data.gradesThrough}
+            courses={data.totals.courses}
+          />
         </PageSection>
       ) : null}
 
@@ -356,9 +358,8 @@ function About({
           theirs. Ratings combine both, weighted by how many each has.
         </p>
         <p>
-          Grades are PlanetTerp's, from the university's own grade data. AI
-          summaries of PlanetTerp's reviews are marked, and can get things
-          wrong.
+          Grades are PlanetTerp's, from the university's own grade data. The
+          numbers at the top count PlanetTerp's data.
         </p>
         {level === "read" || level === "on" ? (
           <p>
@@ -394,6 +395,75 @@ function About({
         Terpsicle isn't affiliated with the University of Maryland.
       </p>
     </PageSection>
+  );
+}
+
+/** One of "Recent reviews": the page's own card, saying who it's about. */
+function LatestRow({
+  item: { shown, instructorName },
+  level,
+}: {
+  item: LatestReview;
+  level: ReturnType<typeof useReviewsLevel>;
+}) {
+  const about = (
+    <ReviewAbout
+      id={shown.review.instructorId}
+      name={instructorName}
+      course={shown.review.course}
+    />
+  );
+  return shown.source === "terpsicle" ? (
+    <ReviewCard
+      review={shown.review}
+      own={null}
+      level={level}
+      showCourse={false}
+      about={about}
+    />
+  ) : (
+    <PlanetTerpReviewCard
+      review={shown.review}
+      showCourse={false}
+      about={about}
+    />
+  );
+}
+
+/** "Clyde Kruskal in CMSC351": who a recent review is about, and the way to it. */
+function ReviewAbout({
+  id,
+  name,
+  course,
+}: {
+  id: InstructorId;
+  name: string | null;
+  course: CourseCode | null;
+}) {
+  const who = name ?? "An instructor";
+  return (
+    <WithTooltip
+      label={
+        course
+          ? `Reviews of ${who} in ${course}`
+          : `${who}'s reviews and grades`
+      }
+    >
+      <Link
+        to="/reviews/$slug"
+        params={{ slug: instructorSlug(id) }}
+        search={course ? { course } : {}}
+        className="text-lg hover:underline"
+      >
+        <span className="font-medium text-fg">{who}</span>
+        {course ? (
+          <>
+            {" "}
+            in <span className="ident text-fg">{course}</span>
+          </>
+        ) : null}
+      </Link>
+    </WithTooltip>
   );
 }
 

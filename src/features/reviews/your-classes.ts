@@ -1,15 +1,12 @@
 import {
   type CourseCode,
   LOCAL_DB_NAME,
-  type MainPlans,
-  MainPlansSchema,
   type Plan,
   PlanSchema,
 } from "~/core/schema";
 
-// Your plans, for /reviews: "Your classes" (every course in them) and
-// "Review your instructors" (the sections you placed in terms that are
-// over). A raw IndexedDB read, like the returning check on `/`: no Dexie
+// Your plans, for /reviews' "Courses in your plans" (every course in
+// them). A raw IndexedDB read, like the returning check on `/`: no Dexie
 // here, and it never creates the database. Signed in, plan sync keeps the
 // same plans here, so this is every device's.
 
@@ -61,20 +58,6 @@ export async function readPlans(
     if (plan.success) plans.push(plan.data);
   }
   return plans;
-}
-
-/** Each term's chosen main plan (the `mainPlans` settings row); {} when none. */
-export async function readMainPlans(
-  dbName: string = LOCAL_DB_NAME,
-): Promise<MainPlans> {
-  for (const row of await readRows(dbName, "settings")) {
-    if ((row as { key?: unknown }).key !== "mainPlans") continue;
-    const parsed = MainPlansSchema.safeParse(
-      (row as { value?: unknown }).value,
-    );
-    return parsed.success ? parsed.data : {};
-  }
-  return {};
 }
 
 /** Every course in any saved plan, sorted. */
