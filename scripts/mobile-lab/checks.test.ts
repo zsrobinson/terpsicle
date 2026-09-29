@@ -130,6 +130,16 @@ describe("stepChecks", () => {
     expect(expectedDrawerTop(full)).toBe(48);
     // Under 480px tall, half is full.
     expect(expectedDrawerTop(aProbe({ innerHeight: 400 }))).toBe(48);
+    // Peek rests above the home indicator.
+    const peek = aProbe();
+    if (peek.drawer) peek.drawer.snap = "peek";
+    expect(expectedDrawerTop(peek)).toBe(800 - 124);
+    if (peek.drawer) peek.drawer.safeBottom = 34;
+    expect(expectedDrawerTop(peek)).toBe(800 - 124 - 34);
+    // Full stops under the family bar, which the status bar's inset pushes
+    // down.
+    if (full.drawer) full.drawer.safeTop = 47;
+    expect(expectedDrawerTop(full)).toBe(48 + 47);
     expect(failed(aProbe())).not.toContain("drawer-rests-at-snap");
     const moved = aProbe();
     if (moved.drawer?.rect) moved.drawer.rect.y = 300;

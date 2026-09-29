@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Drawer } from "vaul";
 import { browserName } from "~/core/feedback/context";
 import type { FeedbackProduct } from "~/core/schema/feedback";
 import { useAccount } from "~/features/auth/account-store";
@@ -18,6 +17,7 @@ import { isApple, modKey } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
+import { Sheet, SheetTitle } from "~/ui/sheet";
 import { Skeleton } from "~/ui/skeleton";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { type SheetMode, useDraft } from "./draft-store";
@@ -586,36 +586,22 @@ function FeedbackDrawer({
 }) {
   const startPin = useStartPinning(() => onOpenChange(false));
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
-      <Drawer.Portal>
-        <Drawer.Overlay
-          data-feedback-ui=""
-          className="fixed inset-0 z-40 bg-fg/20"
+    // The kit's sheet; the screenshot leaves it, its backdrop and the page's
+    // scale-back out (./screenshot.ts).
+    <Sheet open={open} onOpenChange={onOpenChange} data-feedback-ui="">
+      <SheetTitle className="px-4 pt-3 pb-2 font-semibold text-lg tracking-tight">
+        Send feedback
+      </SheetTitle>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-6">
+        <FeedbackForm
+          product={product}
+          onSent={() => onOpenChange(false)}
+          onStartPin={startPin}
+          // Phones: the keyboard would cover the picker before it's read.
+          autoFocus={false}
         />
-        <Drawer.Content
-          data-feedback-ui=""
-          aria-describedby={undefined}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-lg border border-hairline bg-raised text-fg outline-none"
-        >
-          <div
-            aria-hidden="true"
-            className="mx-auto mt-2 h-1 w-8 shrink-0 rounded-full bg-hairline-strong"
-          />
-          <Drawer.Title className="px-4 pt-3 pb-2 font-semibold text-lg tracking-tight">
-            Send feedback
-          </Drawer.Title>
-          <div className="overflow-y-auto px-4 pb-6">
-            <FeedbackForm
-              product={product}
-              onSent={() => onOpenChange(false)}
-              onStartPin={startPin}
-              // Phones: the keyboard would cover the picker before it's read.
-              autoFocus={false}
-            />
-          </div>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+      </div>
+    </Sheet>
   );
 }
 

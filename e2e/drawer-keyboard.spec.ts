@@ -8,7 +8,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 test.skip(({ isMobile }) => !isMobile, "phone layout");
 
-const drawer = (page: Page) => page.locator("[data-vaul-drawer]");
+const drawer = (page: Page) => page.locator("[data-workbench-drawer]");
 const tabs = (page: Page) =>
   page.getByRole("navigation", { name: "Tabs", exact: true });
 
@@ -93,7 +93,7 @@ test("a tapped field is already at the top when the keyboard opens", async ({
 }) => {
   // The owner: "the keyboard pushing up the content of the page … you're no
   // longer able to see where you're typing". Tapped at half, the field used
-  // to ride vaul's half-second slide up to full. The keyboard opened
+  // to ride the drawer's half-second slide up to full. The keyboard opened
   // mid-slide, the phone panned the page to the field where it was then, and
   // the drawer carried it on up, out of the panned view (the mobile lab's
   // keyboard-at-half on Android Chrome). Now it jumps: right after the tap,
@@ -115,7 +115,7 @@ test("a tapped field is already at the top when the keyboard opens", async ({
   await box.tap();
   const at = await page.evaluate(() => ({
     drawer: document
-      .querySelector("[data-vaul-drawer]")
+      .querySelector("[data-workbench-drawer]")
       ?.getBoundingClientRect().top,
     field: document
       .querySelector('[aria-label="Search courses"]')

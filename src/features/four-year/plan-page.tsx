@@ -79,7 +79,7 @@ import {
 // semesters and one at a time, with the sidebar in the same drawer as the
 // scheduler's. The first visit, with no plan yet, is a page of its own.
 
-// The phone drawer (vaul) is its own chunk, fetched at once on phones only.
+// The phone drawer (Base UI's Drawer) is its own chunk, fetched at once on phones only.
 const PlanDrawer = lazyDrawer(() =>
   import("./plan-drawer").then((m) => m?.PlanDrawer),
 );

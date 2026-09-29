@@ -16,7 +16,7 @@ export interface Scenario {
   run(lab: Lab): Promise<void>;
 }
 
-const DRAWER = "[data-vaul-drawer]";
+const DRAWER = "[data-workbench-drawer]";
 const GRABBER: Target = {
   selector: `${DRAWER} button[aria-label$="the panel"]`,
 };
@@ -40,7 +40,7 @@ const TABS = [
   "Register",
 ];
 
-/** vaul's snap animation is 0.5 s. */
+/** A snap slides for the drawer's `--dur-sheet` (450ms). */
 const SETTLE = 800;
 
 /** How far from the screen's top and bottom a target must be to tap it. */
@@ -289,7 +289,7 @@ export const SCENARIOS: Scenario[] = [
     title: "Drag the grabber peek → half → full → peek",
     skip: (engine) =>
       engine === "webkit"
-        ? "Playwright can't send WebKit a touch drag, and vaul doesn't follow its mouse drags as a finger's"
+        ? "Playwright can't send WebKit a touch drag, and Base UI's drawer takes no mouse drag that starts on a button (the grabber)"
         : null,
     async run(lab) {
       await open(lab);
@@ -564,7 +564,7 @@ export const SCENARIOS: Scenario[] = [
         if (step.probe?.panel?.heading === "Search") continue;
         // The panel's one Back button ("Back to Search"; v2/navigation).
         await lab.tap({
-          selector: "[data-vaul-drawer] [data-layer][data-active] button",
+          selector: "[data-workbench-drawer] [data-layer][data-active] button",
           text: "Back to Search",
           visible: true,
         });

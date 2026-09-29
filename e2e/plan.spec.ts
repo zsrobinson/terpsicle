@@ -31,7 +31,7 @@ async function axe(page: Page, what: string) {
 
 /** Whether `what` shows above a phone's drawer (the whole page on a desktop). */
 async function aboveDrawer(page: Page, what: ReturnType<Page["getByText"]>) {
-  const drawer = await page.locator("[data-vaul-drawer]").boundingBox();
+  const drawer = await page.locator("[data-workbench-drawer]").boundingBox();
   const box = await what.boundingBox();
   if (!box) return false;
   return !drawer || box.y + box.height <= drawer.y;
@@ -81,7 +81,7 @@ test("starts a plan, adds a course and a placeholder, moves with the keyboard, a
   // On a phone the drawer comes down to half, so the semester shows the
   // course above it (QA P1), and Search stays open for the next one.
   if (isMobile) {
-    await expect(page.locator("[data-vaul-drawer]")).toHaveAttribute(
+    await expect(page.locator("[data-workbench-drawer]")).toHaveAttribute(
       "data-snap",
       "half",
     );

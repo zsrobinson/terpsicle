@@ -1,7 +1,8 @@
 // Playwright's WebKit (or Chromium) with a phone's viewport, touch and user
 // agent. Cheap and runs on every PR, but nothing here is the real thing:
 // there's no on-screen keyboard or browser toolbar, and WebKit can't be sent
-// a touch drag, so drags are mouse drags (vaul follows either).
+// a touch drag, so drags are mouse drags (Base UI's drawer follows one,
+// unless it starts on a button, a field or a list that scrolls).
 
 import { execFile } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";

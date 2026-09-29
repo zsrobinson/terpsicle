@@ -121,6 +121,18 @@ export const NEVER_EAGER: readonly { pattern: RegExp; why: string }[] = [
 ];
 
 /**
+ * Base UI's Drawer, beyond the sheet indent every page carries
+ * (ui/sheet-indent.tsx): it loads with the first sheet (ActionMenu's on
+ * phones only, Chat's room info on phones only) or with a workbench's phone
+ * drawer, in their lazy chunks.
+ */
+const DRAWER_NEVER_EAGER = {
+  pattern:
+    /(^|\/)@base-ui\/react\/drawer\/(?!(provider|indent|indent-background)\/|popup\/DrawerPopupCssVars\.|backdrop\/DrawerBackdropCssVars\.)|^src\/components\/ui\/sheet\.tsx$/,
+  why: "a drawer loads with the first sheet or a workbench's phone drawer, on phones",
+};
+
+/**
  * What the scheduler loads on first use rather than up front (docs/BUILD.md
  * §5): each of these once was eager, and they add up to about 40 KB.
  */
@@ -148,16 +160,12 @@ export const SCHEDULE_NEVER_EAGER: readonly { pattern: RegExp; why: string }[] =
       why: "the text index loads when Search opens (use-course-search)",
     },
     {
+      // Base UI's Drawer itself is the next rule's.
       pattern:
-        /(^|\/)vaul\/|^src\/(features\/schedule\/mobile-drawer|components\/workbench\/drawer|features\/four-year\/plan-drawer)\.tsx$/,
+        /^src\/(features\/schedule\/mobile-drawer|components\/workbench\/drawer|features\/four-year\/plan-drawer)\.tsx$/,
       why: "a workbench's phone drawer loads on phones only (lazyDrawer)",
     },
-    {
-      // Every page carries only the sheet's indent (ui/sheet-indent.tsx).
-      pattern:
-        /(^|\/)@base-ui\/react\/drawer\/(?!(provider|indent|indent-background)\/|popup\/DrawerPopupCssVars\.|backdrop\/DrawerBackdropCssVars\.)|^src\/components\/ui\/sheet\.tsx$/,
-      why: "a sheet's drawer loads with the first sheet (ActionMenu's on phones only)",
-    },
+    DRAWER_NEVER_EAGER,
   ];
 
 /**
@@ -328,7 +336,12 @@ export const ROUTE_BUDGETS: readonly {
   {
     route: "/chat/",
     budget: CHAT_BUDGET,
-    never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
+    never: [
+      ...LANDING_NEVER_EAGER,
+      ADMIN_NEVER_EAGER,
+      PLAN_NEVER_EAGER,
+      DRAWER_NEVER_EAGER,
+    ],
   },
   // Plan's layout and every view's route: GenEd at `/plan/`, and each other
   // view, which a link can open first.

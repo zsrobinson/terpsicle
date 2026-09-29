@@ -1,8 +1,15 @@
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
 import { CalendarDays, Search, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Drawer } from "vaul";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AppBar } from "~/components/app-bar";
 import { Mark } from "~/components/brand/mark";
 import { PanelNote } from "~/components/panel";
@@ -50,11 +57,16 @@ import { ChatTermMenu } from "./term-menu";
 // room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
 // a new sidebar). On a phone (SPEC §2) one thing at a time: the room slides
 // in over the list, which stays mounted underneath, so Back finds it where
-// you left it; room info is a bottom drawer. Everything is plain text and
+// you left it; room info is the kit's sheet. Everything is plain text and
 // tokens; there are no sparkles anywhere in Chat.
 
 /** How often the list's unread counts refresh while /chat is open. */
 const UNREAD_EVERY_MS = 60_000;
+
+/** Room info's phone sheet, in its own chunk: phones only (./room-info-sheet). */
+const RoomInfoSheet = lazy(() =>
+  import("./room-info-sheet").then((m) => ({ default: m.RoomInfoSheet })),
+);
 
 export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const status = useAccount((s) => s.status);
@@ -505,32 +517,15 @@ function CourseRoom({
         </aside>
       ) : null}
       {mobile ? (
-        <Drawer.Root open={infoOpen} onOpenChange={setInfoOpen}>
-          <Drawer.Portal>
-            <Drawer.Overlay className="fixed inset-0 z-40 bg-fg/20" />
-            <Drawer.Content
-              aria-describedby={undefined}
-              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col border-keyline border-t bg-bg shadow-drawer outline-none"
-            >
-              <div
-                className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-hairline-strong"
-                aria-hidden="true"
-              />
-              <PageHeader
-                size="panel"
-                title={
-                  <Drawer.Title asChild>
-                    <span>Room info</span>
-                  </Drawer.Title>
-                }
-                actions={closeInfo}
-              />
-              <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-                {info}
-              </div>
-            </Drawer.Content>
-          </Drawer.Portal>
-        </Drawer.Root>
+        <Suspense fallback={null}>
+          <RoomInfoSheet
+            open={infoOpen}
+            onOpenChange={setInfoOpen}
+            actions={closeInfo}
+          >
+            {info}
+          </RoomInfoSheet>
+        </Suspense>
       ) : null}
     </>
   );
