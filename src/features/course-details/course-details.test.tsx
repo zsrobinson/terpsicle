@@ -27,6 +27,7 @@ import { useCatalog } from "~/state/catalog-store";
 import {
   createBucketDataSource,
   createDataReader,
+  DataError,
   type DataSource,
 } from "~/state/data-source";
 import { connectPublished } from "~/state/query/published";
@@ -64,6 +65,13 @@ async function renderDetails(
       : openCourse(courseCode),
   );
   await screen.findByTestId("sections");
+  // PlanetTerp's file is in once the course's grades show, or say
+  // PlanetTerp has none.
+  await within(screen.getByTestId("grades")).findByText(
+    /got an A or B|PlanetTerp has no grades/,
+    {},
+    { timeout: 5_000 },
+  );
   return view;
 }
 
@@ -218,13 +226,15 @@ describe("Course details", () => {
       useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
       try {
         const { user } = await renderDetails();
-        const jada = within(screen.getByTestId("sections")).getByRole(
-          "button",
-          { expanded: true, name: /^Jada/ },
-        );
+        // The row on screen now: it re-renders as Terpsicle's numbers land.
+        const jada = () =>
+          within(screen.getByTestId("sections")).getByRole("button", {
+            expanded: true,
+            name: /^Jada/,
+          });
         // 88 on PlanetTerp at 4.6, and the mock's 9 on Terpsicle at 3.33.
-        await waitFor(() => expect(jada).toHaveTextContent(/4\.5\(97\)$/));
-        expect(jada).toHaveAccessibleName(
+        await waitFor(() => expect(jada()).toHaveTextContent(/4\.5\(97\)$/));
+        expect(jada()).toHaveAccessibleName(
           /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews$/,
         );
         // The rating re-renders as the numbers settle, so hover the one on
@@ -720,10 +730,11 @@ describe("Course details", () => {
       try {
         const { user } = await renderDetails("CMSC351", "instructors");
         const jada = await findReviews("Jada Abernathy");
+        // The summary's own ⋯ menu: the one beside "Summarizing…" goes as
+        // the summary arrives.
+        await within(jada).findByRole("img", { name: "AI summary" });
         await user.click(
-          await within(jada).findByRole("button", {
-            name: "AI summary options",
-          }),
+          within(jada).getByRole("button", { name: "AI summary options" }),
         );
         await user.click(
           await screen.findByRole("menuitem", { name: /Hide AI summaries/ }),
@@ -757,27 +768,89 @@ describe("Course details", () => {
     });
 
     it("say the file didn't load, rather than that PlanetTerp has nothing", async () => {
-      const { user } = await renderDetails("CMSC351", "instructors");
+      const { user, queryClient } = await renderDetails(
+        "CMSC351",
+        "instructors",
+      );
       await findReviews("Jada Abernathy");
+      // CMSC's PlanetTerp file, out of reach: the connection dropped.
+      const bucket = createBucketDataSource(mockDataSource);
+      let down = true;
+      const reads: string[] = [];
       act(() =>
-        useCatalog.setState((s) => ({
-          instructors: {},
-          instructorsState: { ...s.instructorsState, CMSC: "error" },
-        })),
+        connectPublished({
+          ...bucket,
+          readJson: async (key, options) => {
+            if (key.startsWith("planetterp/dept/CMSC.")) {
+              reads.push(key);
+              if (down) throw new DataError(key, "network", "offline");
+            }
+            return bucket.readJson(key, options);
+          },
+        }),
+      );
+      await act(() =>
+        queryClient.resetQueries({
+          predicate: (q) =>
+            String(q.queryKey[2]).startsWith("planetterp/dept/CMSC."),
+        }),
       );
       const jada = await findReviews("Jada Abernathy");
-      expect(jada).toHaveTextContent("Couldn't load reviews from PlanetTerp");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent("Couldn't load reviews from PlanetTerp"),
+      );
       expect(jada).not.toHaveTextContent("nothing on this instructor");
       expect(screen.getByTestId("grades")).toHaveTextContent(
         "Couldn't load grades from PlanetTerp",
       );
       // Try again asks for the department's file again, in place.
-      const ensure = vi
-        .spyOn(useCatalog.getState(), "ensureInstructors")
-        .mockResolvedValue();
+      down = false;
+      const before = reads.length;
       await user.click(within(jada).getByRole("button", { name: "Try again" }));
-      expect(ensure).toHaveBeenCalledWith("CMSC");
-      ensure.mockRestore();
+      await waitFor(() =>
+        expect(jada).not.toHaveTextContent("Couldn't load reviews"),
+      );
+      expect(reads.length).toBeGreaterThan(before);
+    });
+
+    it("offer Reload when PlanetTerp's file is in a newer format than this tab reads", async () => {
+      const { queryClient } = await renderDetails("CMSC351", "instructors");
+      await findReviews("Jada Abernathy");
+      const bucket = createBucketDataSource(mockDataSource);
+      act(() =>
+        connectPublished({
+          ...bucket,
+          readJson: async (key, options) => {
+            const raw = await bucket.readJson(key, options);
+            return key.startsWith("planetterp/dept/CMSC.")
+              ? { ...(raw as object), schemaVersion: 99 }
+              : raw;
+          },
+        }),
+      );
+      await act(() =>
+        queryClient.resetQueries({
+          predicate: (q) =>
+            String(q.queryKey[2]).startsWith("planetterp/dept/CMSC."),
+        }),
+      );
+      const jada = await findReviews("Jada Abernathy");
+      await waitFor(() =>
+        expect(jada).toHaveTextContent(
+          "Terpsicle has been updated since this page opened. Reload to see PlanetTerp's reviews.",
+        ),
+      );
+      expect(
+        within(jada).getByRole("button", { name: "Reload" }),
+      ).toBeVisible();
+      expect(
+        within(jada).queryByRole("button", { name: "Try again" }),
+      ).toBeNull();
+      expect(screen.getByTestId("grades")).toHaveTextContent(
+        "Reload to see PlanetTerp's grades.",
+      );
+      // The scheduler's catalog signal: the page reloads when next shown.
+      expect(useCatalog.getState().appStale).toBe(true);
     });
   });
 

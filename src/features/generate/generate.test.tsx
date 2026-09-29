@@ -19,6 +19,7 @@ import { track } from "~/lib/analytics";
 import { useCatalog } from "~/state/catalog-store";
 import { fourYearLinkDb } from "~/state/four-year-link";
 import { EMPTY_DRAFT, useGenerateDrafts } from "~/state/generate-drafts";
+import { loadCampus } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { useWorkspace } from "~/state/workspace-store";
 import {
@@ -49,7 +50,7 @@ async function renderGenerate() {
       activePlanByTerm: { [fixtureTermId]: demoPlan.id },
     });
     await useCatalog.getState().ensureTerm(fixtureTermId);
-    await useCatalog.getState().ensureCampus();
+    await loadCampus(view.queryClient);
     goTo({ tab: "generate", drill: null });
   });
   return view;

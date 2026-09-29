@@ -40,7 +40,7 @@ const TABS = [
   "Register",
 ];
 
-/** A snap slides for 450ms (the drawer's `ease-sheet`). */
+/** A snap slides for the drawer's `--dur-sheet` (450ms). */
 const SETTLE = 800;
 
 /** How far from the screen's top and bottom a target must be to tap it. */

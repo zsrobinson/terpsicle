@@ -155,7 +155,7 @@ async function searchResults(page: Page) {
   return results;
 }
 
-/** A snap slides for 450ms (`ease-sheet`): let it land before the next drag. */
+/** A snap slides for `--dur-sheet` (450ms): let it land before the next drag. */
 const settle = (page: Page) => page.waitForTimeout(600);
 
 test("the page can't scroll, rubber-band or pull to refresh", async ({

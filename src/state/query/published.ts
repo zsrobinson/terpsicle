@@ -8,10 +8,15 @@ import {
   queryOptions,
   skipToken,
 } from "@tanstack/react-query";
-import type { z } from "zod";
+import { z } from "zod";
 import { create } from "zustand";
 import type { SchemaFamily } from "~/core/schema";
-import { DataError, type DataSource, readParsed } from "../data-source";
+import {
+  DataError,
+  type DataSource,
+  readParsed,
+  SchemaVersionError,
+} from "../data-source";
 import {
   flushQueryStorage,
   forgetPersisted,
@@ -45,6 +50,28 @@ export const usePublishedSource = create<{ source: DataSource | null }>(() => ({
 /** Where published queries read from now on (app.tsx; tests pass the mock bucket). */
 export function connectPublished(source: DataSource | null): void {
   usePublishedSource.setState({ source });
+}
+
+let newerListener: ((family: SchemaFamily) => void) | null = null;
+
+/**
+ * Who hears that a published read found a newer format than this build
+ * reads (DATA.md §2.3): the catalog store, whose `appStale` offers Reload
+ * and reloads when the page is next shown. Null to stop.
+ */
+export function whenNewerFormat(
+  listener: ((family: SchemaFamily) => void) | null,
+): void {
+  newerListener = listener;
+}
+
+/** Passes a failed read's error on, telling the listener first if it's a newer format. */
+export function noteNewer(family: SchemaFamily) {
+  return (error: unknown): never => {
+    if (error instanceof SchemaVersionError && error.newer)
+      newerListener?.(family);
+    throw error;
+  };
 }
 
 /** `["published", "live" | "mock", r2Key]`: mock and live share localhost. */
@@ -102,7 +129,8 @@ function validated<S extends z.ZodType>(
     const parsed = schema.safeParse(data);
     if (!parsed.success) {
       await forgetPersisted(family, query.queryHash);
-      return queryFn(context);
+      // Nothing saved now: this fetches, and saves what it gets.
+      return persister.persisterFn(queryFn, context, query);
     }
     if (checkOnRestore)
       // After the restored copy is in (and the persister has set its age).
@@ -125,15 +153,26 @@ function published<S extends z.ZodType>(
     checkOnRestore: boolean;
     /** Instead of a plain read (a pointer's fetch). */
     load?: (source: DataSource, client: QueryClient) => Promise<z.infer<S>>;
+    /** Before a missing file fails (see `publishedFile`). */
+    onMissing?: (client: QueryClient) => Promise<unknown>;
   },
 ) {
   return queryOptions({
     queryKey: publishedKey(source?.kind ?? "none", key),
     queryFn: source
       ? ({ client }): Promise<z.infer<S>> =>
-          options.load
+          (options.load
             ? options.load(source, client)
             : readParsed(source, key, schema, family)
+          ).catch(async (error: unknown) => {
+            if (
+              options.onMissing &&
+              error instanceof DataError &&
+              error.reason === "missing"
+            )
+              await options.onMissing(client).catch(() => {});
+            return noteNewer(family)(error);
+          })
       : skipToken,
     staleTime: options.staleTime,
     // Kept for the page's life in memory; the disk keeps it longer.
@@ -172,10 +211,73 @@ export function publishedFile<S extends z.ZodType>(
   key: string,
   schema: S,
   family: SchemaFamily,
+  options?: {
+    /**
+     * A saved pointer can name a file the server has since deleted: this
+     * asks for the pointer again before the read fails, so the file stays
+     * loading meanwhile and anything showing it moves to the new hash
+     * (a new key) instead of an error. Once per fetch.
+     */
+    onMissing?: (client: QueryClient) => Promise<unknown>;
+  },
 ) {
   return published(source, key, schema, family, {
     staleTime: Number.POSITIVE_INFINITY,
     checkOnRestore: false,
+    onMissing: options?.onMissing,
+  });
+}
+
+/**
+ * A listed file read as bytes rather than JSON (the routes binary), with
+ * the schema its bytes must pass (`publishedPointer`'s `fileSchema`).
+ */
+export interface BinaryFile {
+  binary: z.ZodType<ArrayBuffer>;
+}
+
+/**
+ * A content-hashed binary file (the routes matrix): as `publishedFile`,
+ * read as bytes. Bytes that fail `schema`, from the server or from disk,
+ * are an "invalid" read, never saved or shown.
+ */
+export function publishedBinary(
+  source: DataSource | null,
+  key: string,
+  schema: z.ZodType<ArrayBuffer>,
+  family: SchemaFamily,
+) {
+  return published(source, key, schema, family, {
+    staleTime: Number.POSITIVE_INFINITY,
+    checkOnRestore: false,
+    load: async (s) => {
+      const parsed = schema.safeParse(await s.readBinary(key));
+      if (!parsed.success)
+        throw new DataError(
+          key,
+          "invalid",
+          `${key} doesn't match its format: ${parsed.error.message}`,
+        );
+      return parsed.data;
+    },
+  });
+}
+
+/**
+ * A fixed-name file with nothing hashed behind it (a term's academic
+ * calendar): shown from disk at once, checked once per page and again once
+ * stale. Unlike a pointer it lists nothing, so it prunes nothing.
+ */
+export function publishedFixed<S extends z.ZodType>(
+  source: DataSource | null,
+  key: string,
+  schema: S,
+  family: SchemaFamily,
+  staleTime: number,
+) {
+  return published(source, key, schema, family, {
+    staleTime,
+    checkOnRestore: true,
   });
 }
 
@@ -192,7 +294,7 @@ export function publishedPointer<S extends z.ZodType>(
   options: {
     staleTime: number;
     lists: (data: z.infer<S>) => string[];
-    fileSchema: (key: string) => z.ZodType;
+    fileSchema: (key: string) => z.ZodType | BinaryFile;
   },
 ) {
   return published(source, key, schema, family, {
@@ -221,7 +323,7 @@ async function refreshSaved(
   client: QueryClient,
   family: SchemaFamily,
   listed: readonly string[],
-  fileSchema: (key: string) => z.ZodType,
+  fileSchema: (key: string) => z.ZodType | BinaryFile,
 ): Promise<void> {
   const saved = await savedPublishedKeys(family, source.kind);
   const have = new Set(saved);
@@ -231,8 +333,12 @@ async function refreshSaved(
   const files = publishedPersister(family);
   await Promise.all(
     changed.map(async (k) => {
-      const file = publishedFile(source, k, fileSchema(k), family);
-      await client.fetchQuery(file);
+      const schema = fileSchema(k);
+      const file =
+        schema instanceof z.ZodType
+          ? publishedFile(source, k, schema, family)
+          : publishedBinary(source, k, schema.binary, family);
+      await client.fetchQuery(file as ReturnType<typeof publishedFile>);
       await files.persistQueryByKey(file.queryKey, client);
     }),
   );

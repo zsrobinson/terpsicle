@@ -1,11 +1,25 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderPlanTab } from "~/features/courses/testing";
 import { currentView } from "~/features/schedule/schedule-nav";
 import type { ShellRoutes } from "~/features/schedule/test-utils";
-import { aPlan, fixtureTermId, mockSection, snapshotOf } from "~/fixtures";
+import {
+  aPlan,
+  fixtureTermId,
+  mockDataSource,
+  mockSection,
+  snapshotOf,
+} from "~/fixtures";
 import { track } from "~/lib/analytics";
-import { useCatalog } from "~/state/catalog-store";
+import { createBucketDataSource } from "~/state/data-source";
+import { ensureCampus } from "~/state/query/catalog";
+import {
+  createMemoryQueryStorage,
+  flushQueryStorage,
+  setQueryStorage,
+} from "~/state/query/persister";
+import { createTestQueryClient } from "~/state/query/testing";
+import { loadCampus } from "~/state/testing";
 import { useWorkspace } from "~/state/workspace-store";
 import { ConnectionDetails } from "./connection-details";
 import { useTravelSettingsOpen } from "./settings-store";
@@ -22,8 +36,11 @@ const panels: ShellRoutes = {
 async function renderTravel(options?: { demo?: boolean }) {
   const view = await renderPlanTab([panels], "travel", options);
   await act(async () => {
-    await useCatalog.getState().ensureCampus();
+    await loadCampus(view.queryClient);
   });
+  // The list, once it's worked out: the query cache tells the panel on
+  // its next tick, not within the load.
+  await screen.findByRole("region", { name: "Connections" });
   return view;
 }
 
@@ -195,5 +212,73 @@ describe("Travel tab", () => {
         "No back-to-back classes in different buildings.",
       ),
     );
+  });
+});
+
+describe("a routes file that doesn't decode", () => {
+  /** The mock bucket serving broken routes bytes (the magic wiped). */
+  function serveBrokenRoutes() {
+    const real = mockDataSource.get.bind(mockDataSource);
+    return vi.spyOn(mockDataSource, "get").mockImplementation(async (key) => {
+      const bytes = await real(key);
+      if (!bytes || !key.startsWith("geo/routes.")) return bytes;
+      const broken = bytes.slice();
+      broken.fill(0, 0, 4);
+      return broken;
+    });
+  }
+
+  /** Schedule is up, and travel has stopped loading: no route data, not a crash. */
+  async function expectTravelWithoutRoutes() {
+    expect(calendar()).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Working out travel times")).toBeNull(),
+    );
+    expect(
+      within(connections()).getAllByRole("button", {
+        name: /^STAT400 to CMSC351.*No route data yet/,
+      }).length,
+    ).toBeGreaterThan(0);
+  }
+
+  const routesRows = (storage: { rows: Map<string, unknown> }) =>
+    [...storage.rows].filter(([k]) => k.includes("geo/routes."));
+
+  let storage: ReturnType<typeof createMemoryQueryStorage>;
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    storage = createMemoryQueryStorage();
+    setQueryStorage(storage);
+  });
+  afterEach(() => {
+    setQueryStorage(null);
+    vi.restoreAllMocks();
+  });
+
+  it("from the server: Schedule stays up, travel shows no route data, and nothing's saved", async () => {
+    serveBrokenRoutes();
+    await renderPlanTab([panels], "travel");
+    await expectTravelWithoutRoutes();
+    await flushQueryStorage();
+    expect(routesRows(storage)).toEqual([]);
+  });
+
+  it("from disk: the saved copy is dropped rather than crashing every reload", async () => {
+    // An earlier visit saved the routes file; the copy on disk has since gone bad.
+    const earlier = createTestQueryClient();
+    await ensureCampus(earlier, createBucketDataSource(mockDataSource));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushQueryStorage();
+    const [saved] = routesRows(storage);
+    if (!saved) throw new Error("the routes file was saved");
+    const row = saved[1] as { state: { data: ArrayBuffer } };
+    new Uint8Array(row.state.data).fill(0, 0, 4);
+    // And the server's is broken too, so there's nothing good to fall back on.
+    serveBrokenRoutes();
+
+    await renderPlanTab([panels], "travel");
+    await expectTravelWithoutRoutes();
+    await flushQueryStorage();
+    expect(routesRows(storage)).toEqual([]);
   });
 });

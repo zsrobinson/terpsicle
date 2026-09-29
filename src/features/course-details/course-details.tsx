@@ -94,6 +94,7 @@ function Details({
   // Opening the course reads its seat openings (V2.md §6.7).
   useReadCourseNotifications(termId, course.code);
   const planetTerp = useInstructors(deptOf(course.code));
+  const stale = useCatalog((s) => s.appStale);
   const seats = catalog?.seats?.seats ?? null;
   const entry = current?.plan.courses.find((c) => c.courseCode === course.code);
   const readOnly = current?.readOnly ?? true;
@@ -193,9 +194,8 @@ function Details({
             planetTerp={planetTerp.data}
             loading={ptLoading}
             failed={planetTerp.state === "error"}
-            onRetry={() =>
-              void useCatalog.getState().ensureInstructors(deptOf(course.code))
-            }
+            onRetry={planetTerp.retry}
+            stale={stale}
           />
         </div>
       </section>

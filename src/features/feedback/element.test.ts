@@ -29,6 +29,14 @@ describe("stableSelector", () => {
     expect(stableSelector(button)).toBe("#main > button");
   });
 
+  it("skips Base UI's generated ids, which every tooltip's control carries", () => {
+    document.body.innerHTML = `
+      <section id="main"><button id="base-ui-_r_fq1_">Go</button></section>`;
+    const button = document.querySelector("button");
+    if (!button) throw new Error("no button");
+    expect(stableSelector(button)).toBe("#main > button");
+  });
+
   it("uses an aria-label when it's unique", () => {
     document.body.innerHTML = `<nav><button aria-label="Open Problems">!</button><button>x</button></nav>`;
     const button = document.querySelector("button");
@@ -69,5 +77,14 @@ describe("describeElement", () => {
       text: "0101",
       ids: { "data-section": "0101", "data-course": "CMSC131" },
     });
+  });
+
+  it("leaves out Base UI's state attributes", () => {
+    document.body.innerHTML = `
+      <button data-plan="a" data-base-ui-tooltip-trigger=""
+        data-popup-open="" data-pressed="" data-open="" data-side="bottom">Plan A</button>`;
+    const button = document.querySelector("button");
+    if (!button) throw new Error("no button");
+    expect(describeElement(button).ids).toEqual({ "data-plan": "a" });
   });
 });

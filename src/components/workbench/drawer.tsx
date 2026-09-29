@@ -374,7 +374,7 @@ export function WorkbenchDrawer({
                     // Where it rests, plus the finger's drag.
                     "[transform:translateY(calc(var(--workbench-offset)+var(--drawer-swipe-movement-y,0px)))]",
                     painted &&
-                      "transition-transform duration-450 ease-sheet motion-reduce:transition-none",
+                      "transition-transform duration-(--dur-sheet) ease-sheet motion-reduce:transition-none",
                     "data-swiping:select-none",
                     // Paper under it when a drag lifts it past full.
                     "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-12 after:bg-bg",

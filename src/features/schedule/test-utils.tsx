@@ -1,6 +1,6 @@
 // Rendering helpers for the shell's UI tests. Not used by the app.
 
-import { QueryClientProvider } from "@tanstack/react-query";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   type AnyRouter,
   createMemoryHistory,
@@ -160,6 +160,8 @@ export async function renderShell({
   user: ReturnType<typeof userEvent.setup>;
   router: AnyRouter;
   setProps: (next: AppShellProps) => void;
+  /** The shell's query client, for a test to load published data into. */
+  queryClient: QueryClient;
 }> {
   await loadStores();
   const user = userEvent.setup();
@@ -186,5 +188,5 @@ export async function renderShell({
   await settle();
   /** Re-renders with new props, as a URL change would. */
   const setProps = (next: AppShellProps) => act(() => setShellProps(next));
-  return { user, router, setProps };
+  return { user, router, setProps, queryClient };
 }

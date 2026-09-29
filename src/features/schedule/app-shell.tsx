@@ -5,7 +5,7 @@ import { usePlanHandoff } from "~/features/plan-handoff/use-plan-handoff";
 import { track } from "~/lib/analytics";
 import { useShortcut } from "~/lib/shortcuts";
 import { deptOf, useCatalog } from "~/state/catalog-store";
-import { useCatalogPolling } from "~/state/data-hooks";
+import { useCampus, useCatalogPolling } from "~/state/data-hooks";
 import { useActiveTerm, useCurrentPlan } from "~/state/hooks";
 import { saveSharedCopy, useShare } from "~/state/share-store";
 import { useUi } from "~/state/ui-store";
@@ -184,7 +184,6 @@ function useTermData() {
   const termId = useActiveTerm().termId;
   const reader = useCatalog((s) => s.reader);
   const ensureTerm = useCatalog((s) => s.ensureTerm);
-  const ensureCampus = useCatalog((s) => s.ensureCampus);
   const current = useCurrentPlan();
   const placed = current?.plan.courses.some((c) => c.sectionCode !== null);
   const planDepts = current
@@ -198,9 +197,7 @@ function useTermData() {
       void ensureTerm(termId, planDepts ? planDepts.split(",") : []);
   }, [termId, reader, ensureTerm, planDepts]);
   useCatalogPolling(termId);
-  useEffect(() => {
-    if (placed && reader) void ensureCampus();
-  }, [placed, reader, ensureCampus]);
+  useCampus(Boolean(placed));
 }
 
 /** Opens `?plan=` read-only in place of the plan tabs, and handles the pill. */
