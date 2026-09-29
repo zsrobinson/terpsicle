@@ -5,7 +5,8 @@
 //        [--term <id>]… [--dept <CODE>]… [--force] [--grade-requests <n>]
 //
 // Jobs: catalog, courses (the course index alone, from the catalog in the
-// store), seats, planetterp, calendar, buildings, routes.
+// store), history (the instructor history, from the catalog in the store;
+// the PlanetTerp backfill is scripts/backfill-history.ts), seats, planetterp, calendar, buildings, routes.
 // - `--target r2` needs CLOUDFLARE_ACCOUNT_ID plus R2 credentials
 //   (scripts/lib/r2-s3-blob-store.ts).
 // - `routes` needs UMD's intermediate certificates; the script adds them.

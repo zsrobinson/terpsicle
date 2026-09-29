@@ -1,0 +1,674 @@
+{
+ "schemaVersion": 1,
+ "termId": "202701",
+ "courses": [
+  {
+   "code": "AGNR301",
+   "title": "Sustainability",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Thomas Hilde"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Thomas Hilde"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "AGNR388",
+   "title": "Honors Thesis Research",
+   "credits": {
+    "min": 3,
+    "max": 6
+   },
+   "source": "terpsicle",
+   "instructors": [],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": []
+    }
+   ]
+  },
+  {
+   "code": "ARMY105",
+   "title": "Basic Military Science II",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Andrew Bischoff"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "ARMY110",
+   "title": "Intro to Army Military History",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Andrew Bischoff"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "ARMY202",
+   "title": "Military Leadership in Practice",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Andrew Bischoff"
+   ],
+   "sections": [
+    {
+     "code": "0102",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "ARMY302",
+   "title": "Advanced Military Leadership II",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Andrew Bischoff"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "ARMY402",
+   "title": "Advanced Military Leadership IV",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Andrew Bischoff"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Andrew Bischoff"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI610",
+   "title": "Introduction to Financial Accounting",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Naman Desai",
+    "Sue Cooper"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Naman Desai"
+     ]
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Sue Cooper"
+     ]
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Sue Cooper"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI621",
+   "title": "Digital Transformation in Business",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Jillian Chavis"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Jillian Chavis"
+     ]
+    },
+    {
+     "code": "DC01",
+     "instructors": []
+    },
+    {
+     "code": "GS01",
+     "instructors": []
+    }
+   ]
+  },
+  {
+   "code": "BUSI640",
+   "title": "Corporate Finance",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Michael Faulkender",
+    "Tania Babina"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Michael Faulkender"
+     ]
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Michael Faulkender"
+     ]
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Tania Babina"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI641",
+   "title": "Corporate Finance II",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Geoffrey Tate"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Geoffrey Tate"
+     ]
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Geoffrey Tate"
+     ]
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Geoffrey Tate"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI683",
+   "title": "The Global Economic Environment",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Cristian Dezso"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Cristian Dezso"
+     ]
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Cristian Dezso"
+     ]
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Cristian Dezso"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI690",
+   "title": "Strategic Management",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Anil Gupta"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Anil Gupta"
+     ]
+    },
+    {
+     "code": "DC01",
+     "instructors": [
+      "Anil Gupta"
+     ]
+    },
+    {
+     "code": "GS01",
+     "instructors": [
+      "Anil Gupta"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI718I",
+   "title": "Special Topics in Business; Building Local Advantage: How Enterprises Thrive by Strengthening Local Economies",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Bennet Zelner"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Bennet Zelner"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI718Q",
+   "title": "Special Topics in Business; The Business of Washington",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Robert Coomber"
+   ],
+   "sections": [
+    {
+     "code": "DC01",
+     "instructors": [
+      "Robert Coomber"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI721",
+   "title": "Creativity for Business Leaders and Entrepreneurs",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Oliver Schlake"
+   ],
+   "sections": [
+    {
+     "code": "BA01",
+     "instructors": [
+      "Oliver Schlake"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI758A",
+   "title": "Special Topics in Business; Cyber/Enterprise Risks and Resilience Modeling",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Charles Harry"
+   ],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Charles Harry"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI758B",
+   "title": "Special Topics in Business; Ethics and Governance of Emergent Technology",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Anil Gupta"
+   ],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Anil Gupta"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI758F",
+   "title": "Special Topics in Business; Investment Fund Management",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "George Gao"
+   ],
+   "sections": [
+    {
+     "code": "DC01",
+     "instructors": [
+      "George Gao"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI758X",
+   "title": "Special Topics in Business; AI and Business Strategy",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Suresh Acharya"
+   ],
+   "sections": [
+    {
+     "code": "GS01",
+     "instructors": [
+      "Suresh Acharya"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI759",
+   "title": "Independent Study in Business",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "source": "terpsicle",
+   "instructors": [],
+   "sections": []
+  },
+  {
+   "code": "BUSI782",
+   "title": "Science and Technology Project Valuation",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Michael Faulkender"
+   ],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Michael Faulkender"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI784",
+   "title": "Systems Design, Development, Test and Evaluation",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Timothy Eveleigh"
+   ],
+   "sections": [
+    {
+     "code": "DC06",
+     "instructors": [
+      "Timothy Eveleigh"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI788G",
+   "title": "Introduction to Global Business Experience; Doing Business in Europe/North Africa",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Judy Frels"
+   ],
+   "sections": [
+    {
+     "code": "GX01",
+     "instructors": [
+      "Judy Frels"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI788V",
+   "title": "Introduction to Global Business Experience; Doing Business in Asia",
+   "credits": {
+    "min": 2,
+    "max": 2
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Zhi-Long Chen"
+   ],
+   "sections": [
+    {
+     "code": "GX01",
+     "instructors": [
+      "Zhi-Long Chen"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "BUSI799",
+   "title": "Masters Thesis Research",
+   "credits": {
+    "min": 1,
+    "max": 6
+   },
+   "source": "terpsicle",
+   "instructors": [],
+   "sections": []
+  },
+  {
+   "code": "IDEA201",
+   "title": "Innovation Tools & Mindsets",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Brooke Smith",
+    "Christina Hnatov",
+    "Mira Azarm"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Mira Azarm"
+     ]
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Christina Hnatov"
+     ]
+    },
+    {
+     "code": "0103",
+     "instructors": [
+      "Brooke Smith"
+     ]
+    },
+    {
+     "code": "0104",
+     "instructors": [
+      "Brooke Smith"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "IDEA311",
+   "title": "Design Your Purpose",
+   "credits": {
+    "min": 1,
+    "max": 1
+   },
+   "source": "terpsicle",
+   "instructors": [
+    "Brooke Smith"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Brooke Smith"
+     ]
+    },
+    {
+     "code": "0102",
+     "instructors": [
+      "Brooke Smith"
+     ]
+    }
+   ]
+  },
+  {
+   "code": "IDEA498",
+   "title": "Independent Study: Experiments in Design and Innovation",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [],
+   "sections": []
+  },
+  {
+   "code": "IDEA698",
+   "title": "Independent Study: Experiments in Design and Innovation",
+   "credits": {
+    "min": 1,
+    "max": 3
+   },
+   "source": "terpsicle",
+   "instructors": [],
+   "sections": []
+  }
+ ]
+}

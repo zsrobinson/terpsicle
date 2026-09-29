@@ -17,6 +17,8 @@ import {
   deptChunkKey,
   GEO_MANIFEST_KEY,
   GeoManifestSchema,
+  HISTORY_MANIFEST_KEY,
+  historyDeptKey,
   ManifestSchema,
   manifestKey,
   PLANETTERP_MANIFEST_KEY,
@@ -32,6 +34,10 @@ import {
   TERMS_KEY,
   TermsFileSchema,
 } from "~/core/schema";
+import {
+  HistoryDeptSchema,
+  HistoryManifestSchema,
+} from "~/core/schema/history";
 import buildingAllSearch from "~/ingest/__fixtures__/buildings/building-all-search.json?raw";
 import planetterpGrades from "~/ingest/__fixtures__/planetterp/grades-CMSC351.json?raw";
 import planetterpCourseNotFound from "~/ingest/__fixtures__/planetterp/grades-course-not-found.json?raw";
@@ -54,6 +60,7 @@ import socIndex from "~/ingest/__fixtures__/soc/index.html?raw";
 import { planetTerpReviews } from "~/server/reviews/planetterp";
 import { runCalendarBuildingsJob } from "./calendar-buildings";
 import { runCatalogJob } from "./catalog";
+import { runHistoryJob } from "./history";
 import { keepsReviewText, runPlanetTerpJob } from "./planetterp";
 import { runSeatsJob } from "./seats";
 
@@ -316,6 +323,47 @@ describe("catalog job", () => {
     expect(second.departments.find((d) => d.code === "CMSC")).toEqual(
       first.departments.find((d) => d.code === "CMSC"),
     );
+  });
+});
+
+describe("history job", () => {
+  it("records who taught what in every term the catalog job published", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runHistoryJob({ env, now: at("2026-09-25T12:41:00Z") });
+
+    const manifest = await readJson(
+      HISTORY_MANIFEST_KEY,
+      HistoryManifestSchema,
+    );
+    expect(manifest.terms.map((t) => t.termId)).toEqual([
+      "202701",
+      "202612",
+      "202608",
+      "202605",
+    ]);
+    const cmsc = manifest.departments.find((d) => d.code === "CMSC");
+    const dept = await readJson(
+      historyDeptKey("CMSC", cmsc?.hash ?? ""),
+      HistoryDeptSchema,
+    );
+    const cmsc131 = dept.courses.find((c) => c.code === "CMSC131");
+    expect(cmsc131?.offerings[0]?.termId).toBe("202701");
+    expect(cmsc131?.offerings[0]?.sections).toHaveLength(9);
+
+    // Nothing changed since: the next run rewrites nothing.
+    const before = (await env.DATA.list({ prefix: "history/" })).objects.map(
+      (o) => `${o.key}@${o.etag}`,
+    );
+    await runHistoryJob({ env, now: at("2026-09-25T18:41:00Z") });
+    const after = (await env.DATA.list({ prefix: "history/" })).objects.map(
+      (o) => `${o.key}@${o.etag}`,
+    );
+    expect(after).toEqual(before);
   });
 });
 

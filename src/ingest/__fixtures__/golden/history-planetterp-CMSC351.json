@@ -1,0 +1,965 @@
+{
+ "201201": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Hector Corrada Bravo",
+    "Mohammad Hajiaghayi"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Hector Corrada Bravo"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Mohammad Hajiaghayi"
+     ]
+    }
+   ]
+  }
+ ],
+ "201208": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201301": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Hamid Mahini"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Hamid Mahini"
+     ]
+    }
+   ]
+  }
+ ],
+ "201308": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Vibha Sazawal"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Vibha Sazawal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201401": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201408": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Hamid Mahini"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Hamid Mahini"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Hamid Mahini"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Hamid Mahini"
+     ]
+    }
+   ]
+  }
+ ],
+ "201501": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201508": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Howard Elman"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Howard Elman"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201601": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Evan Golub"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Evan Golub"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Evan Golub"
+     ]
+    }
+   ]
+  }
+ ],
+ "201608": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201701": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Howard Elman"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0401",
+     "instructors": [
+      "Howard Elman"
+     ]
+    }
+   ]
+  }
+ ],
+ "201708": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Hajiaghayi"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Mohammad Hajiaghayi"
+     ]
+    },
+    {
+     "code": "0401",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201801": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Evan Golub"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Evan Golub"
+     ]
+    },
+    {
+     "code": "0401",
+     "instructors": [
+      "Evan Golub"
+     ]
+    }
+   ]
+  }
+ ],
+ "201808": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0401",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201901": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0401",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "201908": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "202001": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ],
+ "202008": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    }
+   ]
+  }
+ ],
+ "202101": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Justin Wyss-Gallifent",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    }
+   ]
+  }
+ ],
+ "202108": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Mohammad Nayeem Teli"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Mohammad Nayeem Teli"
+     ]
+    }
+   ]
+  }
+ ],
+ "202201": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Erika Melder",
+    "Justin Wyss-Gallifent"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Erika Melder"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Erika Melder"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    }
+   ]
+  }
+ ],
+ "202208": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Herve Franceschi",
+    "Justin Wyss-Gallifent"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Herve Franceschi"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    }
+   ]
+  }
+ ],
+ "202301": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Herve Franceschi",
+    "Maksym Morawski"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Maksym Morawski"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Herve Franceschi"
+     ]
+    }
+   ]
+  }
+ ],
+ "202308": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Herve Franceschi",
+    "Justin Wyss-Gallifent"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Herve Franceschi"
+     ]
+    }
+   ]
+  }
+ ],
+ "202401": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Justin Wyss-Gallifent",
+    "Maksym Morawski"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Maksym Morawski"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Maksym Morawski"
+     ]
+    }
+   ]
+  }
+ ],
+ "202408": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Herve Franceschi",
+    "Justin Wyss-Gallifent"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    },
+    {
+     "code": "0401",
+     "instructors": [
+      "Herve Franceschi"
+     ]
+    }
+   ]
+  }
+ ],
+ "202501": [
+  {
+   "code": "CMSC351",
+   "title": "Algorithms",
+   "credits": {
+    "min": 3,
+    "max": 3
+   },
+   "source": "planetterp",
+   "instructors": [
+    "Clyde Kruskal",
+    "Justin Wyss-Gallifent",
+    "Ting Jiang"
+   ],
+   "sections": [
+    {
+     "code": "0101",
+     "instructors": [
+      "Justin Wyss-Gallifent"
+     ]
+    },
+    {
+     "code": "0201",
+     "instructors": [
+      "Ting Jiang"
+     ]
+    },
+    {
+     "code": "0301",
+     "instructors": [
+      "Ting Jiang"
+     ]
+    },
+    {
+     "code": "0501",
+     "instructors": [
+      "Clyde Kruskal"
+     ]
+    }
+   ]
+  }
+ ]
+}
