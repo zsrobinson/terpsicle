@@ -1,19 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Plus } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { Mark } from "~/components/brand/mark";
 import { SkipLinks } from "~/components/workbench/skip-links";
-import { seasonTermOf, termLabel } from "~/core/catalog/terms";
+import { seasonTermOf } from "~/core/catalog/terms";
 import { addDays } from "~/core/ics/dates";
-import { todoWeekStart, withTodoWeekStart } from "~/core/prefs";
 import type { CourseCode, IsoDate, TodoItem } from "~/core/schema";
 import {
   type CalendarView,
@@ -21,23 +13,18 @@ import {
   courseKey,
   courseWeeks,
   feedWords,
-  isCurrentPeriod,
   isHiddenItem,
   itemCourse,
-  monthTitle,
   NO_COURSE_KEY,
-  newYorkClock,
   openCount,
   openWords,
   shiftAnchor,
   viewSpan,
   type WeekStart,
   weekStartOf,
-  weekTitle,
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { useSignInAction } from "~/features/auth/sign-in-panel";
-import { saveSyncedPrefs, useSyncedPrefs } from "~/features/prefs/synced-prefs";
 import {
   ComingSoonPage,
   SiteHeader,
@@ -45,41 +32,43 @@ import {
 } from "~/features/site/site-page";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
-import { crossLinkClicked } from "~/lib/cross-link";
 import { useShortcut } from "~/lib/shortcuts";
-import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
-import { PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, PageFooter } from "~/ui/product-page";
+import { Sheet, SheetTitle } from "~/ui/sheet";
 import { PageSkeleton, RowSkeleton } from "~/ui/skeleton";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { type View, ViewSwitch } from "~/ui/view-switch";
-import {
-  MonthGrid,
-  MonthPicker,
-  ScheduleLink,
-  WeekAgenda,
-  WeekGrid,
-} from "./calendar";
-import { startTask } from "./composer";
+import { MonthGrid, MonthPicker, WeekAgenda, WeekGrid } from "./calendar";
+import { COMPOSER_ID, startTask, useComposerRequest } from "./composer";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
 import { SamplePreview } from "./sample";
 import { type CourseRow, SidePanel, TODO_CONNECT_PATH } from "./side-panel";
 import { TASK_TOAST_ID } from "./task-form";
+import {
+  openTodoPanel,
+  TODO_PATH,
+  TodoBarActions,
+  TodoBarContext,
+  useNow,
+  useTodoBar,
+  useWeekStart,
+  VIEW_SHORTCUTS,
+} from "./todo-bar";
 import { type CheckedVia, DayList, type ViewProps } from "./todo-lists";
 import { useTodo } from "./todo-store";
 
 // `/todo` (docs/V3.md §3.9): a calendar of what's due, in the same shape as
-// the scheduler and Plan: the family bar, a side panel (adding a task, each
-// course's week, ELMS) and the calendar filling the rest. The week is the
-// default, then the month and the list; each is a URL. Signed out, it's the
-// front door. Nothing here is stored in the browser.
+// the scheduler and Plan: the family bar with Todo's controls (./todo-bar:
+// the views, the week and its title), a side panel (adding a task, each
+// course's week, ELMS) and the calendar filling the rest. On a phone the
+// side panel is a sheet opened from the bar, and the calendar is the page.
+// The week is the default, then the month and the list; each is a URL.
+// Signed out, it's the front door. Nothing here is stored in the browser.
 
 export { TEXT_LINK, TODO_CONNECT_PATH } from "./side-panel";
-
-export const TODO_PATH = "/todo";
+export { TODO_PATH, useNow } from "./todo-bar";
 
 /** The calendar's id: the skip link and focus land there. */
 const CANVAS_ID = "todo-calendar";
@@ -88,26 +77,6 @@ const SIDEBAR_ID = "todo-sidebar";
 
 /** How many weeks each course's chart shows, ending with the week shown. */
 const CHART_WEEKS = 4;
-
-/** New York's date and the time, ticking each minute for "checked 14 minutes ago". */
-export function useNow(): { now: number; today: IsoDate } {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-  return { now, today: newYorkClock(now).date };
-}
-
-/** The day Todo's weeks start on, following the account (Monday until it's read). */
-function useWeekStart(): [WeekStart, (start: WeekStart) => void] {
-  const prefs = useSyncedPrefs();
-  const set = useCallback((start: WeekStart) => {
-    track("todo_week_start_changed", { start });
-    void saveSyncedPrefs((p) => withTodoWeekStart(p, start));
-  }, []);
-  return [todoWeekStart(prefs ?? {}), set];
-}
 
 /**
  * Where `/todo/connect` goes: the site's frame, a note (560). The calendar
@@ -155,111 +124,7 @@ function FrontDoor({ returnTo }: { returnTo: string }) {
   );
 }
 
-const VIEW_SHORTCUTS: Record<CalendarView, string> = {
-  week: "W",
-  month: "M",
-  list: "L",
-};
-
-function TodoViews({ view, anchor }: { view: CalendarView; anchor: IsoDate }) {
-  // Counted as the view changes, from the switch, a key or Back.
-  const shown = useRef(view);
-  useEffect(() => {
-    if (shown.current === view) return;
-    shown.current = view;
-    track("todo_view_changed", { view });
-  }, [view]);
-  const views: View[] = [
-    {
-      id: "week",
-      label: "Week",
-      hint: "The week, day by day",
-      shortcut: VIEW_SHORTCUTS.week,
-      to: TODO_PATH,
-      search: { view: "week", date: anchor },
-    },
-    {
-      id: "month",
-      label: "Month",
-      hint: "The whole month",
-      shortcut: VIEW_SHORTCUTS.month,
-      to: TODO_PATH,
-      search: { view: "month", date: anchor },
-    },
-    {
-      id: "list",
-      label: "List",
-      hint: "Everything due, by day",
-      shortcut: VIEW_SHORTCUTS.list,
-      to: TODO_PATH,
-      search: { view: "list" },
-    },
-  ];
-  return <ViewSwitch label="Todo views" views={views} current={view} />;
-}
-
-/** Back, Today and Ahead: links, so each week or month is a URL. */
-function PeriodNav({
-  view,
-  anchor,
-  today,
-  weekStart,
-}: {
-  view: Exclude<CalendarView, "list">;
-  anchor: IsoDate;
-  today: IsoDate;
-  weekStart: WeekStart;
-}) {
-  const unit = view === "week" ? "week" : "month";
-  const back = shiftAnchor(view, anchor, -1, weekStart);
-  const ahead = shiftAnchor(view, anchor, 1, weekStart);
-  const current = isCurrentPeriod(view, anchor, today, weekStart);
-  return (
-    <div className="flex items-center">
-      <WithTooltip label={`Back a ${unit}`} shortcut="P">
-        <Button variant="ghost" size="icon-sm" asChild>
-          <Link
-            to={TODO_PATH}
-            search={{ view, date: back }}
-            aria-label={`Back a ${unit}`}
-          >
-            <ChevronLeft aria-hidden="true" />
-          </Link>
-        </Button>
-      </WithTooltip>
-      <WithTooltip label={`Show this ${unit}`} shortcut="T">
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className={cn(current && "pointer-events-none opacity-50")}
-        >
-          <Link
-            to={TODO_PATH}
-            search={{ view }}
-            aria-disabled={current || undefined}
-            tabIndex={current ? -1 : undefined}
-          >
-            Today
-          </Link>
-        </Button>
-      </WithTooltip>
-      <WithTooltip label={`Ahead a ${unit}`} shortcut="N">
-        <Button variant="ghost" size="icon-sm" asChild>
-          <Link
-            to={TODO_PATH}
-            search={{ view, date: ahead }}
-            aria-label={`Ahead a ${unit}`}
-          >
-            <ChevronRight aria-hidden="true" />
-          </Link>
-        </Button>
-      </WithTooltip>
-    </div>
-  );
-}
-
-/** W, M and L switch views; P, N and T move the calendar. */
+/** W, M and L switch views; P, N and T move the calendar; Q starts a task. */
 function Shortcuts({
   view,
   anchor,
@@ -285,6 +150,11 @@ function Shortcuts({
       return true;
     },
   );
+  // Here, not in the composer: a phone's is in a sheet that Q opens.
+  useShortcut({ key: "q" }, () => {
+    startTask();
+    return true;
+  });
   useShortcut([{ key: "p" }, { key: "n" }, { key: "t" }], (event) => {
     if (view === "list") return false;
     const key = event.key.toLowerCase();
@@ -332,7 +202,6 @@ function TodoWorkspace({
   const scheduler = useSchedulerCourses();
   const chatOn = useAccount((s) => s.flags.chat !== "off");
   const [weekStart, setWeekStart] = useWeekStart();
-  const [fold, setFold] = useState(false);
   const anchor = asked ?? today;
 
   // Once per page, and again when the date turns over.
@@ -526,66 +395,36 @@ function TodoWorkspace({
   const empty = ready && !feed && items.length === 0;
   const words = feedWords(feed, now);
   const checked = refreshing ? "Checking ELMS…" : words.checked;
-  const title =
-    view === "week"
-      ? weekTitle(weekStartOf(anchor, weekStart), today)
-      : view === "month"
-        ? monthTitle(anchor)
-        : "Everything due";
+  const openLine = ready
+    ? `${openWords(openCount(shown, done))}${checked ? ` · ${checked}` : ""}`
+    : null;
   const term = seasonTermOf(weekStartOf(anchor, weekStart));
-
-  const header = (
-    <PageHeader
-      title={title}
-      status={
-        ready ? (
-          <>
-            <span className="tnum" role="status">
-              {openWords(openCount(shown, done))}
-              {checked ? ` · ${checked}` : ""}
-            </span>
-            {view === "week" ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <ScheduleLink
-                  term={term}
-                  planId={scheduler.mainPlans[term]?.id}
-                  label={
-                    scheduler.mainPlans[term]
-                      ? `Opens ${scheduler.mainPlans[term].name}, your main plan for ${termLabel(term)}`
-                      : `Your ${termLabel(term)} classes`
-                  }
-                  onClick={() => crossLinkClicked("todo", "schedule")}
-                />
-              </>
-            ) : null}
-          </>
-        ) : null
-      }
-      views={<TodoViews view={view} anchor={anchor} />}
-      actions={
-        view === "list" ? (
-          // The list has no periods, but keeps their room, so Week, Month
-          // and List stay put when you switch between them.
-          <div className="invisible" aria-hidden="true" inert>
-            <PeriodNav
-              view="week"
-              anchor={anchor}
-              today={today}
-              weekStart={weekStart}
-            />
-          </div>
-        ) : (
-          <PeriodNav
-            view={view}
-            anchor={anchor}
-            today={today}
-            weekStart={weekStart}
-          />
-        )
-      }
-    />
+  const mainPlan = scheduler.mainPlans[term];
+  // The bar says what's open and links the week's classes (./todo-bar).
+  useEffect(() => {
+    useTodoBar.setState({
+      status: openLine,
+      schedule: {
+        term,
+        planId: mainPlan?.id,
+        planName: mainPlan?.name,
+      },
+    });
+  }, [openLine, term, mainPlan]);
+  useEffect(
+    () => () =>
+      useTodoBar.setState({ status: null, schedule: null, panel: null }),
+    [],
   );
+
+  // A phone's composer is in the sheet: a task started anywhere (Q, an
+  // empty day, the first visit) opens it at the composer.
+  const request = useComposerRequest();
+  const panelOpen = useTodoBar((s) => s.panel);
+  useEffect(() => {
+    if (mobile && request.seq !== request.taken && panelOpen === null)
+      openTodoPanel("task");
+  }, [mobile, request, panelOpen]);
 
   // The first visit: what Todo does, and its two ways in.
   const firstVisit = empty ? (
@@ -617,52 +456,48 @@ function TodoWorkspace({
       />
     ) : !ready ? (
       <PageSkeleton rows={4} label="Loading your calendar" />
-    ) : (
-      <>
-        {view === "list" ? (
-          <DayList {...props} />
-        ) : view === "week" ? (
-          mobile ? (
-            <WeekAgenda anchor={anchor} props={props} />
-          ) : (
-            <WeekGrid anchor={anchor} props={props} />
-          )
-        ) : mobile ? (
-          <MonthPicker
-            anchor={anchor}
-            props={props}
-            dayLink={(date, children, label) => (
-              <WithTooltip label={label}>
-                <Link
-                  to={TODO_PATH}
-                  search={{ view: "month", date }}
-                  replace
-                  aria-label={label}
-                  aria-current={date === anchor ? "date" : undefined}
-                >
-                  {children}
-                </Link>
-              </WithTooltip>
-            )}
-          />
-        ) : (
-          <MonthGrid
-            anchor={anchor}
-            props={props}
-            weekLink={(date, more) => (
-              <WithTooltip label="See the whole week">
-                <Link
-                  to={TODO_PATH}
-                  search={{ view: "week", date }}
-                  className="px-2 text-left text-muted text-xs hover:text-fg hover:underline"
-                >
-                  +{more} more
-                </Link>
-              </WithTooltip>
-            )}
-          />
+    ) : view === "list" ? (
+      <DayList {...props} />
+    ) : view === "week" ? (
+      mobile ? (
+        <WeekAgenda anchor={anchor} props={props} />
+      ) : (
+        <WeekGrid anchor={anchor} props={props} />
+      )
+    ) : mobile ? (
+      <MonthPicker
+        anchor={anchor}
+        props={props}
+        dayLink={(date, children, label) => (
+          <WithTooltip label={label}>
+            <Link
+              to={TODO_PATH}
+              search={{ view: "month", date }}
+              replace
+              aria-label={label}
+              aria-current={date === anchor ? "date" : undefined}
+            >
+              {children}
+            </Link>
+          </WithTooltip>
         )}
-      </>
+      />
+    ) : (
+      <MonthGrid
+        anchor={anchor}
+        props={props}
+        weekLink={(date, more) => (
+          <WithTooltip label="See the whole week">
+            <Link
+              to={TODO_PATH}
+              search={{ view: "week", date }}
+              className="px-2 text-left text-muted text-xs hover:text-fg hover:underline"
+            >
+              +{more} more
+            </Link>
+          </WithTooltip>
+        )}
+      />
     );
 
   const panel = ready ? (
@@ -678,7 +513,9 @@ function TodoWorkspace({
       feed={feed}
       now={now}
       hasFileItems={items.some((i) => i.source === "file")}
-      fold={mobile ? { open: fold, onOpenChange: setFold } : undefined}
+      onTaskAdded={
+        mobile ? () => useTodoBar.setState({ panel: null }) : undefined
+      }
     />
   ) : (
     <RowSkeleton rows={4} label="Loading" />
@@ -687,19 +524,44 @@ function TodoWorkspace({
   return (
     <>
       <Shortcuts view={view} anchor={anchor} weekStart={weekStart} />
+      {/* The page's h1 is the bar's title (./todo-bar). */}
       {mobile ? (
-        <main
-          id={CANVAS_ID}
-          tabIndex={-1}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-8 outline-none"
-        >
-          <div className="flex flex-col gap-4">
-            {header}
+        <>
+          <main
+            id={CANVAS_ID}
+            tabIndex={-1}
+            className="scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-8 outline-none"
+          >
             {firstVisit}
-            <div id={SIDEBAR_ID}>{panel}</div>
             {calendar}
-          </div>
-        </main>
+          </main>
+          <Sheet
+            open={panelOpen !== null}
+            onOpenChange={(open) => {
+              if (!open) useTodoBar.setState({ panel: null });
+            }}
+            // Add a task: the composer, with the keyboard; the courses and
+            // ELMS: the sheet itself, with none.
+            // Adding a task focuses the field, keyboard and all; the courses
+            // and ELMS focus the sheet itself, so the keyboard stays down.
+            initialFocus={() =>
+              document.getElementById(
+                panelOpen === "task" ? COMPOSER_ID : SIDEBAR_ID,
+              ) ?? true
+            }
+          >
+            <SheetTitle className="sr-only">
+              Add a task, courses and ELMS
+            </SheetTitle>
+            <div
+              id={SIDEBAR_ID}
+              tabIndex={-1}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4 outline-none"
+            >
+              {panel}
+            </div>
+          </Sheet>
+        </>
       ) : (
         <div className="flex min-h-0 flex-1">
           <aside
@@ -713,10 +575,9 @@ function TodoWorkspace({
           <main
             id={CANVAS_ID}
             tabIndex={-1}
-            className="scroll-thin min-w-0 flex-1 overflow-y-auto overscroll-y-contain px-6 pt-4 pb-8 outline-none"
+            className="scroll-thin min-w-0 flex-1 overflow-y-auto overscroll-y-contain p-4 outline-none"
           >
             <div className="flex min-h-full flex-col gap-4">
-              {header}
               {firstVisit}
               {calendar}
             </div>
@@ -753,10 +614,27 @@ export function TodoPage({
           canvasId={CANVAS_ID}
           canvasName="calendar"
           sidebarId={SIDEBAR_ID}
-          onSidebar={() => document.getElementById(SIDEBAR_ID)?.focus()}
+          onSidebar={() => {
+            // A phone's side panel is a sheet: open it.
+            const side = document.getElementById(SIDEBAR_ID);
+            if (side) side.focus();
+            else openTodoPanel("panel");
+          }}
         />
       ) : null}
-      <SiteHeader />
+      <SiteHeader
+        // Todo's controls, in the bar (./todo-bar), once there's a calendar.
+        context={
+          status === "signed-in" ? (
+            <TodoBarContext view={view} anchor={anchor} />
+          ) : undefined
+        }
+        status={
+          status === "signed-in" ? (
+            <TodoBarActions view={view} anchor={anchor} />
+          ) : undefined
+        }
+      />
       {status === "loading" ? (
         <div className={cn("mx-auto w-full px-4 pt-6", PAGE_WIDTH.app)}>
           <PageSkeleton rows={4} label="Loading your calendar" />

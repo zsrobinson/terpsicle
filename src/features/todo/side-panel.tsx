@@ -1,13 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import {
-  ChevronDown,
-  Eye,
-  EyeOff,
-  MessagesSquare,
-  RefreshCw,
-} from "lucide-react";
-import type { ReactNode } from "react";
+import { Eye, EyeOff, MessagesSquare, RefreshCw } from "lucide-react";
 import { SectionHeader } from "~/components/panel";
 import type {
   CourseCode,
@@ -39,7 +32,9 @@ import { useTodo } from "./todo-store";
 // Todo's side panel (docs/V3.md §3.9), where the scheduler and Plan keep
 // theirs: adding a task, each course's week (its completion over the last
 // four weeks, and hiding it), ELMS, and the day weeks start on. One column,
-// no tabs: it's four short parts, and the composer stays in view.
+// no tabs: it's four short parts, and the composer stays in view. On a
+// phone it's a sheet the bar opens (./todo-bar), so the calendar has the
+// page.
 
 export const TODO_CONNECT_PATH = "/todo/connect";
 
@@ -405,7 +400,7 @@ export function SidePanel({
   feed,
   now,
   hasFileItems,
-  fold,
+  onTaskAdded,
   className,
 }: {
   courses: readonly CourseCode[];
@@ -419,14 +414,22 @@ export function SidePanel({
   feed: TodoFeedState | null;
   now: number;
   hasFileItems: boolean;
-  /** A phone: everything under the composer folds away, above the calendar. */
-  fold?: { open: boolean; onOpenChange: (open: boolean) => void };
+  /** A phone's sheet closes once a task is added, to show it. */
+  onTaskAdded?: () => void;
   className?: string;
 }) {
-  const shown = rows.filter((r) => !r.hidden);
-  const total = totalOf(shown, (shown[0]?.weeks.length ?? 1) - 1);
-  const rest = (
-    <>
+  return (
+    <div className={cn("flex flex-col", className)}>
+      <section aria-label="Add a task">
+        <SectionHeader level={2} title="Add a task" className="border-t-0" />
+        <Composer
+          courses={courses}
+          colors={colors}
+          weekStart={weekStart}
+          onAdded={onTaskAdded}
+          className="px-4 py-3"
+        />
+      </section>
       <WeekSection
         rows={rows}
         lastWeek={lastWeek}
@@ -435,84 +438,6 @@ export function SidePanel({
       />
       <ElmsSection feed={feed} now={now} hasFileItems={hasFileItems} />
       <WeekStartSection weekStart={weekStart} onWeekStart={onWeekStart} />
-    </>
-  );
-  return (
-    <div className={cn("flex flex-col", className)}>
-      <section aria-label="Add a task">
-        {fold ? null : (
-          <SectionHeader level={2} title="Add a task" className="border-t-0" />
-        )}
-        <Composer
-          courses={courses}
-          colors={colors}
-          weekStart={weekStart}
-          compact={fold !== undefined}
-          className={fold ? "py-3" : "px-4 py-3"}
-        />
-      </section>
-      {fold ? (
-        <Fold
-          summary={
-            total.total > 0
-              ? `${isThisWeek ? "This week" : "That week"}: ${ofWords(total)} done`
-              : feed
-                ? ""
-                : "ELMS isn't connected"
-          }
-          open={fold.open}
-          onOpenChange={fold.onOpenChange}
-        >
-          {rest}
-        </Fold>
-      ) : (
-        rest
-      )}
-    </div>
-  );
-}
-
-/** A phone's fold for everything under the composer: closed, it says the week in a line. */
-function Fold({
-  summary,
-  open,
-  onOpenChange,
-  children,
-}: {
-  summary: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="-mx-4">
-      <WithTooltip
-        label={
-          open ? "Hide courses and ELMS" : "Show your courses' weeks and ELMS"
-        }
-      >
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => onOpenChange(!open)}
-          className={cn(
-            "flex h-11 w-full items-center gap-2 border-hairline border-t px-4 text-left text-sm hover:bg-hover",
-            !open && "border-b",
-          )}
-        >
-          <ChevronDown
-            size={14}
-            aria-hidden="true"
-            className={cn(
-              "shrink-0 text-muted transition-transform",
-              !open && "-rotate-90",
-            )}
-          />
-          <span className="font-medium">Courses and ELMS</span>
-          <span className="tnum min-w-0 truncate text-muted">{summary}</span>
-        </button>
-      </WithTooltip>
-      {open ? children : null}
     </div>
   );
 }

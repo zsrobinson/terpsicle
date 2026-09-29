@@ -152,9 +152,12 @@ test("asks after connecting ELMS, and Turn on hands off to the browser's prompt"
 }) => {
   test.slow();
   await signInNew(page, "/todo");
-  // On a phone, the paste is in the side panel's fold above the calendar.
+  // On a phone, the paste is in the side panel, a sheet the bar opens.
   if (isMobile)
-    await page.getByRole("button", { name: /^Courses and ELMS/ }).click();
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: "Courses and ELMS" })
+      .click();
   await page
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));

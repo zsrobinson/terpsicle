@@ -130,14 +130,63 @@ function shift(date: string, days: number): string {
 /** New York's date today. */
 const today = () => newYorkClock(Date.now()).date;
 
+/** A phone's sheet of adding a task, the courses and ELMS. */
+const panelSheet = (page: Page) =>
+  page.getByRole("dialog", { name: "Add a task, courses and ELMS" });
+
 /**
- * On a phone, the side panel's parts under the composer (the courses, ELMS,
- * the week's start) are folded above the calendar: opens the fold.
+ * On a phone, the side panel (adding a task, the courses, ELMS, the week's
+ * start) is a sheet the bar opens: opens it.
  */
 async function openPanel(page: Page, isMobile: boolean) {
   if (!isMobile) return;
-  const fold = page.getByRole("button", { name: /^Courses and ELMS/ });
-  if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+  if (await panelSheet(page).isVisible()) return;
+  await page
+    .getByRole("banner")
+    .getByRole("button", { name: "Courses and ELMS" })
+    .click();
+  await expect(panelSheet(page)).toBeVisible();
+}
+
+/** Closes a phone's panel sheet, so the page behind is the page again. */
+async function closePanel(page: Page, isMobile: boolean) {
+  if (!isMobile || !(await panelSheet(page).isVisible())) return;
+  await page.keyboard.press("Escape");
+  await expect(panelSheet(page)).toBeHidden();
+}
+
+/**
+ * Week, Month or List: the bar's view switch on a desktop, its calendar
+ * sheet on a phone.
+ */
+async function showView(page: Page, isMobile: boolean, name: string) {
+  if (isMobile) {
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: "Views and dates" })
+      .click();
+    await page
+      .getByRole("menuitemradio", { name: new RegExp(`^${name}`) })
+      .click();
+    return;
+  }
+  await page
+    .getByRole("navigation", { name: "Todo views" })
+    .getByRole("link", { name })
+    .click();
+}
+
+/** Ahead a week: the bar's arrow on a desktop, its calendar sheet on a phone. */
+async function aheadAWeek(page: Page, isMobile: boolean) {
+  if (isMobile) {
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: "Views and dates" })
+      .click();
+    await page.getByRole("menuitem", { name: /^Ahead a week/ }).click();
+    return;
+  }
+  await page.getByRole("link", { name: "Ahead a week" }).click();
 }
 
 test("signed out, /todo is the front door", async ({ page }) => {
@@ -233,24 +282,23 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   await expect(page.getByText(/^5 open · /)).toBeVisible();
   await expect(project).toBeChecked();
 
-  // Each view, and each week, is a link: a URL Back and a copied link keep.
-  const views = page.getByRole("navigation", { name: "Todo views" });
-  await views.getByRole("link", { name: "Month" }).click();
+  // Each view, and each week, is a URL that Back and a copied link keep.
+  await showView(page, isMobile, "Month");
   await expect(page).toHaveURL(/view=month/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /^[A-Z][a-z]+ \d{4}$/,
   );
   await axe(page, "month");
-  await views.getByRole("link", { name: "List" }).click();
+  await showView(page, isMobile, "List");
   await expect(page).toHaveURL(/view=list/);
   await expect(
     page.getByRole("heading", { level: 1, name: "Everything due" }),
   ).toBeVisible();
   await axe(page, "list");
-  await views.getByRole("link", { name: "Week" }).click();
+  await showView(page, isMobile, "Week");
   await expect(page).toHaveURL(/view=week/);
   const title = await page.getByRole("heading", { level: 1 }).textContent();
-  await page.getByRole("link", { name: "Ahead a week" }).click();
+  await aheadAWeek(page, isMobile);
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(
     title ?? "",
   );
@@ -361,23 +409,38 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   test.setTimeout(120_000);
   await signIn(page, isMobile);
 
-  // Without ELMS, the first visit's "Add a task" goes to the composer.
-  await page.getByRole("button", { name: "Add a task", exact: true }).click();
+  // Without ELMS, the first visit's "Add a task" goes to the composer (on
+  // a phone, in the sheet the bar opens).
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "Add a task", exact: true })
+    .click();
   const composer = page.getByRole("textbox", { name: "New task" });
   await expect(composer).toBeFocused();
   await composer.fill("Email my advisor");
   await composer.press("Enter");
+  // A phone's sheet closes on the add, to show the task.
+  if (isMobile) await expect(panelSheet(page)).toBeHidden();
   await expect(page.getByRole("heading", { name: "No date" })).toBeVisible();
   await expect(page.getByText("Email my advisor")).toBeVisible();
 
   // The date and time read from the words, marked, and shown as chips.
+  if (isMobile) {
+    // The bar's + opens the composer again, with the keyboard.
+    await page
+      .getByRole("banner")
+      .getByRole("button", { name: "Add a task" })
+      .click();
+    await expect(composer).toBeFocused();
+  }
   await composer.fill("Office hours tomorrow 3pm");
   const chips = page.getByRole("list", { name: "The task will be" });
   await expect(chips.getByText("3pm")).toBeVisible();
   await expect(page.locator("mark")).toHaveText(["tomorrow", "3pm"]);
   await axe(page, "the composer");
   await composer.press("Enter");
-  await expect(composer).toHaveValue("");
+  if (isMobile) await expect(panelSheet(page)).toBeHidden();
+  else await expect(composer).toHaveValue("");
 
   await page.goto("/todo?view=list");
   const tomorrow = page.getByRole("region", { name: "Tomorrow" });
@@ -438,13 +501,17 @@ test("weeks start on Monday, or Sunday by the setting", async ({
   await openPanel(page, isMobile);
   // From Monday, the default, whatever an earlier run left on the account.
   await page.getByRole("radio", { name: "Monday" }).click();
+  await closePanel(page, isMobile);
   await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
+  await openPanel(page, isMobile);
   await page.getByRole("radio", { name: "Sunday" }).click();
+  await closePanel(page, isMobile);
   await expect(heading).toHaveText(/^Sep 27 – Oct 3/);
   // A pref, kept for next time.
   await page.reload();
   await expect(heading).toHaveText(/^Sep 27 – Oct 3/);
   await openPanel(page, isMobile);
   await page.getByRole("radio", { name: "Monday" }).click();
+  await closePanel(page, isMobile);
   await expect(heading).toHaveText(/^Sep 28 – Oct 4/);
 });
