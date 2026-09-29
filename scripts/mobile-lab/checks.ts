@@ -67,6 +67,8 @@ export interface Probe {
     safeTop?: number;
     /** The home indicator's inset (`--safe-bottom`), which peek sits above. */
     safeBottom?: number;
+    /** The tab bar's height (`--tab-bar-height`), which peek rests on. */
+    tabBar?: number;
   } | null;
   activeElement: {
     describe: string;
@@ -124,7 +126,7 @@ export function expectedDrawerTop(p: Probe): number | null {
   const h = p.innerHeight;
   const full = h - 48 - (p.drawer?.safeTop ?? 0);
   const heights: Record<string, number> = {
-    peek: 124 + (p.drawer?.safeBottom ?? 0),
+    peek: 124 + (p.drawer?.tabBar ?? 0) + (p.drawer?.safeBottom ?? 0),
     half: h < 480 ? full : Math.round(h * 0.5),
     full,
   };

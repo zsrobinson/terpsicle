@@ -819,17 +819,117 @@
 }
 
 /*
+ * The phone's tab bar (~/components/tab-bar): below `md`, 50px over the home
+ * indicator. `--tab-bar-height` is the bar alone (TAB_BAR_HEIGHT in
+ * src/lib/drawer-heights.ts) and `--tab-bar-space` the page's bottom it
+ * covers, inset and all; both are 0 where there's no bar, or where a page
+ * takes the bottom for itself (`data-hides-tab-bar`: a Chat room, whose
+ * composer sits there). Pages pad by them, the drawer rests on the bar,
+ * and toasts sit 8px above it.
+ */
+:root {
+  --tab-bar-height: 0px;
+  --tab-bar-space: 0px;
+}
+@media (width < 48rem) {
+  :root:has([data-tab-bar]):not(:has([data-hides-tab-bar])) {
+    --tab-bar-height: 50px;
+    --tab-bar-space: calc(var(--tab-bar-height) + var(--safe-bottom));
+  }
+  /* Before the drawer's lifts below, which win over it. */
+  :root:has([data-tab-bar]) {
+    --toast-lift: max(
+      calc(var(--tab-bar-space) + 8px),
+      calc(var(--safe-bottom) + 16px)
+    );
+  }
+}
+/*
+ * It steps down out of the way (--dur-tab, on the sheets' curve) while the
+ * workbench drawer is pulled all the way up (the owner: "when the sheet is
+ * all the way expanded … hide the tab/component switcher"), in a Chat room,
+ * and while a finger's text field has the keyboard up: iOS lays the
+ * keyboard over it anyway, and Android would push it up above the keyboard.
+ * Hidden, it's out of reach: no taps, no focus, nothing read.
+ */
+[data-tab-bar] {
+  transition:
+    transform var(--dur-tab) var(--ease-sheet),
+    visibility 0s;
+}
+:root[data-drawer-snap="full"] [data-tab-bar],
+:root:has([data-hides-tab-bar]) [data-tab-bar] {
+  transform: translateY(100%);
+  visibility: hidden;
+  transition:
+    transform var(--dur-tab) var(--ease-sheet),
+    visibility 0s linear var(--dur-tab);
+}
+@media (pointer: coarse) {
+  /*
+   * With the bar gone for the keyboard, toasts come back down to the edge
+   * (the keyboard's own lift is the browser's). Not on a workbench, whose
+   * drawer rests on --tab-bar-height and would jump if it changed.
+   */
+  :root:not(:has([data-workbench-drawer])):has(
+    :is(
+        input:not(
+          [type="button"],
+          [type="checkbox"],
+          [type="color"],
+          [type="file"],
+          [type="image"],
+          [type="radio"],
+          [type="range"],
+          [type="reset"],
+          [type="submit"]
+        ),
+        textarea,
+        [contenteditable=""],
+        [contenteditable="true"]
+      ):not([readonly]):focus
+  ) {
+    --toast-lift: calc(var(--safe-bottom) + 16px);
+  }
+  :root:has(
+      :is(
+          input:not(
+            [type="button"],
+            [type="checkbox"],
+            [type="color"],
+            [type="file"],
+            [type="image"],
+            [type="radio"],
+            [type="range"],
+            [type="reset"],
+            [type="submit"]
+          ),
+          textarea,
+          [contenteditable=""],
+          [contenteditable="true"]
+        ):not([readonly]):focus
+    )
+    [data-tab-bar] {
+    transform: translateY(100%);
+    visibility: hidden;
+    transition:
+      transform var(--dur-tab) var(--ease-sheet),
+      visibility 0s linear var(--dur-tab);
+  }
+}
+
+/*
  * A workbench's phone drawer (Schedule, Plan) rests with its handle, tabs and
  * panel header showing (PEEK_HEIGHT, 124px, in src/lib/drawer-heights.ts),
- * above the home indicator (`--safe-bottom`). Toasts sit 8px above that, not
- * over the tabs (~/ui/sonner reads it). At half they sit 8px above the
- * drawer, not over its panel: 132px up was the middle of the panel there,
- * over the next row's button (Problems' fixes) for the whole Undo window.
- * Half is half the screen (snapHeights), or all of it under 480px; full
- * leaves no room above, so those keep peek's lift.
+ * on the tab bar and above the home indicator (`--safe-bottom`). Toasts sit
+ * 8px above that, not over the tabs (~/ui/sonner reads it). At half they
+ * sit 8px above the drawer, not over its panel: 132px up was the middle of
+ * the panel there, over the next row's button (Problems' fixes) for the
+ * whole Undo window. Half is half the screen (snapHeights), or all of it
+ * under 480px; full leaves no room above, so those keep peek's lift.
  */
 :root:has([data-workbench-drawer]) {
-  --toast-lift: calc(132px + var(--safe-bottom));
+  --toast-lift: calc(132px + var(--tab-bar-height) + var(--safe-bottom));
 }
 @media (min-height: 480px) {
   :root:has([data-workbench-drawer][data-snap="half"]) {

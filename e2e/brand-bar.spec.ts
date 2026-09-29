@@ -41,11 +41,10 @@ test("the bar says Early access, and the product menu says why", async ({
   const chip = bar(page).getByTestId("early-access").filter({ visible: true });
   if (!isMobile) await page.setViewportSize({ width: 1600, height: 900 });
   if (isMobile) {
-    // A phone's bar keeps the room; the product menu says it.
+    // A phone's bar keeps the room, and the tab bar has the product menu's
+    // place: the account menu says it.
     await expect(chip).toHaveCount(0);
-    await bar(page)
-      .getByRole("button", { name: /^Terpsicle/ })
-      .click();
+    await bar(page).getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("menu").getByText(NOTE)).toBeVisible();
   } else {
     await expect(chip).toHaveCount(1);

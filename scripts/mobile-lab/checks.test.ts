@@ -136,6 +136,9 @@ describe("stepChecks", () => {
     expect(expectedDrawerTop(peek)).toBe(800 - 124);
     if (peek.drawer) peek.drawer.safeBottom = 34;
     expect(expectedDrawerTop(peek)).toBe(800 - 124 - 34);
+    // And on the tab bar.
+    if (peek.drawer) peek.drawer.tabBar = 50;
+    expect(expectedDrawerTop(peek)).toBe(800 - 124 - 50 - 34);
     // Full stops under the family bar, which the status bar's inset pushes
     // down.
     if (full.drawer) full.drawer.safeTop = 47;

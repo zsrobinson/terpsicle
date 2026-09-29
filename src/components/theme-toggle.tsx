@@ -8,14 +8,10 @@ import {
   subscribeThemePreference,
 } from "~/lib/theme";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
-import { WithTooltip } from "~/ui/tooltip";
+  ActionMenu,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+} from "~/ui/action-menu";
 
 const OPTIONS: readonly { theme: Theme; label: string; icon: typeof Sun }[] = [
   { theme: "system", label: "System", icon: Monitor },
@@ -26,7 +22,7 @@ const OPTIONS: readonly { theme: Theme; label: string; icon: typeof Sun }[] = [
 /**
  * A small icon in the bar, only where there's no account menu to hold the
  * theme (sign-in off, or /api/me still loading). `children` go at the end of
- * its menu.
+ * its menu, a sheet on phones.
  */
 export function ThemeToggle({
   side,
@@ -39,53 +35,54 @@ export function ThemeToggle({
   const current = OPTIONS.find((o) => o.theme === theme) ?? OPTIONS[0];
   const Icon = current?.icon ?? Monitor;
   return (
-    <DropdownMenu>
-      <WithTooltip label={`Theme: ${current?.label ?? "System"}`} side={side}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="Theme"
-            className="flex size-8 items-center max-[380px]:size-7 justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
-          >
-            <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent side={side} align="end" className="min-w-[150px]">
-        <ThemeMenuItems />
-        {children}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ActionMenu
+      title="Theme"
+      tooltip={`Theme: ${current?.label ?? "System"}`}
+      align={side === "right" ? "start" : "end"}
+      className="min-w-[150px]"
+      trigger={
+        <button
+          type="button"
+          aria-label="Theme"
+          className="flex size-8 items-center max-[380px]:size-7 justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg"
+        >
+          <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      }
+    >
+      <ThemeMenuItems />
+      {children}
+    </ActionMenu>
   );
 }
 
 /**
- * The theme choices, for any dropdown menu. On phones with sign-in on, they
- * live in the account menu instead of their own button, so the top bar
- * keeps room for the plan's name.
+ * The theme choices, for any action menu. With sign-in on they live in the
+ * account menu instead of their own button, so the top bar keeps its room.
  */
 export function ThemeMenuItems() {
   const theme = useThemePreference();
   return (
-    <>
-      <DropdownMenuLabel>Theme</DropdownMenuLabel>
-      <DropdownMenuRadioGroup
-        value={theme}
-        onValueChange={(value) => {
-          const parsed = ThemeSchema.safeParse(value);
-          if (!parsed.success) return;
-          setThemePreference(parsed.data);
-          track("theme_changed", { theme: parsed.data });
-        }}
-      >
-        {OPTIONS.map(({ theme: t, label, icon: OptionIcon }) => (
-          <DropdownMenuRadioItem key={t} value={t}>
-            <OptionIcon className="text-muted" aria-hidden="true" />
-            {label}
-          </DropdownMenuRadioItem>
-        ))}
-      </DropdownMenuRadioGroup>
-    </>
+    <ActionMenuRadioGroup
+      label="Theme"
+      value={theme}
+      onValueChange={(value) => {
+        const parsed = ThemeSchema.safeParse(value);
+        if (!parsed.success) return;
+        setThemePreference(parsed.data);
+        track("theme_changed", { theme: parsed.data });
+      }}
+    >
+      {OPTIONS.map(({ theme: t, label, icon: OptionIcon }) => (
+        <ActionMenuRadioItem
+          key={t}
+          value={t}
+          icon={<OptionIcon className="text-muted" aria-hidden="true" />}
+        >
+          {label}
+        </ActionMenuRadioItem>
+      ))}
+    </ActionMenuRadioGroup>
   );
 }
 

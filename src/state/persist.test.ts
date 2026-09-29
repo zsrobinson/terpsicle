@@ -51,8 +51,6 @@ describe("persistence", () => {
       courseColors: ["courseCode"],
       settings: ["key"],
       syncDocs: ["key"],
-      manifests: ["key"],
-      files: ["key", "family", "termId"],
       fourYear: ["id"],
     });
   });

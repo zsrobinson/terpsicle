@@ -871,18 +871,27 @@ export interface Span {
  * already in the visible band (only if needed), otherwise enough to bring
  * the first one just under its top. A phone's drawer at half covers the
  * lower part of the calendar, so a course at 12:30 can open with every
- * ghost out of sight.
+ * ghost out of sight. With `whole`, a sliver doesn't count: the first one
+ * comes all the way into view, by as little as that takes (a section just
+ * added, whose top peeking over the drawer isn't seeing it).
  */
 export function ghostScrollDelta(
   ghosts: readonly Span[],
   view: Span,
-  margin = 8,
+  { margin = 8, whole = false }: { margin?: number; whole?: boolean } = {},
 ): number {
   if (ghosts.length === 0 || view.bottom <= view.top) return 0;
-  const inView = ghosts.some(
-    (g) => g.bottom > view.top + margin && g.top < view.bottom - margin,
+  const top = view.top + margin;
+  const bottom = view.bottom - margin;
+  const inView = ghosts.some((g) =>
+    whole
+      ? g.top >= top && g.bottom <= bottom
+      : g.bottom > top && g.top < bottom,
   );
   if (inView) return 0;
-  const first = Math.min(...ghosts.map((g) => g.top));
-  return first - view.top - margin;
+  const first = ghosts.reduce((a, g) => (g.top < a.top ? g : a));
+  // Below the band, and short enough to fit: just far enough to show it all.
+  if (whole && first.top > top && first.bottom - first.top <= bottom - top)
+    return first.bottom - bottom;
+  return first.top - top;
 }

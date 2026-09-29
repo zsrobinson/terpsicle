@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { clampSidebarWidth, type DrawerSnap } from "~/core/schema";
 import { MOBILE_QUERY } from "~/hooks/use-media-query";
-import { snapHeights } from "~/lib/drawer-heights";
+import { snapHeights, tabBarHeight } from "~/lib/drawer-heights";
 import { writeSidebarWidth } from "~/state/sidebar-width-pref";
 
 import { fourYearDb } from "./data";
@@ -86,7 +86,8 @@ export function showAdded(entryId: string | null): void {
     if (!board || !added) return;
     const under = (snap: DrawerSnap) =>
       added.getBoundingClientRect().bottom -
-      (window.innerHeight - snapHeights(window.innerHeight)[snap]) +
+      (window.innerHeight -
+        snapHeights(window.innerHeight, { tabBar: tabBarHeight() })[snap]) +
       8;
     let by = under(planDrawerSnap());
     if (by <= 0) return;

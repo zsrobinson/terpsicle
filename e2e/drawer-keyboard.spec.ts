@@ -29,7 +29,7 @@ const KEYBOARD = 300;
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/schedule");
-  await expect(page.getByRole("img", { name: "Terpsicle" })).toBeVisible();
+  await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
   // The logo is in the server-rendered page, but the drawer is a lazy chunk
   // that mounts after hydration, and with it the drawer's listeners (the
   // page-scroll undo among them). Acting before then tests a page without

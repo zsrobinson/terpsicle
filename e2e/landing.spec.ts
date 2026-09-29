@@ -134,9 +134,23 @@ test("the bar names every product, and narrower, the menu does", async ({
   await page.goto("/schedule");
   const tabs = page.getByRole("navigation", { name: "Products" });
   if (isMobile) {
-    // The phone bar keeps its room for the plan: the umbrella opens the menu.
+    // A phone's tab bar names them, Home first, where you are current.
     await expect(tabs).toBeHidden();
-    await page.getByRole("button", { name: /^Terpsicle/ }).click();
+    const bar = page.getByRole("navigation", { name: "Tab bar" });
+    for (const name of ["Home", "Schedule", "Reviews", "Chat", "Todo"])
+      await expect(bar.getByRole("link", { name })).toBeVisible();
+    await expect(bar.getByRole("link", { name: "Schedule" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await bar.getByRole("link", { name: "Reviews" }).click();
+    await expect(
+      page.getByRole("heading", {
+        name: "UMD course and instructor reviews",
+        level: 1,
+      }),
+    ).toBeVisible();
+    return;
   } else {
     for (const name of ["Schedule", "Reviews", "Chat"])
       await expect(tabs.getByRole("link", { name })).toBeVisible();

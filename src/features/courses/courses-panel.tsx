@@ -7,7 +7,7 @@ import {
   PanelRightOpen,
   Trash2,
 } from "lucide-react";
-import { Fragment, type ReactElement, useMemo } from "react";
+import { Fragment, type ReactElement, type ReactNode, useMemo } from "react";
 import { MessageText, messageToText } from "~/components/message-text";
 import {
   ListRow,
@@ -456,6 +456,30 @@ function WithContextMenu({
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         {menuActions(courseCode, placed).map((a) => (
+          <MenuItemPair key={a.key} action={a} kind="context" />
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/**
+ * A placed course's menu on anything that shows it (the calendar's blocks):
+ * a right click, or a long press on a phone, opens the same actions as its
+ * row's ⋯ in the Courses tab. The trigger adds no box of its own.
+ */
+export function CourseContextMenu({
+  courseCode,
+  children,
+}: {
+  courseCode: CourseCode;
+  children: ReactNode;
+}) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger className="contents">{children}</ContextMenuTrigger>
+      <ContextMenuContent>
+        {menuActions(courseCode, true).map((a) => (
           <MenuItemPair key={a.key} action={a} kind="context" />
         ))}
       </ContextMenuContent>

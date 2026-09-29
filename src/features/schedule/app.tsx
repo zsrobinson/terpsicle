@@ -1,3 +1,4 @@
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAccount } from "~/features/auth/account-store";
 import { markReturning } from "~/features/marketing/returning";
@@ -17,8 +18,7 @@ import {
   subscribeThemePreference,
 } from "~/lib/theme";
 import { termsSettled, useCatalog } from "~/state/catalog-store";
-import { createDexieCache } from "~/state/data-cache";
-import { createDataReader, createDataSource } from "~/state/data-source";
+import { createDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
 import { demoRequested, loadDemoState } from "~/state/demo";
 import { useCurrentPlan } from "~/state/hooks";
@@ -38,7 +38,7 @@ import { AppShell, type AppShellProps } from "./app-shell";
 
 /** The app: loads local state and the catalog, then shows the shell. */
 export function App(props: AppShellProps) {
-  useBootstrap(clientConfig);
+  useBootstrap(clientConfig, useQueryClient());
   useFeedbackSources();
   return <AppShell {...props} />;
 }
@@ -76,7 +76,7 @@ function useFeedbackSources() {
   );
 }
 
-function useBootstrap(config: ClientConfig) {
+function useBootstrap(config: ClientConfig, client: QueryClient) {
   useEffect(() => {
     let cancelled = false;
     useUi.setState({ restored: false });
@@ -179,14 +179,9 @@ function useBootstrap(config: ClientConfig) {
       const source = await createDataSource(config);
       if (cancelled) return;
       const catalog = useCatalog.getState();
-      // The same cached path in mock and live mode; the namespace keeps the
-      // two apart when both run on localhost.
-      catalog.setReader(createDataReader(source), {
-        cache: createDexieCache(db, source.kind === "mock" ? "mock:" : ""),
-        onEvent: trackCatalogEvent,
-      });
-      // Published data read through the query cache (Terpsicle reviews'
-      // numbers so far), loaded per department on first use.
+      // Every published file is a query in the page's client, saved on this
+      // device (DATA.md §5.5); mock and live keep apart by their keys.
+      catalog.connect(client, source, { onEvent: trackCatalogEvent });
       connectPublished(source);
       // A failure shows in place of the calendar, with a retry (catalog-error.tsx).
       await catalog.loadTerms();
@@ -207,5 +202,5 @@ function useBootstrap(config: ClientConfig) {
       useWorkspace.setState({ hydrated: false });
       useUi.setState({ restored: false });
     };
-  }, [config]);
+  }, [config, client]);
 }

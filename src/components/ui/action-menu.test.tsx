@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ActionMenu,
@@ -12,6 +12,7 @@ import {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuText,
 } from "./action-menu";
 import { TooltipProvider } from "./tooltip";
 
@@ -272,5 +273,100 @@ describe("ActionMenu on an iPhone", () => {
     await user.click(tick);
     expect(onNew).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+/** The account menu's shape: words, a sign-out that stays open, a note. */
+function Account({ onSignOut = () => undefined }: { onSignOut?: () => void }) {
+  return (
+    <TooltipProvider delayDuration={0}>
+      <ActionMenu
+        title="Account"
+        tooltip="Your account and theme"
+        trigger={<button type="button">TS</button>}
+      >
+        <ActionMenuText>Test Student</ActionMenuText>
+        <ActionMenuItem
+          keepOpen
+          tooltip="Your plans stay on this device"
+          onSelect={onSignOut}
+        >
+          Sign out
+        </ActionMenuItem>
+      </ActionMenu>
+    </TooltipProvider>
+  );
+}
+
+/** Rename swaps the trigger for a field, as the phone's plans sheet does. */
+function Renaming() {
+  const [renaming, setRenaming] = useState(false);
+  const sent = useRef(false);
+  if (renaming)
+    // biome-ignore lint/a11y/noAutofocus: the person asked to rename
+    return <input aria-label="Name" autoFocus />;
+  return (
+    <ActionMenu
+      title="Plans"
+      tooltip="Switch plans"
+      finalFocus={() => (sent.current ? false : null)}
+      trigger={<button type="button">Plan A</button>}
+    >
+      <ActionMenuItem
+        onSelect={() => {
+          sent.current = true;
+          setRenaming(true);
+        }}
+      >
+        Rename
+      </ActionMenuItem>
+    </ActionMenu>
+  );
+}
+
+describe("ActionMenu's more-words and staying open", () => {
+  it("on a phone, an item's tooltip is its described line, not its name", async () => {
+    screenIs(true);
+    const user = userEvent.setup();
+    render(<Account />);
+    await user.click(screen.getByRole("button", { name: "TS" }));
+    const signOut = await screen.findByRole("menuitem", { name: "Sign out" });
+    expect(signOut).toHaveAccessibleDescription(
+      "Your plans stay on this device",
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("Test Student");
+  });
+
+  it("keeps a `keepOpen` item's menu open after it runs, in both shapes", async () => {
+    for (const phone of [true, false]) {
+      screenIs(phone);
+      const user = userEvent.setup();
+      const onSignOut = vi.fn();
+      const { unmount } = render(<Account onSignOut={onSignOut} />);
+      await user.click(screen.getByRole("button", { name: "TS" }));
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Sign out" }),
+      );
+      expect(onSignOut).toHaveBeenCalledOnce();
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      unmount();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("leaves focus where an item sent it when `finalFocus` says so", async () => {
+    screenIs(true);
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider delayDuration={0}>
+        <Renaming />
+      </TooltipProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Plan A" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    const field = await screen.findByRole("textbox", { name: "Name" });
+    await waitFor(() => expect(field).toHaveFocus());
+    await new Promise((done) => setTimeout(done, 500));
+    expect(field).toHaveFocus();
   });
 });

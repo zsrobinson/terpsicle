@@ -7,7 +7,8 @@ export const SCHEDULE_PATH = "/schedule";
 
 /**
  * Home: where the installed app opens (the manifest's `start_url`), a few
- * facts from each product. Hidden: no bar, menu or page links to it.
+ * facts from each product. The phone's tab bar's first tab, and the family
+ * bar's wordmark on a desktop.
  */
 export const HOME_PATH = "/home";
 

@@ -28,7 +28,6 @@ import {
   SearchTabSearchSchema,
 } from "~/core/schema/schedule-url";
 import type { DrillEntry, DrillKind } from "~/state/drill";
-import { createTestQueryClient } from "~/state/query/testing";
 import { loadStores } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { Toaster } from "~/ui/sonner";
@@ -163,13 +162,13 @@ export async function renderShell({
   /** The shell's query client, for a test to load published data into. */
   queryClient: QueryClient;
 }> {
-  await loadStores();
+  // The shell's query client is the catalog's, as the router's is in the app.
+  const queryClient = await loadStores();
   const user = userEvent.setup();
   const router = createScheduleRouter(mergeRoutes(routes), path);
   current = router;
   await router.load();
   let setShellProps: (next: AppShellProps) => void = () => {};
-  const queryClient = createTestQueryClient();
   function Tree() {
     const [shellProps, set] = useState<AppShellProps>(props);
     setShellProps = set;

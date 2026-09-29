@@ -431,7 +431,9 @@ function CourseRoom({
   // A phone pushes the room in over the list and pops it back off, with the
   // router's view transitions (src/styles/transitions.css); a desktop fills
   // the pane. Browsers without typed view transitions keep a small slide of
-  // its own, which data-vt-fallback turns off everywhere else.
+  // its own, which data-vt-fallback turns off everywhere else. The room's
+  // composer takes the phone's bottom edge, so the tab bar steps aside while
+  // it's open (`data-hides-tab-bar`, styles.css).
   const pane = cn(
     "flex min-w-0 flex-1 flex-col",
     mobile &&
@@ -446,7 +448,11 @@ function CourseRoom({
 
   if (!tree || !room)
     return (
-      <section className={pane} data-vt-fallback={fallback}>
+      <section
+        data-hides-tab-bar=""
+        className={pane}
+        data-vt-fallback={fallback}
+      >
         {course === null && !missing ? (
           // The room's own shape, so nothing moves when it arrives.
           <RoomSkeleton back={mobile ? backToList : undefined} />
@@ -492,6 +498,7 @@ function CourseRoom({
   return (
     <>
       <section
+        data-hides-tab-bar=""
         className={pane}
         data-vt-fallback={fallback}
         aria-label={room.label}

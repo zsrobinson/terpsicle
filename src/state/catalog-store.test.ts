@@ -1,3 +1,4 @@
+import { onlineManager, type QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -23,19 +24,22 @@ import {
   fixtureTermId,
 } from "~/fixtures";
 import { type CatalogEvent, termsSettled, useCatalog } from "./catalog-store";
-import { createMemoryCache, SCHEMA_VERSIONS_KEY } from "./data-cache";
 import { useCatalogPolling, useSeatsFreshness } from "./data-hooks";
+import { DataError, type DataSource, type ReadPriority } from "./data-source";
+import { deptChunkQuery, manifestQuery } from "./query/catalog";
+import type { PollPlatform } from "./query/catalog-poll";
 import {
-  createDataReader,
-  DataError,
-  type DataSource,
-  type ReadPriority,
-} from "./data-source";
+  createMemoryQueryStorage,
+  flushQueryStorage,
+  setQueryStorage,
+} from "./query/persister";
+import { POINTER_TIMEOUT_MS } from "./query/published";
+import { createTestQueryClient } from "./query/testing";
 import { resetStores } from "./testing";
 
-// The catalog store against a fake server and an in-memory cache: what it
-// fetches, what it keeps, and what it shows when the server is away
-// (DATA.md §5.1).
+// The catalog store against a fake server, with the query cache saving to
+// memory: what it fetches, what it keeps, and what it shows when the
+// server is away (DATA.md §5.1, §5.5).
 
 const hash = (n: number) => n.toString(16).padStart(16, "0");
 const ACTIVE = fixtureTermId;
@@ -51,14 +55,15 @@ function aServer() {
   const priorities = new Map<string, ReadPriority | undefined>();
   let offline = false;
   let holding: ((key: string) => boolean) | null = null;
-  const held = new Map<string, () => void>();
+  /** Reads waiting to be answered: a key can wait more than once. */
+  const held: { key: string; resume: () => void }[] = [];
   const source: DataSource = {
     kind: "live",
     async readJson(key, options) {
       reads.push(key);
       priorities.set(key, options?.priority);
       if (holding?.(key))
-        await new Promise<void>((resolve) => held.set(key, resolve));
+        await new Promise<void>((resume) => held.push({ key, resume }));
       if (offline) throw new DataError(key, "network", "offline");
       if (!files.has(key)) throw new DataError(key, "missing", "missing");
       return structuredClone(files.get(key));
@@ -98,14 +103,13 @@ function aServer() {
     release: (match: (key: string) => boolean = () => true) => {
       const before = holding;
       holding = before ? (key) => before(key) && !match(key) : null;
-      for (const [key, resume] of held)
-        if (match(key)) {
-          held.delete(key);
-          resume();
-        }
+      for (const read of held.filter((r) => match(r.key))) {
+        held.splice(held.indexOf(read), 1);
+        read.resume();
+      }
     },
-    /** Keys whose reads are waiting. */
-    waiting: () => [...held.keys()],
+    /** Keys whose reads are waiting (once per waiting read). */
+    waiting: () => held.map((r) => r.key),
     /** The keys read since the last call. */
     take: () => reads.splice(0),
     /**
@@ -156,50 +160,79 @@ function aServer() {
 
 type Server = ReturnType<typeof aServer>;
 
-/** A new page load: fresh store state over the same cache. */
-function open(
-  server: Server,
-  cache: ReturnType<typeof createMemoryCache>,
-  events: CatalogEvent[] = [],
-) {
-  useCatalog.getState().setReader(createDataReader(server.source), {
-    cache,
+/** No Web Locks and no other tabs: this tab polls while it's visible. */
+const ALONE: PollPlatform = { locks: null, channel: () => null };
+
+let storage: ReturnType<typeof createMemoryQueryStorage>;
+let pages: QueryClient[] = [];
+
+/**
+ * A new page load: a fresh query client over the same saved rows, mounted
+ * as the router's provider mounts the app's (focus and reconnect refetch).
+ */
+function open(server: Server, events: CatalogEvent[] = []) {
+  const client = createTestQueryClient();
+  client.mount();
+  pages.push(client);
+  useCatalog.getState().connect(client, server.source, {
     onEvent: (e) => events.push(e),
+    poll: ALONE,
   });
   return events;
 }
 
-/** Lets background revalidation finish (the cache and fake server are microtasks). */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+/** Lets background checks, saves and pruning finish. */
+async function settle() {
+  for (const client of pages)
+    await vi.waitFor(() => expect(client.isFetching()).toBe(0));
+  for (let i = 0; i < 2; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushQueryStorage();
+  }
+}
 
 const titles = (termId: TermId) =>
   [...(useCatalog.getState().byTerm[termId]?.index.courses.values() ?? [])]
     .map((c) => c.title)
     .sort();
 
-const cachedDeptKeys = (cache: ReturnType<typeof createMemoryCache>) =>
-  [...cache.files.keys()].filter((k) => k.includes("/dept/")).sort();
+/** The R2 keys saved on this "device" now, sorted. */
+const savedKeys = () =>
+  [...storage.rows.keys()]
+    .map((k) => JSON.parse(k.slice(k.indexOf("-") + 1))[2] as string)
+    .sort();
+const savedDeptKeys = () => savedKeys().filter((k) => k.includes("/dept/"));
+const savedRow = (key: string) =>
+  [...storage.rows].find(([k]) => k.includes(`"${key}"`))?.[1] as
+    | { buster: string; state: { data: unknown } }
+    | undefined;
 
 let server: Server;
-let cache: ReturnType<typeof createMemoryCache>;
 
 beforeEach(() => {
   resetStores();
+  storage = createMemoryQueryStorage();
+  setQueryStorage(storage);
   server = aServer();
-  cache = createMemoryCache();
   server.publish(ACTIVE, { CMSC: 1, MATH: 2, ENGL: 3 });
   server.publish(ARCHIVED, { CMSC: 11 });
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
+afterEach(async () => {
   vi.useRealTimers();
+  server.release();
+  await settle();
+  for (const client of pages) client.unmount();
+  pages = [];
+  setQueryStorage(null);
+  onlineManager.setOnline(true);
+  vi.restoreAllMocks();
 });
 
 describe("first load", () => {
-  it("loads the plan's departments first, then the rest, and caches them all", async () => {
-    const events = open(server, cache);
+  it("loads the plan's departments first, then the rest, and saves them all", async () => {
+    const events = open(server);
     await useCatalog.getState().loadTerms();
     server.take();
     await useCatalog.getState().ensureTerm(ACTIVE, ["MATH"]);
@@ -210,11 +243,11 @@ describe("first load", () => {
     expect(depts).toHaveLength(3);
     const t = useCatalog.getState().byTerm[ACTIVE];
     expect(t?.complete).toBe(true);
-    expect(t?.manifestSource).toBe("network");
     expect(t?.changes?.changes).toHaveLength(1);
     expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
-    expect(cachedDeptKeys(cache)).toHaveLength(3);
-    expect(cache.pointers.has(manifestKey(ACTIVE))).toBe(true);
+    await settle();
+    expect(savedDeptKeys()).toHaveLength(3);
+    expect(savedKeys()).toContain(manifestKey(ACTIVE));
     expect(events).toEqual([
       expect.objectContaining({
         type: "catalog_loaded",
@@ -225,22 +258,21 @@ describe("first load", () => {
     ]);
   });
 
-  it("starts instantly from the cache on the next visit, fetching only the manifest", async () => {
-    open(server, cache);
+  it("starts from this device's copy on the next visit, asking only for the manifest", async () => {
+    open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
+    await settle();
     server.take();
 
-    const events = open(server, cache);
+    const events = open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
     await settle();
 
     expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
+    // Only the checks of the two fixed-name files; every hashed file is here.
     expect(server.take().sort()).toEqual([manifestKey(ACTIVE), TERMS_KEY]);
-    expect(useCatalog.getState().byTerm[ACTIVE]?.manifestSource).toBe(
-      "network",
-    );
     expect(events).toEqual([
       expect.objectContaining({ fromCache: true, deptsFetched: 0 }),
     ]);
@@ -253,7 +285,7 @@ describe("what's on screen first", () => {
   const t = () => useCatalog.getState().byTerm[ACTIVE];
 
   beforeEach(async () => {
-    open(server, cache);
+    open(server);
     await useCatalog.getState().loadTerms();
     server.take();
   });
@@ -349,17 +381,33 @@ describe("what's on screen first", () => {
     expect(t()?.complete).toBe(false);
     expect(t()?.settled).toBe(true);
   });
+
+  it("loads a department at its new hash when the manifest moves on while it loads", async () => {
+    server.hold((key) => key === deptChunkKey(ACTIVE, "CMSC", hash(1)));
+    const course = useCatalog.getState().ensureDepts(ACTIVE, ["CMSC"]);
+    await vi.waitFor(() => expect(server.waiting()).toHaveLength(1));
+    // Meanwhile the server moves CMSC on, and this page hears of it.
+    server.publish(ACTIVE, { CMSC: 4, MATH: 2, ENGL: 3 });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    server.release();
+    await course;
+
+    // Never the old version over the new one.
+    expect(titles(ACTIVE)).toEqual(["CMSC v4"]);
+    expect(t()?.depts.CMSC).toBe("ready");
+  });
 });
 
 describe("revalidating", () => {
   beforeEach(async () => {
-    open(server, cache);
+    open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
+    await settle();
     server.take();
   });
 
-  it("fetches only the departments whose hash changed, and evicts their old files", async () => {
+  it("fetches only the departments whose hash changed, and then drops their old files", async () => {
     server.publish(ACTIVE, { CMSC: 4, MATH: 2, ENGL: 3 });
     await useCatalog.getState().refreshTerm(ACTIVE);
 
@@ -369,7 +417,8 @@ describe("revalidating", () => {
     ]);
     expect(titles(ACTIVE)).toEqual(["CMSC v4", "ENGL v3", "MATH v2"]);
     expect(useCatalog.getState().byTerm[ACTIVE]?.complete).toBe(true);
-    expect(cachedDeptKeys(cache)).toEqual(
+    await settle();
+    expect(savedDeptKeys()).toEqual(
       [
         deptChunkKey(ACTIVE, "CMSC", hash(4)),
         deptChunkKey(ACTIVE, "ENGL", hash(3)),
@@ -378,13 +427,14 @@ describe("revalidating", () => {
     );
   });
 
-  it("drops departments the manifest no longer lists, from the index and the cache", async () => {
+  it("drops departments the manifest no longer lists, from the index and the device", async () => {
     server.publish(ACTIVE, { CMSC: 1, ENGL: 3 });
     await useCatalog.getState().refreshTerm(ACTIVE);
 
     expect(server.take()).toEqual([manifestKey(ACTIVE)]);
     expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3"]);
-    expect(cachedDeptKeys(cache)).not.toContain(
+    await settle();
+    expect(savedDeptKeys()).not.toContain(
       deptChunkKey(ACTIVE, "MATH", hash(2)),
     );
   });
@@ -402,20 +452,274 @@ describe("revalidating", () => {
     );
   });
 
-  it("keeps the previous file when a new one fails validation", async () => {
+  it("keeps the files it has, on screen and on disk, when the new ones fail", async () => {
     server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 3);
     server.files.set(deptChunkKey(ACTIVE, "CMSC", hash(5)), { nope: true });
     server.files.set(seatsKey(ACTIVE, hash(1003)), { schemaVersion: 1 });
     await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
 
     const t = useCatalog.getState().byTerm[ACTIVE];
     expect(titles(ACTIVE)).toContain("CMSC v1");
     expect(t?.depts.CMSC).toBe("ready");
     expect(t?.seats?.asOf).toBe("2026-09-25T01:00:00.000Z");
-    // Not committed: the cached manifest never points at a file we lack.
-    expect(cache.pointers.get(manifestKey(ACTIVE))?.data).toMatchObject({
-      seats: { hash: hash(1001) },
+    // The saved manifest names the versions this device has, so it never
+    // names a file it lacks, and nothing it names was dropped.
+    // The kept seats entry is the saved one whole: its own as-of and
+    // fetched times, never the new ones with the old file.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      seats: {
+        hash: hash(1001),
+        asOf: "2026-09-25T01:00:00.000Z",
+        fetchedAt: "2026-09-25T01:00:00.000Z",
+      },
     });
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(1)));
+    expect(savedKeys()).toContain(seatsKey(ACTIVE, hash(1001)));
+  });
+
+  it("shows new seats when one department's new file is broken, and tries only that file again", async () => {
+    // Every write of the manifest's row, to see it's never saved as it came.
+    const writes: unknown[] = [];
+    const watched = {
+      ...storage,
+      setItem: async (key: string, value: unknown) => {
+        if (key.includes(`"${manifestKey(ACTIVE)}"`))
+          writes.push((value as { state: { data: unknown } }).state.data);
+        return storage.setItem(key, value);
+      },
+    };
+    setQueryStorage(watched);
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 2);
+    server.files.set(deptChunkKey(ACTIVE, "CMSC", hash(5)), { nope: true });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(writes.length).toBeGreaterThan(0);
+    for (const saved of writes)
+      expect(saved).toMatchObject({
+        departments: expect.arrayContaining([
+          expect.objectContaining({ code: "CMSC", hash: hash(1) }),
+        ]),
+      });
+
+    // The new seats show; CMSC keeps the version it had.
+    const t = () => useCatalog.getState().byTerm[ACTIVE];
+    expect(t()?.seats?.asOf).toBe("2026-09-25T02:00:00.000Z");
+    expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
+    expect(t()?.depts.CMSC).toBe("ready");
+    // Saved: the new seats, and CMSC at the version this device has; the
+    // old seats file is dropped, the old CMSC file kept.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      seats: { hash: hash(1002) },
+      departments: expect.arrayContaining([
+        expect.objectContaining({ code: "CMSC", hash: hash(1) }),
+      ]),
+    });
+    expect(savedKeys()).toContain(seatsKey(ACTIVE, hash(1002)));
+    expect(savedKeys()).not.toContain(seatsKey(ACTIVE, hash(1001)));
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(1)));
+
+    // The next poll asks for the manifest and that one file, nothing else.
+    server.take();
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(server.take()).toEqual([
+      manifestKey(ACTIVE),
+      deptChunkKey(ACTIVE, "CMSC", hash(5)),
+    ]);
+
+    // Once the jobs fix it, the next poll brings it on screen and on disk.
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 2);
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(titles(ACTIVE)).toEqual(["CMSC v5", "ENGL v3", "MATH v2"]);
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(5)));
+    expect(savedDeptKeys()).not.toContain(
+      deptChunkKey(ACTIVE, "CMSC", hash(1)),
+    );
+  });
+
+  it("never deadlocks when a department's file is missing while a poll is out", async () => {
+    // The manifest on screen lists CMSC@5, which the server doesn't have;
+    // this device has CMSC@1.
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 });
+    const cmsc5 = deptChunkKey(ACTIVE, "CMSC", hash(5));
+    server.files.delete(cmsc5);
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(titles(ACTIVE)).toContain("CMSC v1");
+
+    // CMSC@5's query starts first (a course's details), then a poll.
+    const { client, source } = useCatalog.getState();
+    if (!client || !source) throw new Error("connected");
+    server.hold((key) => key === cmsc5);
+    const dept = client
+      .fetchQuery(
+        deptChunkQuery(source, ACTIVE, { code: "CMSC", hash: hash(5) }),
+      )
+      .catch((error: unknown) => error);
+    await vi.waitFor(() => expect(server.waiting()).toEqual([cmsc5]));
+    const poll = useCatalog.getState().refreshTerm(ACTIVE);
+    // The poll reads CMSC@5 for itself; it never joins the query above.
+    await vi.waitFor(() => expect(server.waiting()).toEqual([cmsc5, cmsc5]));
+    // Both 404: the department asks for the manifest again, the poll takes
+    // the manifest without it. Neither waits on the other.
+    server.release();
+    const outcome = await Promise.race([
+      Promise.all([dept, poll]).then(() => "done"),
+      new Promise((resolve) => setTimeout(() => resolve("hung"), 3_000)),
+    ]);
+    expect(outcome).toBe("done");
+    expect(titles(ACTIVE)).toContain("CMSC v1");
+  });
+
+  it("names the new version when another tab has dropped the one this tab kept", async () => {
+    // A write gate on the disk's key listing, to stop this tab's save
+    // right before it checks the disk.
+    let gate: (() => void) | null = null;
+    let armed = false;
+    const gated = {
+      ...storage,
+      keys: async (prefix: string) => {
+        if (armed) {
+          armed = false;
+          await new Promise<void>((resolve) => {
+            gate = resolve;
+          });
+        }
+        return storage.keys(prefix);
+      },
+    };
+    setQueryStorage(gated);
+    const cmsc5 = deptChunkKey(ACTIVE, "CMSC", hash(5));
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 });
+    const { source } = useCatalog.getState();
+    if (!source) throw new Error("connected");
+    // Tab A: CMSC@5 doesn't reach it (a blip), so it keeps CMSC@1.
+    const blip: DataSource = {
+      ...source,
+      readJson: async (key, options) => {
+        if (key === cmsc5) throw new DataError(key, "invalid", "blip");
+        return source.readJson(key, options);
+      },
+    };
+    const tabA = createTestQueryClient();
+    await tabA.fetchQuery({ ...manifestQuery(blip, ACTIVE), staleTime: 0 });
+    armed = true;
+    // Its save stops at the disk check...
+    await vi.waitFor(() => expect(gate).not.toBeNull());
+    // ...while tab B loads CMSC@5, saves the manifest and drops CMSC@1.
+    const tabB = createTestQueryClient();
+    await tabB.fetchQuery({ ...manifestQuery(source, ACTIVE), staleTime: 0 });
+    await vi.waitFor(async () => {
+      await flushQueryStorage();
+      expect(savedDeptKeys()).not.toContain(
+        deptChunkKey(ACTIVE, "CMSC", hash(1)),
+      );
+    });
+    // Tab A goes on: it names CMSC@5, which is saved, and keeps it.
+    (gate as (() => void) | null)?.();
+    await vi.waitFor(async () => {
+      await flushQueryStorage();
+      expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+        departments: expect.arrayContaining([
+          expect.objectContaining({ code: "CMSC", hash: hash(5) }),
+        ]),
+      });
+    });
+    await settle();
+    expect(savedDeptKeys()).toContain(cmsc5);
+  });
+
+  it("gives up a manifest fetch that never ends, once, and not as offline", async () => {
+    vi.useFakeTimers();
+    server.publish(ACTIVE, { CMSC: 7, MATH: 2, ENGL: 3 });
+    const cmsc7 = deptChunkKey(ACTIVE, "CMSC", hash(7));
+    // A file read that never comes back (a slow link, not a dead one).
+    server.hold((key) => key === cmsc7);
+    const { client, source } = useCatalog.getState();
+    if (!client || !source) throw new Error("connected");
+    server.take();
+    const fetch = client
+      .fetchQuery({ ...manifestQuery(source, ACTIVE), staleTime: 0 })
+      .catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(POINTER_TIMEOUT_MS + 1000);
+    const error = await fetch;
+    expect(error).toBeInstanceOf(DataError);
+    expect((error as DataError).reason).toBe("timeout");
+    // Not asked again at once: a timeout isn't retried.
+    expect(server.take().filter((k) => k === cmsc7)).toEqual([cmsc7]);
+    // Too slow isn't offline: the bar doesn't say so.
+    expect(useCatalog.getState().network).toBe("online");
+    vi.useRealTimers();
+
+    // The slow read comes back late. It saves nothing, and the next
+    // poll's manifest is saved as usual.
+    server.release();
+    server.publish(ACTIVE, { CMSC: 8, MATH: 2, ENGL: 3 });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      departments: expect.arrayContaining([
+        expect.objectContaining({ code: "CMSC", hash: hash(8) }),
+      ]),
+    });
+  });
+
+  it("keeps the version the saved manifest names, not an orphan beside it", async () => {
+    // An older copy of CMSC left on disk (CMSC@0) beside the one the saved
+    // manifest names (CMSC@1).
+    const rowOf = (key: string) =>
+      `published:catalog-${JSON.stringify(["published", "live", key])}`;
+    const named = storage.rows.get(
+      rowOf(deptChunkKey(ACTIVE, "CMSC", hash(1))),
+    ) as { queryHash: string; queryKey: unknown[] };
+    const orphan = deptChunkKey(ACTIVE, "CMSC", hash(0));
+    storage.rows.set(rowOf(orphan), {
+      ...structuredClone(named),
+      queryHash: JSON.stringify(["published", "live", orphan]),
+      queryKey: ["published", "live", orphan],
+    });
+    // CMSC@5 is broken.
+    server.publish(ACTIVE, { CMSC: 5, MATH: 2, ENGL: 3 }, 2);
+    server.files.set(deptChunkKey(ACTIVE, "CMSC", hash(5)), { nope: true });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    // Saved: CMSC@1, which the saved manifest named, and it stays on disk.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      departments: expect.arrayContaining([
+        expect.objectContaining({ code: "CMSC", hash: hash(1) }),
+      ]),
+    });
+    expect(savedDeptKeys()).toContain(deptChunkKey(ACTIVE, "CMSC", hash(1)));
+    expect(savedDeptKeys()).not.toContain(orphan);
+  });
+
+  it("never saves an older manifest over a newer one another tab brought in", async () => {
+    vi.useFakeTimers();
+    const { client, source } = useCatalog.getState();
+    if (!client || !source) throw new Error("connected");
+    // This tab asks for the manifest (still v1 seats)...
+    await client.fetchQuery({ ...manifestQuery(source, ACTIVE), staleTime: 0 });
+    // ...and before it saves it, the polling tab (another client over the
+    // same disk) brings newer seats and saves them.
+    server.publish(ACTIVE, { CMSC: 1, MATH: 2, ENGL: 3 }, 2);
+    const holder = createTestQueryClient();
+    const newer = await holder.fetchQuery({
+      ...manifestQuery(source, ACTIVE),
+      staleTime: 0,
+    });
+    client.setQueryData(manifestQuery(source, ACTIVE).queryKey, newer, {
+      updatedAt: Date.now() + 1,
+    });
+    await vi.runAllTimersAsync();
+    await flushQueryStorage();
+    vi.useRealTimers();
+    // The newer manifest and its seats stay saved.
+    expect(savedRow(manifestKey(ACTIVE))?.state.data).toMatchObject({
+      seats: { hash: hash(1002) },
+    });
+    expect(savedKeys()).toContain(seatsKey(ACTIVE, hash(1002)));
   });
 
   it("keeps what's loaded and marks the tab stale when the server has a newer format", async () => {
@@ -425,42 +729,59 @@ describe("revalidating", () => {
     expect(useCatalog.getState().appStale).toBe(true);
     expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
   });
+
+  it("never drops another term's files", async () => {
+    await useCatalog.getState().ensureTerm(ARCHIVED);
+    await settle();
+    server.publish(ACTIVE, { CMSC: 4, MATH: 2, ENGL: 3 });
+    await useCatalog.getState().refreshTerm(ACTIVE);
+    await settle();
+    expect(savedKeys()).toEqual(
+      expect.arrayContaining([
+        manifestKey(ARCHIVED),
+        deptChunkKey(ARCHIVED, "CMSC", hash(11)),
+        TERMS_KEY,
+      ]),
+    );
+  });
 });
 
 describe("a schema version bump in this build", () => {
-  it("drops the cached files of that family and refetches everything", async () => {
-    open(server, cache);
+  it("drops the saved files of that family and fetches everything again", async () => {
+    open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
-    // As if an older build (catalog v0) had filled the cache.
-    cache.pointers.set(SCHEMA_VERSIONS_KEY, {
-      data: { ...SCHEMA_VERSIONS, catalog: 0 },
-      checkedAt: "2026-09-01T00:00:00.000Z",
-    });
+    await settle();
+    // As if an older build (catalog v0) had saved them.
+    for (const row of storage.rows.values())
+      (row as { buster: string }).buster = "catalog@0";
     server.take();
 
-    const events = open(server, cache);
+    const events = open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
+    await settle();
 
     expect(server.take().filter((k) => k.includes("/dept/"))).toHaveLength(3);
     expect(events).toEqual([
       expect.objectContaining({ fromCache: false, deptsFetched: 5 }),
     ]);
-    expect(cache.pointers.get(SCHEMA_VERSIONS_KEY)?.data).toEqual(
-      SCHEMA_VERSIONS,
+    expect(savedRow(manifestKey(ACTIVE))?.buster).toBe(
+      `catalog@${SCHEMA_VERSIONS.catalog}`,
     );
   });
 });
 
 describe("offline", () => {
-  it("shows saved data, and says so quietly", async () => {
-    open(server, cache);
+  it("starts from saved data, and says so quietly", async () => {
+    open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
+    await settle();
 
     server.setOffline(true);
-    const events = open(server, cache);
+    onlineManager.setOnline(false);
+    const events = open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
     await settle();
@@ -470,6 +791,7 @@ describe("offline", () => {
     expect(s.termsError).toBeNull();
     expect(s.network).toBe("offline");
     expect(titles(ACTIVE)).toEqual(["CMSC v1", "ENGL v3", "MATH v2"]);
+    expect(s.byTerm[ACTIVE]?.seats).not.toBeNull();
     expect(events).toEqual([expect.objectContaining({ fromCache: true })]);
     const { result } = renderHook(() => useSeatsFreshness(ACTIVE));
     expect(result.current).toMatchObject({
@@ -478,9 +800,10 @@ describe("offline", () => {
     });
   });
 
-  it("with nothing saved, gives a specific error, and a retry that works", async () => {
+  it("with nothing saved, gives a specific error at once, and a retry that works", async () => {
     server.setOffline(true);
-    const events = open(server, cache);
+    onlineManager.setOnline(false);
+    const events = open(server);
     await useCatalog.getState().loadTerms();
 
     expect(useCatalog.getState().termsError).toBe(
@@ -489,8 +812,11 @@ describe("offline", () => {
     expect(events).toEqual([
       { type: "catalog_load_failed", termId: null, reason: "network" },
     ]);
+    // Asked once: offline, a read fails at once rather than retrying.
+    expect(server.take()).toEqual([TERMS_KEY]);
 
     server.setOffline(false);
+    onlineManager.setOnline(true);
     await useCatalog.getState().retry();
     expect(useCatalog.getState().terms).toHaveLength(2);
     expect(useCatalog.getState().termsError).toBeNull();
@@ -498,7 +824,7 @@ describe("offline", () => {
   });
 
   it("marks the term failed when its manifest can't load and none is saved", async () => {
-    const events = open(server, cache);
+    const events = open(server);
     await useCatalog.getState().loadTerms();
     server.setOffline(true);
     await useCatalog.getState().ensureTerm(ACTIVE);
@@ -518,10 +844,11 @@ describe("offline", () => {
 
 describe("seat freshness and polling", () => {
   beforeEach(async () => {
-    open(server, cache);
+    open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
     await useCatalog.getState().ensureTerm(ARCHIVED);
+    await settle();
     server.take();
   });
 
@@ -543,7 +870,7 @@ describe("seat freshness and polling", () => {
     );
   });
 
-  it("polls the manifest every minute while visible, and not while hidden", async () => {
+  it("polls the manifest every minute while visible, not while hidden, and again when shown once stale", async () => {
     vi.useFakeTimers();
     renderHook(() => useCatalogPolling(ACTIVE));
     await act(() => vi.advanceTimersByTimeAsync(60_000));
@@ -552,15 +879,48 @@ describe("seat freshness and polling", () => {
     const visibility = vi
       .spyOn(document, "visibilityState", "get")
       .mockReturnValue("hidden");
-    await act(() => vi.advanceTimersByTimeAsync(120_000));
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
     expect(server.take()).toEqual([]);
 
     visibility.mockReturnValue("visible");
     await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(server.take()).toEqual([manifestKey(ACTIVE)]);
+  });
+
+  it("doesn't ask again on coming back while the manifest is still current", async () => {
+    vi.useFakeTimers();
+    renderHook(() => useCatalogPolling(ACTIVE));
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    server.take();
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    visibility.mockReturnValue("visible");
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(server.take()).toEqual([]);
+  });
+
+  it("brings what a poll finds: new seats show without a reload", async () => {
+    vi.useFakeTimers();
+    renderHook(() => useCatalogPolling(ACTIVE));
+    server.publish(ACTIVE, { CMSC: 1, MATH: 2, ENGL: 3 }, 2);
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(useCatalog.getState().byTerm[ACTIVE]?.seats?.asOf).toBe(
+      "2026-09-25T02:00:00.000Z",
+    );
   });
 
   it("never polls an archived term", async () => {
@@ -568,6 +928,21 @@ describe("seat freshness and polling", () => {
     renderHook(() => useCatalogPolling(ARCHIVED));
     await act(() => vi.advanceTimersByTimeAsync(180_000));
     expect(server.take()).toEqual([]);
+  });
+
+  it("reloads the page when it's next shown, once the server has a newer format", async () => {
+    const reload = vi
+      .spyOn(window.location, "reload")
+      .mockImplementation(() => {});
+    renderHook(() => useCatalogPolling(ACTIVE));
+    server.publish(ACTIVE, { CMSC: 6 }, 1, SCHEMA_VERSIONS.catalog + 1);
+    await act(() => useCatalog.getState().refreshTerm(ACTIVE));
+    expect(useCatalog.getState().appStale).toBe(true);
+    expect(reload).not.toHaveBeenCalled();
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it("keeps each term's plans and sections apart", () => {
@@ -580,11 +955,10 @@ describe("seat freshness and polling", () => {
   });
 });
 
-describe("no cache", () => {
+describe("no storage", () => {
   it("works without one (IndexedDB unavailable)", async () => {
-    useCatalog
-      .getState()
-      .setReader(createDataReader(server.source), { cache: null });
+    setQueryStorage(null);
+    open(server);
     await useCatalog.getState().loadTerms();
     await useCatalog.getState().ensureTerm(ACTIVE);
     await waitFor(() =>

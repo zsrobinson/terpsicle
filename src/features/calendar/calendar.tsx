@@ -11,11 +11,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { CanvasBar } from "~/components/workbench/canvas-bar";
+import { CanvasHint } from "~/components/workbench/canvas-hint";
 import type { Connection, CourseCode, Day } from "~/core/schema";
 import { parseSectionKey } from "~/core/schema";
 import type { SeatsMap } from "~/core/seats";
 import { DAY_LONG_NAMES } from "~/core/time";
+import { CourseContextMenu } from "~/features/courses/courses-panel";
 import { switchSection } from "~/features/schedule/actions";
 import {
   closeToTab,
@@ -24,9 +25,8 @@ import {
   preloadDrill,
 } from "~/features/schedule/schedule-nav";
 import { useScheduleView } from "~/features/schedule/schedule-view";
-import { ScheduleShare } from "~/features/share/schedule-share";
 import { useIsMobile } from "~/hooks/use-media-query";
-import { PEEK_HEIGHT, snapHeights } from "~/lib/drawer-heights";
+import { PEEK_HEIGHT, snapHeights, tabBarHeight } from "~/lib/drawer-heights";
 import { useShortcut } from "~/lib/shortcuts";
 import { useTravel } from "~/state/hooks";
 import { useWatchedSections } from "~/state/seat-watches";
@@ -62,7 +62,13 @@ import {
   NewBlockPopover,
   snapMinute,
 } from "./new-block";
-import { GhostHint, PreviewHint, SearchHint, UntimedStrip } from "./strips";
+import {
+  GenerateHint,
+  GhostHint,
+  PreviewHint,
+  SearchHint,
+  UntimedStrip,
+} from "./strips";
 import { type CalendarView, useCalendarModel } from "./use-calendar-model";
 import {
   type CalendarLayout,
@@ -80,12 +86,17 @@ const EMPTY_WEEK = "Empty week: nothing on the calendar yet";
 export function Calendar() {
   const view = useCalendarModel();
   const { model, current } = view;
-  // On the Search tab, hovering a result shows its sections: the hint's row
-  // is there before the first hover, so no hover ever moves the grid, and
-  // the day names stay in view (UX-REVIEW §4.2).
+  // On the Search and Generate tabs, hovering a result shows it here: the
+  // hint's row is there before the first hover, so no hover ever moves the
+  // grid, and the day names stay in view (UX-REVIEW §4.2).
   const place = useScheduleView();
-  const searching =
-    useUi((s) => s.sidebarOpen) && place.tab === "search" && !place.drill;
+  const sidebarOpen = useUi((s) => s.sidebarOpen);
+  const previewing =
+    sidebarOpen &&
+    !place.drill &&
+    (place.tab === "search" || place.tab === "generate")
+      ? place.tab
+      : null;
   useGhostKeys(view);
   useClearStalePreview(model);
   const bottomInset = useDrawerInset();
@@ -107,7 +118,6 @@ export function Calendar() {
         startMinute={8 * 60}
         endMinute={17 * 60}
         emptyLabel={EMPTY_WEEK}
-        top={<CanvasBar start={<ScheduleShare />} />}
       />
     );
   const empty = model.columns.every(
@@ -124,8 +134,10 @@ export function Calendar() {
       readOnly={current.readOnly}
       color={ghostColor}
     />
-  ) : searching ? (
+  ) : previewing === "search" ? (
     <SearchHint />
+  ) : previewing === "generate" ? (
+    <GenerateHint />
   ) : null;
 
   return (
@@ -135,15 +147,10 @@ export function Calendar() {
       endMinute={model.endMinute}
       bottomInset={bottomInset}
       emptyLabel={empty ? EMPTY_WEEK : undefined}
-      top={
-        <>
-          {/* In a narrow bar, Share gives its word up to a hint. */}
-          <CanvasBar start={<ScheduleShare shrink={hint !== null} />}>
-            {hint}
-          </CanvasBar>
-          <UntimedStrip sections={model.untimed} onOpen={openCourse} />
-        </>
-      }
+      // Floating over the grid while there's something to say: no second
+      // bar under the family bar (docs/decisions.md, "One bar at the top").
+      overlay={hint ? <CanvasHint>{hint}</CanvasHint> : null}
+      top={<UntimedStrip sections={model.untimed} onOpen={openCourse} />}
     >
       {(layout) => (
         <Grid
@@ -172,14 +179,20 @@ function useDrawerInset(): number {
   return Math.max(0, snapHeights(window.innerHeight).half - PEEK_HEIGHT);
 }
 
-/** The part of the screen where the calendar can be seen, under its day names. */
+/**
+ * The part of the screen where the calendar can be seen: under its day
+ * names and the hint floating over the grid, above a phone's drawer.
+ */
 function visibleBand(
   scroller: HTMLElement,
   drawerCover: number,
 ): { top: number; bottom: number } {
   const box = scroller.getBoundingClientRect();
+  const hint = scroller.parentElement
+    ?.querySelector<HTMLElement>("[data-canvas-hint]")
+    ?.getBoundingClientRect();
   return {
-    top: box.top + DAY_HEADER_HEIGHT,
+    top: Math.max(box.top + DAY_HEADER_HEIGHT, hint ? hint.bottom : 0),
     bottom: Math.min(box.bottom, window.innerHeight - drawerCover),
   };
 }
@@ -194,6 +207,7 @@ function scrollIntoBand(
   pick: (column: CalendarModel["columns"][number]) => readonly Timed[],
   { model, layout }: { model: CalendarModel; layout: CalendarLayout },
   drawerCover: number,
+  whole = false,
 ): void {
   const scroller = grid?.closest<HTMLElement>("[data-calendar-scroll]");
   if (!grid || !scroller) return;
@@ -206,6 +220,7 @@ function scrollIntoBand(
       })),
     ),
     visibleBand(scroller, drawerCover),
+    { whole },
   );
   if (delta === 0) return;
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -230,7 +245,7 @@ function useScrollToGhosts(
   latest.current = { model, layout };
   const cover = () =>
     mobile && typeof window !== "undefined"
-      ? snapHeights(window.innerHeight)[snap]
+      ? snapHeights(window.innerHeight, { tabBar: tabBarHeight() })[snap]
       : 0;
   // biome-ignore lint/correctness/useExhaustiveDependencies: `cover` reads mobile and snap, listed
   useEffect(() => {
@@ -270,6 +285,7 @@ function useScrollToGhosts(
           ),
         latest.current,
         cover(),
+        true,
       ),
     );
     return () => cancelAnimationFrame(frame);
@@ -679,7 +695,7 @@ function Grid({
                   width={width}
                   nav={nav(`c:${entry.key}`)}
                 />
-              ) : (
+              ) : readOnly ? (
                 <ClassBlock
                   key={entry.key}
                   entry={entry}
@@ -697,6 +713,29 @@ function Grid({
                   width={width}
                   nav={nav(`c:${entry.key}`)}
                 />
+              ) : (
+                // A right click, or a long press on a phone: its row's menu.
+                <CourseContextMenu
+                  key={entry.key}
+                  courseCode={entry.courseCode}
+                >
+                  <ClassBlock
+                    entry={entry}
+                    height={height}
+                    dimmed={
+                      ghostCourse !== null && entry.courseCode !== ghostCourse
+                    }
+                    selected={ghostCourse === entry.courseCode}
+                    changed={changed?.has(entry.sectionKey) ?? false}
+                    watching={watched.has(entry.sectionKey)}
+                    registered={registered.has(entry.sectionKey)}
+                    open={openCode === entry.courseCode}
+                    onOpen={() => openCourse(entry.courseCode)}
+                    style={style}
+                    width={width}
+                    nav={nav(`c:${entry.key}`)}
+                  />
+                </CourseContextMenu>
               ),
           });
         }

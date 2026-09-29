@@ -1,6 +1,16 @@
 import { useLocation } from "@tanstack/react-router";
 import { cn } from "cn";
-import { Check, ChevronDown, Redo2, Undo2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Eraser,
+  Pencil,
+  Plus,
+  Redo2,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { AppBar } from "~/components/app-bar";
 import { CreditsStatus, ProblemsStatus } from "~/components/workbench/status";
@@ -11,6 +21,14 @@ import type { FourYearDoc } from "~/core/schema/four-year";
 import { useSyncStatus } from "~/features/sync/status";
 import { SyncStatusLabel } from "~/features/sync/status-view";
 import { modKey } from "~/lib/shortcuts";
+import {
+  ActionMenu,
+  ActionMenuItem,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+  ActionMenuSeparator,
+  usePhoneMenus,
+} from "~/ui/action-menu";
 import { Button } from "~/ui/button";
 import {
   DropdownMenu,
@@ -36,15 +54,17 @@ import {
   setFirstTerm,
 } from "./actions";
 import { useModel, useProblemCounts } from "./model";
+import { PlanShare } from "./share";
 import { useFourYear } from "./store";
 import { planView } from "./views";
 
 // Plan's bar (V3 §2.13): the family bar (~/components/app-bar), as the scheduler's.
 // Its context is the open plan's name with its ▾ menu (switch, Rename,
 // Duplicate, New, the first semester, Delete with Undo), then undo and redo
-// (V3 §2.3). Its status is where the plan is saved (this browser, or the
-// account's sync icon while signed in), the credits, and the problems,
-// which open the Problems view.
+// (V3 §2.3); on a phone the menu is a sheet (the kit's ActionMenu), since
+// its submenu of first semesters has no room there. Its status is where the
+// plan is saved (this browser, or the account's sync icon while signed in),
+// the credits, and the problems, which open the Problems view; then Share.
 
 function RenameField({
   doc,
@@ -226,11 +246,121 @@ function SavedState({ compact }: { compact: boolean }) {
 /** The plan's name and its menu, or the field that renames it. */
 function PlanName() {
   const { doc } = useModel();
+  const phone = usePhoneMenus();
   const [renaming, setRenaming] = useState(false);
   return renaming ? (
     <RenameField doc={doc} onDone={() => setRenaming(false)} />
+  ) : phone ? (
+    <DocSheet onRename={() => setRenaming(true)} />
   ) : (
     <DocMenu onRename={() => setRenaming(true)} />
+  );
+}
+
+/**
+ * A phone's four-year plans: the same choices as the ▾ menu, in one sheet,
+ * with the first semester as a list of its own at the end.
+ */
+function DocSheet({ onRename }: { onRename: () => void }) {
+  const { doc, today, totals } = useModel();
+  const docs = useFourYear((s) => s.history.present.docs);
+  const setActive = useFourYear((s) => s.setActive);
+  // Rename puts a field where the button was: the sheet leaves focus there.
+  const renaming = useRef(false);
+  return (
+    <ActionMenu
+      title="Four-year plans"
+      description={`${doc.name} · ${totals.earned} earned, ${totals.inProgress} in progress, ${totals.planned} planned`}
+      tooltip="Switch, rename, copy or delete this four-year plan"
+      finalFocus={() => {
+        const sent = renaming.current;
+        renaming.current = false;
+        return sent ? false : null;
+      }}
+      trigger={
+        // The plan's name over its credits: a phone's bar says where it
+        // stands, so nothing needs a row of its own under the bar.
+        <button
+          type="button"
+          className="flex h-10 min-w-0 items-center gap-1 rounded-md pr-1.5 pl-1.5 text-left transition-colors hover:bg-hover data-popup-open:bg-hover"
+        >
+          <span className="min-w-0">
+            <span className="block truncate font-medium text-base leading-tight">
+              {doc.name}
+            </span>
+            <span className="tnum block truncate text-muted text-xs leading-tight">
+              {creditsHeadline(totals)}
+            </span>
+          </span>
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className="shrink-0 text-muted"
+          />
+        </button>
+      }
+    >
+      {docs.length > 1 ? (
+        <>
+          <ActionMenuRadioGroup value={doc.id} onValueChange={setActive}>
+            {docs.map((d) => (
+              <ActionMenuRadioItem key={d.id} value={d.id}>
+                {d.name}
+              </ActionMenuRadioItem>
+            ))}
+          </ActionMenuRadioGroup>
+          <ActionMenuSeparator />
+        </>
+      ) : null}
+      <ActionMenuItem
+        icon={<Plus aria-hidden="true" />}
+        onSelect={() => newDoc(doc.firstTermId)}
+      >
+        New four-year plan
+      </ActionMenuItem>
+      <ActionMenuItem
+        icon={<Copy aria-hidden="true" />}
+        onSelect={() => duplicateDoc(doc)}
+      >
+        Duplicate
+      </ActionMenuItem>
+      <ActionMenuItem
+        icon={<Pencil aria-hidden="true" />}
+        onSelect={() => {
+          renaming.current = true;
+          onRename();
+        }}
+      >
+        Rename
+      </ActionMenuItem>
+      {Object.keys(doc.grades).length > 0 ? (
+        <ActionMenuItem
+          icon={<Eraser aria-hidden="true" />}
+          onSelect={() => removeGrades(doc)}
+        >
+          Remove grades
+        </ActionMenuItem>
+      ) : null}
+      <ActionMenuItem
+        variant="destructive"
+        icon={<Trash2 aria-hidden="true" />}
+        onSelect={() => deleteDoc(doc)}
+      >
+        Delete
+      </ActionMenuItem>
+      <ActionMenuSeparator />
+      <ActionMenuRadioGroup
+        label="Starts in"
+        value={doc.firstTermId}
+        onValueChange={(term) => setFirstTerm(doc, term)}
+      >
+        {firstTermChoices(today).map((term) => (
+          <ActionMenuRadioItem key={term} value={term}>
+            {fourYearTermLabel(term)}
+          </ActionMenuRadioItem>
+        ))}
+      </ActionMenuRadioGroup>
+    </ActionMenu>
   );
 }
 
@@ -262,6 +392,7 @@ export function PlanBar({
           <UndoRedo />
         </>
       }
+      share={<PlanShare />}
       status={
         <>
           <SavedState compact={compact} />
