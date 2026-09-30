@@ -1,0 +1,175 @@
+2026-09-29T20:17:19.471Z pw:browser <launching> /home/runner/.cache/ms-playwright/webkit-2359/pw_run.sh --inspector-pipe --headless --no-startup-window
+2026-09-29T20:17:19.476Z pw:browser <launched> pid=5331
+2026-09-29T20:17:20.608Z pw:browser [pid=5331][err] 
+2026-09-29T20:17:20.608Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:17:20.607: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:17:21.437Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:17:21.435Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/keyboard-at-half/page@8199a67e2efabaeeefd18eafbea421ae.webm
+2026-09-29T20:17:21.440Z pw:browser <launched> pid=5376
+2026-09-29T20:17:44.517Z pw:browser [pid=5376] <gracefully close start>
+2026-09-29T20:17:44.517Z pw:browser Closing stdin...
+2026-09-29T20:17:44.517Z pw:browser ffmpeg finished input.
+2026-09-29T20:17:44.591Z pw:browser [pid=5376] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:17:44.591Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:17:44.591Z pw:browser [pid=5376] starting temporary directories cleanup
+2026-09-29T20:17:44.591Z pw:browser [pid=5376] finished temporary directories cleanup
+2026-09-29T20:17:44.591Z pw:browser [pid=5376] <gracefully close end>
+2026-09-29T20:17:46.594Z pw:browser [pid=5331][err] 
+2026-09-29T20:17:46.594Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:17:46.594: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:17:46.596Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:17:46.596Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/keyboard-at-full/page@95ff34db9756ee81a86f9250cc9ec8ac.webm
+2026-09-29T20:17:46.600Z pw:browser <launched> pid=5840
+2026-09-29T20:18:02.670Z pw:browser [pid=5840] <gracefully close start>
+2026-09-29T20:18:02.670Z pw:browser Closing stdin...
+2026-09-29T20:18:02.670Z pw:browser ffmpeg finished input.
+2026-09-29T20:18:02.733Z pw:browser [pid=5840] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:18:02.733Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:18:02.733Z pw:browser [pid=5840] starting temporary directories cleanup
+2026-09-29T20:18:02.733Z pw:browser [pid=5840] finished temporary directories cleanup
+2026-09-29T20:18:02.733Z pw:browser [pid=5840] <gracefully close end>
+2026-09-29T20:18:04.353Z pw:browser [pid=5331][err] 
+2026-09-29T20:18:04.353Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:18:04.353: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:18:04.355Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:18:04.355Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/keyboard-at-peek/page@edfc57180177aa2ff055d6f82468caaf.webm
+2026-09-29T20:18:04.360Z pw:browser <launched> pid=6315
+2026-09-29T20:18:20.331Z pw:browser [pid=6315] <gracefully close start>
+2026-09-29T20:18:20.331Z pw:browser Closing stdin...
+2026-09-29T20:18:20.331Z pw:browser ffmpeg finished input.
+2026-09-29T20:18:20.404Z pw:browser [pid=6315] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:18:20.404Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:18:20.404Z pw:browser [pid=6315] starting temporary directories cleanup
+2026-09-29T20:18:20.404Z pw:browser [pid=6315] finished temporary directories cleanup
+2026-09-29T20:18:20.404Z pw:browser [pid=6315] <gracefully close end>
+2026-09-29T20:18:22.153Z pw:browser [pid=5331][err] 
+2026-09-29T20:18:22.153Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:18:22.153: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:18:22.156Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:18:22.155Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/first-load/page@c23838702a4231838025f740797f681c.webm
+2026-09-29T20:18:22.160Z pw:browser <launched> pid=6810
+2026-09-29T20:18:27.395Z pw:browser [pid=6810] <gracefully close start>
+2026-09-29T20:18:27.395Z pw:browser Closing stdin...
+2026-09-29T20:18:27.395Z pw:browser ffmpeg finished input.
+2026-09-29T20:18:27.490Z pw:browser [pid=6810] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:18:27.490Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:18:27.490Z pw:browser [pid=6810] starting temporary directories cleanup
+2026-09-29T20:18:27.490Z pw:browser [pid=6810] finished temporary directories cleanup
+2026-09-29T20:18:27.490Z pw:browser [pid=6810] <gracefully close end>
+2026-09-29T20:18:28.164Z pw:browser [pid=5331][err] 
+2026-09-29T20:18:28.164Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:18:28.164: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:18:28.166Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:18:28.166Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/tabs/page@952d4d2f3b5df7c3d45d233bd564749a.webm
+2026-09-29T20:18:28.168Z pw:browser <launched> pid=7010
+2026-09-29T20:18:43.547Z pw:browser [pid=7010] <gracefully close start>
+2026-09-29T20:18:43.547Z pw:browser Closing stdin...
+2026-09-29T20:18:43.548Z pw:browser ffmpeg finished input.
+2026-09-29T20:18:43.592Z pw:browser [pid=7010] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:18:43.592Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:18:43.592Z pw:browser [pid=7010] starting temporary directories cleanup
+2026-09-29T20:18:43.592Z pw:browser [pid=7010] finished temporary directories cleanup
+2026-09-29T20:18:43.592Z pw:browser [pid=7010] <gracefully close end>
+2026-09-29T20:18:45.088Z pw:browser [pid=5331][err] 
+2026-09-29T20:18:45.088Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:18:45.088: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:18:45.090Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:18:45.089Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/pull-lists/page@48cad572c09617b34782712192d2d6e4.webm
+2026-09-29T20:18:45.093Z pw:browser <launched> pid=7416
+2026-09-29T20:19:09.821Z pw:browser [pid=7416] <gracefully close start>
+2026-09-29T20:19:09.821Z pw:browser Closing stdin...
+2026-09-29T20:19:09.821Z pw:browser ffmpeg finished input.
+2026-09-29T20:19:09.902Z pw:browser [pid=7416] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:19:09.902Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:19:09.902Z pw:browser [pid=7416] starting temporary directories cleanup
+2026-09-29T20:19:09.902Z pw:browser [pid=7416] finished temporary directories cleanup
+2026-09-29T20:19:09.902Z pw:browser [pid=7416] <gracefully close end>
+2026-09-29T20:19:12.953Z pw:browser [pid=5331][err] 
+2026-09-29T20:19:12.953Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:19:12.952: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:19:12.955Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:19:12.954Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/scroll-list-back/page@ef47e3d8efc1fc7a1eb4c2ad2d51ec5a.webm
+2026-09-29T20:19:12.958Z pw:browser <launched> pid=7793
+2026-09-29T20:19:23.090Z pw:browser [pid=7793] <gracefully close start>
+2026-09-29T20:19:23.090Z pw:browser Closing stdin...
+2026-09-29T20:19:23.091Z pw:browser ffmpeg finished input.
+2026-09-29T20:19:23.180Z pw:browser [pid=7793] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:19:23.180Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:19:23.180Z pw:browser [pid=7793] starting temporary directories cleanup
+2026-09-29T20:19:23.180Z pw:browser [pid=7793] finished temporary directories cleanup
+2026-09-29T20:19:23.180Z pw:browser [pid=7793] <gracefully close end>
+2026-09-29T20:19:24.642Z pw:browser [pid=5331][err] 
+2026-09-29T20:19:24.642Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:19:24.642: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:19:24.644Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:19:24.644Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/calendar-pull/page@2a81fc14f6c626b1a653f0297f2eb575.webm
+2026-09-29T20:19:24.648Z pw:browser <launched> pid=7993
+2026-09-29T20:19:32.863Z pw:browser [pid=7993] <gracefully close start>
+2026-09-29T20:19:32.863Z pw:browser Closing stdin...
+2026-09-29T20:19:32.863Z pw:browser ffmpeg finished input.
+2026-09-29T20:19:33.035Z pw:browser [pid=7993] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:19:33.035Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:19:33.035Z pw:browser [pid=7993] starting temporary directories cleanup
+2026-09-29T20:19:33.035Z pw:browser [pid=7993] finished temporary directories cleanup
+2026-09-29T20:19:33.035Z pw:browser [pid=7993] <gracefully close end>
+2026-09-29T20:19:33.917Z pw:browser [pid=5331][err] 
+2026-09-29T20:19:33.917Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:19:33.917: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:19:33.919Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:19:33.919Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/rotate/page@929fecf81024126cf54a928ff9279eef.webm
+2026-09-29T20:19:33.924Z pw:browser <launched> pid=8190
+2026-09-29T20:19:44.531Z pw:browser [pid=8190] <gracefully close start>
+2026-09-29T20:19:44.531Z pw:browser Closing stdin...
+2026-09-29T20:19:44.531Z pw:browser ffmpeg finished input.
+2026-09-29T20:19:44.601Z pw:browser [pid=8190] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:19:44.602Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:19:44.602Z pw:browser [pid=8190] starting temporary directories cleanup
+2026-09-29T20:19:44.602Z pw:browser [pid=8190] finished temporary directories cleanup
+2026-09-29T20:19:44.602Z pw:browser [pid=8190] <gracefully close end>
+2026-09-29T20:19:45.817Z pw:browser [pid=5331][err] 
+2026-09-29T20:19:45.817Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:19:45.817: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:19:45.819Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:19:45.818Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/url-bar/page@0e361324380d64baaffbf5c470078d15.webm
+2026-09-29T20:19:45.823Z pw:browser <launched> pid=8501
+2026-09-29T20:20:00.158Z pw:browser [pid=8501] <gracefully close start>
+2026-09-29T20:20:00.158Z pw:browser Closing stdin...
+2026-09-29T20:20:00.158Z pw:browser ffmpeg finished input.
+2026-09-29T20:20:00.198Z pw:browser [pid=8501] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:20:00.199Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:20:00.199Z pw:browser [pid=8501] starting temporary directories cleanup
+2026-09-29T20:20:00.199Z pw:browser [pid=8501] finished temporary directories cleanup
+2026-09-29T20:20:00.199Z pw:browser [pid=8501] <gracefully close end>
+2026-09-29T20:20:01.982Z pw:browser [pid=5331][err] 
+2026-09-29T20:20:01.982Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:20:01.982: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:20:01.985Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:20:01.984Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/long-course/page@edb00103decdf8a9a6f3f5c88a932f37.webm
+2026-09-29T20:20:01.989Z pw:browser <launched> pid=8835
+2026-09-29T20:20:24.113Z pw:browser [pid=8835] <gracefully close start>
+2026-09-29T20:20:24.113Z pw:browser Closing stdin...
+2026-09-29T20:20:24.113Z pw:browser ffmpeg finished input.
+2026-09-29T20:20:24.195Z pw:browser [pid=8835] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:20:24.195Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:20:24.195Z pw:browser [pid=8835] starting temporary directories cleanup
+2026-09-29T20:20:24.195Z pw:browser [pid=8835] finished temporary directories cleanup
+2026-09-29T20:20:24.195Z pw:browser [pid=8835] <gracefully close end>
+2026-09-29T20:20:26.920Z pw:browser [pid=5331][err] 
+2026-09-29T20:20:26.921Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:20:26.920: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:20:26.922Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:20:26.922Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/open-results/page@d8cf91e606cc231d8ed40e38ca6641fb.webm
+2026-09-29T20:20:26.926Z pw:browser <launched> pid=9073
+2026-09-29T20:21:10.073Z pw:browser [pid=9073] <gracefully close start>
+2026-09-29T20:21:10.073Z pw:browser Closing stdin...
+2026-09-29T20:21:10.073Z pw:browser ffmpeg finished input.
+2026-09-29T20:21:10.107Z pw:browser [pid=9073] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:21:10.107Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:21:10.107Z pw:browser [pid=9073] starting temporary directories cleanup
+2026-09-29T20:21:10.107Z pw:browser [pid=9073] finished temporary directories cleanup
+2026-09-29T20:21:10.107Z pw:browser [pid=9073] <gracefully close end>
+2026-09-29T20:21:16.043Z pw:browser [pid=5331][err] 
+2026-09-29T20:21:16.043Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:21:16.043: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:21:16.045Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:21:16.045Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/add-sections/page@7eff592768c2c1963dea3f089d5ecb0d.webm
+2026-09-29T20:21:16.049Z pw:browser <launched> pid=9416
+2026-09-29T20:21:35.611Z pw:browser [pid=9416] <gracefully close start>
+2026-09-29T20:21:35.611Z pw:browser Closing stdin...
+2026-09-29T20:21:35.611Z pw:browser ffmpeg finished input.
+2026-09-29T20:21:35.671Z pw:browser [pid=9416] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:21:35.672Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:21:35.672Z pw:browser [pid=9416] starting temporary directories cleanup
+2026-09-29T20:21:35.672Z pw:browser [pid=9416] finished temporary directories cleanup
+2026-09-29T20:21:35.672Z pw:browser [pid=9416] <gracefully close end>
+2026-09-29T20:21:38.229Z pw:browser [pid=5331][err] 
+2026-09-29T20:21:38.229Z pw:browser [pid=5331][err] ** (MiniBrowser:5337): CRITICAL **: 20:21:38.229: WebKitWebView is-controlled-by-automation set but automation is not allowed in the context, falling back to default session.
+2026-09-29T20:21:38.231Z pw:browser <launching> /home/runner/.cache/ms-playwright/ffmpeg-1011/ffmpeg-linux -loglevel error -f matroska -fpsprobesize 0 -probesize 32 -analyzeduration 0 -i pipe:0 -y -an -r 25 -c:v vp8 -qmin 0 -qmax 50 -crf 8 -deadline realtime -speed 8 -b:v 1M -threads 1 -vf pad=393:659:0:0:gray,crop=393:659:0:0 -metadata creation_time=2026-09-29T20:21:38.230Z /home/runner/work/terpsicle/terpsicle/mobile-lab-results/2026-09-29T2017-webkit-36624380683/swipe-back/page@b3f0afb7104640e4f694aa7eadfb8844.webm
+2026-09-29T20:21:38.234Z pw:browser <launched> pid=9687
+2026-09-29T20:21:52.341Z pw:browser [pid=9687] <gracefully close start>
+2026-09-29T20:21:52.341Z pw:browser Closing stdin...
+2026-09-29T20:21:52.341Z pw:browser ffmpeg finished input.
+2026-09-29T20:21:52.438Z pw:browser [pid=9687] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:21:52.438Z pw:browser ffmpeg onkill exitCode=0 signal=null
+2026-09-29T20:21:52.438Z pw:browser [pid=9687] starting temporary directories cleanup
+2026-09-29T20:21:52.438Z pw:browser [pid=9687] finished temporary directories cleanup
+2026-09-29T20:21:52.438Z pw:browser [pid=9687] <gracefully close end>
+2026-09-29T20:21:54.192Z pw:browser [pid=5331] <gracefully close start>
+2026-09-29T20:21:54.202Z pw:browser [pid=5331] <process did exit: exitCode=0, signal=null>
+2026-09-29T20:21:54.208Z pw:browser [pid=5331] starting temporary directories cleanup
+2026-09-29T20:21:54.209Z pw:browser [pid=5331] finished temporary directories cleanup
+2026-09-29T20:21:54.209Z pw:browser [pid=5331] <gracefully close end>

@@ -1,0 +1,150 @@
+getpwuid_r did not find a match for uid 501
+Timestamp               Ty Process[PID:TID]
+2026-09-29 15:29:16.417 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:29:16.417 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:29:16.461 Sd com.apple.WebKit.WebContent[20330:0] (B0313576-4844-32C4-8A27-D6483A01E25F) WebContent state
+{
+    "JavaScript Object Counts" =     {
+        BigInt = 1;
+        "Immutable Butterfly" = 1;
+        JSPropertyNameEnumerator = 1;
+        NativeExecutable = 1;
+        Structure = 39;
+        string = 287;
+        symbol = 1;
+    };
+    "Memory Usage Stats" =     {
+        "backforward_cache_page_count" = 0;
+        "compressed_mb" = 0;
+        "document_count" = 1;
+        "internal_mb" = 10;
+        "javascript_gc_heap_capacity_mb" = 0;
+        "javascript_gc_heap_extra_memory_size_mb" = 0;
+        "javascript_gc_heap_size_mb" = 0;
+        "javascript_gc_object_count" = 0;
+        "javascript_gc_protected_global_object_count" = 0;
+        "javascript_gc_protected_object_count" = 0;
+        "page_count" = 1;
+        "phys_footprint_mb" = 12;
+        "resident_size_mb" = 113;
+        "virtual_size_mb" = 468299;
+    };
+    "Page Load Times" =     (
+        "1970-01-01 00:00:00 +0000"
+    );
+    "Websam State" = inactive;
+}
+2026-09-29 15:29:48.653 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:29:48.657 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:29:48.878 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:29:48.878 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:29:52.041 Sd com.apple.WebKit.WebContent[20967:0] (B0313576-4844-32C4-8A27-D6483A01E25F) WebContent state
+{
+    "JavaScript Object Counts" =     {
+        BigInt = 1;
+        "Immutable Butterfly" = 1;
+        JSPropertyNameEnumerator = 1;
+        NativeExecutable = 1;
+        Structure = 39;
+        string = 287;
+        symbol = 1;
+    };
+    "Memory Usage Stats" =     {
+        "backforward_cache_page_count" = 0;
+        "compressed_mb" = 0;
+        "document_count" = 0;
+        "internal_mb" = 12;
+        "javascript_gc_heap_capacity_mb" = 0;
+        "javascript_gc_heap_extra_memory_size_mb" = 0;
+        "javascript_gc_heap_size_mb" = 0;
+        "javascript_gc_object_count" = 0;
+        "javascript_gc_protected_global_object_count" = 0;
+        "javascript_gc_protected_object_count" = 0;
+        "page_count" = 0;
+        "phys_footprint_mb" = 14;
+        "resident_size_mb" = 116;
+        "virtual_size_mb" = 468259;
+    };
+    "Websam State" = inactive;
+}
+2026-09-29 15:29:55.823 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:29:55.823 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:29:59.072 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:29:59.073 Df com.apple.WebKit.WebContent[20330:e6b4] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:29:59.456 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:29:59.457 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:30:00.480 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:30:00.481 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:30:02.448 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:30:02.449 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 0
+2026-09-29 15:30:12.451 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 160932096 bytes of memory after the page load.
+2026-09-29 15:31:48.423 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:31:48.423 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 14
+2026-09-29 15:31:49.273 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:31:49.273 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 14
+2026-09-29 15:31:59.274 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 348594688 bytes of memory after the page load.
+2026-09-29 15:32:51.030 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:32:51.030 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 29
+2026-09-29 15:32:51.965 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:32:51.966 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 29
+2026-09-29 15:33:01.968 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 485745472 bytes of memory after the page load.
+2026-09-29 15:35:13.588 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:35:13.588 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 20
+2026-09-29 15:35:17.101 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:35:17.101 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 20
+2026-09-29 15:35:27.104 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 592897152 bytes of memory after the page load.
+2026-09-29 15:35:46.236 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:35:46.237 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 38
+2026-09-29 15:35:48.043 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:35:48.044 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 38
+2026-09-29 15:35:58.045 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 657401024 bytes of memory after the page load.
+2026-09-29 15:37:02.230 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:37:02.231 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 27
+2026-09-29 15:37:03.216 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:37:03.216 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 27
+2026-09-29 15:37:13.218 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 685515968 bytes of memory after the page load.
+2026-09-29 15:37:36.087 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:37:36.087 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 27
+2026-09-29 15:37:36.759 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:37:36.759 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 27
+2026-09-29 15:37:46.762 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 690267328 bytes of memory after the page load.
+2026-09-29 15:38:42.995 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:38:42.996 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 36
+2026-09-29 15:38:43.855 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:38:43.855 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 36
+2026-09-29 15:38:53.902 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 795780416 bytes of memory after the page load.
+2026-09-29 15:39:28.321 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:39:28.322 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 39
+2026-09-29 15:39:29.368 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:39:29.368 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 39
+2026-09-29 15:39:39.369 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 851142016 bytes of memory after the page load.
+2026-09-29 15:39:52.896 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:39:52.897 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 39
+2026-09-29 15:39:53.377 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:39:53.377 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 39
+2026-09-29 15:40:03.378 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 879928832 bytes of memory after the page load.
+2026-09-29 15:40:15.053 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:40:15.053 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 48
+2026-09-29 15:40:16.178 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:40:16.178 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 48
+2026-09-29 15:40:26.181 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 867313152 bytes of memory after the page load.
+2026-09-29 15:41:11.391 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:41:11.391 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 49
+2026-09-29 15:41:12.381 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:41:12.382 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 49
+2026-09-29 15:41:22.384 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 974497344 bytes of memory after the page load.
+2026-09-29 15:42:20.734 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:42:20.735 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 53
+2026-09-29 15:42:22.871 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:42:22.871 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 42
+2026-09-29 15:42:32.873 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 1101637568 bytes of memory after the page load.
+2026-09-29 15:45:10.587 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:45:10.588 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 59
+2026-09-29 15:45:12.738 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:45:12.738 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 59
+2026-09-29 15:45:23.568 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 1273391232 bytes of memory after the page load.
+2026-09-29 15:46:19.994 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadStarted:
+2026-09-29 15:46:19.995 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 59
+2026-09-29 15:46:21.718 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] Memory usage info dump at MainFrameLoadCompleted:
+2026-09-29 15:46:21.718 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging]   javascript_gc_heap_extra_memory_size_mb: 59
+2026-09-29 15:46:31.720 Df com.apple.WebKit.WebContent[20967:ee2a] [com.apple.WebKit:PerformanceLogging] 0x12f00a5a0 - PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 1362045120 bytes of memory after the page load.
