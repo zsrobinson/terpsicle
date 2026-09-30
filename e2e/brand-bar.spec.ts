@@ -1,8 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
 // The family bar's brand pieces (the owner, 2026-09-28): the "Early access"
-// chip and its note, the coffee button beside Feedback (a link in the
-// account menu on phones), the ink monogram, and `/`'s header, which never
+// chip and its note, the coffee button, "Support Terpsicle", in the account
+// cluster (a link in the account menu on phones), the ink monogram, and `/`'s header, which never
 // says "Sign in" to someone who's signed in.
 
 let errors: string[] = [];
@@ -60,14 +60,14 @@ test("the coffee button opens its note and links out", async ({
 }) => {
   await page.goto("/reviews");
   await hydrated(page);
-  let link = page.getByRole("link", { name: "Buy me a coffee" });
+  let link = page.getByRole("link", { name: "Buy Terpsicle a coffee" });
   if (isMobile) {
     // A phone's bar keeps its title and the account: coffee is in the
     // account menu, with Feedback.
     await expect(page.getByTestId("coffee-button")).toHaveCount(0);
     await expect(page.getByTestId("feedback-button")).toHaveCount(0);
     await bar(page).getByRole("button", { name: "Sign in" }).click();
-    link = page.getByRole("menuitem", { name: "Buy me a coffee" });
+    link = page.getByRole("menuitem", { name: "Buy Terpsicle a coffee" });
   } else {
     const button = page.getByTestId("coffee-button");
     await expect(button).toHaveAccessibleName("Support Terpsicle");
@@ -76,7 +76,7 @@ test("the coffee button opens its note and links out", async ({
       page
         .getByRole("dialog")
         .getByText(
-          "Does Terpsicle help you out? Support its development by buying its developer a coffee.",
+          "Does Terpsicle help you out? A coffee helps keep it running and growing.",
         ),
     ).toBeVisible();
   }
@@ -126,34 +126,31 @@ test("below 1536px no bar shows the chip, so the product tabs sit in the same pl
   expect(new Set(lefts).size, `tabs at 1600px: ${lefts}`).toBe(1);
 });
 
-test("below 1536px the scheduler's bar gives its plans the room: the coffee link is in the menu", async ({
+test("the scheduler's bar keeps Support and Feedback's label at every desktop width, so its menu doesn't repeat them", async ({
   page,
   isMobile,
 }) => {
   test.skip(isMobile, "the phone bar has its own rule");
-  await page.setViewportSize({ width: 1440, height: 900 });
+  // The product tabs fold to their marks, which gives the room back (the
+  // owner, 2026-09-30): the account cluster is the same on every bar.
   await page.goto("/schedule?demo=1");
   await hydrated(page);
-  await expect(page.getByTestId("coffee-button")).toBeHidden();
+  for (const width of [1280, 1440, 1600]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByTestId("coffee-button")).toBeVisible();
+    await expect(page.getByTestId("feedback-button")).toHaveText("Feedback");
+    await expect(
+      bar(page).getByTestId("early-access").filter({ visible: true }),
+    ).toHaveCount(width >= 1536 ? 1 : 0);
+  }
+  await bar(page).getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
   await expect(
-    bar(page).getByTestId("early-access").filter({ visible: true }),
+    page.getByRole("menuitem", { name: "Buy Terpsicle a coffee" }),
   ).toHaveCount(0);
-  await bar(page).getByRole("button", { name: "Sign in" }).click();
   await expect(
-    page.getByRole("menuitem", { name: "Buy me a coffee" }),
-  ).toBeVisible();
-  await page.keyboard.press("Escape");
-
-  // With room, the button's back and the menu doesn't repeat it.
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await expect(page.getByTestId("coffee-button")).toBeVisible();
-  await expect(
-    bar(page).getByTestId("early-access").filter({ visible: true }),
-  ).toHaveCount(1);
-  await bar(page).getByRole("button", { name: "Sign in" }).click();
-  await expect(
-    page.getByRole("menuitem", { name: "Buy me a coffee" }),
-  ).toBeHidden();
+    page.getByRole("menuitem", { name: "Send feedback" }),
+  ).toHaveCount(0);
 });
 
 test("signed in, / offers the account and the way back, never Sign in", async ({
