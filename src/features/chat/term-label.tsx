@@ -20,13 +20,9 @@ export function ChatTermLabel() {
     <span className="flex min-w-0 items-center gap-1.5 px-1.5 text-base text-muted max-md:px-1">
       {/* A phone says "Fall ’26", so the name and its tag read whole. */}
       <span className="truncate max-sm:hidden">{full}</span>
-      <span
-        aria-hidden="true"
-        className="hidden whitespace-nowrap max-sm:inline"
-      >
+      <span className="hidden whitespace-nowrap max-sm:inline">
         {shortTermName(full)}
       </span>
-      <span className="sr-only sm:hidden">{full}</span>
       <TermTag tag={termTagOf(termId, tags)} />
     </span>
   );
