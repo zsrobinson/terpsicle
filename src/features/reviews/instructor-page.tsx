@@ -1,10 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { cn } from "cn";
-import { ArrowUpRight, ChevronDown } from "lucide-react";
-import { useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useId, useRef, useState } from "react";
 import { ViewWords } from "~/components/brand/view-words";
 import { PanelNote } from "~/components/panel";
-import { addGradeCounts, formatGpa, gradeSummary } from "~/core/grades/grades";
+import { addGradeCounts } from "~/core/grades/grades";
 import {
   type CombinedRating,
   combinedRatingWords,
@@ -51,17 +50,22 @@ import {
   useClassesTaken,
   WriteReviewButton,
 } from "./review-box";
-import { type Composing, ReviewsSection, useMine } from "./reviews-section";
+import {
+  type Composing,
+  ReviewFilter,
+  ReviewsSection,
+  useMine,
+} from "./reviews-section";
 import { SignInPrompt } from "./sign-in-prompt";
 
 // /reviews/<instructor> (V2 §1.1), in two columns from the top (owner,
 // 2026-09-29: "having the 2/3 1/3 thing extend all the way to the top").
-// The wide one: who they are, their rating, then the reviews, ours and
-// PlanetTerp's, in the order `?sort=` asks. The narrow one: the box to
-// review them yourself, their courses as chips (each a view of the page,
-// `?course=`, with an arrow to the course's own page), then their grades.
-// On a phone it's the name and rating, the narrow column, the reviews, then
-// the grades. No back link: where it went changed in ways you wouldn't
+// The wide one: who they are, the box to review them yourself, then the
+// reviews, ours and PlanetTerp's, in the order `?sort=` asks, with the
+// course filter (`?course=`) left of the sort. The narrow one: their
+// rating, then their grades, level with the reviews so the filter plainly
+// covers both (owner, 2026-09-30). On a phone: the name, the box, the
+// rating, the reviews, then the grades. No back link: where it went changed in ways you wouldn't
 // expect (owner). The route's loader read it all, so the server's HTML has it.
 
 /** Courses the status line names. */
@@ -89,7 +93,6 @@ export function InstructorPage({
     data.name ??
     mine.find((r) => r.instructorId === id)?.instructorName ??
     "Instructor";
-  const grades = new Map(data.courses.map((c) => [c.code, c.grades]));
 
   // Their courses: PlanetTerp's grade data, and what reviews are about.
   const courses = new Set<CourseCode>(data.courses.map((c) => c.code));
@@ -162,6 +165,9 @@ export function InstructorPage({
   );
   const boxRef = useRef<HTMLDivElement>(null);
   useBringFormIn(boxRef, composing);
+  const navigate = useNavigate();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterId = useId();
 
   const composer =
     composing === null ? null : signedIn !== true ? (
@@ -212,9 +218,34 @@ export function InstructorPage({
             ) : null
           }
           onEdit={setComposing}
+          ready={taken !== null}
         />
       )}
     </div>
+  );
+
+  const filter = (
+    <ReviewFilter
+      label="Course"
+      tooltip="Show one course's reviews and grades"
+      all="All courses"
+      value={course}
+      options={courseList.map((c) => ({ value: c, label: c, ident: true }))}
+      onPick={(picked) =>
+        void navigate({
+          to: "/reviews/$slug",
+          params: { slug: instructorSlug(id) },
+          search: {
+            ...(picked ? { course: picked } : {}),
+            ...(sort !== "latest" ? { sort } : {}),
+          },
+          resetScroll: false,
+        })
+      }
+      open={filterOpen}
+      onOpenChange={setFilterOpen}
+      triggerId={filterId}
+    />
   );
 
   return (
@@ -229,68 +260,101 @@ export function InstructorPage({
               title={name}
               status={
                 taught.length > 0 ? (
-                  <span>
-                    Taught{" "}
-                    {taught.map((c, i) => (
-                      <span key={c}>
-                        {i > 0
-                          ? i === taught.length - 1
-                            ? " and "
-                            : ", "
-                          : ""}
-                        <span className="ident">{c}</span>
-                      </span>
-                    ))}
-                    {data.courses.length > STATUS_COURSES ? " and more" : ""}
-                  </span>
+                  <TaughtLine
+                    courses={taught}
+                    more={data.courses.length > STATUS_COURSES}
+                    onMore={() => {
+                      document
+                        .getElementById(filterId)
+                        ?.scrollIntoView?.({ block: "center" });
+                      setFilterOpen(true);
+                    }}
+                  />
                 ) : undefined
               }
             />
-            <RatingSummary combined={combined} />
+            {box}
           </>
         }
         sideProps={{
           "aria-label": `More about ${name}`,
           className: SIDE_START,
         }}
-        side={
-          <>
-            {box}
-            {courseList.length > 0 ? (
-              <PageSection
-                size="side"
-                title="Courses"
-                aside={courseList.length}
-              >
-                <CourseChips
-                  id={id}
-                  name={name}
-                  courses={courseList}
-                  current={course}
-                  gpaOf={(c) => {
-                    const r = grades.get(c);
-                    return r ? gradeSummary(r.counts).averageGpa : null;
-                  }}
-                />
-              </PageSection>
-            ) : null}
-          </>
-        }
-        // Beside the reviews on a wide screen; after them on a phone.
+        side={<RatingSummary combined={combined} />}
+        // Level with the reviews on a wide screen, so the course filter
+        // plainly covers both; after them on a phone.
         after={<InstructorGrades data={data} name={name} />}
         main={
           <ReviewsSection
             instructorId={id}
             course={course}
             reviews={reviews}
-            count={course ? null : combined.reviewCount}
+            count={
+              course
+                ? (reviews.planetTerpCount ?? 0) +
+                  (reviews.terpsicle?.length ?? 0)
+                : combined.reviewCount
+            }
             sort={sort}
+            filter={courseList.length > 0 ? filter : undefined}
             composing={composing}
             onEdit={setComposing}
           />
         }
       />
     </ReviewsFrame>
+  );
+}
+
+/**
+ * "Taught CMSC320, CMSC351 and CMSC250 and more": each code opens its
+ * course's page; "and more" opens the course filter, which lists them all
+ * (owner, 2026-09-30).
+ */
+function TaughtLine({
+  courses,
+  more,
+  onMore,
+}: {
+  courses: readonly CourseCode[];
+  more: boolean;
+  onMore: () => void;
+}) {
+  const link =
+    "ident text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg";
+  return (
+    <span>
+      Taught{" "}
+      {courses.map((c, i) => (
+        <span key={c}>
+          {i > 0 ? (i === courses.length - 1 && !more ? " and " : ", ") : ""}
+          <WithTooltip label={`${c}'s page: every instructor's reviews`}>
+            <Link
+              to="/reviews/$slug"
+              params={{ slug: courseSlug(c) }}
+              className={link}
+            >
+              {c}
+            </Link>
+          </WithTooltip>
+        </span>
+      ))}
+      {more ? (
+        <>
+          {" "}
+          and{" "}
+          <WithTooltip label="Every course of theirs, in the course filter">
+            <button
+              type="button"
+              onClick={onMore}
+              className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
+            >
+              more
+            </button>
+          </WithTooltip>
+        </>
+      ) : null}
+    </span>
   );
 }
 
@@ -378,89 +442,6 @@ function InstructorGrades({
     </PageSection>
   );
 }
-
-/**
- * The side's filter (owner, 2026-09-29: "selectable chips rather than a
- * long list, since some professors have a lot"): all their courses, then
- * each, a view of this page, fused with an arrow to the course's own page.
- */
-function CourseChips({
-  id,
-  name,
-  courses,
-  current,
-  gpaOf,
-}: {
-  id: InstructorId;
-  name: string;
-  courses: readonly CourseCode[];
-  current: CourseCode | null;
-  gpaOf: (code: CourseCode) => number | null;
-}) {
-  const slug = instructorSlug(id);
-  return (
-    <ul aria-label="Courses" className="flex flex-wrap gap-2">
-      <li>
-        <WithTooltip label={`Reviews of ${name} in every course`}>
-          <Link
-            to="/reviews/$slug"
-            params={{ slug }}
-            search={{}}
-            aria-current={current === null ? "page" : undefined}
-            className={cn(CHIP, "rounded-md", chipState(current === null))}
-          >
-            All courses
-          </Link>
-        </WithTooltip>
-      </li>
-      {courses.map((c) => {
-        const gpa = gpaOf(c);
-        const on = current === c;
-        return (
-          <li key={c} className="flex">
-            <WithTooltip
-              label={`${name}'s reviews and grades in ${c}${gpa !== null ? ` (GPA ${formatGpa(gpa)})` : ""}`}
-            >
-              <Link
-                to="/reviews/$slug"
-                params={{ slug }}
-                search={{ course: c }}
-                aria-current={on ? "page" : undefined}
-                className={cn(CHIP, "ident rounded-l-md", chipState(on))}
-              >
-                {c}
-              </Link>
-            </WithTooltip>
-            <WithTooltip label={`${c}'s page: every instructor's reviews`}>
-              <Link
-                to="/reviews/$slug"
-                params={{ slug: courseSlug(c) }}
-                aria-label={`${c}'s page`}
-                className={cn(
-                  CHIP,
-                  "-ml-px rounded-r-md px-2 max-md:px-3",
-                  chipState(on),
-                )}
-              >
-                <ArrowUpRight size={14} aria-hidden="true" />
-              </Link>
-            </WithTooltip>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** A course chip's box: a 36px target (44 on phones), the code at a reading size. */
-const CHIP =
-  "inline-flex h-9 items-center border px-3 text-base transition-colors max-md:h-11";
-
-/** The chip you're on fills in, as the kit's chips do. */
-const chipState = (on: boolean) =>
-  on
-    ? "border-fg bg-fg text-bg hover:bg-fg/85"
-    : "border-hairline-strong text-fg hover:bg-hover";
 
 /** The narrow column starts level with the name, past the header's top space. */
 const SIDE_START = "lg:pt-8";

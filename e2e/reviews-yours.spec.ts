@@ -226,7 +226,7 @@ test("the front door's narrow column lists the classes you took", async ({
   await page.goto("/reviews");
   await hydrated(page);
   const yours = page.getByRole("list", { name: "Classes to review" });
-  // Signed out: theirs to read about, and one quiet line on signing in.
+  // Signed out: theirs to read about.
   await expect(
     page.getByRole("heading", { name: "Classes you took", level: 2 }),
   ).toBeVisible();
@@ -235,9 +235,10 @@ test("the front door's narrow column lists the classes you took", async ({
     "href",
     "/reviews/ashdown-keiko?course=CMSC351",
   );
+  // Signing in is asked on the page you'd review from, not here.
   await expect(
     page.getByText("Sign in with your UMD account to review them."),
-  ).toBeVisible();
+  ).toHaveCount(0);
   if (!isMobile) {
     // Beside the page's own lists, not under them.
     const side = await yours.boundingBox();
@@ -306,4 +307,84 @@ test("the bar's other products fold to their marks until you reach for them", as
   await page.goto("/todo");
   await hydrated(page);
   await expect.poll(() => width("Schedule")).toBeGreaterThan(30);
+});
+
+test("a signed-in visitor never sees the signed-out copy, from the first paint", async ({
+  page,
+}) => {
+  // Watches the page from its first byte: the server's HTML, hydration, and
+  // /api/me's answer. Anything that offers signing in is signed-out copy.
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    (window as unknown as { signedOutSeen: string[] }).signedOutSeen = seen;
+    const check = () => {
+      const text = document.body?.innerText ?? "";
+      if (text.includes("Sign in with your UMD account")) seen.push(text);
+      for (const el of document.querySelectorAll("a, button")) {
+        const name = (
+          el.getAttribute("aria-label") ??
+          el.textContent ??
+          ""
+        ).trim();
+        if (name.startsWith("Sign in")) seen.push(name);
+      }
+      // What a stranger sees before the page knows you: the plain question
+      // ("Took CMSC351?") where your class goes, and the narrow column's
+      // signed-out title.
+      if (document.querySelector("[data-review-box='ask']"))
+        seen.push("the review box's question");
+      if (text.includes("Classes you took")) seen.push("Classes you took");
+      // The theme toggle stands in the bar only for someone signed out.
+      if (document.querySelector("[data-slot=app-bar] [aria-label*='theme' i]"))
+        seen.push("the bar's theme toggle");
+    };
+    new MutationObserver(check).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+    document.addEventListener("DOMContentLoaded", check);
+  });
+  await tookLastSummer(page);
+  await signIn(page, "e2enoflash");
+  for (const path of [
+    "/reviews",
+    "/reviews/cmsc351",
+    "/reviews/ashdown-keiko?course=CMSC351",
+  ]) {
+    await page.goto(path);
+    await expect(
+      bar(page).getByRole("button", { name: /^Account: / }),
+    ).toBeVisible();
+    // The page has said what it knows by now.
+    if (path === "/reviews")
+      await expect(
+        page.getByRole("heading", { name: "Review your classes" }),
+      ).toBeVisible();
+    else await expect(page.locator("[data-review-box='took']")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { signedOutSeen: string[] }).signedOutSeen,
+      ),
+    ).toEqual([]);
+  }
+});
+
+test("the course page's instructor filter opens their page with the course and order", async ({
+  page,
+}) => {
+  await page.goto("/reviews/cmsc351?sort=highest");
+  await hydrated(page);
+  // Exact: the search box's name mentions instructors too.
+  await page.getByRole("combobox", { name: "Instructor", exact: true }).click();
+  await page.getByRole("option", { name: "Keiko Ashdown" }).click();
+  await expect(page).toHaveURL(
+    /\/reviews\/ashdown-keiko\?course=CMSC351&sort=highest$/,
+  );
+  await expect(
+    page.getByRole("heading", { name: /^Reviews in CMSC351/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Course", exact: true }),
+  ).toHaveText(/CMSC351/);
 });

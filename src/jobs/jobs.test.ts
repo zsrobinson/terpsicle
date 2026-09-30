@@ -477,6 +477,7 @@ describe("planetterp job", () => {
       expect(Object.keys(r).sort()).toEqual([
         "body",
         "course",
+        "createdDate",
         "createdMonth",
         "expectedGrade",
         "id",

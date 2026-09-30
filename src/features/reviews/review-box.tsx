@@ -20,9 +20,10 @@ import { newYorkClock } from "~/core/todo/list";
 import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { readHomeLocal } from "~/features/home/local";
 import { Button } from "~/ui/button";
+import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { browserReader, loadTerms } from "./data";
-import { useReviewsLevel, useSignedIn } from "./level";
+import { useAccountView, useReviewsLevel, useSignedIn } from "./level";
 import { useReviews } from "./reviews-store";
 
 // "Review them yourself" (owner, 2026-09-29): the box between a page's
@@ -120,8 +121,11 @@ export function ReviewBox({
   question,
   write,
   onEdit,
+  ready = true,
 }: {
   state: ReviewBoxState;
+  /** False until the page has read your plans (what you took). */
+  ready?: boolean;
   /** An instructor's page: their name, to ask whether a class was theirs. */
   who?: string;
   /** Knowing nothing: "Took a class with Keiko Ashdown?" */
@@ -132,14 +136,22 @@ export function ReviewBox({
   onEdit: (review: MyReview) => void;
 }) {
   const level = useReviewsLevel();
+  const view = useAccountView();
   const signedIn = useSignedIn();
   const settled = useMineSettled();
   const id = useId();
   if (level === "off" || level === "read") return null;
-  const loading = level === "loading" || signedIn === "loading" || !settled;
-  // Signed out, or before we know: the plain question, never a guess.
-  const shown: ReviewBoxState =
-    signedIn === true && !loading ? state : { kind: "ask" };
+  // Until the page knows what to say, a placeholder of the box's size: the
+  // signed-out words never show first (owner, 2026-09-30). Signed out, as
+  // this browser last was, it says so at once while /api/me confirms.
+  if (
+    level === "loading" ||
+    view === "unknown" ||
+    (view === "signed-in" && (signedIn !== true || !settled || !ready))
+  )
+    return <ReviewBoxPlaceholder />;
+  const signedOut = view === "signed-out";
+  const shown: ReviewBoxState = signedOut ? { kind: "ask" } : state;
 
   let title: ReactNode;
   let line: ReactNode;
@@ -172,11 +184,10 @@ export function ReviewBox({
     action = write;
   } else {
     title = question;
-    line =
-      signedIn === false
-        ? "Sign in with your UMD account to review it. Readers won't see who wrote it."
-        : "Your review helps the next student decide. Readers won't see who wrote it.";
-    action = loading ? null : signedIn === false ? (
+    line = signedOut
+      ? "Sign in with your UMD account to review it. Readers won't see who wrote it."
+      : "Your review helps the next student decide. Readers won't see who wrote it.";
+    action = signedOut ? (
       <GoogleButton
         returnTo={
           typeof window === "undefined"
@@ -195,7 +206,7 @@ export function ReviewBox({
       aria-labelledby={id}
       data-review-box={shown.kind}
       className={cn(
-        "flex flex-col gap-4 border border-hairline-strong p-6",
+        BOX,
         // Your class: the box wears the product's color. A question about
         // one (was it with them?) doesn't claim it.
         shown.kind === "took" &&
@@ -209,11 +220,25 @@ export function ReviewBox({
         </h2>
         <p className="text-base text-muted">{line}</p>
       </div>
-      {/* The action's room is kept while it's still unknown, so nothing moves. */}
-      <div className={cn("shrink-0", loading && "min-h-9 max-md:min-h-11")}>
-        {action}
-      </div>
+      <div className="shrink-0">{action}</div>
     </section>
+  );
+}
+
+/** The box: title and words on the left, the one action on the right (a phone stacks them). */
+const BOX =
+  "flex flex-col gap-4 border border-hairline-strong p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6";
+
+/** The box's size while the page finds out what to say in it. */
+function ReviewBoxPlaceholder() {
+  return (
+    <div aria-hidden="true" data-review-box="waiting" className={BOX}>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <Skeleton className="h-7 w-2/3" />
+        <Skeleton className="h-5 w-full max-w-md" />
+      </div>
+      <Skeleton className="h-9 w-40 shrink-0 max-md:h-11" />
+    </div>
   );
 }
 

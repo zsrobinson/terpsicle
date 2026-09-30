@@ -78,6 +78,8 @@ function toShown(row: PlanetTerpReviewRow): PlanetTerpReview {
     expectedGrade: grade.success ? grade.data : null,
     body: row.body,
     createdMonth: createdMonth(row.created_at),
+    // PlanetTerp's own day: public there, and nothing of ours.
+    createdDate: row.created_at.slice(0, 10),
   };
 }
 
@@ -138,6 +140,22 @@ export async function planetTerpCourseNumbers(
   return row && row.count > 0 && row.rating !== null
     ? { rating: row.rating, reviewCount: row.count }
     : null;
+}
+
+/** How many PlanetTerp reviews one instructor has in one course. */
+export async function planetTerpReviewCount(
+  db: D1Database,
+  instructorId: InstructorId,
+  course: CourseCode,
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM planetterp_reviews
+       WHERE instructor_id = ?1 AND course = ?2`,
+    )
+    .bind(instructorId, course)
+    .first<{ count: number }>();
+  return row?.count ?? 0;
 }
 
 /**

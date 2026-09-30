@@ -309,27 +309,39 @@ describe("an instructor's page", () => {
     expect(screen.getByRole("button", { name: "Report" })).toBeInTheDocument();
   });
 
-  it("has no back link, and each course is a chip with a way to its page", async () => {
+  it("filters reviews and grades by course beside the sort, and says which", async () => {
     setAccount({ reviews: "on" });
-    fakeReviewsClient();
+    fakeReviewsClient({
+      page: async () => ({
+        terpsicle: [aPageReview()],
+        planetTerp: [aPlanetTerpReview()],
+        next: null,
+        planetTerpCount: 41,
+      }),
+    });
     await instructor();
     expect(
       await screen.findByRole("heading", { name: "Ada Brandt", level: 1 }),
     ).toBeInTheDocument();
     // No back link: where it went changed in ways you wouldn't expect.
     expect(screen.queryByRole("link", { name: /^Back/ })).toBeNull();
-    // Each course is a view of this page, and a URL; the arrow beside it
-    // opens the course's own page.
-    const chips = screen.getByRole("list", { name: "Courses" });
+    // The course filter, left of the sort, on "Reviews in CMSC351" with
+    // every review of theirs in it counted (41 of PlanetTerp's, 1 of ours).
     expect(
-      within(chips).getByRole("link", { name: "CMSC351" }),
-    ).toHaveAttribute("aria-current", "page");
+      screen.getByRole("heading", { name: /^Reviews in CMSC351\s*42$/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Course" })).toHaveTextContent(
+      "CMSC351",
+    );
     expect(
-      within(chips).getByRole("link", { name: "CMSC351's page" }),
-    ).toHaveAttribute("href", "/reviews/cmsc351");
+      screen.getByRole("heading", { name: /^Grades in CMSC351/ }),
+    ).toBeInTheDocument();
+    // "Taught CMSC351": each code goes to its course's page.
     expect(
-      within(chips).getByRole("link", { name: "All courses" }),
-    ).toHaveAttribute("href", "/reviews/brandt");
+      screen
+        .getAllByRole("link", { name: "CMSC351" })
+        .map((l) => l.getAttribute("href")),
+    ).toContain("/reviews/cmsc351");
   });
 
   it("sorts the reviews from the address, and asks for more in that order", async () => {

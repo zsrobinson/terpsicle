@@ -239,6 +239,7 @@ export function ReviewsSection({
   reviews,
   count,
   sort,
+  filter,
   composing,
   onEdit,
 }: {
@@ -249,6 +250,8 @@ export function ReviewsSection({
   /** How many there are in all, when known. */
   count: number | null;
   sort: ReviewSort;
+  /** The course filter, left of the sort. */
+  filter?: ReactNode;
   /** What the form is open on: the review it edits is left out here. */
   composing: Composing;
   onEdit: (review: MyReview) => void;
@@ -263,8 +266,13 @@ export function ReviewsSection({
   return (
     <PageSection
       size="display"
-      title={<ReviewsTitle count={count} />}
-      aside={<SortControl sort={sort} />}
+      title={<ReviewsTitle count={count} course={course} />}
+      aside={
+        <div className="flex flex-wrap items-center gap-2">
+          {filter}
+          <SortControl sort={sort} />
+        </div>
+      }
     >
       {waiting.length > 0 ? (
         <ul>
@@ -304,11 +312,27 @@ export function ReviewsSection({
   );
 }
 
-/** "Reviews 142": the count beside the word (owner, 2026-09-29). */
-export function ReviewsTitle({ count }: { count: number | null }) {
+/**
+ * "Reviews 142", or "Reviews in CMSC351 42": the count beside the words
+ * (owner, 2026-09-29), and the course when the page shows one, as the
+ * grades beside it say (2026-09-30).
+ */
+export function ReviewsTitle({
+  count,
+  course = null,
+}: {
+  count: number | null;
+  course?: CourseCode | null;
+}) {
   return (
     <>
       Reviews
+      {course ? (
+        <>
+          {" "}
+          in <span className="ident">{course}</span>
+        </>
+      ) : null}
       {count ? (
         <span className="tnum ml-2 font-normal text-muted">
           {count.toLocaleString("en-US")}
@@ -370,3 +394,74 @@ export function SortControl({ sort }: { sort: ReviewSort }) {
     </div>
   );
 }
+
+/**
+ * The page's filter, left of the sort (owner, 2026-09-30): a course on an
+ * instructor's page ("All courses" or one of theirs, filtering the reviews
+ * and the grades beside them), or an instructor on a course's page ("All
+ * instructors", or one, which opens their page in this course). Each pick
+ * is an address, so it keeps the sort.
+ */
+export function ReviewFilter({
+  label,
+  tooltip,
+  all,
+  value,
+  options,
+  onPick,
+  open,
+  onOpenChange,
+  triggerId,
+}: {
+  /** Read out: "Course", "Instructor". */
+  label: string;
+  tooltip: string;
+  /** The first choice: "All courses", "All instructors". */
+  all: string;
+  /** The picked option's value; null for `all`. */
+  value: string | null;
+  options: readonly { value: string; label: string; ident?: boolean }[];
+  onPick: (value: string | null) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  triggerId?: string;
+}) {
+  const fallbackId = useId();
+  const id = triggerId ?? fallbackId;
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <Select
+        value={value ?? ALL}
+        onValueChange={(picked) =>
+          onPick(picked === ALL || picked === null ? null : String(picked))
+        }
+        open={open}
+        onOpenChange={onOpenChange}
+      >
+        <WithTooltip label={tooltip}>
+          <SelectTrigger id={id} className="h-9 w-44 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+        </WithTooltip>
+        <SelectContent align="end" className="max-h-80">
+          <SelectItem value={ALL}>{all}</SelectItem>
+          {options.map((o) => (
+            <SelectItem
+              key={o.value}
+              value={o.value}
+              className={o.ident ? "ident" : undefined}
+            >
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+/** The filter's "All …" value: no course or instructor code looks like it. */
+const ALL = "all";

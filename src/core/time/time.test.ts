@@ -8,6 +8,7 @@ import {
   formatDateSpan,
   formatDays,
   formatDuration,
+  formatFullDate,
   formatShortDate,
   formatTime,
   formatTimeRange,
@@ -352,5 +353,12 @@ describe("packLanes", () => {
       { start: 650, end: 700 },
     ]);
     expect(placed.map((p) => p.lanes)).toEqual([1, 1]);
+  });
+});
+
+describe("formatFullDate", () => {
+  it("writes a review's day in full", () => {
+    expect(formatFullDate("2024-09-14")).toBe("Sep 14, 2024");
+    expect(formatFullDate("2026-01-02")).toBe("Jan 2, 2026");
   });
 });

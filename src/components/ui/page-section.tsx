@@ -38,8 +38,12 @@ export function PageSection({
         // A rule between sections; the first one in its column, or the one
         // right under a page header, has the header's rule (or its
         // container's edge) above it already.
-        "flex flex-col border-hairline border-t first:border-t-0 first:pt-0 [[data-slot=page-header]+&]:border-t-0 [[data-slot=page-header]+&]:pt-0",
-        size === "page" ? "gap-2 pt-3" : "gap-4 pt-6",
+        size === "side"
+          ? // A narrow column's sections stand apart by space alone (owner,
+            // 2026-09-30: "we don't need a hairline on top of courses/grades").
+            "flex flex-col gap-4"
+          : "flex flex-col border-hairline border-t first:border-t-0 first:pt-0 [[data-slot=page-header]+&]:border-t-0 [[data-slot=page-header]+&]:pt-0",
+        size === "page" ? "gap-2 pt-3" : size === "display" && "gap-4 pt-6",
         className,
       )}
     >

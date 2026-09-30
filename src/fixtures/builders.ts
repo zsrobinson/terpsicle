@@ -1001,6 +1001,7 @@ export function aPlanetTerpReview(
     expectedGrade: "A",
     body: "Hard but fair. Go to every lecture and start the homework early.",
     createdMonth: "2025-12",
+    createdDate: `${overrides.createdMonth ?? "2025-12"}-14`,
     ...overrides,
   };
 }

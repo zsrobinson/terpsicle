@@ -6,6 +6,7 @@ import {
   DeptCodeSchema,
   InstructorNameSchema,
   InstructorSlugSchema,
+  IsoDateSchema,
   IsoDateTimeSchema,
   ReviewGradeSchema,
   TermIdSchema,
@@ -367,6 +368,12 @@ export const PlanetTerpReviewSchema = z.strictObject({
   expectedGrade: ReviewGradeSchema.nullable(),
   body: z.string(),
   createdMonth: MonthSchema,
+  /**
+   * The day, as PlanetTerp publishes it (owner, 2026-09-30: "include the
+   * date for reviews, not just month and year"). Ours keep only the month
+   * (§7.5): a day beside a review of ours would help tell who wrote it.
+   */
+  createdDate: IsoDateSchema,
 });
 export type PlanetTerpReview = z.infer<typeof PlanetTerpReviewSchema>;
 
@@ -427,6 +434,11 @@ export const PageReviewsSchema = z.strictObject({
     })
     .nullable()
     .optional(),
+  /**
+   * One instructor in one course: how many PlanetTerp reviews there are in
+   * all (the page loads them a page at a time), for "Reviews in CMSC351 42".
+   */
+  planetTerpCount: z.number().int().min(0).optional(),
 });
 export type PageReviews = z.infer<typeof PageReviewsSchema>;
 

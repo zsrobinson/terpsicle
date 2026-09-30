@@ -13,10 +13,13 @@ import type { ComponentProps, ReactNode } from "react";
 // all the way to the top"), the page's head is the wide column's first
 // part and the narrow column starts beside it. Narrower, the order is the
 // head, the narrow column, then the rest of the wide one: what goes with
-// the page comes before the long read. `after` is the narrow column's end:
-// under `side` on a wide screen, but after the whole wide column on a
-// phone (an instructor's grades, after their reviews). One copy of each,
-// in reading order; the grid only places them.
+// the page comes before the long read. `after` is the narrow column's
+// second part: on a wide screen it starts level with `main` (owner,
+// 2026-09-30: the reviews and the grades "line up … vertically", so one
+// filter plainly covers both), with `top` and `side` sharing the row
+// above; on a phone it comes after the whole wide column (an instructor's
+// grades, after their reviews). One copy of each, in reading order; the
+// grid only places them.
 
 const FIRST_RULE = {
   page: "max-lg:[&>section:first-child]:border-t max-lg:[&>section:first-child]:pt-3",
@@ -57,13 +60,9 @@ export function SplitLayout({
       className={cn(
         "grid grid-cols-1 gap-x-8 lg:grid-cols-3",
         size === "display" ? "gap-y-8" : "gap-y-6",
-        // The head takes its own height; the rest of the wide column, what's
-        // left. With `after`, a middle row takes whatever of the narrow
-        // column's start outgrows the head, so `after` starts under it.
-        top !== undefined &&
-          (after !== undefined
-            ? "lg:grid-rows-[auto_auto_1fr]"
-            : "lg:grid-rows-[auto_1fr]"),
+        // The head (and, with `after`, the narrow column's start) takes its
+        // own height; the rest, what's left.
+        top !== undefined && "lg:grid-rows-[auto_1fr]",
         className,
       )}
     >
@@ -79,7 +78,13 @@ export function SplitLayout({
         </div>
       ) : null}
       {top !== undefined ? (
-        <SideColumn size={size} gap={gap} props={sideProps} top>
+        <SideColumn
+          size={size}
+          gap={gap}
+          props={sideProps}
+          top
+          span={after === undefined}
+        >
           {side}
         </SideColumn>
       ) : null}
@@ -88,7 +93,6 @@ export function SplitLayout({
         className={cn(
           "flex min-w-0 flex-col lg:col-span-2",
           top !== undefined && "lg:col-start-1 lg:row-start-2",
-          after !== undefined && "lg:row-span-2",
           gap,
           mainProps?.className,
         )}
@@ -104,7 +108,7 @@ export function SplitLayout({
         <div
           data-slot="split-layout-after"
           className={cn(
-            "flex min-w-0 flex-col lg:col-start-3 lg:row-start-3",
+            "flex min-w-0 flex-col lg:col-start-3 lg:row-start-2",
             gap,
           )}
         >
@@ -120,13 +124,15 @@ function SideColumn({
   gap,
   props,
   top = false,
+  span = true,
   children,
 }: {
   size: "page" | "display";
   gap: string;
   props: ComponentProps<"div"> | undefined;
-  /** Beside a `top`: from the first row through the last. */
+  /** Beside a `top`: in the first row, and through the last unless `after` follows. */
   top?: boolean;
+  span?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -134,7 +140,9 @@ function SideColumn({
       {...props}
       className={cn(
         "flex min-w-0 flex-col",
-        top ? "lg:col-start-3 lg:row-span-2 lg:row-start-1" : FIRST_RULE[size],
+        top
+          ? cn("lg:col-start-3 lg:row-start-1", span && "lg:row-span-2")
+          : FIRST_RULE[size],
         gap,
         props?.className,
       )}

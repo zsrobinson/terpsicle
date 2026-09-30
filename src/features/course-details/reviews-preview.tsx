@@ -11,7 +11,7 @@ import type {
   InstructorSlug,
   PlanetTerpDept,
 } from "~/core/schema";
-import { formatMonthYear } from "~/core/time/format";
+import { formatFullDate, formatMonthYear } from "~/core/time/format";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { clientConfig } from "~/lib/config";
 import { lazyComponent } from "~/lib/lazy-component";
@@ -249,9 +249,15 @@ export function ReviewsPreview({
             >
               <span className="flex items-center gap-2 text-muted text-xs">
                 <Stars size={11} rating={r.review.rating} />
-                <span className="tnum">
-                  {formatMonthYear(r.review.createdMonth)}
-                </span>
+                {r.source === "planetterp" ? (
+                  <time dateTime={r.review.createdDate} className="tnum">
+                    {formatFullDate(r.review.createdDate)}
+                  </time>
+                ) : (
+                  <time dateTime={r.review.createdMonth} className="tnum">
+                    {formatMonthYear(r.review.createdMonth)}
+                  </time>
+                )}
                 {r.source === "planetterp" ? <span>PlanetTerp</span> : null}
               </span>
               <p className="line-clamp-4 whitespace-pre-line break-words">

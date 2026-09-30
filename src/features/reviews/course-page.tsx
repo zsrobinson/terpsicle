@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 import { ViewWords } from "~/components/brand/view-words";
@@ -55,6 +55,7 @@ import {
   WriteReviewButton,
 } from "./review-box";
 import {
+  ReviewFilter,
   ReviewList,
   ReviewsTitle,
   SortControl,
@@ -64,13 +65,14 @@ import {
 import { SignInPrompt } from "./sign-in-prompt";
 
 // /reviews/<course> (V2 §1.1), in two columns from the top (owner,
-// 2026-09-29). The wide one: the course, its rating from every review of
-// it, then the reviews, ours and PlanetTerp's about every instructor, never
-// filtered to one (as on PlanetTerp), in the order `?sort=` asks. The
-// narrow one: the box to review it yourself, who taught it term by term
-// (each a link to their reviews in this course), and its grades. On a
-// phone: the course, who teaches it now, the box, the reviews, then who
-// taught it and the grades. No back link (owner). The route's loader read
+// 2026-09-29). The wide one: the course, the box to review it yourself,
+// then the reviews, ours and PlanetTerp's about every instructor, never
+// filtered to one (as on PlanetTerp), in the order `?sort=` asks; the
+// instructor filter left of the sort opens one instructor's page for this
+// course (owner, 2026-09-30). The narrow one: its rating from every review
+// of it, then its grades, level with the reviews, and who taught it term by
+// term. On a phone: the course, who teaches it now, the box, the rating,
+// the reviews, then the grades and who taught it. No back link (owner). The route's loader read
 // it all, so the server's HTML has it.
 
 type Row = CourseInstructorRow;
@@ -107,6 +109,11 @@ export function CoursePage({
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   const today = newYorkClock(Date.now()).date;
   const teaching = rows.filter((r) => r.teaching);
+  // The instructor filter: everyone with a page of their own, by name.
+  const withPages = rows
+    .flatMap((r) => (r.id ? [{ id: r.id, name: r.name }] : []))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const navigate = useNavigate();
 
   // Every review of the course: PlanetTerp's of it, and ours.
   const combined = combineRatings([
@@ -205,13 +212,24 @@ export function CoursePage({
             )
           }
           onEdit={setWriting}
+          ready={taken !== null}
         />
       )}
     </div>
   );
-  // Who taught it and its grades: the narrow column's end.
+  // Its grades (level with the reviews), then who taught it: the narrow
+  // column's second part.
   const more = (
     <>
+      <PageSection size="side" title="Grades">
+        {grades ? (
+          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
+        ) : (
+          <PanelNote className={PAGE_NOTE}>
+            PlanetTerp has no grades for {code} yet.
+          </PanelNote>
+        )}
+      </PageSection>
       <PageSection
         size="side"
         title="Who taught it"
@@ -238,15 +256,6 @@ export function CoursePage({
             Each GPA is the average across all their courses.
           </p>
         ) : null}
-      </PageSection>
-      <PageSection size="side" title="Grades">
-        {grades ? (
-          <GradesBlock record={grades} gradesThrough={data.gradesThrough} />
-        ) : (
-          <PanelNote className={PAGE_NOTE}>
-            PlanetTerp has no grades for {code} yet.
-          </PanelNote>
-        )}
       </PageSection>
     </>
   );
@@ -296,18 +305,47 @@ export function CoursePage({
                 ) : undefined
               }
             />
-            <RatingSummary combined={combined} />
+            {box}
           </>
         }
         sideProps={{ "aria-label": `More about ${code}`, className: "lg:pt-8" }}
-        side={box}
-        // Beside the reviews on a wide screen; after them on a phone.
+        side={<RatingSummary combined={combined} />}
+        // Level with the reviews on a wide screen; after them on a phone.
         after={more}
         main={
           <PageSection
             size="display"
             title={<ReviewsTitle count={combined.reviewCount} />}
-            aside={<SortControl sort={sort} />}
+            aside={
+              <div className="flex flex-wrap items-center gap-2">
+                {withPages.length > 0 ? (
+                  <ReviewFilter
+                    label="Instructor"
+                    tooltip={`One instructor's reviews and grades in ${code}`}
+                    all="All instructors"
+                    value={null}
+                    options={withPages.map((r) => ({
+                      value: r.id,
+                      label: r.name,
+                    }))}
+                    onPick={(id) => {
+                      // One instructor in this course is their page's view
+                      // of it, with this page's order (owner, 2026-09-30).
+                      if (id === null) return;
+                      void navigate({
+                        to: "/reviews/$slug",
+                        params: { slug: instructorSlug(id) },
+                        search: {
+                          course: code,
+                          ...(sort !== "latest" ? { sort } : {}),
+                        },
+                      });
+                    }}
+                  />
+                ) : null}
+                <SortControl sort={sort} />
+              </div>
+            }
           >
             <ReviewList
               reviews={reviews}

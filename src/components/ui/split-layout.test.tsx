@@ -62,25 +62,29 @@ describe("SplitLayout", () => {
     expect(main).toHaveClass("lg:row-start-2", "lg:col-span-2");
   });
 
-  it("puts the narrow column's end after the wide column on a phone, under its start on a wide screen", () => {
+  it("starts the narrow column's second part level with the wide column's, and after it on a phone", () => {
     render(
       <SplitLayout
         size="display"
         top={<h1>CMSC351</h1>}
         mainProps={{ "aria-label": "Reviews" }}
+        sideProps={{ "aria-label": "Rating" }}
         main={<p>Every review</p>}
-        side={<p>Review it</p>}
+        side={<p>3.1</p>}
         after={<h2>Grades</h2>}
       />,
     );
     const main = screen.getByLabelText("Reviews");
+    const side = screen.getByLabelText("Rating");
     const after = screen.getByRole("heading", { name: "Grades" }).parentElement;
     expect(
       main.compareDocumentPosition(after as Node) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(after).toHaveClass("lg:col-start-3", "lg:row-start-3");
-    expect(main).toHaveClass("lg:row-span-2");
-    expect(main.parentElement).toHaveClass("lg:grid-rows-[auto_auto_1fr]");
+    // The reviews and what follows the rating start on one row.
+    expect(after).toHaveClass("lg:col-start-3", "lg:row-start-2");
+    expect(main).toHaveClass("lg:row-start-2");
+    expect(side).toHaveClass("lg:row-start-1");
+    expect(side).not.toHaveClass("lg:row-span-2");
   });
 });

@@ -15,13 +15,13 @@ import {
 import { type InstructorId, instructorNameKey } from "~/core/schema";
 import { formatMonthYear } from "~/core/time/format";
 import { useAccount } from "~/features/auth/account-store";
-import { GoogleButton } from "~/features/auth/sign-in-panel";
 import { ListRow } from "~/ui/list-row";
 import { PageSection } from "~/ui/page-section";
+import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { browserReader, loadPlanetTerp } from "./data";
 import { ROW_LINK } from "./frame";
-import { useReviewsLevel, useSignedIn } from "./level";
+import { useAccountView, useReviewsLevel, useSignedIn } from "./level";
 import { useClassesTaken, useMineSettled } from "./review-box";
 import { useMine } from "./reviews-section";
 
@@ -32,8 +32,9 @@ import { useMine } from "./reviews-section";
 // Schedule of Classes still lists, newest first, each a step from the
 // form. A class whose instructor your plans don't name goes to its
 // course's page, which asks who. Then your reviews, newest first. Signed
-// out, the classes are there to read about, with one quiet line on signing
-// in. Quiet rows and notes, never a banner.
+// out, the classes are there to read about; signing in is asked on the page
+// you'd review from (owner, 2026-09-30). Quiet bands and notes, never a
+// banner.
 
 /** Rows each list shows: the newest first. */
 const SHOWN = 6;
@@ -79,36 +80,42 @@ function useYourClasses(reviewed: ReadonlySet<string> | null): Row[] | null {
 
 export function YourReviewsColumn() {
   const signedIn = useSignedIn();
+  const view = useAccountView();
   const level = useReviewsLevel();
   const mine = useMine();
   const settled = useMineSettled();
   const writing = level === "on";
-  const reviewed =
-    signedIn === "loading" || level === "loading" || !settled
-      ? null
-      : new Set(
-          signedIn && writing
-            ? mine
-                .filter((r) => r.status !== "rejected")
-                .map((r) => reviewedKey(r.course, r.reviewedName))
-            : [],
-        );
+  // Signed in, it waits for your reviews; signed out (as this browser last
+  // was, while /api/me confirms), there are none to wait for.
+  const known =
+    level !== "loading" &&
+    (view === "signed-out" ||
+      (view === "signed-in" && signedIn === true && settled));
+  const mineHere = view === "signed-in" && writing;
+  const reviewed = known
+    ? new Set(
+        mineHere
+          ? mine
+              .filter((r) => r.status !== "rejected")
+              .map((r) => reviewedKey(r.course, r.reviewedName))
+          : [],
+      )
+    : null;
   const rows = useYourClasses(reviewed);
   const planListed = useAccount((s) => s.flags.plan);
-  const yours = signedIn === true ? reviewsByRecency(mine) : [];
+  const yours = view === "signed-in" ? reviewsByRecency(mine) : [];
+  // Until it knows what to say, the section's shape: never the signed-out
+  // words first (owner, 2026-09-30).
+  if (!known || rows === null) return <ColumnPlaceholder />;
   return (
     <>
       <PageSection
         size="side"
-        title={
-          writing && signedIn === true
-            ? "Review your classes"
-            : "Classes you took"
-        }
-        aside={rows && rows.length > 0 ? "From your plans" : undefined}
+        title={mineHere ? "Review your classes" : "Classes you took"}
+        aside={rows.length > 0 ? "From your plans" : undefined}
       >
-        {rows && rows.length > 0 ? (
-          <ul aria-label="Classes to review">
+        {rows.length > 0 ? (
+          <ul aria-label="Classes to review" className={BANDS}>
             {rows.map((r) => (
               <ClassRow
                 key={reviewedKey(r.course, r.instructor ?? "")}
@@ -117,11 +124,11 @@ export function YourReviewsColumn() {
               />
             ))}
           </ul>
-        ) : rows && signedIn === true && writing && yours.length > 0 ? (
+        ) : mineHere && yours.length > 0 ? (
           <p className="text-muted">
             You've reviewed every class from your plans. Thanks.
           </p>
-        ) : rows && planListed ? (
+        ) : planListed ? (
           // Where your classes come from: a transcript knows them all.
           <p className="text-muted">
             Import your transcript in{" "}
@@ -135,22 +142,9 @@ export function YourReviewsColumn() {
             </WithTooltip>
             , and the classes you took show up here.
           </p>
-        ) : rows ? (
+        ) : (
           <p className="text-muted">The classes you took show up here.</p>
-        ) : null}
-        {signedIn === false && writing ? (
-          <div className="flex flex-col items-start gap-3">
-            <p className="text-muted">
-              Sign in with your UMD account to review them. Readers won't see
-              who wrote it.
-            </p>
-            <GoogleButton
-              returnTo="/reviews"
-              from="reviews"
-              className="w-fit"
-            />
-          </div>
-        ) : null}
+        )}
       </PageSection>
 
       {yours.length > 0 ? (
@@ -169,12 +163,12 @@ export function YourReviewsColumn() {
             </WithTooltip>
           }
         >
-          <ul aria-label="Your reviews">
+          <ul aria-label="Your reviews" className={BANDS}>
             {yours.slice(0, SHOWN).map((r) => (
               <ListRow
                 key={r.id}
                 as="li"
-                className="relative px-0 hover:bg-hover"
+                className={BAND}
                 secondary={`${formatMonthYear(r.createdAt.slice(0, 7))} · ${reviewStanding(r).label}`}
               >
                 <WithTooltip
@@ -201,6 +195,32 @@ export function YourReviewsColumn() {
 }
 
 /**
+ * The column's lists: each item its own soft band, no rules between
+ * (owner, 2026-09-30: "no more separator lines between items but keep
+ * visually distinct").
+ */
+const BANDS = "flex flex-col gap-2";
+const BAND = "relative rounded-md border-b-0 bg-band px-3 hover:bg-hover";
+
+/** The column's shape while it finds out whose it is. */
+function ColumnPlaceholder() {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="yours-waiting"
+      className="flex flex-col gap-4"
+    >
+      <Skeleton className="h-7 w-1/2" />
+      <div className={BANDS}>
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-md" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * One class of yours: to review (signed in), or to read about. Without its
  * instructor, it's the course's page, which asks who taught you.
  */
@@ -221,7 +241,7 @@ function ClassRow({ row, write }: { row: Row; write: boolean }) {
   return (
     <ListRow
       as="li"
-      className="relative px-0 hover:bg-hover"
+      className={BAND}
       secondary={
         name
           ? termLabel(row.termId)

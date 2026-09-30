@@ -332,9 +332,9 @@ _Avoid_: banner, nudge (in copy)
 A course's page's side column: each term, newest first, with everyone who taught the course then, from our instructor history (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course.
 _Avoid_: Instructors (the old heading)
 
-**Course chips**:
-On an instructor's page, their courses as chips in the narrow column: "All courses", then each code, a view of the page (`?course=`), fused with an arrow that opens the course's own page.
-_Avoid_: course list, course switch
+**Review filter**:
+The select left of the review order. On an instructor's page, "All courses" or one of theirs (`?course=`), which narrows the reviews and the grades beside them ("Reviews in CMSC351", "Grades in CMSC351"). On a course's page, "All instructors" or one, which opens that instructor's page for the course, keeping the order. Code says `ReviewFilter`.
+_Avoid_: course chips (the old control), course switch
 
 **Review order**:
 How a page's reviews are sorted, beside "Reviews" at the right: Latest first (the default), Oldest first, Highest rated, Lowest rated. `?sort=` in the address. Code says `ReviewSort`.
