@@ -384,6 +384,13 @@ describe("the job state", () => {
 });
 
 describe("backfillHistory", () => {
+  const progressOf = async (store: ReturnType<typeof createMemoryBlobStore>) =>
+    JSON.parse(
+      new TextDecoder().decode(
+        (await store.get(HISTORY_BACKFILL_KEY)) ?? undefined,
+      ),
+    );
+
   /** PlanetTerp from saved pages: CMSC351 has grades, CMSC999 fails. */
   const planetTerp = () => {
     const urls: string[] = [];
@@ -442,10 +449,11 @@ describe("backfillHistory", () => {
     const manifest = await manifestOf(store);
     expect(manifest.terms).toHaveLength(27);
     expect(manifest.terms.every((t) => t.courses.planetterp === 1)).toBe(true);
-    const progress = await store.get(HISTORY_BACKFILL_KEY);
-    expect(JSON.parse(new TextDecoder().decode(progress ?? undefined))).toEqual(
-      { done: ["CMSC351"] },
-    );
+    expect(await progressOf(store)).toEqual({
+      done: ["CMSC351"],
+      emptyOnce: [],
+      doneEmpty: [],
+    });
 
     const rerun = await backfillHistory({
       http,
@@ -519,14 +527,199 @@ describe("backfillHistory", () => {
       courses: ["CMSC351", "CMSC250"],
       sleep: async () => {},
     });
-    expect(result).toMatchObject({ emptyAnswers: 1, noGrades: 1 });
-    expect(result.errors).toContain(
-      "CMSC351: PlanetTerp answered with no grade rows; a rerun asks again",
-    );
-    const progress = await store.get(HISTORY_BACKFILL_KEY);
-    expect(JSON.parse(new TextDecoder().decode(progress ?? undefined))).toEqual(
-      { done: ["CMSC250"] },
-    );
+    expect(result).toMatchObject({
+      emptyAnswers: 1,
+      markedEmpty: 0,
+      noGrades: 1,
+    });
+    expect(await progressOf(store)).toEqual({
+      done: ["CMSC250"],
+      emptyOnce: ["CMSC351"],
+      doneEmpty: [],
+    });
+  });
+
+  it("marks a course done-empty after a second empty answer on a later run, and stops asking", async () => {
+    const store = createMemoryBlobStore();
+    const urls: string[] = [];
+    const http = createHttpClient({
+      fetch: async (input) => {
+        urls.push(String(input));
+        return Response.json(
+          String(input).includes("/course?name=")
+            ? { name: "X", title: "T", credits: 3 }
+            : [],
+        );
+      },
+      attempts: 1,
+      sleep: async () => {},
+    });
+    const run = () =>
+      backfillHistory({
+        http,
+        store,
+        now,
+        log,
+        courses: ["AAAS100"],
+        sleep: async () => {},
+      });
+
+    expect(await run()).toMatchObject({ emptyAnswers: 1, markedEmpty: 0 });
+    expect(await progressOf(store)).toMatchObject({ emptyOnce: ["AAAS100"] });
+    expect(await run()).toMatchObject({ emptyAnswers: 1, markedEmpty: 1 });
+    expect(await progressOf(store)).toEqual({
+      done: [],
+      emptyOnce: [],
+      doneEmpty: ["AAAS100"],
+    });
+    const third = await run();
+    expect(third).toMatchObject({ alreadyDone: 1, fetched: 0 });
+    expect(urls.filter((u) => u.includes("/grades?"))).toHaveLength(2);
+    // Nothing was recorded for it: no data, not empty data.
+    expect(await store.get(HISTORY_MANIFEST_KEY)).toBeNull();
+  });
+
+  it("records a course that was empty once and has rows the next time", async () => {
+    const store = createMemoryBlobStore();
+    await writeJson(store, HISTORY_BACKFILL_KEY, {
+      done: [],
+      emptyOnce: ["CMSC351"],
+    });
+    const { http } = planetTerp();
+    const result = await backfillHistory({
+      http,
+      store,
+      now,
+      log,
+      courses: ["CMSC351"],
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ fetched: 1, emptyAnswers: 0 });
+    expect((await manifestOf(store)).terms).toHaveLength(27);
+    expect(await progressOf(store)).toEqual({
+      done: ["CMSC351"],
+      emptyOnce: [],
+      doneEmpty: [],
+    });
+  });
+
+  it("saves a complete listing and lists from it next time", async () => {
+    const urls: string[] = [];
+    const fetch = async (input: string | URL | Request) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes("offset=0&"))
+        return Response.json(listing("CMSC131", "CMSC132"));
+      if (url.includes("offset=100&")) return Response.json([]);
+      return Response.json(notFound, { status: 400 });
+    };
+    const http = createHttpClient({
+      fetch,
+      attempts: 1,
+      sleep: async () => {},
+    });
+    let saved: string | null = null;
+    const listCache = {
+      read: async () => saved,
+      write: async (text: string) => {
+        saved = text;
+      },
+    };
+    const store = createMemoryBlobStore();
+    const run = (departments: string[]) =>
+      backfillHistory({
+        http,
+        store,
+        now,
+        log,
+        departments,
+        listCache,
+        sleep: async () => {},
+      });
+
+    const first = await run(["CMSC"]);
+    expect(first).toMatchObject({ listed: 2, listingCached: false });
+    expect(saved).not.toBeNull();
+    urls.length = 0;
+    await writeJson(store, HISTORY_BACKFILL_KEY, { done: [] });
+    const second = await run(["cmsc"]);
+    expect(second).toMatchObject({ listed: 2, listingCached: true });
+    expect(urls.some((u) => u.includes("/courses?"))).toBe(false);
+    expect(urls.filter((u) => u.includes("/grades?"))).toHaveLength(2);
+
+    // Another department's run doesn't take CMSC's listing.
+    const other = await run(["MATH"]);
+    expect(other.listingCached).toBe(false);
+  });
+
+  it("doesn't save a listing that's incomplete", async () => {
+    const http = fakePlanetTerp([
+      ["offset=0&", 200, listing("CMSC131", "CMSC132")],
+      ["offset=100&", 200, listing("CMSC216")],
+      ["offset=200&", 200, []],
+      ["/grades?", 400, notFound],
+    ]);
+    let saved: string | null = null;
+    const result = await backfillHistory({
+      http,
+      store: createMemoryBlobStore(),
+      now,
+      log,
+      departments: ["CMSC"],
+      listCache: {
+        read: async () => "not json",
+        write: async (text) => {
+          saved = text;
+        },
+      },
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ listingComplete: false, listed: 3 });
+    expect(saved).toBeNull();
+  });
+
+  it("stops cleanly when asked, merging what it has and counting what's left", async () => {
+    const store = createMemoryBlobStore();
+    const http = fakePlanetTerp([
+      ["offset=0&", 200, listing("CMSC131", "CMSC132", "CMSC216")],
+      ["offset=100&", 200, []],
+      ["/grades?", 400, notFound],
+    ]);
+    let asked = 0;
+    const result = await backfillHistory({
+      http,
+      store,
+      now,
+      log,
+      departments: ["CMSC"],
+      shouldStop: () => ++asked > 1,
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ fetched: 1, stoppedEarly: true, left: 2 });
+    expect(await progressOf(store)).toMatchObject({ done: ["CMSC131"] });
+  });
+
+  it("stops after too many failures in a row instead of hammering PlanetTerp", async () => {
+    const http = fakePlanetTerp([
+      [
+        "offset=0&",
+        200,
+        listing(...Array.from({ length: 8 }, (_, i) => `CMSC${100 + i}`)),
+      ],
+      ["offset=100&", 200, []],
+      ["/grades?", 503, { error: "down" }],
+    ]);
+    const result = await backfillHistory({
+      http,
+      store: createMemoryBlobStore(),
+      now,
+      log,
+      departments: ["CMSC"],
+      maxFailuresInARow: 3,
+      sleep: async () => {},
+    });
+    expect(result).toMatchObject({ failed: 3, stoppedEarly: true, left: 5 });
+    expect(result.errors.at(-1)).toMatch(/3 courses in a row failed/);
   });
 
   it("checks a short list page, and reports one that had more after it", async () => {
