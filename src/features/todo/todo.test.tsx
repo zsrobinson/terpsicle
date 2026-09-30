@@ -819,7 +819,7 @@ describe("courses in the bar's panel", () => {
     await openPanel(userEvent.setup(), "Courses and ELMS");
     expect(
       await screen.findByRole("link", { name: "View chat for CMSC216" }),
-    ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
+    ).toHaveAttribute("href", "/chat/CMSC216/everyone");
   });
 
   it("has no chat links while Chat is off", async () => {

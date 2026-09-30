@@ -23,9 +23,15 @@ import {
 } from "../schema";
 import { countWords } from "../words";
 import {
+  EVERYONE_NAME,
+  instructorsWords,
+  professorRoomName,
+  roomPlace,
+  sectionRoomName,
+} from "./room-paths";
+import {
   courseRoomDescription,
   dotJoin,
-  instructorsWords,
   placeWords,
   professorRoomDescription,
   rangeWords,
@@ -52,13 +58,11 @@ export type Room = {
   readonly sectionCodes: readonly SectionCode[];
   /** The room above it: the course room, or a section's professor room. null for the course room. */
   readonly parent: RoomId | null;
-  /** The part set in mono: the course code, the section code, or null for a professor room. */
-  readonly code: string | null;
-  /** The words after the code: "everyone", "MWF 10am and Tu 8am discussion", "Sadeghian's sections". Empty when the code says it all. */
-  readonly words: string;
-  /** `code` and `words`, " · " between: "0303 · MWF 11am and TuTh 11am discussion". */
+  /** Its name under the course's code (./room-paths): "Everyone", "Sadeghian's Sections", "Section 0303". */
+  readonly name: string;
+  /** Its name with the course's: "CMSC131 · Section 0303", where no course heading says it. */
   readonly label: string;
-  /** The second line: where it meets, or for a professor room how many sections ("IRB 0324, CSI 1121", "10 sections"). May be empty. */
+  /** What the room's header says under its name: when and where a section meets, or a professor's sections ("MWF 11am · IRB 0324", "10 sections · 0101–0110"). May be empty. */
   readonly detail: string;
   /** Who's in it, in a sentence: "People in section 0101 of CMSC131, from their plans". */
   readonly description: string;
@@ -109,8 +113,7 @@ function sectionRoom(
   section: Section,
   parent: RoomId,
 ): Room {
-  // Every meeting, like course details' rows: nothing above says them.
-  const words = startWords(section.meetings);
+  const name = sectionRoomName(section.code);
   return {
     id: sectionRoomId(termId, course.code, section.code),
     kind: "section",
@@ -118,10 +121,10 @@ function sectionRoom(
     courseCode: course.code,
     sectionCodes: [section.code],
     parent,
-    code: section.code,
-    words,
-    label: dotJoin(section.code, words),
-    detail: placeWords(section.meetings),
+    name,
+    label: roomPlace(course.code, name),
+    // Every meeting, like course details' rows: nothing above says them.
+    detail: dotJoin(startWords(section.meetings), placeWords(section.meetings)),
     description: sectionRoomDescription(course.code, section.code),
   };
 }
@@ -145,9 +148,8 @@ function build(termId: TermId, course: Course): RoomTree {
     courseCode: course.code,
     sectionCodes: order,
     parent: null,
-    code: course.code,
-    words: one ? "" : "everyone",
-    label: one ? course.code : `${course.code} · everyone`,
+    name: EVERYONE_NAME,
+    label: roomPlace(course.code, EVERYONE_NAME),
     detail: one
       ? oneSectionDetail(course.sections[0])
       : dotJoin(
@@ -183,9 +185,8 @@ function build(termId: TermId, course: Course): RoomTree {
             courseCode: course.code,
             sectionCodes: codes,
             parent: courseId,
-            code: null,
-            words: `${who}'s sections`,
-            label: `${who}'s sections`,
+            name: professorRoomName(who),
+            label: roomPlace(course.code, professorRoomName(who)),
             detail: dotJoin(
               countWords(codes.length, "section"),
               sectionCodesWords(codes, order),
@@ -218,7 +219,11 @@ function build(termId: TermId, course: Course): RoomTree {
     for (const node of g.nodes) rooms.push(node.room, ...node.children);
   const sections = rooms
     .filter((r) => r.kind === "section")
-    .sort((a, b) => order.indexOf(a.code ?? "") - order.indexOf(b.code ?? ""));
+    .sort(
+      (a, b) =>
+        order.indexOf(a.sectionCodes[0] ?? "") -
+        order.indexOf(b.sectionCodes[0] ?? ""),
+    );
   return {
     termId,
     courseCode: course.code,

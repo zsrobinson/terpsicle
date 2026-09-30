@@ -66,7 +66,7 @@ async function signIn(page: Page, userId: string) {
   ).toBeVisible();
 }
 
-/** The note over the composer (room info has its own "Posting here"). */
+/** The note over the composer, the first time you open a course's chat. */
 const note = (page: Page) => page.getByRole("region", { name: "Posting here" });
 
 /** Whether the account's settings doc has the course's note closed. */

@@ -186,12 +186,13 @@ test("an @-mention pushes to the classmate it names", async ({
       }
       return null;
     };
-    const url = `/chat?term=${TERM}&course=${course}&room=${encodeURIComponent(room)}`;
+    // Its link is the room's path (~/core/chat/room-paths).
+    const url = `/chat/${course}/everyone`;
     await expect.poll(() => payload(tag), { timeout: 15_000 }).not.toBeNull();
     expect(await payload(tag)).toEqual({
       v: 1,
       type: "chat-mention",
-      title: `Test Student in ${course}`,
+      title: `Test Student in ${course} · Everyone`,
       body: `@Test Classmate are you coming? ${tag}`,
       url,
       tag: `chat-mention:${room}`,
@@ -211,7 +212,7 @@ test("an @-mention pushes to the classmate it names", async ({
     expect(await payload(again)).toEqual({
       v: 1,
       type: "chat-mention",
-      title: `2 mentions in ${course}`,
+      title: `2 mentions in ${course} · Everyone`,
       body: `Test Student: @Test Classmate also bring the notes ${again}`,
       url,
       tag: `chat-mention:${room}`,

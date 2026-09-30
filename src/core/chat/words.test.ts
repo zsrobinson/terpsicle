@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { anUntimedMeeting, aTbaMeeting, aTimedMeeting } from "~/fixtures";
 import { REACTIONS } from "../schema";
+import { instructorShortName, instructorsWords } from "./room-paths";
 import {
   compactTimeRange,
-  instructorShortName,
-  instructorsWords,
   placeWords,
   REACTION_WORDS,
   rangeWords,

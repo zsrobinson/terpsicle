@@ -582,7 +582,7 @@ Rooms aren't stored: `roomsForCourse(termId, course)` in `core/chat` derives the
 
 - **`ChatMessage`:** `id`, `room`, `author` (directory ID and the Google name, as they are now; no picture since protocol 2; the name the author wrote under if the account is gone), `text` (trimmed, 1–2,000 chars), `createdAt`, `editedAt`, `replyTo` (the thread's first message; threads are one level deep), `thread` (reply count and last reply time), `reactions` (who reacted, per reaction in the fixed set `REACTIONS`) and `moderation`: `visible`, `held {reason}` (only the author sees it; `checking` · `graded-work` · `flagged` · `reported`) or `removed`.
 - **Client frames** (`ChatClientFrameSchema`, strict): `hello {protocol, rooms}` first, then `history {room, thread, before, limit}`, `send {room, text, replyTo}`, `edit`, `delete`, `react {id, reaction, on}`, `typing {room}` and `read {room, upTo}`. Requests carry a client `req` id.
-- **Server frames** (`ChatServerFrameSchema`): `welcome {you, rooms: [{room, members, unread, writable}]}`, `page {messages (oldest first), more}`, `ack {req, message}` (the message as its author now sees it; null after a delete), `error {req, code, retryAfter}`, `message` (new or changed; replaces the copy with that id), `deleted`, `reactions`, `moderation` (every change to the author; `removed` to everyone who had seen it) and `typing`.
+- **Server frames** (`ChatServerFrameSchema`): `welcome {you, rooms: [{room, members, unread, writable}]}`, `page {messages (oldest first), more}`, `ack {req, message}` (the message as its author now sees it: a tombstone after deleting one the room saw, null after deleting one only its author saw), `error {req, code, retryAfter}`, `message` (new or changed, a tombstone included; replaces the copy with that id), `deleted` (gone entirely: an account's purge), `reactions`, `moderation` (every change to the author; `removed` to everyone who had seen it) and `typing`.
 - `CHAT_PROTOCOL_VERSION` (2 since authors lost `picture`) is bumped on a breaking change; an older client's `hello` gets `error {code: "old-client"}` and reloads.
 - A `send`'s `req` is also its idempotency key: resending the same `req` (after a reconnect) gets the first message back. Clients pick a random one per message.
 
@@ -610,6 +610,7 @@ The full SQL, and what each column means, is in `docs/V2.md`; once a migration l
 | `0019_quiet_hours` | `notifications.push_held_at` and a partial index on it | Quiet hours: a push that waits for 8am (V2.md §6.7, §7.11 here) |
 | `0021_no_pictures` | nulls `users.picture_url` and `picture_key`, without dropping them, so the build serving during the deploy kept working | No profile pictures (V2.md §4.5) |
 | `0022_drop_unused_columns` | drops `users.picture_url` and `picture_key` (unused since `0021`) and `todo_items.exam` and `gradescope` (unused since `v3/todo-calendar`) | Nothing reads them; both PRs are deployed |
+| `0023_chat_joins` | adds `chat_members.joined_at` | A room's timeline shows joins, grouped (V2.md §8.6) |
 
 `counters` (§7.1) stays and also holds per-user limits (`user:<id>:<route>`).
 
@@ -672,7 +673,7 @@ The design is `docs/V2.md` §8. The object is `src/server/chat/course-chat.ts` (
 
 | Table | Key | Columns | Notes |
 |---|---|---|---|
-| `chat_members` | `(user_id, term_id, course_code)` | `section_code` (`''` for a saved-for-later course) | One row per course of each person's main plan: the settings doc's `mainPlans[term]` when it names one of the term's live plans, else the term's first tab (`mainPlanFor`, `docs/V2.md` §5.5). Rewritten after every push that saved a plan (its term) or the settings doc (every term the person has rows or a choice in). The write is skipped if another save moved `sync_heads.head` since the read, since that push rewrites the rows itself. |
+| `chat_members` | `(user_id, term_id, course_code)` | `section_code` (`''` for a saved-for-later course), `joined_at` (when a push added the row, or changed its section; null before `0023_chat_joins`) | One row per course of each person's main plan: the settings doc's `mainPlans[term]` when it names one of the term's live plans, else the term's first tab (`mainPlanFor`, `docs/V2.md` §5.5). Rewritten after every push that saved a plan (its term) or the settings doc (every term the person has rows or a choice in). The write is skipped if another save moved `sync_heads.head` since the read, since that push rewrites the rows itself. Rows that stay the same are left alone, so they keep `joined_at`. |
 | `chat_follows` | `(user_id, term_id, course_code)` | `created_at` | Course rooms opened from outside your plan; ≤ 100 per term. |
 | `chat_rooms` | `(term_id, course_code, room_id)` | `kind`, `sections` (JSON section codes), `last_seq`, `last_message_at` | Written by the object when a message becomes visible, so a room has a row only after its first. `kind` and `sections` let `chat/unread` pick your professor and section rooms without the catalog. |
 | `chat_read_markers` | `(user_id, term_id, course_code, room_id)` | `seq` | Only moves forward. `chat/unread`'s count is `last_seq − seq`. |

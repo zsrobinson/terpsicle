@@ -39,7 +39,7 @@ const SIGNED_OUT = [
 
 const SIGNED_IN = [
   "/chat",
-  "/chat?term=202701&course=CMSC351",
+  "/chat/CMSC351/everyone",
   "/todo",
   "/todo/connect",
   "/settings",
