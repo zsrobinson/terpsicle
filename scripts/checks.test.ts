@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findImportProblems } from "./check-imports";
 import { findTermIds, isExempt } from "./check-term-ids";
+import { findTrackedFileProblems, MAX_BYTES } from "./check-tracked-files";
 
 describe("findTermIds", () => {
   it.each(["202701", "202605", "202608", "202612"])("flags %s", (id) => {
@@ -150,5 +151,33 @@ describe("the sealed feed link rule", () => {
     expect(
       findImportProblems("src/server/todo/store.ts", "// never url_enc"),
     ).toEqual([]);
+  });
+});
+
+describe("findTrackedFileProblems", () => {
+  it("allows ordinary files, fixtures and screenshots under the limit", () => {
+    expect(
+      findTrackedFileProblems([
+        { rel: "src/core/time.ts", bytes: 4_000 },
+        { rel: "src/ingest/__fixtures__/soc/CMSC.html", bytes: 900_000 },
+        { rel: "docs/screenshots/brand/after.jpg", bytes: 480_000 },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("flags test output, recordings and files over the limit", () => {
+    expect(
+      findTrackedFileProblems([
+        { rel: "runs/2026-09-30T0812-ios-1/README.md", bytes: 2_000 },
+        { rel: "mobile-lab-results/x/summary.json", bytes: 2_000 },
+        { rel: "docs/demo.mp4", bytes: 1_000 },
+        { rel: "public/big.png", bytes: MAX_BYTES + 1 },
+      ]),
+    ).toEqual([
+      "runs/2026-09-30T0812-ios-1/README.md  (a test run's output)",
+      "mobile-lab-results/x/summary.json  (a test run's output)",
+      "docs/demo.mp4  (a recording)",
+      "public/big.png  (2.0 MiB)",
+    ]);
   });
 });

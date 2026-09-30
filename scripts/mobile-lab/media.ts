@@ -1,5 +1,5 @@
-// Screenshots and recordings, made small enough to keep a few dozen runs on
-// the mobile-runs branch: JPEGs at most 720px wide, videos at 360px. Uses
+// Screenshots and recordings, made small enough that a run's artifact stays
+// quick to download: JPEGs at most 720px wide, videos at 360px. Uses
 // whichever converter the machine has (ffmpeg; on a Mac, sips and
 // avconvert) and keeps the original when none works.
 

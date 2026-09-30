@@ -1,6 +1,6 @@
 // A run's results: summary.json (everything, for agents and scripts) and
-// README.md (screenshots next to what each step measured, which GitHub
-// renders on the mobile-runs branch).
+// README.md (screenshots next to what each step measured, readable in any
+// Markdown viewer once the run's artifact is unzipped).
 
 import type { Check } from "./checks";
 import type { Step } from "./lab";

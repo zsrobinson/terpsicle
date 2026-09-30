@@ -9,8 +9,9 @@ name: Mobile lab
 #   touches the app shell or styles; the `mobile-lab` label adds Android and
 #   iOS (adding the label runs them at once, on the current preview).
 #
-# Every run's screenshots, recordings and step logs go to the `mobile-runs`
-# branch (runs/<time>-<engine>-<run id>/README.md) and to the run's artifacts.
+# Every run's screenshots, recordings and step logs go to the run's artifacts
+# (mobile-lab-<engine>), never to a Git branch: recordings bloat the repo for
+# every clone (docs/decisions.md, "Test recordings stay out of Git").
 on:
   workflow_dispatch:
     inputs:
@@ -60,8 +61,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  # Publishing results to the mobile-runs branch.
-  contents: write
+  contents: read
 
 jobs:
   plan:
@@ -152,20 +152,22 @@ jobs:
           sudo dmesg --time-format iso 2>/dev/null | grep -iE "segfault|general protection|oom|killed process|out of memory|WebKit|WPE" > "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
           free -m >> "mobile-lab-results/$RUN_NAME/kernel-log.txt" || true
       - uses: actions/upload-artifact@v7
+        id: upload
         if: always()
         with:
           name: mobile-lab-webkit
           path: mobile-lab-results
           retention-days: 14
-      - name: Publish to the mobile-runs branch
-        if: always() && steps.lab.outcome != 'skipped'
+      - name: Link the results
+        if: always() && steps.upload.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
-          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
-          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "### Mobile lab: $RUN_NAME"; cat "mobile-lab-results/$RUN_NAME/RESULT" 2>/dev/null || true; echo; echo "Screenshots, recordings and summary.json: $ARTIFACT_URL"; } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Result
         if: steps.lab.outputs.status != '0'
         run: |
-          echo "::error::Mobile lab checks failed on WebKit. See runs/$RUN_NAME/README.md on the mobile-runs branch."
+          echo "::error::Mobile lab checks failed on WebKit. See $RUN_NAME/README.md in the run's mobile-lab artifact."
           exit 1
 
   android:
@@ -213,20 +215,22 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: pnpm tsx scripts/mobile-lab/run.ts --engine android --url "$URL" --out "mobile-lab-results/$RUN_NAME" --source "$SOURCE" ${SCENARIOS:+--only "$SCENARIOS"} --repeat "$REPEAT" "$VIDEO" "$SCREENSHOTS" || touch mobile-lab-failed
       - uses: actions/upload-artifact@v7
+        id: upload
         if: always()
         with:
           name: mobile-lab-android
           path: mobile-lab-results
           retention-days: 14
-      - name: Publish to the mobile-runs branch
-        if: always() && steps.lab.outcome != 'skipped'
+      - name: Link the results
+        if: always() && steps.upload.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
-          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
-          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "### Mobile lab: $RUN_NAME"; cat "mobile-lab-results/$RUN_NAME/RESULT" 2>/dev/null || true; echo; echo "Screenshots, recordings and summary.json: $ARTIFACT_URL"; } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Result
         run: |
           if [ -e mobile-lab-failed ]; then
-            echo "::error::Mobile lab checks failed on Android. See runs/$RUN_NAME/README.md on the mobile-runs branch."
+            echo "::error::Mobile lab checks failed on Android. See $RUN_NAME/README.md in the run's mobile-lab artifact."
             exit 1
           fi
 
@@ -279,6 +283,7 @@ jobs:
             --predicate 'process == "com.apple.WebKit.WebContent" AND (eventMessage CONTAINS[c] "crash" OR eventMessage CONTAINS[c] "memory" OR eventMessage CONTAINS[c] "jetsam" OR eventMessage CONTAINS[c] "terminat")' \
             > "mobile-lab-results/$RUN_NAME/webcontent-log.txt" 2>&1 || true
       - uses: actions/upload-artifact@v7
+        id: upload
         if: always()
         with:
           name: mobile-lab-ios
@@ -286,13 +291,14 @@ jobs:
             mobile-lab-results
             appium.log
           retention-days: 14
-      - name: Publish to the mobile-runs branch
-        if: always() && steps.lab.outcome != 'skipped'
+      - name: Link the results
+        if: always() && steps.upload.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
-          scripts/mobile-lab/publish.sh "mobile-lab-results/$RUN_NAME" "$RUN_NAME"
-          echo "Results: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/mobile-runs/runs/$RUN_NAME/README.md" | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "### Mobile lab: $RUN_NAME"; cat "mobile-lab-results/$RUN_NAME/RESULT" 2>/dev/null || true; echo; echo "Screenshots, recordings and summary.json: $ARTIFACT_URL"; } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Result
         if: steps.lab.outputs.status != '0'
         run: |
-          echo "::error::Mobile lab checks failed on iOS. See runs/$RUN_NAME/README.md on the mobile-runs branch."
+          echo "::error::Mobile lab checks failed on iOS. See $RUN_NAME/README.md in the run's mobile-lab artifact."
           exit 1

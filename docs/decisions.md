@@ -629,6 +629,11 @@ Revisit if: the owner wants to review before merges.
 The goal after the in-flight work is cohesion: every product in one frame, built from one shared kit, with the same first-visit, empty, loading, error and undo patterns (`docs/COHESION.md`). The orchestrator builds the frame and the kit itself, and at most two other sessions run at a time, on parts of the code that don't overlap.
 Revisit if: the checklist in COHESION.md is done and a full first-time round finds nothing worth fixing.
 
+### Test recordings stay out of Git
+2026-09-30 · owner · process
+The mobile lab's screenshots, recordings and logs go only to the workflow run's Actions artifacts (kept 14 days), not to a branch. The `mobile-runs` branch it used to publish to made the repo 445 MiB, 94% of it recordings, for every clone; it was deleted along with the merged branches. `pnpm lint` fails on tracked test output, recordings and files over 2 MiB (`scripts/check-tracked-files.ts`).
+Revisit if: runs need to outlive 14 days or be browsable without unzipping (then R2, never Git).
+
 ### "As built" goes in the PR body
 2026-09-27 · agent · process
 A PR's "as built" notes go in its body. `DATA.md`, `STATUS.md`, `V2.md` and `V3.md` change only when a contract changes (a schema, storage, an API or a flag). Parallel PRs kept colliding in those files.
