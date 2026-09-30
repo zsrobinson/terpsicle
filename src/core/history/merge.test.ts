@@ -32,6 +32,37 @@ describe("mergeHistoryCourse", () => {
     expect(mergeHistoryCourse(theirs, ours)).toBe(ours);
   });
 
+  describe("umd.io: below ours, above PlanetTerp's", () => {
+    const umdio = aHistoryCourse({
+      source: "umdio",
+      credits: null,
+      instructors: ["Clyde Kruskal", "Ilchul Yoon"],
+      sections: [
+        { code: "0101", instructors: ["Ilchul Yoon"] },
+        { code: "0201", instructors: ["Clyde Kruskal"] },
+      ],
+    });
+
+    it("keeps ours over umd.io's, whichever arrives first", () => {
+      const ours = aHistoryCourse();
+      expect(mergeHistoryCourse(ours, umdio)).toBe(ours);
+      expect(mergeHistoryCourse(umdio, ours)).toBe(ours);
+    });
+
+    it("takes umd.io's over PlanetTerp's, whichever arrives first", () => {
+      // PlanetTerp's only knows the section that reported grades.
+      expect(mergeHistoryCourse(theirs, umdio)).toBe(umdio);
+      expect(mergeHistoryCourse(umdio, theirs)).toBe(umdio);
+    });
+
+    it("merges umd.io with umd.io like any one source", () => {
+      const later = { ...umdio, sections: [{ code: "0101", instructors: [] }] };
+      expect(mergeHistoryCourse(umdio, later).sections).toEqual([
+        { code: "0101", instructors: ["Ilchul Yoon"] },
+      ]);
+    });
+  });
+
   it("takes the newer sighting's sections from the same source (a vanished section was cancelled)", () => {
     const before = aHistoryCourse({
       instructors: ["Ada Brandt", "Ben Ortiz"],
@@ -125,7 +156,11 @@ describe("mergeHistoryTerm", () => {
       courses: [theirs, { ...theirs, code: "CMSC420" }],
     });
     const term = mergeHistoryTerm(existing, fixtureTermId, [aHistoryCourse()]);
-    expect(historySourceCounts(term)).toEqual({ terpsicle: 1, planetterp: 1 });
+    expect(historySourceCounts(term)).toEqual({
+      terpsicle: 1,
+      umdio: 0,
+      planetterp: 1,
+    });
     expect(term.courses[0]).toEqual(aHistoryCourse());
   });
 });

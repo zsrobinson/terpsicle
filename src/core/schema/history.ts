@@ -40,11 +40,13 @@ function newestFirstUnique(values: readonly string[]): boolean {
 
 /**
  * Where a course's record for a term came from. `terpsicle`: our own copy of
- * Testudo's Schedule of Classes. `planetterp`: PlanetTerp's grade data (the
- * backfill), which only knows sections that reported grades. Ours wins where
- * both exist.
+ * Testudo's Schedule of Classes. `umdio`: umd.io's copy of the same schedule
+ * (a backfill), every section, back to Fall 2017, winter and summer too.
+ * `planetterp`: PlanetTerp's grade data (a backfill), which only knows
+ * sections that reported grades. Where two exist, ours wins, then umd.io's.
+ * `umdio` was added without a version bump: no client read the history yet.
  */
-export const HistorySourceSchema = z.enum(["terpsicle", "planetterp"]);
+export const HistorySourceSchema = z.enum(["terpsicle", "umdio", "planetterp"]);
 export type HistorySource = z.infer<typeof HistorySourceSchema>;
 
 /** Names as the source spells them, sorted and unique. Empty means TBA. */
@@ -144,7 +146,12 @@ export const HistoryManifestTermSchema = z.object({
   termId: TermIdSchema,
   hash: ContentHashSchema,
   /** Courses recorded from each source. */
-  courses: z.object({ terpsicle: count, planetterp: count }),
+  courses: z.object({
+    terpsicle: count,
+    /** Added with the umd.io source; a manifest from before reads as 0. */
+    umdio: count.default(0),
+    planetterp: count,
+  }),
 });
 export type HistoryManifestTerm = z.infer<typeof HistoryManifestTermSchema>;
 
