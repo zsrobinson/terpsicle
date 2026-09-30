@@ -127,6 +127,32 @@ test("anyone can find a course or an instructor and read their reviews", async (
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+test("an instructor PlanetTerp doesn't know opens a page of what they taught", async ({
+  page,
+}) => {
+  // Dario Castellano teaches CMSC426 in the mock term; PlanetTerp's mock
+  // data doesn't join his name, so only our instructor history knows him.
+  await page.goto("/reviews/cmsc426");
+  await hydrated(page);
+  await page.getByRole("link", { name: "Dario Castellano" }).first().click();
+  await expect(page).toHaveURL(/\/reviews\/dario-castellano\?course=CMSC426$/);
+  await expect(
+    page.getByRole("heading", { name: "Dario Castellano", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Nobody's reviewed Dario Castellano yet.", { exact: false }),
+  ).toBeVisible();
+  const taught = page.getByRole("list", { name: /^Taught in / }).first();
+  await expect(taught.getByRole("link", { name: /CMSC426/ })).toHaveAttribute(
+    "href",
+    "/reviews/cmsc426",
+  );
+  // Signed out, the box asks, as on anyone's page.
+  await expect(
+    page.getByRole("region", { name: "Took a class with Dario Castellano?" }),
+  ).toBeVisible();
+});
+
 test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
   test.skip(isMobile, "one writer: the desktop run");
   await signIn(page, "Test Student", INSTRUCTOR);
@@ -308,6 +334,7 @@ for (const scheme of ["light", "dark"] as const)
       "/reviews/cmsc351",
       INSTRUCTOR,
       "/reviews/keiko-ashdown",
+      "/reviews/dario-castellano?course=CMSC426",
       "/reviews/policy",
     ]) {
       await page.goto(path);

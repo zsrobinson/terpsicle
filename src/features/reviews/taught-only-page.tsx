@@ -26,7 +26,7 @@ import {
   useClassesTaken,
   WriteReviewButton,
 } from "./review-box";
-import { type Composing, useMine } from "./reviews-section";
+import { type Composing, ReviewsTitle, useMine } from "./reviews-section";
 import { SignInPrompt } from "./sign-in-prompt";
 
 // /reviews/<name>?course=<code>: an instructor PlanetTerp doesn't know
@@ -156,7 +156,7 @@ export function TaughtOnlyPage({
         side={<RatingSummary combined={combineRatings([])} />}
         after={<WhatTheyTaught data={data} />}
         main={
-          <PageSection size="page" title="Reviews">
+          <PageSection size="display" title={<ReviewsTitle count={0} />}>
             <PanelNote className={PAGE_NOTE}>
               Nobody's reviewed {name} yet. PlanetTerp doesn't list them, so
               there are no ratings or grades of theirs to show.
@@ -214,7 +214,6 @@ function WhatTheyTaught({ data }: { data: TaughtOnlyPageData }) {
               {rows.map((row) => (
                 <FilterRow
                   key={row.course}
-                  current={row.course === data.course}
                   label={
                     <span className="ident font-medium">{row.course}</span>
                   }
