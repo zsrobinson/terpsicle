@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "check": "pnpm typecheck && pnpm lint && pnpm test:unit",
     "typecheck": "tsc -b",
-    "lint": "biome check . && tsx scripts/check-imports.ts && tsx scripts/check-term-ids.ts && wrangler types --check",
+    "lint": "biome check . && tsx scripts/check-imports.ts && tsx scripts/check-term-ids.ts && tsx scripts/check-tracked-files.ts && wrangler types --check",
     "fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
