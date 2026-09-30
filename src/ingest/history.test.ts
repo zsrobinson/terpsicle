@@ -191,7 +191,7 @@ describe("publishHistory", () => {
       updates: [{ termId: fixtureTermId, courses: [theirs] }],
     });
     const [entry] = (await manifestOf(store)).terms;
-    expect(entry?.courses).toEqual({ terpsicle: 1, planetterp: 0 });
+    expect(entry?.courses).toEqual({ terpsicle: 1, umdio: 0, planetterp: 0 });
     if (!entry) throw new Error("no term");
     const term = await readJson(
       store,
@@ -494,7 +494,7 @@ describe("backfillHistory", () => {
     const entry = (await manifestOf(store)).terms.find(
       (t) => t.termId === termId,
     );
-    expect(entry?.courses).toEqual({ terpsicle: 1, planetterp: 0 });
+    expect(entry?.courses).toEqual({ terpsicle: 1, umdio: 0, planetterp: 0 });
   });
 
   /** A fake PlanetTerp answering each URL that contains a key from `pages`. */

@@ -12,7 +12,7 @@ import type { HistoryDept, HistoryOffering } from "~/core/schema/history";
 export interface HistoryDeptFacts {
   /** Every course on record, with its title when a term names it. */
   courses: Map<CourseCode, string | null>;
-  /** Names as Testudo spells them (our own copies) → courses they taught. */
+  /** Names as Testudo spells them (our own copies and umd.io's) → courses they taught. */
   testudoNames: Map<string, Set<CourseCode>>;
   /** Names as PlanetTerp spells them (the backfill) → courses they taught. */
   planetTerpNames: Map<string, Set<CourseCode>>;
@@ -30,10 +30,11 @@ export function historyDeptFacts(dept: HistoryDept): HistoryDeptFacts {
   for (const course of dept.courses) {
     facts.courses.set(course.code, course.title);
     for (const offering of course.offerings) {
+      // umd.io copies Testudo, so its names are Testudo's spellings.
       const names =
-        offering.source === "terpsicle"
-          ? facts.testudoNames
-          : facts.planetTerpNames;
+        offering.source === "planetterp"
+          ? facts.planetTerpNames
+          : facts.testudoNames;
       for (const name of offering.instructors) {
         const set = names.get(name) ?? new Set<CourseCode>();
         set.add(course.code);

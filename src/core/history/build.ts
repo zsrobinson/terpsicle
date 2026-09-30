@@ -147,6 +147,76 @@ function planetTerpCredits(credits: number | null): Credits | null {
     : null;
 }
 
+/** A section as umd.io's `/courses/sections` lists it (fields we read). */
+export interface UmdioSectionRow {
+  /** `CMSC131-0101`; the course code is before the hyphen. */
+  section_id: string;
+  semester: string;
+  /** The section code, `0101`. */
+  number: string | null;
+  instructors: readonly string[];
+}
+
+/** What umd.io's `/courses/list` names a course, and its credits if known. */
+export interface UmdioCourseMeta {
+  title: string | null;
+}
+
+const TBA_INSTRUCTOR = /^(instructor:\s*)?tba$/i;
+
+/**
+ * One term's umd.io sections → its history records (`source: umdio`).
+ * umd.io copies Testudo's Schedule of Classes, so names are Testudo's
+ * spellings and every section is there, graded or not. A row from another
+ * term, or whose course or section code doesn't read, is skipped; "TBA"
+ * isn't a name. umd.io gives no credits.
+ */
+export function historyFromUmdioSections(
+  termId: TermId,
+  rows: readonly UmdioSectionRow[],
+  meta: (code: string) => UmdioCourseMeta | null,
+): HistoryCourse[] {
+  const byCourse = new Map<string, Map<string, Set<string>>>();
+  for (const row of rows) {
+    if (row.semester.trim() !== termId) continue;
+    const [rawCode, rawSection] = row.section_id.split("-");
+    const code = CourseCodeSchema.safeParse(
+      (rawCode ?? "").trim().toUpperCase(),
+    );
+    const section = SectionCodeSchema.safeParse(
+      (row.number ?? rawSection ?? "").trim().toUpperCase(),
+    );
+    if (!code.success || !section.success) continue;
+    const sections = byCourse.get(code.data) ?? new Map<string, Set<string>>();
+    byCourse.set(code.data, sections);
+    const names = sections.get(section.data) ?? new Set<string>();
+    sections.set(section.data, names);
+    for (const raw of row.instructors) {
+      const name = InstructorNameSchema.safeParse(raw);
+      if (name.success && !TBA_INSTRUCTOR.test(name.data)) names.add(name.data);
+    }
+  }
+  return [...byCourse]
+    .map(([code, sections]) => {
+      const recorded = sortSections(
+        [...sections].map(([sectionCode, names]) => ({
+          code: sectionCode,
+          instructors: sortedUnique(names),
+        })),
+      );
+      const title = meta(code)?.title?.trim();
+      return {
+        code,
+        title: title ? title.slice(0, 200) : null,
+        credits: null,
+        source: "umdio" as const,
+        instructors: sortedUnique(recorded.flatMap((s) => s.instructors)),
+        sections: recorded,
+      };
+    })
+    .sort((a, b) => compare(a.code, b.code));
+}
+
 export function sortSections(sections: HistorySection[]): HistorySection[] {
   return sections.sort((a, b) => compare(a.code, b.code));
 }

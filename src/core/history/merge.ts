@@ -11,7 +11,8 @@ import { compare, sortedUnique, sortSections } from "./build";
 
 // How a new sighting of a term joins the record (docs/DATA.md §3.5):
 // - a course is never dropped: a term only gains courses;
-// - our own record beats PlanetTerp's, whichever arrives first;
+// - our own record beats umd.io's, and umd.io's beats PlanetTerp's,
+//   whichever arrives first;
 // - from the same source, the newer sighting's sections win (a section
 //   Testudo stopped listing was cancelled), but a section's names never
 //   go back to TBA: a name we saw is kept over an empty list, and a course
@@ -56,9 +57,18 @@ export function mergeHistoryCourse(
   };
 }
 
-/** Our own record outranks PlanetTerp's. */
+/**
+ * Ours first, then umd.io's (the official schedule, copied), then
+ * PlanetTerp's (derived from grades, so missing ungraded sections).
+ */
+const RANK: Record<HistorySource, number> = {
+  terpsicle: 3,
+  umdio: 2,
+  planetterp: 1,
+};
+
 function outranks(a: HistorySource, b: HistorySource): boolean {
-  return a === "terpsicle" && b === "planetterp";
+  return RANK[a] > RANK[b];
 }
 
 /** A term's record after new sightings of some of its courses. */
@@ -86,7 +96,7 @@ export function mergeHistoryTerm(
 export function historySourceCounts(
   term: HistoryTerm,
 ): Record<HistorySource, number> {
-  const counts = { terpsicle: 0, planetterp: 0 };
+  const counts = { terpsicle: 0, umdio: 0, planetterp: 0 };
   for (const course of term.courses) counts[course.source]++;
   return counts;
 }
