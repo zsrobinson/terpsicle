@@ -45,7 +45,7 @@ const planTabs = (page: Page) =>
 const syncStatus = (page: Page) =>
   page.getByRole("banner").locator("[data-sync-status]");
 const accountButton = (page: Page) =>
-  page.getByRole("banner").getByRole("button", { name: "Account: E2E Tester" });
+  page.getByRole("banner").getByRole("button", { name: /^Account: E2E / });
 
 async function openScheduler(page: Page, path = "/schedule") {
   await page.goto(path);
@@ -138,10 +138,9 @@ test("edits on one device show on the other after a pull", async ({
   await expect(b.getByTestId("course-row-CMSC351")).toBeVisible();
 });
 
-test("the same plan changed on two devices, one offline, keeps both", async ({
-  browser,
-  baseURL,
-}) => {
+test("the same plan changed on two devices, one offline, keeps both", {
+  tag: "@critical",
+}, async ({ browser, baseURL }) => {
   const user = newUser();
   const a = await device(browser, baseURL);
   await openDemo(a);
@@ -197,10 +196,9 @@ test("signing out keeps this device's plans", async ({ browser, baseURL }) => {
   await expect(page.getByTestId("course-row-ENGL393")).toBeVisible();
 });
 
-test("signing out and removing clears this device, and the account keeps everything", async ({
-  browser,
-  baseURL,
-}) => {
+test("signing out and removing clears this device, and the account keeps everything", {
+  tag: "@critical",
+}, async ({ browser, baseURL }) => {
   const user = newUser();
   const page = await device(browser, baseURL);
   await openDemo(page);

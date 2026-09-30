@@ -32,9 +32,9 @@ async function sessionCookie(page: Page) {
   return cookies.find((c) => c.name === "__Host-session");
 }
 
-test("sign in as a test person, see the account menu, and sign out", async ({
-  page,
-}) => {
+test("sign in as a test person, see the account menu, and sign out", {
+  tag: "@critical",
+}, async ({ page }) => {
   // Somewhere in particular (a course open over Courses), so the sign-in has
   // a view to come back to.
   await open(page, "/schedule?course=CMSC351");

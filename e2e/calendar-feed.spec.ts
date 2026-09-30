@@ -55,10 +55,9 @@ async function addTask(page: Page, title: string): Promise<void> {
 
 const httpUrl = (webcal: string) => webcal.replace(/^webcal:\/\//, "http://");
 
-test("subscribe to the calendar feed, then make a new link", async ({
-  page,
-  playwright,
-}) => {
+test("subscribe to the calendar feed, then make a new link", {
+  tag: "@critical",
+}, async ({ page, playwright }) => {
   await signIn(page);
   await addTask(page, "Lab report");
   await page.goto("/settings/notifications");

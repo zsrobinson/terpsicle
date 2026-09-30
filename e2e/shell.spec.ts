@@ -262,9 +262,9 @@ test.describe("desktop", () => {
     ).toBeVisible();
   });
 
-  test("a shared link shows read-only, and Save a copy keeps it", async ({
-    page,
-  }) => {
+  test("a shared link shows read-only, and Save a copy keeps it", {
+    tag: "@critical",
+  }, async ({ page }) => {
     const payload = {
       v: 1 as const,
       termId: "202605",
@@ -342,9 +342,9 @@ test.describe("phone", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test("tapping a tab raises the drawer to half, the handle to full", async ({
-    page,
-  }) => {
+  test("tapping a tab raises the drawer to half, the handle to full", {
+    tag: "@phone",
+  }, async ({ page }) => {
     await open(page);
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("no viewport");

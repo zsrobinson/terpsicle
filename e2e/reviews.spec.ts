@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { signInNewUser } from "./test-user";
 import { liveToasts } from "./toasts";
 
 // Terpsicle Reviews end to end (docs/V2.md §7), on `pnpm dev:mock`: the
@@ -29,40 +30,11 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-/** Signs in as a test person and lands on `path`. */
-async function signIn(page: Page, name: string, path: string) {
-  await page.goto(`/auth/test?return=${encodeURIComponent(path)}`);
-  await page.getByRole("button", { name: `Sign in as ${name}` }).click();
-  await expect(
-    page.getByRole("banner").getByRole("button", { name: `Account: ${name}` }),
-  ).toBeVisible();
-}
-
 /** The page's code is running: "Sign in" appears once /api/me answers. */
 async function hydrated(page: Page) {
   await expect(
     page.getByRole("banner").getByRole("button", { name: "Sign in" }),
   ).toBeVisible();
-}
-
-/**
- * Deletes this person's reviews left by an earlier local run (local D1
- * keeps them), from the page, so the request is same-origin.
- */
-async function deleteMyReviews(page: Page) {
-  await page.evaluate(async () => {
-    const post = (path: string, body: unknown) =>
-      fetch(`/api/${path}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then((r) => r.json());
-    const { reviews } = (await post("reviews/mine", {})) as {
-      reviews: { id: string }[];
-    };
-    for (const { id } of reviews)
-      await post("reviews/delete", { reviewId: id });
-  });
 }
 
 test("anyone can find a course or an instructor and read their reviews", async ({
@@ -120,11 +92,12 @@ test("anyone can find a course or an instructor and read their reviews", async (
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test("write, fix, edit and delete a review", async ({ page, isMobile }) => {
+test("write, fix, edit and delete a review", { tag: "@critical" }, async ({
+  page,
+  isMobile,
+}) => {
   test.skip(isMobile, "one writer: the desktop run");
-  await signIn(page, "Test Student", INSTRUCTOR);
-  await deleteMyReviews(page);
-  await page.reload();
+  await signInNewUser(page, INSTRUCTOR);
 
   await page.getByRole("button", { name: "Write a review" }).click();
   const form = page.getByRole("form", { name: "Write a review" });
@@ -242,7 +215,7 @@ test("reporting asks for a sign-in, then sends the reason", async ({
     }),
   ).toBeVisible();
 
-  await signIn(page, "Test Classmate", "/reviews/cmsc351");
+  await signInNewUser(page, "/reviews/cmsc351");
   await openFromCourse();
   await page.getByRole("button", { name: "Report" }).click();
   const form = page.getByRole("form", { name: "Report this review" });

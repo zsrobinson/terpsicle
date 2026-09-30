@@ -8,6 +8,9 @@ if (!url) throw new Error("Set LIVE_URL to the deployment to check.");
 
 export default defineConfig({
   testDir: "e2e/live",
+  // Source freshness is monitoring, not a code-change or deployment gate.
+  testIgnore: ["freshness.spec.ts"],
+  forbidOnly: base.forbidOnly,
   retries: 1,
   timeout: 90_000,
   reporter: base.reporter,

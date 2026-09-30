@@ -7,9 +7,10 @@ import {
   type TestInfo,
   test,
 } from "@playwright/test";
+import { signInNewUser } from "./test-user";
 
-// Terpsicle Chat end to end (V2.md §8): two test-mode people, tstudent and
-// tclassmate, in the same section, against `pnpm dev:mock`'s Worker (the
+// Terpsicle Chat end to end (V2.md §8): two fresh test-mode people
+// in the same section, against `pnpm dev:mock`'s Worker (the
 // real socket, CourseChat object and moderation service, with offline
 // stand-ins for the models). Plans reach the server through sync/push, as
 // they will from the sync engine.
@@ -33,14 +34,6 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => {
   expect(errors).toEqual([]);
 });
-
-async function signIn(page: Page, name: string, path: string) {
-  await page.goto(`/auth/test?return=${encodeURIComponent(path)}`);
-  await page.getByRole("button", { name: `Sign in as ${name}` }).click();
-  await page.waitForURL((url) =>
-    url.pathname.startsWith(path.split("?")[0] ?? path),
-  );
-}
 
 /**
  * Saves a plan with both e2e courses through sync/push (the sync engine's
@@ -200,128 +193,132 @@ test("with no classes yet, find any course and open its room", async ({
   ).toBeVisible();
 });
 
-test("two classmates talk in their section's room", async ({
-  page,
-  browser,
-  isMobile,
-}, info) => {
-  // Two people, a live socket and moderation: longer than most specs.
-  test.slow();
-  const { course, section } = courseFor(info);
-  const tag = `${info.project.name}-${Date.now().toString(36)}`;
-  await signIn(page, "Test Student", "/chat");
-  await syncPlan(page, "tstudent");
-  const classmate = await newPerson(browser, info);
-  await signIn(classmate.page, "Test Classmate", "/chat");
-  await syncPlan(classmate.page, "tclassmate");
+test(
+  "two classmates talk in their section's room",
+  { tag: "@critical" },
+  async ({ page, browser, isMobile }, info) => {
+    // Two people, a live socket and moderation: longer than most specs.
+    test.slow();
+    const { course, section } = courseFor(info);
+    const tag = `${info.project.name}-${Date.now().toString(36)}`;
+    await signInNewUser(page, "/chat");
+    await syncPlan(page, "tstudent");
+    const classmate = await newPerson(browser, info);
+    await signInNewUser(classmate.page, "/chat");
+    await syncPlan(classmate.page, "tclassmate");
 
-  // The list: your classes, grouped by course, with your rooms. A fresh
-  // account's first list is several round trips in a row (the session, the
-  // synced plans, unread counts, the term's manifest, then the course's
-  // department file), which
-  // on a busy CI dev server can take longer than one expect's 5 seconds.
-  await page.goto("/chat");
-  const rooms = page.getByRole("navigation", { name: "Rooms" });
-  await expect(
-    rooms.getByRole("listitem").filter({ hasText: course }),
-  ).toBeVisible({ timeout: 15_000 });
-  await rooms
-    .getByRole("listitem")
-    .filter({ hasText: course })
-    .getByRole("button", { name: new RegExp(`^${section} ·`) })
-    .click();
-  await expect(page).toHaveURL(
-    new RegExp(
-      `room=${TERM}%3A${course}%3A${section}|room=${TERM}:${course}:${section}`,
-    ),
-  );
-  await dismissRules(page);
+    // The list: your classes, grouped by course, with your rooms. A fresh
+    // account's first list is several round trips in a row (the session, the
+    // synced plans, unread counts, the term's manifest, then the course's
+    // department file), which
+    // on a busy CI dev server can take longer than one expect's 5 seconds.
+    await page.goto("/chat");
+    const rooms = page.getByRole("navigation", { name: "Rooms" });
+    await expect(
+      rooms.getByRole("listitem").filter({ hasText: course }),
+    ).toBeVisible({ timeout: 15_000 });
+    await rooms
+      .getByRole("listitem")
+      .filter({ hasText: course })
+      .getByRole("button", { name: new RegExp(`^${section} ·`) })
+      .click();
+    await expect(page).toHaveURL(
+      new RegExp(
+        `room=${TERM}%3A${course}%3A${section}|room=${TERM}:${course}:${section}`,
+      ),
+    );
+    await dismissRules(page);
 
-  // tstudent writes; it shows at once, then for everyone once it's checked.
-  const first = `Anyone want to study for the midterm? ${tag}`;
-  await send(page, first);
-  await expect(message(page, first)).toBeVisible();
-  // Nothing says it's being checked: it just looks sent.
-  await expect(message(page, first).getByTestId("held-note")).toHaveCount(0);
-  await expect(message(page, first).getByText(/checking/i)).toHaveCount(0);
+    // tstudent writes; it shows at once, then for everyone once it's checked.
+    const first = `Anyone want to study for the midterm? ${tag}`;
+    await send(page, first);
+    await expect(message(page, first)).toBeVisible();
+    // Nothing says it's being checked: it just looks sent.
+    await expect(message(page, first).getByTestId("held-note")).toHaveCount(0);
+    await expect(message(page, first).getByText(/checking/i)).toHaveCount(0);
 
-  await classmate.page.goto(roomUrl(course, section));
-  await dismissRules(classmate.page);
-  await expect(message(classmate.page, first)).toBeVisible();
+    await classmate.page.goto(roomUrl(course, section));
+    await dismissRules(classmate.page);
+    await expect(message(classmate.page, first)).toBeVisible();
 
-  // Typing shows on the other side, then a reaction arrives live.
-  await classmate.page
-    .getByRole("textbox", { name: /^Message/ })
-    .pressSequentially("me", { delay: 50 });
-  await expect(page.getByText("Test is typing…")).toBeVisible();
-  await classmate.page.getByRole("textbox", { name: /^Message/ }).fill("");
+    // Typing shows on the other side, then a reaction arrives live.
+    await classmate.page
+      .getByRole("textbox", { name: /^Message/ })
+      .pressSequentially("me", { delay: 50 });
+    await expect(page.getByText("E2E is typing…")).toBeVisible();
+    await classmate.page.getByRole("textbox", { name: /^Message/ }).fill("");
 
-  const theirs = message(classmate.page, first);
-  await messageAction(theirs, "React", isMobile);
-  await classmate.page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Thumbs up", exact: true })
-    .click();
-  await expect(
-    message(page, first).getByRole("button", { name: "Thumbs up: 1 person" }),
-  ).toBeVisible();
+    const theirs = message(classmate.page, first);
+    await messageAction(theirs, "React", isMobile);
+    await classmate.page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Thumbs up", exact: true })
+      .click();
+    await expect(
+      message(page, first).getByRole("button", { name: "Thumbs up: 1 person" }),
+    ).toBeVisible();
 
-  // A one-level thread: the reply count shows under the first message.
-  await messageAction(theirs, "Reply in a thread", isMobile);
-  await expect(
-    classmate.page.getByRole("heading", { name: "Thread" }),
-  ).toBeVisible();
-  await send(classmate.page, `Me! Library at 6? ${tag}`);
-  await expect(
-    message(page, first).getByRole("button", { name: /^1 reply · last/ }),
-  ).toBeVisible();
-  // A thread's one way out is Back to its room (no second ×).
-  await expect(
-    classmate.page.getByRole("button", { name: "Close the thread" }),
-  ).toHaveCount(0);
-  await classmate.page
-    .getByRole("link", { name: `${course} ${section}`, exact: true })
-    .click();
-  await expect(
-    classmate.page.getByRole("heading", { name: "Thread" }),
-  ).toHaveCount(0);
+    // A one-level thread: the reply count shows under the first message.
+    await messageAction(theirs, "Reply in a thread", isMobile);
+    await expect(
+      classmate.page.getByRole("heading", { name: "Thread" }),
+    ).toBeVisible();
+    await send(classmate.page, `Me! Library at 6? ${tag}`);
+    await expect(
+      message(page, first).getByRole("button", { name: /^1 reply · last/ }),
+    ).toBeVisible();
+    // A thread's one way out is Back to its room (no second ×).
+    await expect(
+      classmate.page.getByRole("button", { name: "Close the thread" }),
+    ).toHaveCount(0);
+    await classmate.page
+      .getByRole("link", { name: `${course} ${section}`, exact: true })
+      .click();
+    await expect(
+      classmate.page.getByRole("heading", { name: "Thread" }),
+    ).toHaveCount(0);
 
-  // Edit with undo, then delete with undo.
-  const mine = message(page, first);
-  await messageAction(mine, "More", isMobile);
-  await page.getByRole("menuitem", { name: "Edit" }).click();
-  const edited = `Anyone want to study for the final? ${tag}`;
-  await page.getByRole("textbox", { name: "Edit your message" }).fill(edited);
-  await page.getByRole("textbox", { name: "Edit your message" }).press("Enter");
-  await expect(message(page, edited).getByText("(edited)")).toBeVisible();
-  await expect(message(classmate.page, edited)).toBeVisible();
+    // Edit with undo, then delete with undo.
+    const mine = message(page, first);
+    await messageAction(mine, "More", isMobile);
+    await page.getByRole("menuitem", { name: "Edit" }).click();
+    const edited = `Anyone want to study for the final? ${tag}`;
+    await page.getByRole("textbox", { name: "Edit your message" }).fill(edited);
+    await page
+      .getByRole("textbox", { name: "Edit your message" })
+      .press("Enter");
+    await expect(message(page, edited).getByText("(edited)")).toBeVisible();
+    await expect(message(classmate.page, edited)).toBeVisible();
 
-  const again = message(page, edited);
-  await messageAction(again, "More", isMobile);
-  await page.getByRole("menuitem", { name: "Delete" }).click();
-  await expect(message(page, edited)).toHaveCount(0);
-  await page.getByRole("button", { name: "Undo" }).click();
-  await expect(message(page, edited)).toBeVisible();
+    const again = message(page, edited);
+    await messageAction(again, "More", isMobile);
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await expect(message(page, edited)).toHaveCount(0);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(message(page, edited)).toBeVisible();
 
-  // Room info: how many people, and muting (no dialogs anywhere).
-  await page.getByRole("button", { name: "Room info" }).click();
-  const info2 = isMobile
-    ? page.getByRole("dialog")
-    : page.getByRole("complementary", { name: "Room info" });
-  await expect(
-    info2.getByText(/Terpsicle can't see registrations/),
-  ).toBeVisible();
-  // Muting flips, and says so (local runs may find it muted already).
-  const mute = info2.getByRole("button", { name: /^(Mute this room|Muted)$/ });
-  const was = await mute.getAttribute("aria-pressed");
-  await mute.click();
-  await expect(mute).toHaveAttribute(
-    "aria-pressed",
-    was === "true" ? "false" : "true",
-  );
+    // Room info: how many people, and muting (no dialogs anywhere).
+    await page.getByRole("button", { name: "Room info" }).click();
+    const info2 = isMobile
+      ? page.getByRole("dialog")
+      : page.getByRole("complementary", { name: "Room info" });
+    await expect(
+      info2.getByText(/Terpsicle can't see registrations/),
+    ).toBeVisible();
+    // Muting flips, and says so (local runs may find it muted already).
+    const mute = info2.getByRole("button", {
+      name: /^(Mute this room|Muted)$/,
+    });
+    const was = await mute.getAttribute("aria-pressed");
+    await mute.click();
+    await expect(mute).toHaveAttribute(
+      "aria-pressed",
+      was === "true" ? "false" : "true",
+    );
 
-  await classmate.context.close();
-});
+    await classmate.context.close();
+  },
+);
 
 test("answers get a nudge, held messages stay with their author, and abuse reports reach a person", async ({
   page,
@@ -332,10 +329,10 @@ test("answers get a nudge, held messages stay with their author, and abuse repor
   test.slow();
   const { course, section } = courseFor(info);
   const tag = `${info.project.name}-${Date.now().toString(36)}`;
-  await signIn(page, "Test Student", roomUrl(course, section));
+  await signInNewUser(page, roomUrl(course, section));
   await syncPlan(page, "tstudent");
   const classmate = await newPerson(browser, info);
-  await signIn(classmate.page, "Test Classmate", roomUrl(course, section));
+  await signInNewUser(classmate.page, roomUrl(course, section));
   await syncPlan(classmate.page, "tclassmate");
   await page.reload();
   await classmate.page.reload();
@@ -412,7 +409,7 @@ test("course details in the scheduler lead to the course's chat", async ({
   // The scheduler, then Chat: two cold page loads in dev.
   test.slow();
   const { course } = courseFor(info);
-  await signIn(page, "Test Student", "/schedule");
+  await signInNewUser(page, "/schedule");
   await page.goto(`/schedule?term=${TERM}&course=${course}`);
   const join = page.getByRole("link", {
     name: new RegExp(`^Join ${course} chat`),

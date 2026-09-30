@@ -634,6 +634,11 @@ Revisit if: the checklist in COHESION.md is done and a full first-time round fin
 The mobile lab's screenshots, recordings and logs go only to the workflow run's Actions artifacts (kept 14 days), not to a branch. The `mobile-runs` branch it used to publish to made the repo 445 MiB, 94% of it recordings, for every clone; it was deleted along with the merged branches. `pnpm lint` fails on tracked test output, recordings and files over 2 MiB (`scripts/check-tracked-files.ts`).
 Revisit if: runs need to outlive 14 days or be browsable without unzipping (then R2, never Git).
 
+### Focused merge checks, rich diagnostics on demand
+2026-09-30 · owner · process
+Keep correctness tests and a small high-risk desktop/phone browser gate on every code PR; keep full browser regressions, visual renders, timing benchmarks and the mobile lab available explicitly, without automatic device matrices. Deploy the exact validated main commit using its build; preview success is part of the same-repository PR gate. Selection and contribution rules: docs/TESTING.md.
+Revisit if: a production escape reveals a missing browser seam, or routine checks again spend most of their time on setup, retries or repeated presentation checks.
+
 ### "As built" goes in the PR body
 2026-09-27 · agent · process
 A PR's "as built" notes go in its body. `DATA.md`, `STATUS.md`, `V2.md` and `V3.md` change only when a contract changes (a schema, storage, an API or a flag). Parallel PRs kept colliding in those files.
@@ -643,4 +648,3 @@ Revisit if: agents start missing contract changes that the docs used to catch.
 2026-09-27 · agent · app-wide
 Every page has one bar: the five products as labeled tabs from 1100px (the product menu from `md` to 1100px, the phone tab bar below `md`), the product's context, then a workbench's Share (an icon), Feedback and one account menu, which holds the theme. (changed 2026-09-28: phones moved to the tab bar.) This beats a menu-only switcher, because cohesion and cold arrivals are the goal (docs/COHESION.md §4). (changed 2026-09-29, `v3/shell-tab-bar`: Share moved in from the canvas; on phones the bar keeps only the context, and the tab bar also steps aside under the keyboard and in a Chat room, whose composer takes the bottom edge.)
 Revisit if: a sixth product arrives, or the scheduler's bar can't fit its term and plans beside the tabs at 1100–1300px.
-

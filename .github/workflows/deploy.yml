@@ -1,9 +1,7 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  workflow_call:
 
 # Deploys run in order; never cancel one halfway through migrations.
 concurrency:
@@ -16,6 +14,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy to terpsicle.com
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -26,30 +25,48 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v7
+      - name: Deploy only the current main commit
+        id: current
+        run: |
+          latest=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Main advanced; its own validated run will deploy." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: ./.github/actions/setup
+        if: steps.current.outputs.deploy == 'true'
 
-      - name: Typecheck, lint, unit tests
-        run: pnpm check
-
-      - name: Build
-        run: pnpm build
+      - uses: actions/download-artifact@v8
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          name: worker-build
 
       # Production. The previews database is migrated by ci.yml's preview job
       # (wrangler.preview-d1.jsonc).
       - name: Apply D1 migrations
+        if: steps.current.outputs.deploy == 'true'
         run: pnpm exec wrangler d1 migrations apply terpsicle --remote
 
       - name: Deploy Worker
+        if: steps.current.outputs.deploy == 'true'
         run: pnpm exec wrangler deploy
 
-      - name: Smoke-check terpsicle.com
-        run: |
-          for i in 1 2 3 4 5 6; do
-            if curl -fsS -o /dev/null https://terpsicle.com/; then
-              echo "terpsicle.com answers 200"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::https://terpsicle.com/ didn't answer 200 after deploy"
-          exit 1
+      - uses: ./.github/actions/playwright
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          only-shell: "true"
+      - name: Read-only browser smoke on production
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          LIVE_URL: https://terpsicle.com
+        run: pnpm test:e2e:live
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: production-smoke
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

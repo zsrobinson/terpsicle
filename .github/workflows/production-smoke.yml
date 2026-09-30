@@ -1,0 +1,40 @@
+name: Production smoke
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+        with:
+          only-shell: "true"
+      - name: Real data and public pages
+        env:
+          LIVE_URL: https://terpsicle.com
+        run: pnpm test:e2e:live
+      - name: Published-data freshness
+        env:
+          LIVE_URL: https://terpsicle.com
+        run: pnpm test:data:health
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: production-smoke
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

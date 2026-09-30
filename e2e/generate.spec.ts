@@ -44,9 +44,9 @@ async function addCourse(page: Page, code: string) {
   await expect(page.getByTestId(`gen-course-${code}`)).toBeVisible();
 }
 
-test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C", async ({
-  page,
-}) => {
+test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C", {
+  tag: "@critical",
+}, async ({ page }) => {
   // `+` → Generate plans… opens the tab with the course field focused.
   await page.getByRole("button", { name: "New plan" }).click();
   await page.getByRole("menuitem", { name: /Generate plans/ }).click();

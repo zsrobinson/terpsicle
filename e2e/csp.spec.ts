@@ -42,9 +42,9 @@ const calendar = (page: Page) =>
 const sidebar = (page: Page) =>
   page.getByRole("complementary", { name: "Sidebar" });
 
-test("/, then search, add a section, Travel and a route map: no CSP violations", async ({
-  page,
-}) => {
+test("/, then search, add a section, Travel and a route map: no CSP violations", {
+  tag: "@critical",
+}, async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const csp = await watchCsp(page);
