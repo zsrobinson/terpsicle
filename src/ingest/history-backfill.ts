@@ -16,11 +16,30 @@ import { type Logger, readJsonOrNull, writeJson } from "./publish";
 // section in which term, back to 2012. Recorded as `source: planetterp`;
 // our own records win wherever both exist. Run by
 // scripts/backfill-history.ts, never by a cron: it's one request a second
-// for every course, about 3–4 hours.
+// for every course, about 5 hours, in chunks that each carry on from the
+// last.
 
 /** Courses already backfilled, so a rerun picks up where one stopped. */
 export const HISTORY_BACKFILL_KEY = `${JOBS_PREFIX}history/backfill.json`;
-const ProgressSchema = z.object({ done: z.array(z.string()) });
+const ProgressSchema = z.object({
+  done: z.array(z.string()),
+  /** Answered `[]` once: asked again on a later run before it counts. */
+  emptyOnce: z.array(z.string()).default([]),
+  /**
+   * Answered `[]` on two runs: a course PlanetTerp knows but has no grades
+   * for (a renamed or never-graded course), so nothing to record.
+   */
+  doneEmpty: z.array(z.string()).default([]),
+});
+
+/** A saved course listing, so a rerun skips the six-minute list. */
+const ListingCacheSchema = z.object({
+  scope: z.string(),
+  courses: z.record(
+    z.string(),
+    z.object({ title: z.string().nullable(), credits: z.number().nullable() }),
+  ),
+});
 
 const PAGE_SIZE = 100;
 
@@ -47,6 +66,26 @@ export interface BackfillOptions {
   flushEvery?: number;
   /** Fetch and count, but write nothing. */
   dryRun?: boolean;
+  /**
+   * Where a complete course listing is kept between runs (the script's
+   * `--list-cache` file). A saved listing for the same departments is used
+   * instead of asking PlanetTerp; one that won't read is listed again.
+   */
+  listCache?: {
+    read(): Promise<string | null>;
+    write(text: string): Promise<void>;
+  };
+  /**
+   * Asked before each course: true ends the run early, after a last merge,
+   * so a run that has to fit a time limit stops cleanly (`--max-minutes`).
+   */
+  shouldStop?: () => boolean;
+  /**
+   * Stop after this many courses fail in a row (default 5; each request is
+   * already retried with backoff): PlanetTerp is down or refusing us, and
+   * asking for the rest would only hammer it.
+   */
+  maxFailuresInARow?: number;
   sleep?: (ms: number) => Promise<void>;
 }
 
@@ -59,11 +98,20 @@ export interface BackfillResult {
   /** PlanetTerp said it has no grades for them (its 400 "course not found"). */
   noGrades: number;
   /**
-   * PlanetTerp answered with an empty list: not taken as "no grades"
-   * (DATA.md §4.1), so they stay to do and a rerun asks again.
+   * PlanetTerp answered with an empty list. The first time, it isn't taken
+   * as "no grades" (DATA.md §4.1): the course stays to do, and a later run
+   * asks again.
    */
   emptyAnswers: number;
+  /** Of those, empty on an earlier run too: now done, with nothing recorded. */
+  markedEmpty: number;
   failed: number;
+  /** The course listing came from `listCache`, not PlanetTerp. */
+  listingCached: boolean;
+  /** `shouldStop`, or too many failures in a row, ended the run early. */
+  stoppedEarly: boolean;
+  /** Courses this run could take but didn't reach. */
+  left: number;
   /**
    * False when a page of PlanetTerp's course list failed, or came back
    * short with more after it: some courses may be missing from this run,
@@ -91,7 +139,11 @@ export async function backfillHistory(
     fetched: 0,
     noGrades: 0,
     emptyAnswers: 0,
+    markedEmpty: 0,
     failed: 0,
+    listingCached: false,
+    stoppedEarly: false,
+    left: 0,
     listingComplete: true,
     byTerm: {},
     written: 0,
@@ -103,25 +155,27 @@ export async function backfillHistory(
     return request();
   };
 
-  const metas = await listCourses(options, politely, result);
+  const metas = await cachedListing(options, politely, result);
   const progress = (await readJsonOrNull(
     store,
     HISTORY_BACKFILL_KEY,
     ProgressSchema,
     log,
-  )) ?? { done: [] };
+  )) ?? { done: [], emptyOnce: [], doneEmpty: [] };
   const done = new Set(progress.done);
+  const emptyOnce = new Set(progress.emptyOnce);
+  const doneEmpty = new Set(progress.doneEmpty);
   const codes = [...metas.keys()].sort();
   result.listed = codes.length;
-  const todo = codes.filter((c) => !done.has(c));
+  const todo = codes.filter((c) => !done.has(c) && !doneEmpty.has(c));
   result.alreadyDone = codes.length - todo.length;
   const batch =
     options.limit === undefined ? todo : todo.slice(0, options.limit);
 
   let pending = new Map<TermId, HistoryCourse[]>();
   let pendingCodes: string[] = [];
+  let cursorChanged = false;
   const flush = async () => {
-    if (pendingCodes.length === 0) return;
     const updates = [...pending].map(([termId, courses]) => ({
       termId,
       courses,
@@ -130,35 +184,73 @@ export async function backfillHistory(
     pending = new Map();
     pendingCodes = [];
     if (options.dryRun) return;
+    if (codesNow.length > 0) {
+      try {
+        const published = await publishHistory({ store, now, log, updates });
+        result.written += published.written;
+        result.errors.push(...published.errors);
+        // A course is done only once every term it touched took it.
+        if (
+          published.failedTerms.length === 0 &&
+          published.failedDepts.length === 0
+        ) {
+          for (const code of codesNow) {
+            done.add(code);
+            emptyOnce.delete(code);
+          }
+          cursorChanged = true;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        result.errors.push(`merge: ${message}`);
+        log.error("A backfill merge failed; its courses stay to do", {
+          error: message,
+        });
+      }
+    }
+    if (!cursorChanged) return;
     try {
-      const published = await publishHistory({ store, now, log, updates });
-      result.written += published.written;
-      result.errors.push(...published.errors);
-      // A course is done only once every term it touched took it.
-      if (published.failedTerms.length > 0 || published.failedDepts.length > 0)
-        return;
-      for (const code of codesNow) done.add(code);
       await writeJson(store, HISTORY_BACKFILL_KEY, {
         done: [...done].sort(),
+        emptyOnce: [...emptyOnce].sort(),
+        doneEmpty: [...doneEmpty].sort(),
       });
+      cursorChanged = false;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      result.errors.push(`merge: ${message}`);
-      log.error("A backfill merge failed; its courses stay to do", {
-        error: message,
-      });
+      result.errors.push(`progress: ${message}`);
     }
   };
 
-  for (const code of batch) {
+  const maxFailuresInARow = options.maxFailuresInARow ?? 5;
+  let failuresInARow = 0;
+  for (const [i, code] of batch.entries()) {
+    const failing = failuresInARow >= maxFailuresInARow;
+    if (failing || options.shouldStop?.()) {
+      result.stoppedEarly = true;
+      result.left = batch.length - i;
+      if (failing)
+        result.errors.push(
+          `stopped: ${failuresInARow} courses in a row failed, so PlanetTerp may be down`,
+        );
+      break;
+    }
     try {
       const rows = await politely(() => fetchGrades(http, code));
       result.fetched++;
+      failuresInARow = 0;
       if (rows?.length === 0) {
+        // PlanetTerp answers `[]` for a course it knows but has no grades
+        // for (a renamed course's grades stay under its old code). A glitch
+        // could look the same, so only a second `[]`, on a later run, counts.
         result.emptyAnswers++;
-        result.errors.push(
-          `${code}: PlanetTerp answered with no grade rows; a rerun asks again`,
-        );
+        if (emptyOnce.delete(code)) {
+          doneEmpty.add(code);
+          result.markedEmpty++;
+        } else {
+          emptyOnce.add(code);
+        }
+        cursorChanged = true;
         continue;
       }
       if (!rows) {
@@ -183,6 +275,7 @@ export async function backfillHistory(
       pendingCodes.push(code);
     } catch (error) {
       result.failed++;
+      failuresInARow++;
       const message = error instanceof Error ? error.message : String(error);
       result.errors.push(`${code}: ${message}`);
       log.warn(`Skipped ${code}; a rerun tries it again`, { error: message });
@@ -191,6 +284,64 @@ export async function backfillHistory(
   }
   await flush();
   return result;
+}
+
+/**
+ * `listCourses` through `listCache` when there is one: a saved listing for
+ * the same departments is used as it is, and a complete fresh one is saved.
+ * A `courses` run is never cached: it asks about each course anyway.
+ */
+async function cachedListing(
+  options: BackfillOptions,
+  politely: <T>(request: () => Promise<T>) => Promise<T>,
+  result: BackfillResult,
+): Promise<Map<string, PlanetTerpCourseMeta | null>> {
+  const cache = options.courses ? undefined : options.listCache;
+  if (!cache) return listCourses(options, politely, result);
+  const scope = options.departments?.length
+    ? options.departments
+        .map((d) => d.toUpperCase())
+        .sort()
+        .join(",")
+    : "all";
+  try {
+    const text = await cache.read();
+    if (text !== null) {
+      const saved = ListingCacheSchema.parse(JSON.parse(text));
+      if (saved.scope === scope) {
+        result.listingCached = true;
+        return new Map(Object.entries(saved.courses));
+      }
+      options.log.info("The saved listing is for other departments", {
+        saved: saved.scope,
+        scope,
+      });
+    }
+  } catch (error) {
+    options.log.warn("Ignoring an unreadable saved listing", {
+      error: String(error),
+    });
+  }
+  const metas = await listCourses(options, politely, result);
+  // An incomplete listing isn't saved, so the next run lists again.
+  if (result.listingComplete) {
+    try {
+      await cache.write(
+        JSON.stringify({
+          scope,
+          courses: Object.fromEntries(
+            [...metas].map(([code, meta]) => [
+              code,
+              meta ?? { title: null, credits: null },
+            ]),
+          ),
+        }),
+      );
+    } catch (error) {
+      result.errors.push(`saving the listing: ${String(error)}`);
+    }
+  }
+  return metas;
 }
 
 /** Course code → what PlanetTerp says about it, for the courses this run covers. */
