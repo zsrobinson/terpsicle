@@ -1137,6 +1137,32 @@ describe("a conversation", () => {
     expect((await b.client.error(theirs)).code).toBe("not-yours");
   });
 
+  it("fans a room's messages out to every list socket that names it, with counts at hello", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom, brandtRoom, room0101]);
+    // The classmate's list listens to their rooms without opening any.
+    const b = await classmate.join([courseRoom, mossRoom, room0201]);
+    const other = await classmate.join([courseRoom, mossRoom, room0201]);
+    const id = await published(a.client, courseRoom, "exam moved to Friday");
+    for (const socket of [b.client, other.client])
+      expect(
+        (await socket.next("message", (f) => f.message.id === id)).message,
+      ).toMatchObject({ room: courseRoom, text: "exam moved to Friday" });
+    // A section room they don't read never reaches them.
+    const mine = await published(a.client, room0101, "0101 only");
+    await b.client.flush();
+    expect(
+      b.client
+        .pending("message")
+        .some((f) => f.type === "message" && f.message.id === mine),
+    ).toBe(false);
+    // A list that opens later starts from each room's unread count.
+    const later = await classmate.join([courseRoom, room0201]);
+    expect(later.welcome.rooms.find((r) => r.room === courseRoom)?.unread).toBe(
+      1,
+    );
+  });
+
   it("leaves a tombstone for everyone when its author deletes a message", async () => {
     const { student, classmate } = await twoPeople();
     const a = await student.join([courseRoom]);

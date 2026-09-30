@@ -382,6 +382,9 @@ _Avoid_: room info, settings
 The rooms the chat list shows: your main plan's (each section's course, professor and section rooms; a bookmarked course's course room) and the course rooms you've joined. Other sections' and professors' rooms aren't listed at all. A course whose room you opened without joining sits last until you join or leave it.
 _Avoid_: locked rooms, a course's room tree
 
+**Live list**:
+The chat list keeping every row current as messages land, not only the open room's: each course in it keeps its course's socket open for your rooms there. Its fallback, while a socket is down, is the minute-long poll. Code says `useLiveList`, `listLive`.
+
 **Rooms from**:
 The chat list's line naming the plan a term's rooms come from: its main plan ("Rooms from Plan A, your main plan ▾"; with one plan, "Rooms from Plan A, your Fall 2026 plan"). Picking another plan there makes it main everywhere, with Undo. Signed out, Chat says "the classes you add in Schedule", never "sync".
 _Avoid_: chat plan (it's the main plan, since 2026-09-28)

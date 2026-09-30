@@ -6,7 +6,13 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -288,6 +294,7 @@ describe("ChatPage", () => {
       ],
       [
         {
+          id: "msg_latest_01",
           room: section0101,
           author: aChatAuthor({ directoryId: "alexk", name: "Alex Kim" }),
           text: "anyone get 3b?",
@@ -295,6 +302,7 @@ describe("ChatPage", () => {
           createdAt: FIXTURE_NOW,
         },
         {
+          id: "msg_latest_02",
           room: courseRoomId(fixtureTermId, "CMSC351"),
           author: aChatAuthor({ directoryId: "samlee", name: "Sam Lee" }),
           text: "",
@@ -344,6 +352,30 @@ describe("ChatPage", () => {
       within(list).getByRole("button", { name: "Section 0101" }),
     );
     expect(go).toHaveBeenCalledWith({ course: "CMSC351", room: section0101 });
+
+    // A right click on a row: mark read (it has unread), and mute.
+    fireEvent.contextMenu(row(section0101));
+    let menu = await screen.findByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual(["Mark read", "Mute"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Mark read" }));
+    await waitFor(() =>
+      expect(row(section0101).querySelector("[data-unread-mark]")).toBeNull(),
+    );
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    fireEvent.contextMenu(row(section0101));
+    menu = await screen.findByRole("menu");
+    await user.click(within(menu).getByRole("menuitem", { name: "Mute" }));
+    expect(client.chat.mute).toHaveBeenCalledWith({
+      termId: fixtureTermId,
+      courseCode: "CMSC351",
+      roomId: section0101,
+      muted: true,
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 
   it("makes another plan main from Rooms from, with Undo", async () => {

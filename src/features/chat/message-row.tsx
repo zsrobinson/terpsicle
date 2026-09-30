@@ -8,6 +8,7 @@ import {
   EyeOff,
   Flag,
   Laugh,
+  Link2,
   type LucideIcon,
   Pencil,
   Reply,
@@ -24,6 +25,7 @@ import {
   DELETED_MESSAGE_WORDS,
   heldWords,
   REACTION_WORDS,
+  roomPath,
   threadWords,
   whenWords,
 } from "~/core/chat";
@@ -39,6 +41,13 @@ import {
 import { Avatar } from "~/features/auth/avatar";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "~/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,8 +66,9 @@ import { showNote } from "./undo";
 // author sees. A held or removed message is tinted yellow (the warn tokens)
 // with one plain line saying so, so it's clear at a glance (the owner,
 // 2026-09-28), and never red. A message still being checked looks sent (the
-// owner, 2026-09-27). Hover, focus or a tap shows its actions; a long press
-// on a phone does too.
+// owner, 2026-09-27). Hover, focus or a tap shows its actions; a right
+// click, or a long press on a phone, opens them as the kit's context menu
+// (the owner, 2026-09-29).
 
 export const REACTION_ICONS: Readonly<Record<Reaction, LucideIcon>> = {
   thumbs: ThumbsUp,
@@ -111,17 +121,11 @@ export const MessageRow = memo(function MessageRow({
   const nowIso = new Date(now).toISOString();
   const when = whenWords(item.createdAt, nowIso);
 
-  return (
+  const menu = !item.local && !item.deleted && mode === "read";
+  const article = (
     <article
       aria-label={`${item.author.name}, ${when}`}
       data-message-id={item.id}
-      onContextMenu={(e) => {
-        // A long press on a phone opens the message's actions.
-        if (window.matchMedia?.("(pointer: coarse)").matches) {
-          e.preventDefault();
-          setSelected(true);
-        }
-      }}
       onPointerUp={(e) => {
         // A tap on a phone shows the message's actions; so does a long press.
         if (e.pointerType !== "touch") return;
@@ -241,7 +245,92 @@ export const MessageRow = memo(function MessageRow({
       )}
     </article>
   );
+  if (!menu) return article;
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{article}</ContextMenuTrigger>
+      <MessageMenu
+        item={item}
+        mine={mine}
+        writable={writable}
+        canReply={writable && visible && !inThread && item.replyTo === null}
+        actions={actions}
+        onEdit={() => setMode("edit")}
+        onReport={() => setMode("report")}
+      />
+    </ContextMenu>
+  );
 });
+
+/**
+ * A message's right-click (or long-press) menu: reply in a thread, copy its
+ * text or a link to it (its thread's link, which opens it), and edit and
+ * delete for your own or report for someone else's.
+ */
+function MessageMenu({
+  item,
+  mine,
+  writable,
+  canReply,
+  actions,
+  onEdit,
+  onReport,
+}: {
+  item: ChatItem;
+  mine: boolean;
+  writable: boolean;
+  canReply: boolean;
+  actions: MessageActions;
+  onEdit: () => void;
+  onReport: () => void;
+}) {
+  const removed = item.moderation.state === "removed";
+  const link = () =>
+    `${window.location.origin}${roomPath(item.room, item.replyTo ?? item.id)}`;
+  return (
+    <ContextMenuContent>
+      {canReply ? (
+        <ContextMenuItem onSelect={() => actions.openThread(item)}>
+          <Reply aria-hidden="true" />
+          Reply in a thread
+        </ContextMenuItem>
+      ) : null}
+      <ContextMenuItem
+        onSelect={() => void navigator.clipboard?.writeText(item.text)}
+      >
+        <Copy aria-hidden="true" />
+        Copy text
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => {
+          void navigator.clipboard?.writeText(link());
+          showNote("Link copied");
+        }}
+      >
+        <Link2 aria-hidden="true" />
+        Copy link
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      {mine && writable && !removed ? (
+        <ContextMenuItem onSelect={onEdit}>
+          <Pencil aria-hidden="true" />
+          Edit
+        </ContextMenuItem>
+      ) : null}
+      {mine ? (
+        <ContextMenuItem onSelect={() => actions.remove(item)}>
+          <Trash2 aria-hidden="true" />
+          Delete
+        </ContextMenuItem>
+      ) : (
+        <ContextMenuItem onSelect={onReport}>
+          <Flag aria-hidden="true" />
+          Report
+        </ContextMenuItem>
+      )}
+    </ContextMenuContent>
+  );
+}
 
 /**
  * A send still on its way after this long says so; before it, a message

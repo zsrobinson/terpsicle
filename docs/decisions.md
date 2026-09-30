@@ -496,6 +496,12 @@ Revisit if: never on its own.
 2026-09-29 · agent · one feature
 The list's second line needs each room's newest text, and D1 never holds chat text (V2 §6.8). So `chat/latest` asks the course's `CourseChat` object, only for rooms whose `lastSeq` moved since the list last asked, and the open room keeps its own row current from its socket. It wakes an object only when there's something new in it, which it just wrote anyway.
 Revisit if: objects wake too often for the list, or a list of many courses is slow to fill.
+(changed 2026-09-29: the owner wanted every row live, "in realtime for chats besides the one that's currently selected". Each course in the list keeps its course's socket open, and `chat/latest` is the fallback while a socket is down; see "The list listens per course".)
+
+### The list listens per course, on the rooms' own sockets
+2026-09-29 · agent · one feature
+Live rows need each room's new messages. The `CourseChat` object already sends a room's messages to every socket that reads it, and hibernates between them, so the list opens one socket per course in it (hello with your rooms there, no history) instead of a new per-user channel. A per-user object would need the course object to write to every member's object on every message (hundreds for a big course room), where this needs nothing new on the server and costs one connection per course, usually four to six.
+Revisit if: people follow so many courses that the sockets add up, or a phone's battery says otherwise.
 
 ### Chat's list resizes like the workbench sidebars
 2026-09-29 · owner · one feature

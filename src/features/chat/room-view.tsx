@@ -214,6 +214,7 @@ export function RoomView({
   useEffect(() => {
     if (!newest) return;
     useChatHome.getState().noteLatest({
+      id: newest.id,
       room: newest.room,
       author: newest.author,
       text: newest.text,

@@ -62,6 +62,26 @@ export function newRequestId(): string {
   return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
 }
 
+/**
+ * What a course's socket hears live, for the chat list (the owner,
+ * 2026-09-29: previews "in realtime for chats besides the one that's
+ * currently selected"): each room's counts at every welcome, and each
+ * message as it arrives.
+ */
+export interface LiveListener {
+  welcome(
+    courseCode: CourseCode,
+    rooms: readonly { room: RoomId; unread: number }[],
+  ): void;
+  /**
+   * A message the room can see, as it arrived. `fresh`: just sent, rather
+   * than an edit, a moderation change or a thread's count moving.
+   */
+  message(message: ChatMessage, fresh: boolean, you: string | null): void;
+  /** Whether the socket is open: the list polls only for courses whose isn't. */
+  status(courseCode: CourseCode, open: boolean): void;
+}
+
 export interface SessionOptions {
   termId: TermId;
   courseCode: CourseCode;
@@ -70,6 +90,31 @@ export interface SessionOptions {
   /** Defaults to the page's origin. */
   origin?: string;
   now?: () => number;
+  live?: LiveListener;
+}
+
+/**
+ * Whether a `message` frame is a message just sent: one the session hasn't
+ * seen, never edited, and either a reply or a top-level message with no
+ * thread yet (a thread's first message comes again whenever its count moves).
+ */
+export function isFreshMessage(message: ChatMessage, known: boolean): boolean {
+  return (
+    !known &&
+    message.editedAt === null &&
+    !message.deleted &&
+    (message.replyTo !== null || message.thread === null)
+  );
+}
+
+/** The open sessions the list listens on, by course: "Mark read" reads through them. */
+const liveSessions = new Map<CourseCode, CourseChatSession>();
+
+/** The course's open session, if the list or its open room has one. */
+export function liveSessionFor(
+  courseCode: CourseCode,
+): CourseChatSession | undefined {
+  return liveSessions.get(courseCode);
 }
 
 export class CourseChatSession {
@@ -87,17 +132,23 @@ export class CourseChatSession {
   readonly #readUpTo = new Map<RoomId, ChatMessageId>();
   /** Deletes waiting out their undo, sent at once if the session closes. */
   readonly #deletes = new Map<ChatMessageId, { room: RoomId }>();
+  readonly #live: LiveListener | undefined;
 
   constructor(options: SessionOptions) {
     this.termId = options.termId;
     this.courseCode = options.courseCode;
     this.#now = options.now ?? Date.now;
+    this.#live = options.live;
+    if (options.live) liveSessions.set(options.courseCode, this);
     this.#socket = new ChatSocket({
       termId: options.termId,
       courseCode: options.courseCode,
       rooms: options.rooms,
       onFrame: (frame) => this.#frame(frame),
-      onStatus: (status) => this.#set({ ...this.#snapshot, status }),
+      onStatus: (status) => {
+        this.#live?.status(options.courseCode, status === "open");
+        this.#set({ ...this.#snapshot, status });
+      },
       onWelcome: () => this.#welcomed(),
       ...(options.open ? { open: options.open } : {}),
       ...(options.origin ? { origin: options.origin } : {}),
@@ -148,6 +199,23 @@ export class CourseChatSession {
           : { ok: true, message: frame.type === "ack" ? frame.message : null },
       );
       return;
+    }
+    if (this.#live) {
+      const { conversation } = this.#snapshot;
+      if (frame.type === "welcome")
+        this.#live.welcome(
+          this.courseCode,
+          frame.rooms.map((r) => ({ room: r.room, unread: r.unread })),
+        );
+      else if (
+        frame.type === "message" &&
+        frame.message.moderation.state === "visible"
+      )
+        this.#live.message(
+          frame.message,
+          isFreshMessage(frame.message, frame.message.id in conversation.byId),
+          conversation.you?.directoryId ?? null,
+        );
     }
     this.#dispatch({ type: "frame", frame, now: this.#now() });
   }
@@ -374,6 +442,14 @@ export class CourseChatSession {
       this.#readUpTo.set(room, newest.id);
   }
 
+  /** Reads a room up to a message this session may not have loaded (the list's "Mark read"). */
+  readUpTo(room: RoomId, id: ChatMessageId): boolean {
+    if (this.#readUpTo.get(room) === id) return true;
+    if (!this.#socket.send({ type: "read", room, upTo: id })) return false;
+    this.#readUpTo.set(room, id);
+    return true;
+  }
+
   setRooms(rooms: readonly RoomId[]): void {
     this.#socket.setRooms(rooms);
   }
@@ -382,6 +458,9 @@ export class CourseChatSession {
     // Deletes waiting out their undo leave now (a send is synchronous).
     for (const id of [...this.#deletes.keys()]) void this.#deleteNow(id);
     this.#socket.close();
+    this.#live?.status(this.courseCode, false);
+    if (liveSessions.get(this.courseCode) === this)
+      liveSessions.delete(this.courseCode);
     for (const pending of this.#pending.values())
       pending.resolve({ ok: false, code: "bad-frame", retryAfter: null });
     this.#pending.clear();
@@ -398,6 +477,7 @@ export function useCourseChat(
   courseCode: CourseCode,
   rooms: readonly RoomId[],
   open?: (url: string) => SocketLike,
+  live?: LiveListener,
 ): { session: CourseChatSession | null; snapshot: SessionSnapshot | null } {
   const [session, setSession] = useState<CourseChatSession | null>(null);
   const roomKey = rooms.join(" ");
@@ -408,6 +488,7 @@ export function useCourseChat(
       courseCode,
       rooms,
       ...(open ? { open } : {}),
+      ...(live ? { live } : {}),
     });
     setSession(next);
     return () => next.close();

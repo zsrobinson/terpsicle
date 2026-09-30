@@ -183,6 +183,8 @@ export const ChatLatestInputSchema = z
 export type ChatLatestInput = z.infer<typeof ChatLatestInputSchema>;
 
 export const ChatLatestMessageSchema = z.object({
+  /** Its id, which "Mark read" reads up to. */
+  id: ChatMessageIdSchema,
   room: RoomIdSchema,
   author: ChatAuthorSchema,
   /** Cut to a preview; empty for a tombstone. */

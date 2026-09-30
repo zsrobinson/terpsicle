@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { BellOff, CalendarClock, Hash, Users } from "lucide-react";
+import type { ComponentProps } from "react";
 import {
   DELETED_MESSAGE_WORDS,
   listTimeWords,
@@ -90,7 +91,8 @@ export function RoomRow({
   muted = false,
   current = false,
   onOpen,
-}: {
+  ...rest
+}: Omit<ComponentProps<"div">, "children"> & {
   room: Room;
   latest?: ChatLatestMessage;
   /** Your directory id: your own message reads "You: …". */
@@ -104,6 +106,8 @@ export function RoomRow({
   const bold = unread > 0 && !muted;
   return (
     <ListRow
+      // A context menu's trigger props and ref (./room-menu).
+      {...rest}
       state={current ? "current" : undefined}
       data-room-row={room.id}
       lead={

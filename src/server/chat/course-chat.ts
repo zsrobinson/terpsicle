@@ -979,6 +979,7 @@ export class CourseChat extends DurableObject<Env> {
     });
     const profiles = await this.#profilesFor(rows.map((r) => r.author_id));
     return rows.map((row) => ({
+      id: row.id,
       room: row.room_id,
       author: profiles.get(row.author_id)?.author ?? {
         directoryId: row.author_id,

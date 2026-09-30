@@ -454,6 +454,56 @@ test("course details in the scheduler lead to the course's chat", async ({
   await expect(page).toHaveURL(new RegExp(`/chat/${course}/everyone$`));
 });
 
+test("the list updates live for rooms other than the open one, in this course and others", async ({
+  page,
+  browser,
+  isMobile,
+}, info) => {
+  test.slow();
+  const { course, section } = courseFor(info);
+  const other = course === "CMSC351" ? "CMSC330" : "CMSC351";
+  const tag = `${info.project.name}-live-${Date.now().toString(36)}`;
+  await signIn(page, "Test Student", "/chat");
+  await syncPlan(page, "tstudent");
+  const classmate = await newPerson(browser, info);
+  await signIn(classmate.page, "Test Classmate", "/chat");
+  await syncPlan(classmate.page, "tclassmate");
+
+  // Room A open: the student's section room.
+  await page.goto(roomUrl(course, section));
+  await dismissRules(page);
+  // By element, not role: on a phone the list is under the room, hidden.
+  const row = (room: string) =>
+    page.locator(`nav[aria-label="Rooms"] [data-room-row="${room}"]`);
+  // The list has its rows before anything is said.
+  await expect(row(`${TERM}:${other}`)).toBeAttached({ timeout: 15_000 });
+
+  // Room B, in the same course, and a room in another course: the classmate
+  // writes in both.
+  const inCourse = `same course ${tag}`;
+  const elsewhere = `other course ${tag}`;
+  await classmate.page.goto(`/chat/${course}/everyone`);
+  await dismissRules(classmate.page);
+  await send(classmate.page, inCourse);
+  await classmate.page.goto(`/chat/${other}/everyone`);
+  await dismissRules(classmate.page);
+  await send(classmate.page, elsewhere);
+
+  // Back to the list on a phone, which stayed live under the room.
+  if (isMobile) await page.getByRole("link", { name: "Your classes" }).tap();
+  // Well inside the list's minute-long poll: the sockets said so.
+  for (const [room, text] of [
+    [`${TERM}:${course}`, inCourse],
+    [`${TERM}:${other}`, elsewhere],
+  ] as const) {
+    await expect(row(room)).toContainText(`Test: ${text}`, {
+      timeout: 15_000,
+    });
+    await expect(row(room).locator("[data-unread-mark]")).toBeVisible();
+  }
+  await classmate.context.close();
+});
+
 test("an older link, with the room in its search params, goes to the room's path", async ({
   page,
 }, info) => {

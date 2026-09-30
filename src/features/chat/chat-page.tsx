@@ -26,9 +26,10 @@ import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
 import { RowSkeleton } from "~/ui/skeleton";
-import { chatListOf, useChatHome } from "./chat-home";
+import { chatListOf, listLive, useChatHome } from "./chat-home";
 import { CourseFinder } from "./course-finder";
 import { JoinButton } from "./join-button";
+import { useLiveList } from "./live-list";
 import type { ChatGo, ChatView } from "./nav";
 import { RoomList, useChatList } from "./room-list";
 import { RoomSkeleton, RoomView } from "./room-view";
@@ -205,6 +206,13 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
 
   const list = useChatList();
   const noClasses = homeStatus === "ready" && list.length === 0;
+  // Every other course's rows update live too; the open one's socket is the room's.
+  useLiveList(termId, list, course);
+  // A message in the room on screen is read as it lands.
+  useEffect(() => {
+    useChatHome.getState().setViewing(room);
+    return () => useChatHome.getState().setViewing(null);
+  }, [room]);
   const findCourse = () => setFinding((n) => n + 1);
 
   // No classes yet: on a desktop the list holds the finder and the room's
@@ -407,6 +415,9 @@ function CourseRoom({
     termId,
     courseCode,
     readable.length ? readable : [tree?.course.id ?? `${termId}:${courseCode}`],
+    undefined,
+    // The list's rows for this course's other rooms stay live on this socket.
+    listLive,
   );
   const room = tree?.byId.get(roomId) ?? null;
 

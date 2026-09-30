@@ -22,6 +22,7 @@ import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, termPlans, useChatHome, useMainPlan } from "./chat-home";
 import type { ChatGo } from "./nav";
+import { RoomContextMenu } from "./room-menu";
 import { RoomRow } from "./room-row";
 import { showNote, showUndo, useNow } from "./undo";
 
@@ -140,17 +141,23 @@ function CourseGroup({
       ) : (
         <div>
           {rooms.map((r) => (
-            <RoomRow
+            <RoomContextMenu
               key={r.room.id}
+              courseCode={courseCode}
               room={r.room}
-              latest={latest[r.room.id]}
-              you={you}
-              now={now}
-              unread={r.unread}
-              muted={r.muted}
-              current={r.room.id === currentRoom}
-              onOpen={() => go({ course: courseCode, room: r.room.id })}
-            />
+              unread={r.muted ? 0 : r.unread}
+            >
+              <RoomRow
+                room={r.room}
+                latest={latest[r.room.id]}
+                you={you}
+                now={now}
+                unread={r.unread}
+                muted={r.muted}
+                current={r.room.id === currentRoom}
+                onOpen={() => go({ course: courseCode, room: r.room.id })}
+              />
+            </RoomContextMenu>
           ))}
         </div>
       )}
