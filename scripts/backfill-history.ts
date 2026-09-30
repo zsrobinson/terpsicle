@@ -6,17 +6,25 @@
 //   pnpm tsx scripts/backfill-history.ts [--target fs|r2] [--dir .data]
 //        [--dept <CODE>]… [--course <CODE>]… [--limit <n>]
 //        [--delay-ms 1000] [--flush-every 400] [--dry-run]
+//        [--list-cache <file>] [--max-minutes <n>]
 //
 // - Start with a dry run on a sample: `--course CMSC351 --dry-run` fetches
 //   and prints what it would record per term, and writes nothing.
 // - The full run (`--target r2`, no filters) asks PlanetTerp for every
-//   course it lists (about 120 list pages, then one grades request per
-//   course, one a second): 3–4 hours. It merges every `--flush-every`
+//   course it lists (about 175 list pages, then one grades request per
+//   course, one a second): about 5 hours. It merges every `--flush-every`
 //   courses and remembers what's done in `_jobs/history/backfill.json`, so
 //   after a failure or Ctrl-C the same command carries on. Courses that
-//   failed are tried again on the next run.
+//   failed are tried again on the next run; a course that answers with no
+//   grade rows is asked once more on a later run, and then left alone.
+// - To run it in chunks: `--list-cache .data/planetterp-courses.json`
+//   saves the course listing (about 6 minutes) the first time and reuses
+//   it after, and `--max-minutes 8` merges and exits cleanly once 8 minutes
+//   have passed. Repeat the same command until `left` is 0.
 // - `--target r2` needs CLOUDFLARE_ACCOUNT_ID plus R2 credentials
 //   (scripts/lib/r2-s3-blob-store.ts).
+import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import type { BlobStore } from "~/ingest/blob-store";
@@ -38,6 +46,8 @@ const { values } = parseArgs({
     "delay-ms": { type: "string", default: "1000" },
     "flush-every": { type: "string", default: "400" },
     "dry-run": { type: "boolean", default: false },
+    "list-cache": { type: "string" },
+    "max-minutes": { type: "string" },
   },
 });
 
@@ -68,6 +78,8 @@ async function main() {
     `history backfill → ${values.target === "r2" ? "R2 (production)" : values.dir}${values["dry-run"] ? " (dry run: nothing is written)" : ""}`,
   );
   const started = performance.now();
+  const maxMinutes = number(values["max-minutes"], "max-minutes", 1);
+  const listCache = values["list-cache"];
   const result = await backfillHistory({
     http,
     store,
@@ -79,6 +91,21 @@ async function main() {
     delayMs: number(values["delay-ms"], "delay-ms", 250),
     flushEvery: number(values["flush-every"], "flush-every", 1),
     dryRun: values["dry-run"],
+    ...(listCache
+      ? {
+          listCache: {
+            read: async () =>
+              existsSync(listCache) ? readFile(listCache, "utf8") : null,
+            write: (text: string) => writeFile(listCache, text),
+          },
+        }
+      : {}),
+    ...(maxMinutes !== undefined
+      ? {
+          shouldStop: () =>
+            performance.now() - started > maxMinutes * 60 * 1000,
+        }
+      : {}),
   });
   console.info(
     JSON.stringify(
