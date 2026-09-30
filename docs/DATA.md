@@ -204,10 +204,10 @@ Testudo lists only the last few terms (in Fall 2026, back to Summer 2026), and t
 ## 4. Reference data
 
 ### 4.1 PlanetTerp (per department)
-- **One file per department** holds:
-  - `instructors`: slug → `Instructor`, covering everyone teaching a section of that department in any active term plus everyone in its grade data;
-  - `names`: `instructorNameKey(testudoName)` → slug. The join is done once, in ingest;
-  - `courses`: course code → `{all, byInstructor}` grade records.
+- **One file per department** (every department in an active term or in the instructor history, §3.5) holds:
+  - `instructors`: slug → `Instructor`, covering everyone teaching a section of that department in any active term, everyone the history names that PlanetTerp knows, plus everyone in its grade data;
+  - `names`: `instructorNameKey(name)` → slug, for every name in an active term **and** in the history, Testudo's and PlanetTerp's spellings alike. The join is done once, in ingest. PlanetTerp's own spellings (the backfill's terms) join by exact name, as its grade rows do, so a course's grades and its "who taught it" land on one slug per person; a Testudo spelling of the same key goes first. Before the history's names were joined, anyone who taught a course only in a term Testudo no longer lists (Fawzi Emad in Spring 2025) had no entry, and course pages showed them twice: by slug from the grades, and by name, unlinked;
+  - `courses`: course code → `{all, byInstructor}` grade records, for every course offered in an active term or on record in the history (taught since Spring 2012). Grades for a course the job has never asked about come first in its nightly rotation, so the history's courses fill in 700 a night.
 
   Everything is keyed by **slug**, never by name: PlanetTerp names collide (two "Douglas Hamilton"s). When two slugs share a Testudo name, ingest picks the one whose `courses` includes the course.
 
@@ -217,6 +217,13 @@ Testudo lists only the last few terms (in Fall 2026, back to Summer 2026), and t
   - **Sanity floors** (`src/ingest/planetterp/source.ts`). A run whose professor list is empty, or has more than 10% fewer professors or reviews than the last good run (`_jobs/planetterp/state.json`), is a source failure. So is a list that doesn't arrive at all. The job then publishes nothing new: the department files and the manifest's `departments` stay as they were, the manifest's `source.status` becomes `stale` (`gone` after 30 days without a good run), the reason goes in the job state, and the cron reports `cron_job_failed` with the reason as `firstError` (`docs/ANALYTICS.md`).
   - **Grades never go from something to nothing.** `/grades` answers 400 `{"error":"course not found"}` for a course it doesn't know; only that 400 means "no grades", and any other error keeps the stored rows. An empty answer for a course that had rows keeps the old rows too; only a course with no stored rows may stay empty.
 - **The index** (`planetterp/index.<hash>.json`, `PlanetTerpIndexSchema`, named by the manifest's optional `index: {hash}`, added without a version bump like `source`) is built from the department files the run published (`buildPlanetTerpIndex` in `src/core/reviews`): `instructors`, slug → `[name, depts]`, and `mostTaken`, the 40 courses offered in an active term with the most students in PlanetTerp's grades, as `[code, title, students]`. Instructor pages without `?course=` find their departments here, the sitemap lists every instructor from it, and a mistyped instructor URL gets "Did you mean" from its names. A failed write keeps the previous index.
+- **Totals** (`PlanetTerpIndex.totals`, `planetTerpTotals` in `src/core/reviews`, added without a version bump): what Reviews' front page counts, on PlanetTerp's front page's basis where the API allows. PlanetTerp counts rows in its own database (`Course.unfiltered`, `Professor.verified`, `Review.verified`, `Grade.unfiltered`); its API serves only part of them, so two of four can't match:
+  - `professors`: everyone in its professor list, professors and TAs (its API lists verified people only, as its front page counts). Matches.
+  - `reviews`: their reviews, summed. Matches but for the handful of verified reviews its list doesn't attach to a listed professor.
+  - `courses`: every course a department file lists (offered in an active term, or taught since Spring 2012). PlanetTerp also counts courses it no longer lists (not offered recently), which its API never returns.
+  - `grades`: its grade rows (one section's grades under one professor in one term) since Spring 2012, counted from the history's backfilled terms (`planetTerpGradeRows`, `src/core/history`). Its front page also counts rows before 2012, which its API never returns.
+  - `counts`: every course's grades, summed.
+  If the history won't read, the job stops before publishing (a run without it would drop courses and names), and the last good files stay.
 - **`source`** in `planetterp/manifest.json` (`PlanetTerpSourceSchema`) is `{status, lastSuccessAt, gradesThrough, latestReviewAt}`. It was added without a version bump (§2.3: an optional field; older clients strip it, and manifests without it read as "unknown"). `status`:
   - `ok`: the last run was good and PlanetTerp has published a review in the last six weeks;
   - `stale`: the last run was a source failure, or PlanetTerp has published no review for six weeks (its ratings are frozen);

@@ -93,6 +93,38 @@ describe("buildPlanetTerpIndex", () => {
       ["CMSC250", "Discrete Structures"],
     ]);
   });
+
+  it("counts totals as PlanetTerp's front page does: its whole list, and its grade rows", () => {
+    const whole = { professors: 14_496, reviews: 47_926, gradeRows: 177_000 };
+    expect(
+      buildPlanetTerpIndex([math, cmsc], new Map()).totals,
+    ).toBeUndefined();
+    const totals = buildPlanetTerpIndex([math, cmsc], new Map(), whole).totals;
+    // Professors and reviews are the whole list's, not only the files'.
+    expect(totals).toMatchObject({
+      courses: 3,
+      professors: 14_496,
+      reviews: 47_926,
+      grades: 177_000,
+    });
+    // A course without grades counts as a course, and adds no grades.
+    const noGrades = aPlanetTerpDept({
+      dept: "ENGL",
+      courses: { ENGL101: { all: null, byInstructor: {} } },
+    });
+    const withIt = buildPlanetTerpIndex(
+      [math, cmsc, noGrades],
+      new Map(),
+      whole,
+    ).totals;
+    expect(withIt?.courses).toBe(4);
+    expect(withIt?.counts).toEqual(totals?.counts);
+    expect(totals?.counts.reduce((a, b) => a + b, 0)).toBe(
+      [cmsc.courses.CMSC351, cmsc.courses.CMSC250, math.courses.MATH141]
+        .flatMap((c) => c?.all?.counts ?? [])
+        .reduce((a, b) => a + b, 0),
+    );
+  });
 });
 
 describe("coursePageData", () => {
