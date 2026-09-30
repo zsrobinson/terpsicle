@@ -107,7 +107,8 @@ function DoneCount({ progress }: { progress: Progress }) {
   return (
     <span
       className={cn(
-        "tnum flex items-center gap-1 text-sm",
+        // One height, check or not, so finishing the week moves nothing.
+        "tnum flex h-5 shrink-0 items-center gap-1 text-sm",
         all ? "emph-label" : "emph-meta",
       )}
     >
@@ -271,7 +272,7 @@ function WeekSection({
             hidden={inDrawer}
             className="flex flex-col gap-2 border-hairline border-b px-4 pt-3 pb-4"
           >
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex h-5 items-center justify-between gap-2">
               <span className="emph-label text-sm">Everything</span>
               {total.total === 0 ? (
                 <span className="emph-meta text-sm">Nothing due</span>
@@ -356,8 +357,8 @@ export function TodoSidebar({
         {inDrawer ? null : (
           <PushAskCard moment="todo-connected" className="m-3" />
         )}
-        <section aria-label="Add a task">
-          <SectionHeader level={2} title="Add a task" />
+        <section aria-label="Add task">
+          <SectionHeader level={2} title="Add task" />
           <Composer
             courses={courses}
             colors={colors}

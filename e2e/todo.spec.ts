@@ -432,10 +432,15 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(noDate.getByText("Email my advisor")).toBeVisible();
   await expect(composer).toHaveValue("");
 
-  // The date and time read from the words, marked, and shown as chips.
+  // The date and time read from the words, marked, and filled in below.
   await composer.fill("Office hours tomorrow 3pm");
-  const chips = page.getByRole("list", { name: "The task will be" });
-  await expect(chips.getByText("3pm")).toBeVisible();
+  const dateField = page
+    .getByRole("region", { name: "Add task" })
+    .getByLabel("Due date");
+  await expect(dateField).toHaveValue(shift(today(), 1));
+  await expect(
+    page.getByRole("region", { name: "Add task" }).getByLabel("Time"),
+  ).toHaveValue("15:00");
   await expect(page.locator("mark")).toHaveText(["tomorrow", "3pm"]);
   await axe(page, "the composer");
   await composer.press("Enter");
@@ -455,7 +460,7 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
     })
     .click();
   await expect(composer).toBeFocused();
-  await expect(chips).toBeVisible();
+  await expect(dateField).toHaveValue(other);
   await page.keyboard.press("Escape");
 
   // Change it from its details: a new title, and no date.

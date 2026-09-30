@@ -74,16 +74,26 @@ export function TodoBarContext({
           shortcut="T"
         >
           {current ? (
-            // Nothing to do on this week: disabled, in its place.
-            <button
-              type="button"
-              disabled
-              className={cn(SEGMENT, "text-fg disabled:opacity-40")}
+            // On this week, Today is the group's selected segment: filled,
+            // as a view switch's current view is, and with nothing to do.
+            // An <a> like its neighbors, so the group's borders match.
+            // biome-ignore lint/a11y/useValidAnchor: a disabled link keeps its neighbors' tag and borders
+            <a
+              role="link"
+              aria-disabled="true"
+              aria-current="page"
+              className={cn(SEGMENT, "cursor-default hover:bg-accent-soft")}
             >
               Today
-            </button>
+            </a>
           ) : (
-            <Link to={TODO_PATH} search={{}} className={cn(SEGMENT, "text-fg")}>
+            <Link
+              to={TODO_PATH}
+              search={{}}
+              // Never the router's "current" look: only this week is.
+              activeOptions={{ exact: true }}
+              className={SEGMENT}
+            >
               Today
             </Link>
           )}

@@ -12,6 +12,7 @@ import {
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { TaskEditor } from "./task-form";
+import { TaskContextMenu } from "./task-menu";
 import { TodoItemRow } from "./todo-item";
 
 // Items as rows (docs/V3.md §3.9): a phone's days, and No date in the
@@ -98,21 +99,28 @@ function OwnTaskRow({
       </ListRow>
     );
   return (
-    <TodoItemRow
+    <TaskContextMenu
       item={item}
-      done={done}
-      {...props.look(item)}
-      relative={relativeDue(item, props.now, props.today)}
-      onToggle={() => props.onToggle(item, "list")}
-      menu={
-        <TaskMenu
-          item={item}
-          onEdit={() => setEditing(true)}
-          onDelete={() => props.onDeleteTask(item)}
-          className="-my-3 md:-my-1.5"
-        />
-      }
-    />
+      props={props}
+      via="list"
+      onEdit={() => setEditing(true)}
+    >
+      <TodoItemRow
+        item={item}
+        done={done}
+        {...props.look(item)}
+        relative={relativeDue(item, props.now, props.today)}
+        onToggle={() => props.onToggle(item, "list")}
+        menu={
+          <TaskMenu
+            item={item}
+            onEdit={() => setEditing(true)}
+            onDelete={() => props.onDeleteTask(item)}
+            className="-my-3 md:-my-1.5"
+          />
+        }
+      />
+    </TaskContextMenu>
   );
 }
 
@@ -129,14 +137,21 @@ export function Rows({
     item.source === "own" ? (
       <OwnTaskRow key={item.uid} item={item} done={done} props={props} />
     ) : (
-      <TodoItemRow
+      <TaskContextMenu
         key={item.uid}
         item={item}
-        done={done}
-        {...props.look(item)}
-        relative={relativeDue(item, props.now, props.today)}
-        onToggle={() => props.onToggle(item, "list")}
-      />
+        props={props}
+        via="list"
+        onEdit={() => {}}
+      >
+        <TodoItemRow
+          item={item}
+          done={done}
+          {...props.look(item)}
+          relative={relativeDue(item, props.now, props.today)}
+          onToggle={() => props.onToggle(item, "list")}
+        />
+      </TaskContextMenu>
     ),
   );
 }

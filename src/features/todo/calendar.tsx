@@ -25,6 +25,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { startTask } from "./composer";
 import { dayKind, dayShade } from "./day-shade";
 import { TaskEditor } from "./task-form";
+import { TaskContextMenu } from "./task-menu";
 import { CourseTag, SOURCE_WORDS, TodoCheckbox } from "./todo-item";
 import { type CheckedVia, Rows, TaskMenu, type ViewProps } from "./todo-lists";
 
@@ -92,14 +93,17 @@ function ItemDetails({
   item,
   props,
   via,
+  startEditing = false,
   onClose,
 }: {
   item: TodoItem;
   props: ViewProps;
   via: CheckedVia;
+  /** Opened from the menu's Edit: the fields at once. */
+  startEditing?: boolean;
   onClose: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startEditing);
   const { course, color } = props.look(item);
   const done = props.done.has(item.uid);
   const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
@@ -167,16 +171,21 @@ function WithDetails({
   item,
   props,
   via,
+  shown,
+  onShown,
   children,
 }: {
   item: TodoItem;
   props: ViewProps;
   via: CheckedVia;
+  /** Open, and whether on its fields (the menu's Edit). */
+  shown: "details" | "edit" | null;
+  onShown: (shown: "details" | "edit" | null) => void;
   children: (trigger: { label: string }) => ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const setOpen = (open: boolean) => onShown(open ? "details" : null);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={shown !== null} onOpenChange={setOpen}>
       <WithTooltip label="Details">
         <PopoverTrigger asChild>
           {children({ label: `${item.title}, details` })}
@@ -184,9 +193,11 @@ function WithDetails({
       </WithTooltip>
       <PopoverContent className="w-80 max-w-[calc(100vw-16px)]">
         <ItemDetails
+          key={shown ?? "closed"}
           item={item}
           props={props}
           via={via}
+          startEditing={shown === "edit"}
           onClose={() => setOpen(false)}
         />
       </PopoverContent>
@@ -198,50 +209,66 @@ function WithDetails({
 function WeekCard({ item, props }: { item: TodoItem; props: ViewProps }) {
   const done = props.done.has(item.uid);
   const { course, color } = props.look(item);
+  const [shown, setShown] = useState<"details" | "edit" | null>(null);
   return (
-    <li
-      data-testid="todo-chip"
-      style={!done && color ? tintStyle(color) : undefined}
-      className={cn(
-        "flex items-start border text-xs",
-        (done || !color) && "border-hairline-strong bg-panel",
-        done && "text-muted",
-      )}
+    <TaskContextMenu
+      item={item}
+      props={props}
+      via="week"
+      onEdit={() => setShown("edit")}
     >
-      <TodoCheckbox
-        title={item.title}
-        done={done}
-        onToggle={() => props.onToggle(item, "week")}
-        className="md:size-7"
-      />
-      <WithDetails item={item} props={props} via="week">
-        {({ label }) => (
-          <button
-            type="button"
-            aria-label={label}
-            className="min-w-0 flex-1 py-1 pr-1.5 text-left"
-          >
-            {/* Faded like a block's time on the tint; muted text on a done
-                card can't fade further and stay readable. */}
-            <span className={cn("tnum block", !done && color && "opacity-80")}>
-              {dueTimeLabel(item)}
-              {course ? (
-                <span className="ident ml-1 font-medium">{course}</span>
-              ) : null}
-            </span>
-            <span
-              data-private=""
-              className={cn(
-                "line-clamp-3 block break-words font-medium",
-                done && "line-through",
-              )}
-            >
-              {item.title}
-            </span>
-          </button>
+      <li
+        data-testid="todo-chip"
+        style={!done && color ? tintStyle(color) : undefined}
+        className={cn(
+          "flex items-start border text-xs",
+          (done || !color) && "border-hairline-strong bg-panel",
+          done && "text-muted",
         )}
-      </WithDetails>
-    </li>
+      >
+        <TodoCheckbox
+          title={item.title}
+          done={done}
+          onToggle={() => props.onToggle(item, "week")}
+          className="md:size-7"
+        />
+        <WithDetails
+          item={item}
+          props={props}
+          via="week"
+          shown={shown}
+          onShown={setShown}
+        >
+          {({ label }) => (
+            <button
+              type="button"
+              aria-label={label}
+              className="min-w-0 flex-1 py-1 pr-1.5 text-left"
+            >
+              {/* Faded like a block's time on the tint; muted text on a done
+                card can't fade further and stay readable. */}
+              <span
+                className={cn("tnum block", !done && color && "opacity-80")}
+              >
+                {dueTimeLabel(item)}
+                {course ? (
+                  <span className="ident ml-1 font-medium">{course}</span>
+                ) : null}
+              </span>
+              <span
+                data-private=""
+                className={cn(
+                  "line-clamp-3 block break-words font-medium",
+                  done && "line-through",
+                )}
+              >
+                {item.title}
+              </span>
+            </button>
+          )}
+        </WithDetails>
+      </li>
+    </TaskContextMenu>
   );
 }
 

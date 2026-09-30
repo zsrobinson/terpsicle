@@ -5,7 +5,14 @@ import {
   RouterProvider,
   stringifySearchWith,
 } from "@tanstack/react-router";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -250,7 +257,7 @@ describe("who's looking", () => {
     const user = userEvent.setup();
     await user.type(
       await within(
-        await screen.findByRole("region", { name: "Add a task" }),
+        await screen.findByRole("region", { name: "Add task" }),
       ).findByRole("textbox", { name: "New task" }),
       "Email my advisor{Enter}",
     );
@@ -429,7 +436,7 @@ describe("syncing, in the bar", () => {
     // No sync header in the sidebar: it starts with Add a task.
     expect(
       within(sidebar()).getAllByRole("heading", { level: 2 })[0],
-    ).toHaveTextContent("Add a task");
+    ).toHaveTextContent("Add task");
     const user = userEvent.setup();
     const settings = await openElms(user);
     // Both syncs: ELMS, and the account's own tasks.
@@ -636,7 +643,15 @@ describe("the week", () => {
     const group = within(bar).getByRole("navigation", { name: "Weeks" });
     expect(group).toHaveClass("border-hairline-strong");
     expect(group.querySelector("[class*='shadow-offset']")).toBeNull();
-    expect(today).toHaveClass("text-fg");
+    // Off this week, Today looks like Back and Ahead: the same segment,
+    // with no fill of its own (the arrows only size their icon).
+    const look = (el: HTMLElement) =>
+      el.className
+        .split(" ")
+        .filter((c) => !/^(active|w-7|px-0|px-2\.5|\[&_svg\]:size-4)$/.test(c))
+        .sort();
+    const ahead = within(bar).getByRole("link", { name: "Ahead a week" });
+    expect(look(today)).toEqual(look(ahead));
     // Nothing else of Todo's is in the bar, and there's one view.
     expect(
       within(bar).queryByRole("button", { name: "Add a task" }),
@@ -644,15 +659,18 @@ describe("the week", () => {
     expect(screen.queryByRole("navigation", { name: "Todo views" })).toBeNull();
   });
 
-  it("disables Today on this week", async () => {
+  it("shows Today selected on this week, with nothing to do", async () => {
     fakeClient({ items });
     signedIn();
     renderTodo();
     const bar = await screen.findByRole("banner");
-    expect(
-      await within(bar).findByRole("button", { name: "Today" }),
-    ).toBeDisabled();
-    expect(within(bar).queryByRole("link", { name: "Today" })).toBeNull();
+    const today = await within(bar).findByRole("link", { name: "Today" });
+    // The group's current segment: filled, and not a way anywhere.
+    expect(today).toHaveAttribute("aria-current", "page");
+    expect(today).toHaveAttribute("aria-disabled", "true");
+    expect(today).not.toHaveAttribute("href");
+    // An <a> like Back and Ahead, so the group's borders are the same.
+    expect(today.tagName).toBe("A");
   });
 
   it("loads a week the list doesn't hold yet", async () => {
@@ -815,6 +833,9 @@ describe("the week's progress in the sidebar", () => {
     expect(cmsc).toHaveAttribute("aria-valuetext", "All 2 done");
     const row = within(section).getByRole("listitem", { name: "CMSC216" });
     expect(within(row).getByText("All 2 done")).toBeVisible();
+    // The words keep one height with or without the check, so finishing
+    // a course (or the week) moves nothing.
+    expect(within(row).getByText("All 2 done")).toHaveClass("h-5");
     expect(
       within(section).getByRole("progressbar", {
         name: "This week, every course",
@@ -943,13 +964,13 @@ describe("the composer", () => {
     const field = await screen.findByRole("textbox", { name: "New task" });
     expect(field).toHaveAttribute("data-private");
     await user.type(field, "PS3 due tomorrow 11:59pm cmsc216");
-    const chips = screen.getByRole("list", { name: "The task will be" });
-    expect(within(chips).getByText("Tue, Sep 29")).toBeVisible();
-    expect(within(chips).getByText("11:59pm")).toBeVisible();
-    expect(within(chips).getByText("CMSC216")).toBeVisible();
-    // The pickers show what the words said.
+    // No chips: the words fill in the pickers.
+    expect(screen.queryByRole("list", { name: "The task will be" })).toBeNull();
     expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-29");
     expect(screen.getByLabelText("Time")).toHaveValue("23:59");
+    expect(screen.getByRole("combobox", { name: "Course" })).toHaveTextContent(
+      "CMSC216",
+    );
     // The recognized words are marked in the layer behind the field.
     expect(
       [...document.querySelectorAll("mark")].map((m) => m.textContent),
@@ -975,7 +996,7 @@ describe("the composer", () => {
     expect(await screen.findByText("PS3")).toBeVisible();
   });
 
-  it("takes a part off with its chip, leaving its words in the title", async () => {
+  it("takes a part off by clearing its picker, leaving its words in the title", async () => {
     const client = fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();
@@ -984,9 +1005,10 @@ describe("the composer", () => {
       await screen.findByRole("textbox", { name: "New task" }),
       "Read the Sun Also Rises sun",
     );
-    await user.click(screen.getByRole("button", { name: "No date" }));
-    expect(screen.queryByRole("list", { name: "The task will be" })).toBeNull();
-    await user.keyboard("{Enter}");
+    const date = screen.getByLabelText("Due date");
+    expect(date).toHaveValue("2026-10-04");
+    await user.clear(date);
+    await user.click(screen.getByRole("button", { name: "Add task" }));
     expect(client.saveTask).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Read the Sun Also Rises sun",
@@ -1030,11 +1052,7 @@ describe("the composer", () => {
     // The sidebar's composer takes the day.
     const field = screen.getByRole("textbox", { name: "New task" });
     await waitFor(() => expect(field).toHaveFocus());
-    expect(
-      within(screen.getByRole("list", { name: "The task will be" })).getByText(
-        "Wed, Sep 30",
-      ),
-    ).toBeVisible();
+    expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-30");
     await user.keyboard("{Escape}");
     field.blur();
     await user.keyboard("q");
@@ -1067,7 +1085,13 @@ describe("the composer, folded", () => {
     );
     const user = userEvent.setup();
     const field = screen.getByRole("textbox", { name: "New task" });
-    expect(screen.getByText(/^Try “PS3 due fri/)).toBeVisible();
+    // What it understands is its info icon's tooltip, and the field's description.
+    expect(field).toHaveAccessibleDescription(
+      /like “PS3 due fri 11:59pm cmsc351”/,
+    );
+    expect(
+      screen.getByRole("button", { name: "What you can type" }),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Due date")).not.toBeVisible();
     await user.click(field);
     expect(screen.getByLabelText("Due date")).toBeVisible();
@@ -1077,10 +1101,7 @@ describe("the composer, folded", () => {
     // With words in it, it stays open.
     await user.type(field, "PS3 tomorrow");
     await user.click(screen.getByRole("button", { name: "elsewhere" }));
-    expect(screen.getByLabelText("Due date")).toBeVisible();
-    expect(
-      screen.getByRole("list", { name: "The task will be" }),
-    ).toBeVisible();
+    expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-29");
   });
 });
 
@@ -1092,6 +1113,67 @@ describe("your own tasks", () => {
     courseCode: "CMSC216",
     dueDate: "2026-09-29",
     dueAt: "2026-09-29T18:00:00.000Z",
+  });
+
+  it("has a right-click menu with what fits each item", async () => {
+    const client = fakeClient({ items: [aTodoItem(), office] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    const card = (title: string) => {
+      const box = screen.getByRole("checkbox", { name: `Done: ${title}` });
+      const li = box.closest("li");
+      if (!li) throw new Error(`no card for ${title}`);
+      return li;
+    };
+    await screen.findByRole("checkbox", { name: "Done: Project 2" });
+    // An ELMS item: check it off, or open it in ELMS.
+    fireEvent.contextMenu(card("Project 2"), { clientX: 20, clientY: 20 });
+    let menu = await screen.findByRole("menu", { name: "Project 2, actions" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((m) => m.textContent),
+    ).toEqual(["Mark done", "Open in ELMS"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Mark done" }));
+    expect(client.done).toHaveBeenCalledWith({
+      uid: "event-assignment-4410001",
+      done: true,
+    });
+    // Your own task: check it, change it, move it, or delete it.
+    fireEvent.contextMenu(card("Office hours"), { clientX: 20, clientY: 20 });
+    menu = await screen.findByRole("menu", { name: "Office hours, actions" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((m) => m.textContent),
+    ).toEqual([
+      "Mark done",
+      "Edit",
+      "Move a day earlier",
+      "Move a day later",
+      "Delete",
+    ]);
+    await user.click(
+      within(menu).getByRole("menuitem", { name: "Move a day later" }),
+    );
+    expect(client.saveTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uid: office.uid, dueDate: "2026-09-30" }),
+    );
+    const moved = await screen.findByText("Moved Office hours to Wed, Sep 30");
+    const toast = moved.closest("li");
+    if (!toast) throw new Error("no toast");
+    await user.click(within(toast).getByRole("button", { name: "Undo" }));
+    expect(client.saveTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uid: office.uid, dueDate: "2026-09-29" }),
+    );
+    // Edit opens its details on its fields.
+    fireEvent.contextMenu(card("Office hours"), { clientX: 20, clientY: 20 });
+    menu = await screen.findByRole("menu", { name: "Office hours, actions" });
+    await user.click(within(menu).getByRole("menuitem", { name: "Edit" }));
+    expect(await screen.findByRole("textbox", { name: "Title" })).toHaveValue(
+      "Office hours",
+    );
   });
 
   it("lists tasks with no date in the sidebar, under the composer", async () => {

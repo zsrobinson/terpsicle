@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CalendarDays, Clock, X } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -11,7 +11,6 @@ import {
 } from "react";
 import { create } from "zustand";
 import type { CourseCode, CourseColor, IsoDate } from "~/core/schema";
-import { formatTime } from "~/core/time";
 import {
   listRange,
   minutesFromTimeField,
@@ -20,7 +19,6 @@ import {
   type QuickAddChoice,
   type QuickAddKind,
   quickAddFields,
-  shortDayLabel,
   timeFieldFromMinutes,
 } from "~/core/todo";
 import { dotStyle } from "~/features/calendar/tint";
@@ -40,9 +38,13 @@ import { useTodo } from "./todo-store";
 
 // The composer (docs/V3.md §3.10): type a task the way you'd say it, "PS3
 // due fri 11:59pm cmsc351", and the date, time and course it recognizes are
-// marked in the text as you type, then shown as chips you can take off
-// before adding. The pickers under it set any of the three by hand. The
+// marked in the text as you type and filled into the pickers under it,
+// which set any of the three by hand too (clearing one takes it off). The
 // title is plain text, `data-private`, and never reaches analytics.
+
+/** What the field understands, in one example: its info icon's tooltip. */
+const HINT =
+  "Type the course, date and time the way you'd say them, like “PS3 due fri 11:59pm cmsc351”. They fill in the boxes below.";
 
 /** The composer's field: the Q shortcut and "start a task on this day" land here. */
 export const COMPOSER_ID = "todo-composer";
@@ -102,36 +104,6 @@ function Highlights({
   }
   runs.push(text.slice(at));
   return <>{runs}</>;
-}
-
-/** One recognized or picked part of the task, with × to take it off. */
-function Chip({
-  icon,
-  label,
-  onRemove,
-  removeLabel,
-}: {
-  icon: ReactNode;
-  label: ReactNode;
-  onRemove: () => void;
-  removeLabel: string;
-}) {
-  return (
-    <li className="flex h-7 items-center gap-1 border border-hairline-strong bg-raised pl-2 text-sm max-md:h-11">
-      {icon}
-      <span className="tnum">{label}</span>
-      <WithTooltip label={removeLabel}>
-        <button
-          type="button"
-          aria-label={removeLabel}
-          onClick={onRemove}
-          className="flex h-full w-7 items-center justify-center text-muted hover:bg-hover hover:text-fg max-md:w-11"
-        >
-          <X size={12} aria-hidden="true" />
-        </button>
-      </WithTooltip>
-    </li>
-  );
 }
 
 export function Composer({
@@ -205,13 +177,6 @@ export function Composer({
     setIgnore((s) => new Set([...s, kind]));
     setChoice((c) => ({ ...c, ...patch }));
   };
-  /** A chip's ×: neither the text nor a picker sets it now. Back to typing. */
-  const drop = (kind: QuickAddKind) => {
-    setIgnore((s) => new Set([...s, kind]));
-    setChoice((c) => ({ ...c, [kind]: null }));
-    field.current?.focus();
-  };
-
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!fields) return;
@@ -263,48 +228,6 @@ export function Composer({
   const offered = [
     ...new Set([...courses, ...(course ? [course] : [])]),
   ].sort();
-  const chips =
-    date !== null || time !== null || course !== null ? (
-      <ul aria-label="The task will be" className="flex flex-wrap gap-1.5">
-        {date !== null ? (
-          <Chip
-            icon={
-              <CalendarDays
-                size={13}
-                aria-hidden="true"
-                className="text-muted"
-              />
-            }
-            label={shortDayLabel(date)}
-            removeLabel="No date"
-            onRemove={() => drop("date")}
-          />
-        ) : null}
-        {time !== null ? (
-          <Chip
-            icon={<Clock size={13} aria-hidden="true" className="text-muted" />}
-            label={formatTime(time)}
-            removeLabel="All day"
-            onRemove={() => drop("time")}
-          />
-        ) : null}
-        {course !== null ? (
-          <Chip
-            icon={
-              <span
-                aria-hidden="true"
-                className="size-2 bg-muted"
-                style={colors[course] ? dotStyle(colors[course]) : undefined}
-              />
-            }
-            label={<span className="ident">{course}</span>}
-            removeLabel="No course"
-            onRemove={() => drop("course")}
-          />
-        ) : null}
-      </ul>
-    ) : null;
-
   return (
     <form
       onSubmit={submit}
@@ -327,43 +250,56 @@ export function Composer({
       <label htmlFor={COMPOSER_ID} className="sr-only">
         New task
       </label>
-      <WithTooltip
-        label="Type a task with its date, time and course, then press Enter"
-        shortcut="Q"
-        side="top"
-      >
-        <div className="relative bg-raised">
-          <div
-            ref={layer}
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre border border-transparent px-2.5 text-base text-transparent"
-          >
-            {/* One run of text, so its kerning and spaces are the field's. */}
-            <span>
-              <Highlights text={text} parts={parse.parts} />
-            </span>
+      <div className="relative bg-raised">
+        <WithTooltip
+          label="Type a task with its date, time and course, then press Enter"
+          shortcut="Q"
+          side="top"
+        >
+          <div className="relative">
+            <div
+              ref={layer}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre border border-transparent px-2.5 text-base text-transparent"
+            >
+              {/* One run of text, so its kerning and spaces are the field's. */}
+              <span>
+                <Highlights text={text} parts={parse.parts} />
+              </span>
+            </div>
+            <Input
+              ref={field}
+              id={COMPOSER_ID}
+              data-private=""
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={300}
+              aria-describedby={hintId}
+              placeholder="Add a task…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onScroll={follow}
+              onSelect={follow}
+              className="ph-no-capture relative bg-transparent pr-8"
+            />
           </div>
-          <Input
-            ref={field}
-            id={COMPOSER_ID}
-            data-private=""
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={300}
-            aria-describedby={hintId}
-            placeholder="Add a task…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onScroll={follow}
-            onSelect={follow}
-            className="ph-no-capture relative bg-transparent"
-          />
-        </div>
-      </WithTooltip>
-      <p id={hintId} className="text-muted text-xs">
-        Try “PS3 due fri 11:59pm cmsc351” or “exam 2 oct 14”.
+        </WithTooltip>
+        {/* What the words can say, at the field's end. The recognized
+            words stay marked in the field and fill the pickers below. */}
+        <WithTooltip label={HINT} side="top">
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="What you can type"
+            className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-faint transition-colors hover:text-muted"
+          >
+            <Info size={14} aria-hidden="true" />
+          </button>
+        </WithTooltip>
+      </div>
+      <p id={hintId} className="sr-only">
+        {HINT}
       </p>
-      {open ? chips : null}
       <div hidden={!open} className="grid grid-cols-[1fr_auto] gap-2">
         <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={dateId} className="emph-label text-sm">
@@ -422,6 +358,11 @@ export function Composer({
               <SelectItem value={NO_COURSE}>No course</SelectItem>
               {offered.map((code) => (
                 <SelectItem key={code} value={code}>
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 bg-muted"
+                    style={colors[code] ? dotStyle(colors[code]) : undefined}
+                  />
                   <span className="ident">{code}</span>
                 </SelectItem>
               ))}
