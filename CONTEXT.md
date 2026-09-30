@@ -329,8 +329,12 @@ On an instructor's or a course's page, the box between the rating and the review
 _Avoid_: banner, nudge (in copy)
 
 **Who taught it**:
-A course's page's side column: each term, newest first, with everyone who taught the course then, from our instructor history (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course.
+A course's page's side column: each term, newest first, with everyone who taught the course then, from our instructor history (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course, or their history page.
 _Avoid_: Instructors (the old heading)
+
+**History page**:
+The page of an instructor PlanetTerp doesn't know, only our instructor history (`/reviews/jo-early?course=CMSC351`, found through the course it's opened from): their name, the review box, "No reviews yet", and "What they taught", term by term. Once someone reviews them, they get a minted id and an instructor's page like anyone's. Code says `TaughtOnlyPage`.
+_Avoid_: unknown instructor, missing instructor
 
 **Review filter**:
 The select left of the review order. On an instructor's page, "All courses" or one of theirs (`?course=`), which narrows the reviews and the grades beside them ("Reviews in CMSC351", "Grades in CMSC351"). On a course's page, "All instructors" or one, which opens that instructor's page for the course, keeping the order. Code says `ReviewFilter`.

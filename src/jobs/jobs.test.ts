@@ -514,6 +514,154 @@ describe("planetterp job", () => {
     expect(after?.updated_at).toBe(before?.updated_at);
   });
 
+  it("joins the history's names too, so a past instructor is one person (Fawzi Emad in Spring 2025)", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runHistoryJob({ env, now: at("2026-09-25T12:41:00Z") });
+    // The backfill's Spring 2025, as PlanetTerp spells it: Fawzi Emad
+    // taught CMSC250 and CMSC122 then, and teaches nothing Testudo lists
+    // now, so the catalog alone never names him.
+    const manifest = await readJson(
+      HISTORY_MANIFEST_KEY,
+      HistoryManifestSchema,
+    );
+    const entry = manifest.departments.find((d) => d.code === "CMSC");
+    const dept = await readJson(
+      historyDeptKey("CMSC", entry?.hash ?? ""),
+      HistoryDeptSchema,
+    );
+    const spring2025 = {
+      termId: "202501",
+      source: "planetterp",
+      instructors: ["Fawzi Emad", "Maksym Morawski"],
+      sections: [
+        { code: "0101", instructors: ["Fawzi Emad", "Maksym Morawski"] },
+        { code: "0201", instructors: ["Fawzi Emad"] },
+      ],
+    } as const;
+    const courses = [
+      ...dept.courses.map((c) =>
+        c.code === "CMSC250"
+          ? { ...c, offerings: [...c.offerings, spring2025] }
+          : c,
+      ),
+      {
+        code: "CMSC122",
+        title: "Introduction to Computer Programming via the Web",
+        offerings: [
+          { ...spring2025, instructors: ["Fawzi Emad"], sections: [] },
+        ],
+      },
+    ].sort((a, b) => (a.code < b.code ? -1 : 1));
+    const hash = "00000000000000ee";
+    await env.DATA.put(
+      historyDeptKey("CMSC", hash),
+      JSON.stringify(HistoryDeptSchema.parse({ ...dept, courses })),
+    );
+    await env.DATA.put(
+      HISTORY_MANIFEST_KEY,
+      JSON.stringify({
+        ...manifest,
+        departments: manifest.departments.map((d) =>
+          d.code === "CMSC" ? { ...d, hash } : d,
+        ),
+      }),
+    );
+    const emad = {
+      name: "Fawzi Emad",
+      slug: "emad_fawzi",
+      type: "professor",
+      courses: ["CMSC122", "CMSC131", "CMSC250"],
+      average_rating: 4.4,
+      reviews: [],
+    };
+    fake.professors = (offset) =>
+      Response.json(
+        offset === 0
+          ? [JSON.parse(planetterpKruskal), emad, ...JSON.parse(planetterpPage)]
+          : [],
+      );
+    const row = (course: string, section: string) => ({
+      course,
+      professor: "Fawzi Emad",
+      semester: "202501",
+      section,
+      ...Object.fromEntries(
+        ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-"].map((k) => [k, 4]),
+      ),
+      ...Object.fromEntries(
+        ["D+", "D", "D-", "F", "W", "Other"].map((k) => [k, 1]),
+      ),
+    });
+    fake.grades = (course) =>
+      course === "CMSC250"
+        ? Response.json([row("CMSC250", "0101"), row("CMSC250", "0201")])
+        : course === "CMSC122"
+          ? Response.json([row("CMSC122", "0101")])
+          : planetTerpGrades(course);
+    await runPlanetTerpJob({
+      env,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+
+    const pt = await readJson(
+      PLANETTERP_MANIFEST_KEY,
+      PlanetTerpManifestSchema,
+    );
+    const cmsc = pt.departments.find((d) => d.code === "CMSC");
+    const file = await readJson(
+      planetTerpDeptKey("CMSC", cmsc?.hash ?? ""),
+      PlanetTerpDeptSchema,
+    );
+    // His history spelling and his grades' slug are one key: a course page
+    // lists him once, with his page.
+    expect(file.names["fawzi emad"]).toBe("emad_fawzi");
+    expect(file.instructors.emad_fawzi?.name).toBe("Fawzi Emad");
+    expect(Object.keys(file.courses.CMSC250?.byInstructor ?? {})).toContain(
+      "emad_fawzi",
+    );
+    // A course only the history knows gets its grades too.
+    expect(file.courses.CMSC122?.byInstructor.emad_fawzi?.semesters).toBe(1);
+    // A name PlanetTerp doesn't know stays out of `names`: no guessing.
+    expect(file.names["maksym morawski"]).toBeUndefined();
+
+    // Totals: PlanetTerp's whole list, and the history's grade rows
+    // (0101 under two professors is two rows, 0201 one, CMSC122's one).
+    const index = await readJson(
+      planetTerpIndexKey(pt.index?.hash ?? ""),
+      PlanetTerpIndexSchema,
+    );
+    const listed = [
+      JSON.parse(planetterpKruskal),
+      emad,
+      ...JSON.parse(planetterpPage),
+    ];
+    expect(index.totals).toMatchObject({
+      professors: listed.length,
+      reviews: listed.reduce(
+        (n: number, p: { reviews?: unknown[] }) => n + (p.reviews?.length ?? 0),
+        0,
+      ),
+      grades: 4,
+    });
+    let courseCount = 0;
+    for (const d of pt.departments)
+      courseCount += Object.keys(
+        (
+          await readJson(
+            planetTerpDeptKey(d.code, d.hash),
+            PlanetTerpDeptSchema,
+          )
+        ).courses,
+      ).length;
+    expect(index.totals?.courses).toBe(courseCount);
+  });
+
   it("joins Testudo names to slugs and publishes grades per department", async () => {
     const fake = fakeInternet();
     await runCatalogJob({

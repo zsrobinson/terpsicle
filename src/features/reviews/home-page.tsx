@@ -250,7 +250,7 @@ function Browse({ data }: { data: ReviewsHomeData }) {
 function HomeSide({ data }: { data: ReviewsHomeData }) {
   return (
     <>
-      {data.totals && data.totals.grades > 0 ? (
+      {data.totals?.counts.some((n) => n > 0) ? (
         <PageSection size="side" title="Grades across UMD">
           <GradesBlock
             record={{ counts: data.totals.counts, semesters: 0 }}

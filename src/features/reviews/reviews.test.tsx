@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,6 +45,7 @@ import {
   loadReviewsPage,
 } from "./page-data";
 import { useReviews } from "./reviews-store";
+import { TaughtOnlyPage } from "./taught-only-page";
 import {
   fakeReviewsClient,
   publishFiles,
@@ -744,6 +745,24 @@ describe("a course's page", () => {
     });
     expect(fall).toHaveTextContent("Ada Brandt");
     expect(fall).toHaveTextContent("Jo Early");
+    // Every row opens a page, theirs too: our own, found through the course.
+    expect(
+      within(fall).getByRole("link", { name: /Jo Early/ }),
+    ).toHaveAttribute("href", "/reviews/jo-early?course=CMSC351");
+
+    // That page: who they are, what they taught term by term, no reviews.
+    const page = await loadReviewsPage("jo-early", "CMSC351");
+    if (page.kind !== "taught") throw new Error("the loader didn't find her");
+    cleanup();
+    await renderPage(<TaughtOnlyPage data={page.taught} write={false} />);
+    expect(
+      screen.getByRole("heading", { name: "Jo Early", level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Taught in Fall 2025" }),
+    ).toHaveTextContent("CMSC351");
+    expect(screen.getByText(/Nobody's reviewed Jo Early yet/)).toBeVisible();
+    expect(screen.getByText("No reviews yet.")).toBeInTheDocument();
   });
 
   it("lists every instructor's reviews, each saying who it's about", async () => {

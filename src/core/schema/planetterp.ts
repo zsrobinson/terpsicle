@@ -188,17 +188,24 @@ export const PlanetTerpManifestSchema = z.object({
 });
 export type PlanetTerpManifest = z.infer<typeof PlanetTerpManifestSchema>;
 
-/** What the department files hold in all (`PlanetTerpIndex.totals`). */
+/**
+ * What Reviews holds in all, for its front page (`PlanetTerpIndex.totals`),
+ * counted the way PlanetTerp's own front page counts where our data allows
+ * (DATA.md §4.1, "Totals").
+ */
 export const PlanetTerpTotalsSchema = z.object({
-  /** Courses with grade data. */
+  /** Courses in the department files: offered in an active term, or taught since Spring 2012. */
   courses: count,
-  /** Instructors PlanetTerp lists as professors. */
+  /** Everyone PlanetTerp lists, professors and TAs, as its front page counts them. */
   professors: count,
-  /** PlanetTerp reviews, every instructor's once. */
+  /** PlanetTerp's reviews, summed over everyone it lists. */
   reviews: count,
-  /** Grades in the data: a student's grade in a course, one each. */
+  /**
+   * PlanetTerp's "course grades": its grade rows (one per section, term and
+   * professor) since Spring 2012. Older rows aren't in its API.
+   */
   grades: count,
-  /** Every course's grades, summed. */
+  /** Every course's grades, summed: the distribution across Reviews. */
   counts: GradeCountsSchema,
 });
 export type PlanetTerpTotals = z.infer<typeof PlanetTerpTotalsSchema>;
@@ -254,8 +261,8 @@ export const PlanetTerpIndexSchema = z.object({
     .max(MOST_REVIEWED_MAX)
     .default([]),
   /**
-   * What the department files hold in all, for Reviews' front page. Added
-   * later without a version bump: an older index has none.
+   * What Reviews holds in all. Added later without a version bump: an
+   * older index has none.
    */
   totals: PlanetTerpTotalsSchema.optional(),
 });

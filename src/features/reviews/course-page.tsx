@@ -12,6 +12,7 @@ import {
   combineRatings,
   courseTermGroups,
   hasTermStarted,
+  historyInstructorSlug,
   instructorSlug,
   reviewedHere,
   reviewedKey,
@@ -35,7 +36,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "~/ui/dropdown-menu";
-import { ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
 import { SplitLayout } from "~/ui/split-layout";
@@ -110,8 +110,12 @@ export function CoursePage({
   const today = newYorkClock(Date.now()).date;
   const teaching = rows.filter((r) => r.teaching);
   // The instructor filter: everyone with a page of their own, by name.
+  // Everyone has one: PlanetTerp's, or ours from the history.
   const withPages = rows
-    .flatMap((r) => (r.id ? [{ id: r.id, name: r.name }] : []))
+    .map((r) => ({
+      slug: rowLink(r, code).params.slug,
+      name: r.name,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const navigate = useNavigate();
 
@@ -325,16 +329,16 @@ export function CoursePage({
                     all="All instructors"
                     value={null}
                     options={withPages.map((r) => ({
-                      value: r.id,
+                      value: r.slug,
                       label: r.name,
                     }))}
-                    onPick={(id) => {
+                    onPick={(slug) => {
                       // One instructor in this course is their page's view
                       // of it, with this page's order (owner, 2026-09-30).
-                      if (id === null) return;
+                      if (slug === null) return;
                       void navigate({
                         to: "/reviews/$slug",
-                        params: { slug: instructorSlug(id) },
+                        params: { slug },
                         search: {
                           course: code,
                           ...(sort !== "latest" ? { sort } : {}),
@@ -419,22 +423,20 @@ function TeachingNow({
             key={row.id ?? row.name}
             className="flex items-center gap-2 border border-hairline-strong px-3 py-2"
           >
-            {row.id ? (
-              <WithTooltip
-                label={`${row.name}'s reviews and grades in ${code}`}
+            <WithTooltip
+              label={
+                row.id
+                  ? `${row.name}'s reviews and grades in ${code}`
+                  : `What ${row.name} has taught`
+              }
+            >
+              <Link
+                {...rowLink(row, code)}
+                className="font-medium text-lg hover:underline"
               >
-                <Link
-                  to="/reviews/$slug"
-                  params={{ slug: instructorSlug(row.id) }}
-                  search={{ course: code }}
-                  className="font-medium text-lg hover:underline"
-                >
-                  {row.name}
-                </Link>
-              </WithTooltip>
-            ) : (
-              <span className="font-medium text-lg">{row.name}</span>
-            )}
+                {row.name}
+              </Link>
+            </WithTooltip>
             <CombinedRatingBadge combined={rowRating(row)} />
           </li>
         ))}
@@ -564,29 +566,32 @@ function InstructorRow({ row, code }: { row: Row; code: CourseCode }) {
     row.overallGpa !== null
       ? `Average GPA ${formatGpa(row.overallGpa)}`
       : undefined;
-  if (row.id)
-    return (
-      <FilterRow
-        label={<span className="font-medium">{row.name}</span>}
-        secondary={secondary}
-        trail={trail}
-        tooltip={`${row.name}'s reviews and grades in ${code}`}
-        link={{
-          to: "/reviews/$slug",
-          params: { slug: instructorSlug(row.id) },
-          search: { course: code },
-        }}
-      />
-    );
-  // PlanetTerp doesn't know them yet: no page of theirs to go to.
   return (
-    <ListRow
-      as="li"
-      className="-mx-2 border-b-0 px-2"
+    <FilterRow
+      label={<span className="font-medium">{row.name}</span>}
       secondary={secondary}
       trail={trail}
-    >
-      <span className="block truncate font-medium text-base">{row.name}</span>
-    </ListRow>
+      tooltip={
+        row.id
+          ? `${row.name}'s reviews and grades in ${code}`
+          : `What ${row.name} has taught`
+      }
+      link={rowLink(row, code)}
+    />
   );
+}
+
+/**
+ * Where an instructor's name goes: their page in this course, or, when
+ * PlanetTerp doesn't know them, our own page of what they taught, found
+ * through this course (owner, 2026-09-30: every row is clickable).
+ */
+function rowLink(row: Row, code: CourseCode) {
+  return {
+    to: "/reviews/$slug",
+    params: {
+      slug: row.id ? instructorSlug(row.id) : historyInstructorSlug(row.name),
+    },
+    search: { course: code },
+  } as const;
 }

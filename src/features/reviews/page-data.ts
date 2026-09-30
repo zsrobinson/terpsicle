@@ -14,6 +14,8 @@ import {
   mergeReviews,
   type ShownReview,
   type Suggestion,
+  type TaughtOnlyPageData,
+  taughtOnlyPageData,
 } from "~/core/reviews";
 import type { PageRequestContext } from "~/core/routing";
 import {
@@ -213,7 +215,9 @@ export type ReviewsPageData =
       kind: "instructor";
       instructor: InstructorPageData;
       reviews: PageReviews;
-    };
+    }
+  /** Someone only the history knows, reached from a course's page. */
+  | { kind: "taught"; taught: TaughtOnlyPageData };
 
 export type ReviewsPageLoad =
   | ReviewsPageData
@@ -256,6 +260,14 @@ export async function loadReviewsPage(
     loadInstructorPage(id, course, serverContext),
     reader.pageReviews({ instructorId: id, course: courseCode, sort }),
   ]);
+  // PlanetTerp doesn't know them: someone the course's history names.
+  if ((!data || data.name === null) && courseCode) {
+    const history = await loadHistoryDept(reader, courseCode.slice(0, 4)).catch(
+      () => null,
+    );
+    const taught = taughtOnlyPageData(history, courseCode, slug);
+    if (taught) return { kind: "taught", taught };
+  }
   if (!data) return { kind: "missing", what: "instructor" };
   // PlanetTerp has reviews of them that the nightly job hasn't stored yet
   // (it stores a share a night): ask again with their name, and the server

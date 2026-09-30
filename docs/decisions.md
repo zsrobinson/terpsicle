@@ -480,6 +480,11 @@ Revisit if: the narrow column crowds on a laptop screen.
 "there's a bit of a flash of un-signed in state on the reviews tab." The server's render is anonymous (for search engines and the edge cache), so a part that depends on the account (the review box, what you took, /reviews' narrow column, the bar's account) draws a placeholder of its size until the page knows, never the signed-out words. The account store remembers whether this browser was last signed in (`terpsicle:signed-in`, a yes or no, nothing about who), and a page draws that state at once while /api/me confirms: signed out, the signed-out parts; signed in, the placeholders until your reviews and plans are read.
 Revisit if: pages render per person on the server.
 
+### Instructors PlanetTerp doesn't know get a page from the history
+2026-09-30 · owner (the page), agent (its address) · one feature
+The owner asked that every instructor row be clickable: about 500 names in the instructor history join no PlanetTerp slug. Each gets our own page, the history page: what they taught in the department, term by term, and the review box (the first review mints their id, V2 §7.2). Nothing indexes these names, so the address carries the course it's opened from, `/reviews/<name>?course=CMSC351`, and the page reads that course's department history to find them. It's thin, so it's `noindex`, and it isn't in search or the sitemap.
+Revisit if: they should be searchable or have a bare address; the nightly PlanetTerp job, which already reads every history name, can write the unjoined ones into the index.
+
 ### Review dates: PlanetTerp's by the day, ours by the month
 2026-09-30 · agent · one feature
 The owner asked for "the date for reviews, not just month and year". PlanetTerp's reviews show their day ("Sep 14, 2024", `<time datetime>`), as PlanetTerp publishes it. Ours keep the month (V2 §7.5): a review of ours with its day beside it would help someone who saw it go up tell who wrote it, and every reader-facing number and file already rounds to the month for that reason.

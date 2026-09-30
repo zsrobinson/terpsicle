@@ -35,6 +35,7 @@ import {
   type Manifest,
   manifestKey,
   PLANETTERP_MANIFEST_KEY,
+  type PlanetTerpDept,
   type PlanetTerpManifest,
   planetTerpDeptKey,
   planetTerpIndexKey,
@@ -77,6 +78,28 @@ const jsonBytes = (value: unknown): Uint8Array<ArrayBuffer> =>
   new Uint8Array(encoder.encode(JSON.stringify(value)));
 
 /** First 16 hex chars of SHA-256, as the publisher names hashed files. */
+/**
+ * What the nightly job learns from PlanetTerp's whole list, stood in for by
+ * the mock departments: everyone they name once, their reviews, and a grade
+ * row per instructor per term (the mock history is ours, so it has none).
+ */
+function mockPlanetTerpWhole(depts: readonly PlanetTerpDept[]) {
+  const reviews = new Map<string, number>();
+  let gradeRows = 0;
+  for (const file of depts) {
+    for (const [slug, i] of Object.entries(file.instructors))
+      reviews.set(slug, i.reviewCount);
+    for (const grades of Object.values(file.courses))
+      for (const record of Object.values(grades.byInstructor))
+        gradeRows += record.semesters;
+  }
+  return {
+    professors: reviews.size,
+    reviews: [...reviews.values()].reduce((a, b) => a + b, 0),
+    gradeRows,
+  };
+}
+
 async function contentHash(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest).slice(0, 8), (b) =>
@@ -249,6 +272,7 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
               chunk.courses.map((c) => [c.code, c.title] as const),
             ),
           ),
+          mockPlanetTerpWhole(mockPlanetTerpDepts),
         ),
       ),
     },

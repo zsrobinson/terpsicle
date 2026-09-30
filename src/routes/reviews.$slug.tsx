@@ -1,6 +1,11 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { ReviewsPageSearchSchema } from "~/core/schema";
-import { courseHead, instructorHead, notFoundHead } from "~/core/seo";
+import {
+  courseHead,
+  instructorHead,
+  notFoundHead,
+  taughtOnlyHead,
+} from "~/core/seo";
 import { CoursePage } from "~/features/reviews/course-page";
 import { InstructorPage } from "~/features/reviews/instructor-page";
 import { ReviewsNotFound } from "~/features/reviews/not-found";
@@ -10,6 +15,7 @@ import {
   loadReviewsPage,
 } from "~/features/reviews/page-data";
 import { routeHead } from "~/features/reviews/route-head";
+import { TaughtOnlyPage } from "~/features/reviews/taught-only-page";
 
 // An instructor's or a course's page (V2.md §1.1): /reviews/kruskal,
 // /reviews/cmsc351. One level under /reviews, so a search result reads
@@ -62,7 +68,9 @@ export const Route = createFileRoute("/reviews/$slug")({
         ? courseHead(loaderData.course)
         : loaderData?.kind === "instructor"
           ? instructorHead(loaderData.instructor)
-          : notFoundHead("Page"),
+          : loaderData?.kind === "taught"
+            ? taughtOnlyHead(loaderData.taught)
+            : notFoundHead("Page"),
     ),
   component: ReviewsSlugRoute,
   notFoundComponent: ({ data }) => <ReviewsNotFound data={data} />,
@@ -78,6 +86,12 @@ function ReviewsSlugRoute() {
       reviews={page.reviews}
       write={write ?? null}
       sort={sort}
+    />
+  ) : page.kind === "taught" ? (
+    <TaughtOnlyPage
+      key={page.taught.slug}
+      data={page.taught}
+      write={write !== undefined}
     />
   ) : (
     <InstructorPage

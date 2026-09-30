@@ -10,7 +10,11 @@ export {
 export { type InstructorMatch, matchCourses, matchInstructors } from "./find";
 export { mergeReviews, type ShownReview } from "./merge";
 export * from "./pages";
-export { buildPlanetTerpIndex } from "./planetterp-index";
+export {
+  buildPlanetTerpIndex,
+  type PlanetTerpWhole,
+  planetTerpTotals,
+} from "./planetterp-index";
 export {
   buildReviewsDepts,
   type PublishedReviewFact,
@@ -24,6 +28,11 @@ export {
   weeklyLimitWait,
 } from "./rules";
 export * from "./slugs";
+export {
+  historyInstructorSlug,
+  type TaughtOnlyPageData,
+  taughtOnlyPageData,
+} from "./taught-only";
 export { hasTermStarted, reviewTermChoices } from "./terms";
 export {
   createdMonth,
