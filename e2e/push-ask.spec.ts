@@ -148,23 +148,26 @@ test("asks after your first Chat post, above the composer, and remembers Not now
 
 test("asks after connecting ELMS, and Turn on hands off to the browser's prompt", async ({
   page,
+  isMobile,
 }) => {
   test.slow();
   await signInNew(page, "/todo");
-  // The paste is in the courses and ELMS, which open from the bar.
-  await page
-    .getByRole("banner")
-    .getByRole("button", { name: "Courses and ELMS" })
-    .click();
-  await page
+  // The paste is in the bar's sync, by the bell.
+  await page.getByRole("banner").getByRole("button", { name: "Sync" }).click();
+  const connect = page.getByRole("dialog", { name: "Sync" });
+  await connect
     .getByLabel("ELMS calendar link")
     .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
-  await page.getByRole("button", { name: "Connect ELMS" }).click();
+  await connect.getByRole("button", { name: "Connect ELMS" }).click();
   const card = askCard(page, "Remind you the evening before something's due?");
   await expect(card).toBeVisible({ timeout: 15_000 });
-  // In the ELMS section, where the link went in.
+  // At the top of the sidebar, by the week it'll remind you about; over
+  // the week on a phone, where the resting drawer wouldn't show it.
   await expect(
-    page.getByRole("region", { name: "ELMS" }).getByRole("region", {
+    (isMobile
+      ? page.getByRole("main")
+      : page.locator("#todo-sidebar-panel")
+    ).getByRole("region", {
       name: "Remind you the evening before something's due?",
     }),
   ).toBeVisible();
@@ -186,7 +189,7 @@ test("asks after connecting ELMS, and Turn on hands off to the browser's prompt"
 
   // Blocked, nothing asks again.
   await page.reload();
-  await expect(page.getByText(/open · ELMS feed checked/)).toBeVisible();
+  await expect(page.getByText(/^ELMS synced/)).toBeVisible();
   await expect(card).toHaveCount(0);
 });
 
