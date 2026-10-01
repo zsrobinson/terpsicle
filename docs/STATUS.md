@@ -13,7 +13,7 @@ The orchestrator keeps this current on `main` (`BUILD.md` §7).
 | M4: Sidebar features | Done (#10, #15, #17) | Courses, Problems, Blocks, Export, Search, course details, Travel with the real route map. |
 | M5: Generate | Done (#14, #18) | |
 | M6: Live data | Done (#12) | IndexedDB cache, manifest diffing, seat polling, offline, `/data` Range. |
-| M7: Backend features | Done (#6, #20) | Review summaries (Workers AI) and seat alerts, on in production. |
+| M7: Backend features | Done (#6, #20) | Review summaries (Workers AI; removed 2026-09-29 by the owner) and seat alerts, on in production. |
 | M8: Polish and launch | Done, final QA in flight | Polish (#16), QA rounds 1–2 (#19, #22), accessibility and mobile (#25, axe in e2e), UX redesign WP0–WP7 (#23, #24, #27–#33). QA round 3 (post-redesign regression) in flight. |
 
 ## v2 (owner decisions, 2026-09-26)
@@ -105,7 +105,7 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 ## Decisions
 
 - **Server API is plain `POST /api/*` JSON routes** (not `createServerFn`), validated both ways with `~/core/schema`; the browser client is `~/server/fns/api.ts` (M7).
-- **Review summaries:** Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, cached per instructor in R2, daily cap, reviews fenced as untrusted input.
+- **Review summaries:** Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, cached per instructor in R2, daily cap, reviews fenced as untrusted input. Removed on 2026-09-29 (owner: "let's remove all AI features for reviews").
 - **Seat alerts** send only when a full section reopens, with cooldown and daily caps; subscribe answers identically for every address (no leak of who watches what).
 - **Blocks are per term; course colors are global per course code; saved-for-later is per plan.**
 

@@ -64,7 +64,8 @@ export function fakeReviewsClient(
     list?: ReviewsClient["reviews"]["list"];
     page?: ReviewsClient["reviews"]["page"];
     planetTerp?: ReviewsClient["reviews"]["planetTerp"];
-    recent?: ReviewsClient["reviews"]["recent"];
+    latest?: ReviewsClient["reviews"]["latest"];
+    totals?: ReviewsClient["reviews"]["totals"];
     mine?: ReviewsClient["reviews"]["mine"];
     submit?: ReviewsClient["reviews"]["submit"];
     edit?: ReviewsClient["reviews"]["edit"];
@@ -85,7 +86,11 @@ export function fakeReviewsClient(
         overrides.planetTerp ?? (async () => ({ reviews: [], next: null })),
       ),
       mine: vi.fn(overrides.mine ?? (async () => ({ reviews: [] }))),
-      recent: vi.fn(overrides.recent ?? (async () => ({ reviews: [] }))),
+      latest: vi.fn(
+        overrides.latest ??
+          (async () => ({ terpsicle: [], planetTerp: [], instructors: {} })),
+      ),
+      totals: vi.fn(overrides.totals ?? (async () => ({ totals: null }))),
       submit: vi.fn(
         overrides.submit ??
           (async () => ({

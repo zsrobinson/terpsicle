@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GRADE_KEYS, type GradeKey } from "~/core/schema";
 import {
   aCourse,
   aCourseIndexEntry,
@@ -10,8 +11,12 @@ import {
   someCourseGrades,
   someGrades,
 } from "~/fixtures";
-import { coursePageData, instructorPageData } from "./pages";
+import { coursePageData, courseTermGroups, instructorPageData } from "./pages";
 import { buildPlanetTerpIndex } from "./planetterp-index";
+
+/** Every grade a given one. */
+const only = (key: GradeKey, n: number) =>
+  someGrades(Object.fromEntries(GRADE_KEYS.map((k) => [k, k === key ? n : 0])));
 
 const kruskal = anInstructor({ slug: "kruskal", name: "Clyde Kruskal" });
 const cmsc = aPlanetTerpDept({
@@ -38,8 +43,8 @@ describe("buildPlanetTerpIndex", () => {
   it("lists every instructor with each department that lists them", () => {
     const index = buildPlanetTerpIndex([math, cmsc], new Map());
     expect(index.instructors).toEqual({
-      brandt: ["Ada Brandt", ["CMSC"]],
-      kruskal: ["Clyde Kruskal", ["CMSC", "MATH"]],
+      brandt: ["Ada Brandt", ["CMSC"], 61],
+      kruskal: ["Clyde Kruskal", ["CMSC", "MATH"], 61],
     });
   });
 
@@ -152,6 +157,109 @@ describe("coursePageData", () => {
       ["Pat New", null, true],
       ["Ada Brandt", "brandt", false],
     ]);
+  });
+
+  it("groups who taught it by the newest term each did, like PlanetTerp", () => {
+    const dept = aPlanetTerpDept({
+      instructors: {
+        brandt: anInstructor({ reviewCount: 61 }),
+        kruskal: anInstructor({
+          slug: "kruskal",
+          name: "Clyde Kruskal",
+          reviewCount: 111,
+        }),
+        old: anInstructor({ slug: "old", name: "Jo Old", reviewCount: 3 }),
+      },
+      names: {
+        "ada brandt": "brandt",
+        "clyde kruskal": "kruskal",
+        "jo old": "old",
+      },
+      courses: {
+        CMSC351: someCourseGrades({
+          byInstructor: {
+            brandt: aGradeRecord({
+              latestTermId: "202601",
+              counts: only("A", 10),
+            }),
+            kruskal: aGradeRecord({
+              latestTermId: "202601",
+              counts: only("C", 10),
+            }),
+            old: aGradeRecord({ latestTermId: "201808" }),
+          },
+        }),
+        // Brandt grades harder elsewhere: their average is every course's.
+        CMSC132: someCourseGrades({
+          byInstructor: {
+            brandt: aGradeRecord({
+              counts: only("C", 10),
+            }),
+          },
+        }),
+      },
+    });
+    const data = coursePageData({
+      code: "CMSC351",
+      entry: aCourseIndexEntry(),
+      current: {
+        term,
+        course: aCourse({
+          sections: [aSection({ instructors: ["Pat New"] })],
+        }),
+      },
+      ptDept: dept,
+      gradesThrough: "202601",
+      source: null,
+      terpsicle: null,
+    });
+    if (!data) throw new Error("no page");
+    const groups = courseTermGroups(data);
+    expect(groups.map((g) => [g.termId, g.rows.map((r) => r.name)])).toEqual([
+      ["202608", ["Pat New"]],
+      // The most reviewed first.
+      ["202601", ["Clyde Kruskal", "Ada Brandt"]],
+      ["201808", ["Jo Old"]],
+    ]);
+    const brandt = data.instructors.find((r) => r.id === "brandt");
+    expect(brandt?.gpa).toBeCloseTo(4);
+    expect(brandt?.overallGpa).toBeCloseTo(3);
+  });
+
+  it("lists everyone under every term our history has them", () => {
+    const data = coursePageData({
+      code: "CMSC351",
+      entry: aCourseIndexEntry(),
+      current: {
+        term,
+        course: aCourse({
+          sections: [aSection({ instructors: ["Clyde Kruskal"] })],
+        }),
+      },
+      ptDept: cmsc,
+      gradesThrough: "202501",
+      source: null,
+      terpsicle: null,
+      offerings: [
+        { termId: "202608", instructors: ["Clyde Kruskal"] },
+        { termId: "202601", instructors: ["Ada Brandt", "Clyde Kruskal"] },
+        // Before PlanetTerp knew them: a row of their own, no id.
+        { termId: "201908", instructors: ["Jo Early"] },
+      ],
+    });
+    if (!data) throw new Error("no page");
+    expect(
+      courseTermGroups(data).map((g) => [g.termId, g.rows.map((r) => r.name)]),
+    ).toEqual([
+      ["202608", ["Clyde Kruskal"]],
+      ["202601", ["Ada Brandt", "Clyde Kruskal"]],
+      ["201908", ["Jo Early"]],
+    ]);
+    expect(data.instructors.find((r) => r.name === "Jo Early")).toMatchObject({
+      id: null,
+      teaching: false,
+      lastTermId: "201908",
+    });
   });
 
   it("is null (a 404) when nothing published knows the course", () => {

@@ -39,7 +39,6 @@ export function MyReviewsPage() {
   return (
     <ReviewsFrame>
       <PageHeader
-        back={{ label: "Reviews", to: "/reviews" }}
         title="Your reviews"
         status="Readers never see who wrote a review. This page is only for you."
       />

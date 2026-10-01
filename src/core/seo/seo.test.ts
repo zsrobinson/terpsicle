@@ -14,6 +14,7 @@ import {
   sitemapXml,
   suggestCourses,
   suggestInstructors,
+  taughtOnlyHead,
 } from "./index";
 
 const course: CoursePageData = {
@@ -31,6 +32,8 @@ const course: CoursePageData = {
       planetTerp: { rating: 3.4, reviewCount: 210 },
       terpsicle: null,
       gpa: 2.6,
+      overallGpa: 2.7,
+      lastTermId: "202608",
     },
     {
       id: "brandt",
@@ -39,8 +42,11 @@ const course: CoursePageData = {
       planetTerp: { rating: 4.2, reviewCount: 61 },
       terpsicle: null,
       gpa: 3.1,
+      overallGpa: 3.2,
+      lastTermId: "202501",
     },
   ],
+  terms: [],
   terpsicle: null,
 };
 
@@ -222,6 +228,24 @@ describe("instructorHead", () => {
     });
     expect(content(meta(head, "description"))).toBe(
       "Clyde Kruskal at UMD: no student reviews yet.",
+    );
+  });
+});
+
+describe("taughtOnlyHead", () => {
+  it("names them and what the page has, and keeps the thin page out of search", () => {
+    const head = taughtOnlyHead({
+      slug: "jo-early",
+      name: "Jo Early",
+      course: "CMSC351",
+      taught: [],
+    });
+    expect(head.meta).toContainEqual({
+      title: "Jo Early: courses taught at UMD · Terpsicle",
+    });
+    expect(content(meta(head, "robots"))).toBe("noindex");
+    expect(content(meta(head, "og:url"))).toBe(
+      "https://terpsicle.com/reviews/jo-early?course=CMSC351",
     );
   });
 });

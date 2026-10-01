@@ -1,11 +1,7 @@
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  PREFS_STORAGE_KEY,
-  withAiFeatures,
-  withTodoWeekStart,
-} from "~/core/prefs";
+import { PREFS_STORAGE_KEY, withTodoWeekStart } from "~/core/prefs";
 import { SETTINGS_DOC_KEY } from "~/core/sync";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aMeUser } from "~/fixtures";
@@ -49,13 +45,13 @@ describe("saving the prefs", () => {
   });
 
   it("keeps them in the prefs row and the page's copy, signed out", async () => {
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
-    expect(syncedPrefs()).toEqual({ ai: { features: false } });
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "sunday"));
+    expect(syncedPrefs()).toEqual({ todo: { weekStart: "sunday" } });
     expect((await db.settings.get("prefs"))?.value).toEqual({
-      ai: { features: false },
+      todo: { weekStart: "sunday" },
     });
     expect(JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) ?? "")).toEqual({
-      ai: { features: false },
+      todo: { weekStart: "sunday" },
     });
     // Nothing to send: this device doesn't sync with an account.
     expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toBeUndefined();
@@ -67,8 +63,8 @@ describe("saving the prefs", () => {
       later: { view: "week" },
     };
     await db.settings.put({ key: "prefs", value: theirs });
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
-    expect(syncedPrefs()).toEqual({ ...theirs, ai: { features: false } });
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "sunday"));
+    expect(syncedPrefs()).toEqual({ ...theirs, todo: { weekStart: "sunday" } });
   });
 
   it("marks the settings doc unsaved on a device that syncs with an account", async () => {
@@ -83,7 +79,7 @@ describe("saving the prefs", () => {
       inFlight: false,
       base: null,
     });
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
+    await saveSyncedPrefs((p) => withTodoWeekStart(p, "sunday"));
     expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toMatchObject({
       rev: 3,
       dirty: true,
@@ -126,16 +122,16 @@ describe("a change while the account's prefs are on their way", () => {
     await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
     await joinAccount({
       todo: { weekStart: "sunday" },
-      ai: { features: false },
+      later: { view: "week" },
     });
     await vi.waitFor(async () => {
       expect(syncedPrefs()).toEqual({
         todo: { weekStart: "monday" },
-        ai: { features: false },
+        later: { view: "week" },
       });
       expect((await db.settings.get("prefs"))?.value).toEqual({
         todo: { weekStart: "monday" },
-        ai: { features: false },
+        later: { view: "week" },
       });
       expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toMatchObject({
         dirty: true,

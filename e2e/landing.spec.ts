@@ -146,7 +146,7 @@ test("the bar names every product, and narrower, the menu does", async ({
     await bar.getByRole("link", { name: "Reviews" }).click();
     await expect(
       page.getByRole("heading", {
-        name: "UMD course and instructor reviews",
+        name: "Terpsicle Reviews",
         level: 1,
       }),
     ).toBeVisible();
@@ -173,7 +173,7 @@ test("the bar names every product, and narrower, the menu does", async ({
   await menu.getByRole("menuitem", { name: /^Reviews/ }).click();
   await expect(
     page.getByRole("heading", {
-      name: "UMD course and instructor reviews",
+      name: "Terpsicle Reviews",
       level: 1,
     }),
   ).toBeVisible();
@@ -182,7 +182,7 @@ test("the bar names every product, and narrower, the menu does", async ({
 for (const [path, heading, title] of [
   [
     "/reviews",
-    "UMD course and instructor reviews",
+    "Terpsicle Reviews",
     "UMD course and instructor reviews · Terpsicle",
   ],
   ["/chat", "A chat room for every class", "Chat · Terpsicle"],

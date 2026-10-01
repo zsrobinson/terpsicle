@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GradeCounts } from "../schema";
 import {
+  addGradeCounts,
   formatGpa,
   formatRating,
   formatShare,
@@ -11,6 +12,16 @@ import {
 
 //                        A+  A  A-  B+  B  B-  C+  C  C-  D+  D  D-  F  W  Other
 const counts: GradeCounts = [5, 20, 10, 8, 12, 9, 6, 10, 4, 2, 3, 1, 10, 7, 3];
+
+describe("addGradeCounts", () => {
+  it("sums each grade across records", () => {
+    const twice = addGradeCounts([counts, counts]);
+    expect(twice).toEqual(counts.map((n) => n * 2));
+    expect(gradeSummary(twice).averageGpa).toBe(
+      gradeSummary(counts).averageGpa,
+    );
+  });
+});
 
 describe("grade summary", () => {
   it("averages GPA over A+ to F only, like PlanetTerp", () => {

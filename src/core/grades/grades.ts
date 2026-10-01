@@ -112,6 +112,13 @@ export function gradeBars(counts: GradeCounts): GradeBar[] {
   });
 }
 
+/** Everyone's grades in several records at once: an instructor's courses, summed. */
+export function addGradeCounts(all: readonly GradeCounts[]): GradeCounts {
+  const sum = (i: number) => all.reduce((n, counts) => n + (counts[i] ?? 0), 0);
+  // The tuple's length is GRADE_KEYS', one count per grade.
+  return GRADE_KEYS.map((_, i) => sum(i)) as unknown as GradeCounts;
+}
+
 /** "4.2" and "38 reviews" for an instructor; null rating reads "No reviews". */
 export function formatRating(
   rating: number | null,

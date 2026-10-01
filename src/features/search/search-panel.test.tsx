@@ -21,20 +21,6 @@ const panels: ShellRoutes = { tabs: { search: SearchPanel } };
 const detailsPanels: ShellRoutes = { drills: { course: CourseDetails } };
 
 vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
-// Opening a course asks for review summaries; there's no server here.
-vi.mock("~/server/fns/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("~/server/fns/api")>();
-  return {
-    ...actual,
-    api: {
-      ...actual.api,
-      reviewSummary: vi.fn(async () => ({
-        status: "unavailable",
-        reason: "failed",
-      })),
-    },
-  };
-});
 
 /** The rows on screen (the list is windowed, so not every match). */
 const results = () =>

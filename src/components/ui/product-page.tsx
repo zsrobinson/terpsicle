@@ -35,8 +35,16 @@ type ProductPageProps = {
       footer?: boolean;
     }
   | {
-      /** App pages and panes have no footer: nothing sits under a canvas. */
-      width: "app" | "full";
+      /**
+       * App pages have no footer unless they're read like a website
+       * (Reviews' two-column pages); nothing sits under a canvas.
+       */
+      width: "app";
+      footer?: boolean;
+    }
+  | {
+      /** Panes have no footer: nothing sits under a canvas. */
+      width: "full";
       footer?: never;
     }
 );
@@ -58,7 +66,7 @@ export function ProductPage(props: ProductPageProps) {
   const footer =
     props.width === "note" || props.width === "reading"
       ? (props.footer ?? true)
-      : false;
+      : (props.footer ?? false);
   return (
     // The page's end scrolls up clear of the tab bar and the home indicator.
     <div className="flex min-h-0 flex-1 flex-col pb-[max(var(--safe-bottom),var(--tab-bar-space))]">

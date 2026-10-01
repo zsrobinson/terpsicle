@@ -1,12 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { cn } from "cn";
-import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { ViewWords } from "~/components/brand/view-words";
 import { PanelNote } from "~/components/panel";
-import { formatGpa, gradeSummary } from "~/core/grades/grades";
-import {
-  gradesSourceWords,
-  planetTerpFreshnessWords,
-} from "~/core/grades/source";
+import { addGradeCounts } from "~/core/grades/grades";
 import {
   type CombinedRating,
   combinedRatingWords,
@@ -16,47 +13,61 @@ import {
   type InstructorPageData,
   instructorSlug,
   type RatingSource,
+  reviewedHere,
+  reviewedKey,
   terpsicleRating,
+  tookHere,
 } from "~/core/reviews";
-import type { CourseCode, InstructorId, PageReviews } from "~/core/schema";
-import { crossLinkClicked, viewWords } from "~/lib/cross-link";
-import { ListRow } from "~/ui/list-row";
+import type {
+  CourseCode,
+  InstructorId,
+  MyReview,
+  PageReviews,
+  ReviewSort,
+} from "~/core/schema";
+import { crossLinkClicked } from "~/lib/cross-link";
+import { Button } from "~/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/ui/dropdown-menu";
 import { PageHeader } from "~/ui/page-header";
 import { PageSection } from "~/ui/page-section";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/ui/select";
+import { SplitLayout } from "~/ui/split-layout";
 import { WithTooltip } from "~/ui/tooltip";
-import { type View, ViewSwitch } from "~/ui/view-switch";
-import type { ComposerTarget } from "./composer";
-import { PAGE_NOTE, PAGE_ROW, ReviewsFrame } from "./frame";
-import { useReviewsLevel, useSignedIn } from "./level";
-import { GradesBlock, SummaryBlock } from "./planetterp-blocks";
+import { Composer, type ComposerTarget } from "./composer";
+import { PAGE_NOTE, ReviewsFrame } from "./frame";
+import { useSignedIn } from "./level";
+import { GradesBlock } from "./planetterp-blocks";
 import { Stars } from "./rating";
 import {
+  ReviewBox,
+  type ReviewBoxState,
+  useBringFormIn,
+  useClassesTaken,
+  WriteReviewButton,
+} from "./review-box";
+import {
   type Composing,
-  existingReview,
+  ReviewFilter,
   ReviewsSection,
   useMine,
-  useOwnHere,
-  WriteButton,
 } from "./reviews-section";
+import { SignInPrompt } from "./sign-in-prompt";
 
-// /reviews/<instructor> (V2 §1.1): who they are, their combined rating, the
-// AI summary, then the reviews, ours and PlanetTerp's, and last their grades
-// (owner, 2026-09-28: "reviews are more important to display than grades").
-// `?course=CMSC351` narrows it to one course. The route's loader read it
-// all, so the server's HTML has it.
+// /reviews/<instructor> (V2 §1.1), in two columns from the top (owner,
+// 2026-09-29: "having the 2/3 1/3 thing extend all the way to the top").
+// The wide one: who they are, the box to review them yourself, then the
+// reviews, ours and PlanetTerp's, in the order `?sort=` asks, with the
+// course filter (`?course=`) left of the sort. The narrow one: their
+// rating, then their grades, level with the reviews so the filter plainly
+// covers both (owner, 2026-09-30). On a phone: the name, the box, the
+// rating, the reviews, then the grades. No back link: where it went changed in ways you wouldn't
+// expect (owner). The route's loader read it all, so the server's HTML has it.
 
-/**
- * Courses the header's view switch holds, besides "All courses": the kit's
- * switch is two to seven views. Past that, the choice is a list.
- */
-const SWITCH_COURSES = 6;
 /** Courses the status line names. */
 const STATUS_COURSES = 3;
 
@@ -65,22 +76,23 @@ export function InstructorPage({
   data,
   reviews,
   write,
+  sort = "latest",
 }: {
   data: InstructorPageData;
   reviews: PageReviews;
-  /** `?write`: open the form (from "Review your instructors"). */
+  /** `?write`: open the form (from "Review your classes"). */
   write: boolean;
+  /** `?sort=`: the reviews' order. */
+  sort?: ReviewSort;
 }) {
   const { id, course } = data;
-  const level = useReviewsLevel();
   const signedIn = useSignedIn();
   const mine = useMine();
-  const [composing, setComposing] = useState<Composing>(write ? "new" : null);
+  const taken = useClassesTaken();
   const name =
     data.name ??
     mine.find((r) => r.instructorId === id)?.instructorName ??
     "Instructor";
-  const grades = new Map(data.courses.map((c) => [c.code, c.grades]));
 
   // Their courses: PlanetTerp's grade data, and what reviews are about.
   const courses = new Set<CourseCode>(data.courses.map((c) => c.code));
@@ -104,274 +116,412 @@ export function InstructorPage({
     },
     ...(ours ? [ours] : []),
   ]);
-  const record = course ? grades.get(course) : undefined;
-  const { gradesThrough } = data;
-  const freshness = planetTerpFreshnessWords(data.source);
   const taught = data.courses.slice(0, STATUS_COURSES).map((c) => c.code);
 
+  // What the box knows: your class with them you haven't reviewed, else
+  // your review of them (in this course, when the page shows one).
+  const reviewedKeys = new Set(
+    mine
+      .filter((r) => r.status !== "rejected")
+      .map((r) => reviewedKey(r.course, r.reviewedName)),
+  );
+  const took =
+    taken && data.name
+      ? tookHere(
+          taken,
+          {
+            course,
+            instructorName: data.name,
+            taught: new Set(data.courses.map((c) => c.code)),
+          },
+          reviewedKeys,
+        )
+      : null;
+  const reviewed = reviewedHere(mine, { instructorId: id, course });
+  const boxState: ReviewBoxState = took
+    ? { kind: "took", took }
+    : reviewed
+      ? { kind: "reviewed", review: reviewed }
+      : { kind: "ask" };
+
+  // The form writes about the page's course, or the one you took with them.
+  const targetCourse = course ?? took?.course ?? null;
   const target: ComposerTarget | null =
-    course && data.name
+    targetCourse && data.name
       ? {
           instructorId: id,
-          reviewedName: data.name,
-          dept: course.slice(0, 4),
-          course,
+          reviewedName: took?.instructor ?? data.name,
+          dept: targetCourse.slice(0, 4),
+          course: targetCourse,
         }
       : null;
-  const ownHere = useOwnHere(id, course);
-  const existing = existingReview(ownHere, target);
+  const existing =
+    target === null
+      ? null
+      : (reviewedHere(mine, { instructorId: id, course: target.course }) ??
+        null);
+  const [composing, setComposing] = useState<Composing>(
+    write && target ? "new" : null,
+  );
+  const boxRef = useRef<HTMLDivElement>(null);
+  useBringFormIn(boxRef, composing);
+  const navigate = useNavigate();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterId = useId();
+
+  const composer =
+    composing === null ? null : signedIn !== true ? (
+      <SignInPrompt>
+        Sign in with your UMD account to write a review. Readers won't see who
+        wrote it.
+      </SignInPrompt>
+    ) : composing === "new" ? (
+      target ? (
+        <Composer
+          target={target}
+          existing={existing}
+          termId={took?.course === target.course ? took.termId : null}
+          onClose={() => setComposing(null)}
+        />
+      ) : null
+    ) : (
+      <Composer
+        target={targetOf(composing)}
+        existing={composing}
+        onClose={() => setComposing(null)}
+      />
+    );
+
+  const box = (
+    <div ref={boxRef} className="scroll-mt-20">
+      {composer ?? (
+        <ReviewBox
+          state={boxState}
+          who={name}
+          question={
+            course ? (
+              <>
+                Took <span className="ident">{course}</span> with {name}?
+              </>
+            ) : (
+              <>Took a class with {name}?</>
+            )
+          }
+          write={
+            target ? (
+              <WriteReviewButton
+                tooltip={`Review ${target.reviewedName} in ${target.course}`}
+                onClick={() => setComposing("new")}
+              />
+            ) : courseList.length > 0 ? (
+              <CoursePickMenu id={id} courses={courseList} />
+            ) : null
+          }
+          onEdit={setComposing}
+          ready={taken !== null}
+        />
+      )}
+    </div>
+  );
+
+  const filter = (
+    <ReviewFilter
+      label="Course"
+      tooltip="Show one course's reviews and grades"
+      all="All courses"
+      value={course}
+      options={courseList.map((c) => ({ value: c, label: c, ident: true }))}
+      onPick={(picked) =>
+        void navigate({
+          to: "/reviews/$slug",
+          params: { slug: instructorSlug(id) },
+          search: {
+            ...(picked ? { course: picked } : {}),
+            ...(sort !== "latest" ? { sort } : {}),
+          },
+          resetScroll: false,
+        })
+      }
+      open={filterOpen}
+      onOpenChange={setFilterOpen}
+      triggerId={filterId}
+    />
+  );
 
   return (
-    <ReviewsFrame page="instructor">
-      <PageHeader
+    <ReviewsFrame page="instructor" wide>
+      <SplitLayout
         size="display"
-        back={
-          course
-            ? {
-                label: course,
-                to: "/reviews/$slug",
-                params: { slug: courseSlug(course) },
+        top={
+          <>
+            <PageHeader
+              size="display"
+              eyebrow={data.ta ? "Teaching assistant" : "Instructor"}
+              title={name}
+              status={
+                taught.length > 0 ? (
+                  <TaughtLine
+                    courses={taught}
+                    more={data.courses.length > STATUS_COURSES}
+                    onMore={() => {
+                      document
+                        .getElementById(filterId)
+                        ?.scrollIntoView?.({ block: "center" });
+                      setFilterOpen(true);
+                    }}
+                  />
+                ) : undefined
               }
-            : { label: "Reviews", to: "/reviews" }
-        }
-        eyebrow={data.ta ? "Teaching assistant" : "Instructor"}
-        title={name}
-        status={
-          taught.length > 0 ? (
-            <span>
-              Taught{" "}
-              {taught.map((c, i) => (
-                <span key={c}>
-                  {i > 0 ? (i === taught.length - 1 ? " and " : ", ") : ""}
-                  <span className="ident">{c}</span>
-                </span>
-              ))}
-              {data.courses.length > STATUS_COURSES ? " and more" : ""}
-            </span>
-          ) : undefined
-        }
-        views={
-          courseList.length > 0 ? (
-            <CourseFilter id={id} courses={courseList} current={course} />
-          ) : undefined
-        }
-        actions={
-          composing === null || signedIn !== true ? (
-            <WriteButton
-              level={level}
-              target={target}
-              existing={existing}
-              onWrite={() => setComposing((c) => (c === "new" ? null : "new"))}
             />
-          ) : undefined
+            {box}
+          </>
+        }
+        sideProps={{
+          "aria-label": `More about ${name}`,
+          className: SIDE_START,
+        }}
+        side={<RatingSummary combined={combined} />}
+        // Level with the reviews on a wide screen, so the course filter
+        // plainly covers both; after them on a phone.
+        after={<InstructorGrades data={data} name={name} />}
+        main={
+          <ReviewsSection
+            instructorId={id}
+            course={course}
+            reviews={reviews}
+            count={
+              course
+                ? (reviews.planetTerpCount ?? 0) +
+                  (reviews.terpsicle?.length ?? 0)
+                : combined.reviewCount
+            }
+            sort={sort}
+            filter={courseList.length > 0 ? filter : undefined}
+            composing={composing}
+            onEdit={setComposing}
+          />
         }
       />
-
-      <RatingSummary combined={combined} freshness={freshness} />
-
-      {data.slug &&
-      (data.planetTerp?.reviewCount ?? 0) > 0 &&
-      (course ?? courseList[0]) ? (
-        <SummaryBlock slug={data.slug} course={course ?? courseList[0] ?? ""} />
-      ) : null}
-
-      <ReviewsSection
-        instructorId={id}
-        course={course}
-        reviews={reviews}
-        count={course ? null : combined.reviewCount}
-        target={target}
-        composing={composing}
-        onCompose={setComposing}
-      />
-
-      {course ? (
-        <PageSection
-          size="display"
-          title={`Grades in ${course}`}
-          aside={
-            <WithTooltip label={`${course}'s sections this term`}>
-              <Link
-                to="/schedule/course/$code"
-                params={{ code: course }}
-                onClick={() => crossLinkClicked("reviews", "schedule")}
-                className="text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
-              >
-                {viewWords("schedule")}
-              </Link>
-            </WithTooltip>
-          }
-        >
-          {record ? (
-            <GradesBlock record={record} gradesThrough={gradesThrough} />
-          ) : (
-            <PanelNote className={PAGE_NOTE}>
-              PlanetTerp has no grades for {name} in {course}.
-            </PanelNote>
-          )}
-        </PageSection>
-      ) : data.courses.length > 0 ? (
-        <PageSection size="display" title="Grades">
-          <ul>
-            {courseList.map((c) => {
-              const r = grades.get(c);
-              const gpa = r ? gradeSummary(r.counts).averageGpa : null;
-              return r ? (
-                <ListRow
-                  key={c}
-                  as="li"
-                  className={cn(PAGE_ROW, "text-lg")}
-                  trail={
-                    <span className="flex items-center gap-4 text-base">
-                      <span className="tnum text-muted">
-                        {gpa !== null ? `GPA ${formatGpa(gpa)}` : "No GPA"} ·{" "}
-                        {r.semesters} semester{r.semesters === 1 ? "" : "s"}
-                      </span>
-                      <WithTooltip label={`Everyone who's taught ${c}`}>
-                        <Link
-                          to="/reviews/$slug"
-                          params={{ slug: courseSlug(c) }}
-                          className="text-muted hover:text-fg hover:underline"
-                        >
-                          All instructors
-                        </Link>
-                      </WithTooltip>
-                    </span>
-                  }
-                >
-                  <WithTooltip label={`${name}'s grades and reviews in ${c}`}>
-                    <Link
-                      to="/reviews/$slug"
-                      params={{ slug: instructorSlug(id) }}
-                      search={{ course: c }}
-                      className="ident font-medium hover:underline"
-                    >
-                      {c}
-                    </Link>
-                  </WithTooltip>
-                </ListRow>
-              ) : null;
-            })}
-          </ul>
-          <p className="text-faint text-sm">
-            Grades {gradesSourceWords(gradesThrough)}.
-          </p>
-        </PageSection>
-      ) : null}
     </ReviewsFrame>
   );
 }
 
 /**
- * The big number, with its math written out beside it, on the product's
- * soft purple: the one thing on the page that should stand out.
+ * "Taught CMSC320, CMSC351 and CMSC250 and more": each code opens its
+ * course's page; "and more" opens the course filter, which lists them all
+ * (owner, 2026-09-30).
  */
-export function RatingSummary({
-  combined,
-  freshness,
+function TaughtLine({
+  courses,
+  more,
+  onMore,
 }: {
-  combined: CombinedRating;
-  /** "No new PlanetTerp reviews since …", when PlanetTerp has stopped. */
-  freshness: string | null;
+  courses: readonly CourseCode[];
+  more: boolean;
+  onMore: () => void;
 }) {
-  const words = combinedRatingWords(combined);
+  const link =
+    "ident text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg";
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-product-reviews-soft px-4 py-4">
+    <span>
+      Taught{" "}
+      {courses.map((c, i) => (
+        <span key={c}>
+          {i > 0 ? (i === courses.length - 1 && !more ? " and " : ", ") : ""}
+          <WithTooltip label={`${c}'s page: every instructor's reviews`}>
+            <Link
+              to="/reviews/$slug"
+              params={{ slug: courseSlug(c) }}
+              className={link}
+            >
+              {c}
+            </Link>
+          </WithTooltip>
+        </span>
+      ))}
+      {more ? (
+        <>
+          {" "}
+          and{" "}
+          <WithTooltip label="Every course of theirs, in the course filter">
+            <button
+              type="button"
+              onClick={onMore}
+              className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
+            >
+              more
+            </button>
+          </WithTooltip>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+/** The form's subject for a review of yours. */
+function targetOf(review: MyReview): ComposerTarget {
+  return {
+    instructorId: review.instructorId,
+    reviewedName: review.reviewedName,
+    dept: review.course.slice(0, 4),
+    course: review.course,
+  };
+}
+
+/** Their grades: in the page's course, or in every course they've taught. */
+function InstructorGrades({
+  data,
+  name,
+}: {
+  data: InstructorPageData;
+  name: string;
+}) {
+  const { course, gradesThrough } = data;
+  const record = course
+    ? data.courses.find((c) => c.code === course)?.grades
+    : undefined;
+  if (course)
+    return (
+      <PageSection
+        size="side"
+        title={
+          <>
+            Grades in <span className="ident">{course}</span>
+          </>
+        }
+        aside={
+          <WithTooltip label={`${course}'s sections this term`}>
+            <Link
+              to="/schedule/course/$code"
+              params={{ code: course }}
+              onClick={() => crossLinkClicked("reviews", "schedule")}
+              className="inline-flex items-center gap-1 text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
+            >
+              <ViewWords to="schedule" size={13} />
+            </Link>
+          </WithTooltip>
+        }
+      >
+        {record ? (
+          <GradesBlock record={record} gradesThrough={gradesThrough} />
+        ) : (
+          <PanelNote className={PAGE_NOTE}>
+            PlanetTerp has no grades for {name} in {course}.
+          </PanelNote>
+        )}
+      </PageSection>
+    );
+  if (data.courses.length === 0) return null;
+  // Every course of theirs, summed: the shape of how they grade.
+  const all = {
+    counts: addGradeCounts(data.courses.map((c) => c.grades.counts)),
+    semesters: Math.max(...data.courses.map((c) => c.grades.semesters)),
+    latestTermId:
+      data.courses
+        .map((c) => c.grades.latestTermId)
+        .sort()
+        .at(-1) ?? data.courses[0]?.grades.latestTermId,
+  };
+  return (
+    <PageSection
+      size="side"
+      title="Grades"
+      aside={
+        data.courses.length === 1
+          ? "One course"
+          : `${data.courses.length} courses`
+      }
+    >
+      {all.latestTermId ? (
+        <GradesBlock
+          record={all}
+          gradesThrough={gradesThrough}
+          courses={data.courses.length}
+        />
+      ) : null}
+    </PageSection>
+  );
+}
+
+/** The narrow column starts level with the name, past the header's top space. */
+const SIDE_START = "lg:pt-8";
+
+/**
+ * The big number, its stars filled to it, and how many reviews it's from,
+ * on the product's soft purple: the one thing on the page that should
+ * stand out. Where the reviews come from is on each review, and the math
+ * is in the tooltip (owner, 2026-09-29: no notice or source here).
+ */
+export function RatingSummary({ combined }: { combined: CombinedRating }) {
+  const words = combinedRatingWords(combined);
+  const count = combined.reviewCount;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-product-reviews-soft px-6 py-6">
       {combined.rating === null ? (
         <p className="text-lg">No reviews yet.</p>
       ) : (
         <>
           <WithTooltip label={words}>
-            <span className="tnum font-semibold text-3xl text-product-reviews-text">
+            <span className="tnum font-semibold text-5xl text-product-reviews-text">
               {formatStars(combined.rating)}
             </span>
           </WithTooltip>
           <div className="flex min-w-0 flex-col gap-1">
-            <Stars rating={Math.round(combined.rating)} size={18} />
+            <Stars rating={combined.rating} size={22} />
             <span
               className="tnum text-base text-muted"
               data-testid="rating-math"
             >
-              {words.replace(/^\d\.\d /, "")}
+              from {count.toLocaleString("en-US")} review
+              {count === 1 ? "" : "s"}
             </span>
           </div>
         </>
       )}
-      {freshness ? (
-        <p className="w-full text-muted text-sm">{freshness}</p>
-      ) : null}
     </div>
   );
 }
 
-/** "All courses" or one of theirs: each a URL (`?course=`), so a view. */
-function CourseFilter({
+/**
+ * On the page with no course picked: which of their courses you're
+ * reviewing. A pick opens the form on that course's view of the page.
+ */
+function CoursePickMenu({
   id,
   courses,
-  current,
 }: {
   id: InstructorId;
   courses: readonly CourseCode[];
-  current: CourseCode | null;
 }) {
   const navigate = useNavigate();
-  const slug = instructorSlug(id);
-  if (courses.length <= SWITCH_COURSES) {
-    const views: View[] = [
-      {
-        id: "all",
-        label: "All courses",
-        hint: "Reviews from every course they've taught",
-        to: "/reviews/$slug",
-        params: { slug },
-        search: {},
-      },
-      ...courses.map((c) => ({
-        id: c,
-        label: c,
-        hint: `Only ${c}`,
-        to: "/reviews/$slug" as const,
-        params: { slug },
-        search: { course: c },
-      })),
-    ];
-    return (
-      <ViewSwitch
-        views={views}
-        current={current ?? "all"}
-        label="Courses"
-        className={cn(
-          // Codes read as codes; the scroll keeps a long row on a phone.
-          "overflow-x-auto [&>a:not(:first-child)]:ident",
-        )}
-      />
-    );
-  }
-  // Too many for a switch: the same URLs, from a list.
   return (
-    <Select
-      value={current ?? "all"}
-      onValueChange={(value) =>
-        void navigate({
-          to: "/reviews/$slug",
-          params: { slug },
-          search: value === "all" ? {} : { course: value },
-        })
-      }
-    >
-      <WithTooltip label="Show one course's grades and reviews">
-        <SelectTrigger aria-label="Courses" className="w-48">
-          <SelectValue />
-        </SelectTrigger>
+    <DropdownMenu>
+      <WithTooltip label="Pick the course they taught you">
+        <DropdownMenuTrigger asChild>
+          <Button size="lg">
+            Write a review
+            <ChevronDown aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
       </WithTooltip>
-      <SelectContent align="start" className="max-h-72">
-        <SelectItem value="all">All courses</SelectItem>
+      <DropdownMenuContent align="end" className="max-h-80">
+        <DropdownMenuLabel>Which course?</DropdownMenuLabel>
         {courses.map((c) => (
-          <SelectItem key={c} value={c} className="ident">
+          <DropdownMenuItem
+            key={c}
+            className="ident"
+            onSelect={() =>
+              void navigate({
+                to: "/reviews/$slug",
+                params: { slug: instructorSlug(id) },
+                search: { course: c, write: "1" },
+              })
+            }
+          >
             {c}
-          </SelectItem>
+          </DropdownMenuItem>
         ))}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

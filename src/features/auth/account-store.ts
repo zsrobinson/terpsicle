@@ -7,12 +7,21 @@ import { api } from "~/server/fns/api";
 // from POST /api/me; every account control reads it. Nothing is stored in
 // the browser about who you are: the session is an HttpOnly cookie. Only
 // the product flags are remembered (`FLAGS_KEY`), so a failed check
-// doesn't hide products.
+// doesn't hide products, and whether this browser was last signed in
+// (`SIGNED_IN_KEY`, a yes or no), so a page can draw the right state while
+// /api/me answers instead of flashing the signed-out one (owner,
+// 2026-09-30).
 
 export type AccountStatus = "loading" | "signed-out" | "signed-in";
 
 export interface AccountState {
   status: AccountStatus;
+  /**
+   * While `status` is "loading": what this browser last saw, "signed-in" or
+   * "signed-out", or null when it's never known (and in the server's
+   * render, which is always anonymous).
+   */
+  lastKnown: Exclude<AccountStatus, "loading"> | null;
   /** Off until /api/me answers, so nothing flashes where sign-in is off. */
   flags: Flags;
   user: MeUser | null;
@@ -61,6 +70,26 @@ function rememberedFlags(): Flags | null {
     return parsed.success ? parsed.data : null;
   } catch {
     return null;
+  }
+}
+
+/** Whether this browser was last signed in: "1" or "0", nothing about who. */
+const SIGNED_IN_KEY = "terpsicle:signed-in";
+
+function rememberedStatus(): AccountState["lastKnown"] {
+  try {
+    const value = localStorage.getItem(SIGNED_IN_KEY);
+    return value === "1" ? "signed-in" : value === "0" ? "signed-out" : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberStatus(status: Exclude<AccountStatus, "loading">): void {
+  try {
+    localStorage.setItem(SIGNED_IN_KEY, status === "signed-in" ? "1" : "0");
+  } catch {
+    // Storage blocked: the next page waits for /api/me, as it always has.
   }
 }
 
@@ -136,6 +165,7 @@ let retrying = false;
 
 export const useAccount = create<AccountState>()((set, get) => ({
   status: "loading",
+  lastKnown: null,
   flags: FLAGS_OFF,
   user: null,
   pushPublicKey: null,
@@ -148,11 +178,17 @@ export const useAccount = create<AccountState>()((set, get) => ({
     // What this browser last saw, while /api/me answers (after the first
     // render, so the server's page and the browser's agree).
     const known = rememberedFlags();
-    if (known && get().status === "loading") set({ flags: known });
+    if (get().status === "loading") {
+      // Both or neither: a status without the flags that went with it
+      // can't say whether Reviews is on.
+      const last = known ? rememberedStatus() : null;
+      set(known ? { flags: known, lastKnown: last } : { lastKnown: null });
+    }
     try {
       const result = await client.me();
       failures = 0;
       rememberFlags(result.flags);
+      rememberStatus(result.status);
       set(
         result.status === "signed-in"
           ? {
@@ -209,12 +245,14 @@ export const useAccount = create<AccountState>()((set, get) => ({
       // Storage blocked: afterSignOut clears it directly.
     }
     set({ status: "signed-out", user: null, pushPublicKey: null });
+    rememberStatus("signed-out");
     const after = hooks ?? (await signOutHooks().catch(() => null));
     await after?.afterSignOut({ removeLocal }).catch(console.error);
   },
 
   deleteAccount: async () => {
     const result = await client.account.delete();
+    rememberStatus("signed-out");
     set({
       status: "signed-out",
       user: null,

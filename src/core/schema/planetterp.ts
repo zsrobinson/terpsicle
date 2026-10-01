@@ -9,7 +9,7 @@ import {
 } from "./primitives";
 import { SCHEMA_VERSIONS } from "./versions";
 
-// PlanetTerp-derived data: ratings, grade distributions, review summaries.
+// PlanetTerp-derived data: ratings, grade distributions and reviews.
 // Published per department so opening a course loads one small file (docs/DATA.md §4.1).
 
 const planetterpVersion = z.literal(SCHEMA_VERSIONS.planetterp);
@@ -103,14 +103,15 @@ export const InstructorSchema = z.object({
   /** Average review rating, 1–5; null with no reviews. */
   rating: z.number().min(1).max(5).nullable(),
   reviewCount: count,
-  /** Newest review's `created`; drives summary regeneration. */
+  /** Newest review's `created`. */
   latestReviewAt: IsoDateTimeSchema.nullable(),
 });
 export type Instructor = z.infer<typeof InstructorSchema>;
 
 /**
- * One PlanetTerp review, normalized: the input to review summaries. Reviews
- * have no id; (slug, created) identifies one. Treat `text` as untrusted.
+ * One PlanetTerp review, normalized, as the nightly job stores it for
+ * Reviews' pages. Reviews have no id; (slug, created) identifies one. Treat
+ * `text` as untrusted.
  */
 export const ReviewSchema = z.object({
   /** Course the review is about; null when the reviewer didn't say. */
@@ -122,18 +123,6 @@ export const ReviewSchema = z.object({
   created: IsoDateTimeSchema,
 });
 export type Review = z.infer<typeof ReviewSchema>;
-
-/**
- * `_jobs/planetterp/reviews/<slug>.json`: review text the nightly job
- * already downloads, kept so summaries can be regenerated if PlanetTerp goes
- * away. Private job state (DATA.md §2.6): never served or republished.
- */
-export const StoredReviewsSchema = z.object({
-  slug: InstructorSlugSchema,
-  name: z.string().min(1).max(120),
-  reviews: z.array(ReviewSchema),
-});
-export type StoredReviews = z.infer<typeof StoredReviewsSchema>;
 
 /**
  * `planetterp/dept/<DEPT>.<hash>.json`. Instructors are everyone who teaches a
@@ -235,10 +224,21 @@ export const MOST_REVIEWED_MAX = 24;
  */
 export const PlanetTerpIndexSchema = z.object({
   schemaVersion: planetterpVersion,
-  /** Slug → [PlanetTerp's name, the departments whose files list them, sorted]. */
+  /**
+   * Slug → [PlanetTerp's name, the departments whose files list them,
+   * sorted, and their PlanetTerp review count]. The count was added later
+   * without a version bump: an older index's entries have two items.
+   */
   instructors: z.record(
     InstructorSlugSchema,
-    z.tuple([z.string().min(1).max(120), z.array(DeptCodeSchema).min(1)]),
+    z.union([
+      z.tuple([z.string().min(1).max(120), z.array(DeptCodeSchema).min(1)]),
+      z.tuple([
+        z.string().min(1).max(120),
+        z.array(DeptCodeSchema).min(1),
+        count,
+      ]),
+    ]),
   ),
   /** [course, its title, students], most students first. */
   mostTaken: z
@@ -267,38 +267,3 @@ export const PlanetTerpIndexSchema = z.object({
   totals: PlanetTerpTotalsSchema.optional(),
 });
 export type PlanetTerpIndex = z.infer<typeof PlanetTerpIndexSchema>;
-
-// ---------- review summaries (Workers AI) ----------
-
-export const ReviewThemeSchema = z.object({
-  /** Two or three words, lowercase: "clear lectures". */
-  label: z.string().min(1).max(40),
-  sentiment: z.enum(["positive", "negative", "neutral"]),
-});
-export type ReviewTheme = z.infer<typeof ReviewThemeSchema>;
-
-/** `summaries/<slug>.json`. The only data shown with the sparkles icon. */
-export const ReviewSummarySchema = z.object({
-  schemaVersion: z.literal(SCHEMA_VERSIONS.summaries),
-  slug: InstructorSlugSchema,
-  /** Two or three plain sentences. */
-  summary: z.string().min(1).max(600),
-  themes: z.array(ReviewThemeSchema).max(6),
-  /** Regenerate when the instructor's reviewCount exceeds this. */
-  basedOnReviewCount: z.number().int().min(1),
-  latestReviewAt: IsoDateTimeSchema.nullable(),
-  generatedAt: IsoDateTimeSchema,
-  /** Workers AI model id used. */
-  model: z.string().min(1).max(120),
-  /**
-   * How many reviews came from each source (V2 §7.6). Added without a
-   * version bump (DATA.md §2.3); a summary without it read only PlanetTerp.
-   */
-  sources: z
-    .object({
-      planetterp: z.number().int().min(0),
-      terpsicle: z.number().int().min(0),
-    })
-    .optional(),
-});
-export type ReviewSummary = z.infer<typeof ReviewSummarySchema>;

@@ -28,24 +28,6 @@ export interface ServerEvents {
     firstError?: string;
     counts?: Record<string, number>;
   };
-  // Review summaries. Never the review text or anything about the requester.
-  summary_generated: {
-    model: string;
-    durationMs: number;
-    reviews: number;
-    attempts: number;
-  };
-  summary_cached: { ageDays: number };
-  summary_failed: {
-    reason:
-      | "model-output"
-      | "model-error"
-      | "planetterp"
-      | "storage"
-      | "unsafe"
-      | "guard-error";
-  };
-  summary_capped: { cap: number };
   // Seat watches. Never who, an address or an IP, not even hashed.
   alert_watched: { termId: string };
   alert_sent: { termId: string; count: number };

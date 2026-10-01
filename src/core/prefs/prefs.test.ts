@@ -1,34 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { SettingsDocSchema, SyncedPrefsSchema } from "../schema";
 import {
-  aiFeaturesOn,
   CHAT_RULES_SEEN_MAX,
   chatRulesSeen,
   todoWeekStart,
-  withAiFeatures,
   withChatRulesSeen,
   withTodoWeekStart,
 } from "./prefs";
-
-describe("AI features", () => {
-  it("are on until someone turns them off", () => {
-    expect(aiFeaturesOn({})).toBe(true);
-    expect(aiFeaturesOn({ ai: { features: true } })).toBe(true);
-    expect(aiFeaturesOn({ ai: { features: false } })).toBe(false);
-  });
-
-  it("turn off and back on, keeping the other prefs", () => {
-    const prefs = { chatRules: { seen: ["CMSC351"] } };
-    const off = withAiFeatures(prefs, false);
-    expect(off).toEqual({ ...prefs, ai: { features: false } });
-    expect(aiFeaturesOn(withAiFeatures(off, true))).toBe(true);
-  });
-
-  it("change nothing when they're already that way", () => {
-    const off = { ai: { features: false } };
-    expect(withAiFeatures(off, false)).toBe(off);
-  });
-});
 
 describe("chat room rules seen", () => {
   it("are remembered per course", () => {
@@ -94,8 +72,8 @@ describe("the prefs' shape", () => {
   });
 
   it("refuses a known pref in the wrong shape", () => {
-    expect(
-      SyncedPrefsSchema.safeParse({ ai: { features: "no" } }).success,
-    ).toBe(false);
+    expect(SyncedPrefsSchema.safeParse({ home: "compact" }).success).toBe(
+      false,
+    );
   });
 });
