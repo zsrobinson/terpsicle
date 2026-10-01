@@ -77,9 +77,9 @@ for (const width of [375, 393])
     await scan(page, `tab bar at ${width}`);
   });
 
-test("a tap goes there; the tab you're on goes back to the top", async ({
-  page,
-}) => {
+test("a tap goes there; the tab you're on goes back to the top", {
+  tag: "@phone",
+}, async ({ page }) => {
   await page.goto("/reviews");
   await hydrated(page);
   await page.evaluate(() => window.scrollTo(0, 600));

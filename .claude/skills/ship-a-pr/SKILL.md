@@ -20,14 +20,14 @@ One task per branch.
 
 ## 2. Check locally, under the load rule
 
-Machines are shared, and CI runs everything. Locally, run only:
+Machines are shared, and CI runs all correctness tests and the focused browser gate (docs/TESTING.md). Locally, run only:
 
 - `pnpm exec tsc -b`, once;
 - `pnpm exec biome check <changed files>`;
 - the tests next to what you changed: `pnpm exec vitest run <files> --maxWorkers=1`;
 - for UI changes, at most the relevant specs, `pnpm exec playwright test e2e/<spec>.spec.ts --workers=1`, then `pnpm build && pnpm check:bundle`.
 
-Stop any dev server you started. Leave the full `pnpm check` and `pnpm test:e2e` to CI.
+Stop any dev server you started. Leave the full correctness checks to CI; dispatch Browser diagnostics for a broad regression run when warranted (docs/TESTING.md).
 
 A red test means the code or the test has a real bug. Fix the cause; a test is never skipped, disabled, loosened or deleted to get green, and a budget is never raised to get a build green.
 
@@ -57,7 +57,7 @@ On a conflict (adapted from Matt Pocock's [resolving-merge-conflicts](https://gi
 
 ## 5. Watch CI
 
-The required check is **"Check, build, e2e"**. A PR that only touches `docs/**` or root `*.md` skips e2e and the preview.
+The required check is **"Check, build, e2e"**. A PR that only touches `docs/**` or root `*.md` skips code jobs and the preview. Browser diagnostics and the mobile lab are explicit investigations, not merge prerequisites (docs/TESTING.md).
 
 Check the PR's check runs every few minutes. On red, read the failing job's log, fix the cause and push. PRs that run everything also get a preview at `pr-<n>-terpsicle.zsrobinson.workers.dev`.
 

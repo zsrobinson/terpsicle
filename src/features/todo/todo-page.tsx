@@ -182,7 +182,7 @@ function FrontDoor({ returnTo }: { returnTo: string }) {
   const signIn = useSignInAction(returnTo, "todo");
   return (
     <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div
+      <main
         className={cn(
           "mx-auto flex w-full flex-1 flex-col gap-8 px-4 pt-6 pb-8",
           PAGE_WIDTH.app,
@@ -196,7 +196,7 @@ function FrontDoor({ returnTo }: { returnTo: string }) {
           primary={signIn}
         />
         <SamplePreview />
-      </div>
+      </main>
       {/* A page you read, like Chat's and Plan's front doors. */}
       <PageFooter className={PAGE_WIDTH.app} />
     </div>

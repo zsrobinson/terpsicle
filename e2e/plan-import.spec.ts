@@ -45,10 +45,9 @@ async function semester(page: Page, isMobile: boolean, name: string) {
   return page.getByRole("region", { name, exact: true });
 }
 
-test("pastes a transcript, checks it, imports in one step, undoes, redoes and removes grades", async ({
-  page,
-  isMobile,
-}) => {
+test("pastes a transcript, checks it, imports in one step, undoes, redoes and removes grades", {
+  tag: "@critical",
+}, async ({ page, isMobile }) => {
   await page.goto("/plan");
   await page.getByRole("button", { name: "Import your transcript" }).click();
   const box = page.getByLabel("Paste your unofficial transcript");

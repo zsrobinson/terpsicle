@@ -1,0 +1,91 @@
+name: Browser diagnostics
+
+# Explicit investigations retain the complete regression suite and renders
+# without adding jobs to every pull request.
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: What to inspect
+        type: choice
+        options: [regression, visual, performance]
+        default: visual
+      url:
+        description: Visual renders only; empty starts the local mock app
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-diagnostics-${{ github.ref }}-${{ inputs.suite }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    if: inputs.suite == 'regression'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+      - run: pnpm test:e2e --workers=2 --shard=${{ matrix.shard }}/2
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: browser-regression-${{ matrix.shard }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+
+  visual:
+    if: inputs.suite == 'visual'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+        with:
+          only-shell: "true"
+      - name: Render the family at phone and desktop widths, in both themes
+        env:
+          URL: ${{ inputs.url }}
+        run: |
+          if [ -n "$URL" ]; then
+            pnpm shots --url "$URL"
+          else
+            pnpm dev:mock > "$RUNNER_TEMP/visual-server.log" 2>&1 &
+            server_pid=$!
+            trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+            for i in $(seq 1 60); do
+              if curl -fsS http://localhost:3000/privacy >/dev/null; then
+                pnpm shots --signed-in
+                exit 0
+              fi
+              sleep 2
+            done
+            cat "$RUNNER_TEMP/visual-server.log"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: page-renders
+          path: shots
+          retention-days: 14
+
+  performance:
+    if: inputs.suite == 'performance'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm test:perf

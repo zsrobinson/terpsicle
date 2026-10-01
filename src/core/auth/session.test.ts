@@ -94,10 +94,14 @@ describe("TEST_USERS", () => {
       identity: expect.objectContaining({
         directoryId: "e2eab12cd",
         email: "e2eab12cd@terpmail.umd.edu",
+        name: "E2E ab12cd",
       }),
       isAdmin: false,
     });
     expect(findTestUser("e2e")).toBeUndefined();
+    expect(findTestUser("e2eanother")?.identity.name).not.toBe(
+      findTestUser("e2eab12cd")?.identity.name,
+    );
     expect(findTestUser("e2eUPPER")).toBeUndefined();
     expect(findTestUser("xe2eab")).toBeUndefined();
   });

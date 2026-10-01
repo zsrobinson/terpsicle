@@ -1,22 +1,18 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { listRange, newYorkClock } from "../src/core/todo/list";
+import { newYorkClock } from "../src/core/todo/list";
 import {
   TEST_FEED_TOKENS,
   testFeedIcs,
   testFeedLink,
 } from "../src/core/todo/test-feed";
+import { signInNewUser } from "./test-user";
 import { liveToasts } from "./toasts";
 
 // Terpsicle Todo's calendar (docs/V3.md §3.9) on `pnpm dev:mock`: test-mode
 // sign-in, and the Worker's fixture feeds (TEST_FEED_TOKENS) in place of
-// ELMS. Each project signs in as its own person so the two never share a
-// feed (e2e/todo-api.spec.ts uses the third, Test Admin).
-//
-// Within a project every signed-in test is that one person, changing their
-// feed, own tasks and hidden courses, so this file's tests run one after
-// another in one worker (the config is fully parallel elsewhere).
-test.describe.configure({ mode: "default" });
+// ELMS. Every test has a fresh account, so feeds, tasks and preferences
+// are isolated across workers and retries.
 
 let errors: string[] = [];
 
@@ -68,56 +64,6 @@ function post(page: Page, name: string, body: unknown = {}) {
     },
     [name, body] as const,
   );
-}
-
-async function signIn(page: Page, isMobile: boolean) {
-  const person = isMobile ? "Test Classmate" : "Test Student";
-  await page.goto("/auth/test?return=/todo");
-  await page.getByRole("button", { name: `Sign in as ${person}` }).click();
-  // Signed in, and `?signed-in=1` already stripped.
-  await page.waitForURL((url) => url.pathname === "/todo" && url.search === "");
-  // Start from nothing: no feed, no file items and no own tasks from an
-  // earlier run.
-  expect(await post(page, "todo/disconnect")).toBe(200);
-  expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
-  await showHiddenCourses(page);
-  await deleteOwnTasks(page);
-  await page.reload();
-}
-
-/** Shows every course hidden in an earlier run. */
-async function showHiddenCourses(page: Page) {
-  const today = newYorkClock(Date.now()).date;
-  const hidden = await page.evaluate(async (range) => {
-    const response = await fetch("/api/todo/list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(range),
-    });
-    return ((await response.json()) as { hidden: string[] }).hidden;
-  }, listRange(today));
-  for (const key of hidden)
-    expect(await post(page, "todo/hide-course", { key, hidden: false })).toBe(
-      200,
-    );
-}
-
-/** Deletes the person's own tasks: the ones with no date, and any in the list's range. */
-async function deleteOwnTasks(page: Page) {
-  const today = newYorkClock(Date.now()).date;
-  const uids = await page.evaluate(async (range) => {
-    const response = await fetch("/api/todo/list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(range),
-    });
-    const list = (await response.json()) as {
-      items: { uid: string; source: string }[];
-    };
-    return list.items.filter((i) => i.source === "own").map((i) => i.uid);
-  }, listRange(today));
-  for (const uid of uids)
-    expect(await post(page, "todo/delete-task", { uid })).toBe(200);
 }
 
 /** A date `days` from `date`, as the URL and date fields take it. */
@@ -206,12 +152,11 @@ test("signed out, /todo is the front door", async ({ page }) => {
   await axe(page, "front door");
 });
 
-test("connect ELMS, check things off on the week, move around, disconnect with Undo", async ({
-  page,
-  isMobile,
-}) => {
+test("connect ELMS, check things off on the week, move around, disconnect with Undo", {
+  tag: "@critical",
+}, async ({ page, isMobile }) => {
   test.setTimeout(120_000);
-  await signIn(page, isMobile);
+  await signInNewUser(page, "/todo");
 
   // The first visit: what Todo does, its two ways in, and the week it fills.
   await expect(
@@ -355,12 +300,9 @@ test("connect ELMS, check things off on the week, move around, disconnect with U
   expect(await post(page, "todo/import-file", { items: [] })).toBe(200);
 });
 
-test("each course's week, and hiding a course with Undo", async ({
-  page,
-  isMobile,
-}) => {
+test("each course's week, and hiding a course with Undo", async ({ page }) => {
   test.setTimeout(90_000);
-  await signIn(page, isMobile);
+  await signInNewUser(page, "/todo");
   expect(
     await post(page, "todo/connect", {
       url: testFeedLink(TEST_FEED_TOKENS.calendar),
@@ -407,7 +349,7 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   isMobile,
 }) => {
   test.setTimeout(120_000);
-  await signIn(page, isMobile);
+  await signInNewUser(page, "/todo");
 
   // Without ELMS, the first visit's "Add a task" opens the bar's composer.
   await page
@@ -491,14 +433,10 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
   await page.reload();
   await expect(page.getByText("Office hours, bring Project 2")).toBeVisible();
-  await deleteOwnTasks(page);
 });
 
-test("weeks start on Monday, or Sunday by the setting", async ({
-  page,
-  isMobile,
-}) => {
-  await signIn(page, isMobile);
+test("weeks start on Monday, or Sunday by the setting", async ({ page }) => {
+  await signInNewUser(page, "/todo");
   // A Wednesday, so both starts are in the same week.
   await page.goto("/todo?date=2026-09-30");
   const heading = page.getByRole("heading", { level: 1 });

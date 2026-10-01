@@ -93,9 +93,9 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-test("a select picks from the keyboard and shows the label", async ({
-  page,
-}) => {
+test("a select picks from the keyboard and shows the label", {
+  tag: "@critical",
+}, async ({ page }) => {
   await openKit(page, "controls");
   const term = page.getByRole("combobox", { name: "Term" });
   await expect(term).toHaveText("Spring 2027");

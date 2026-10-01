@@ -69,7 +69,9 @@ test("first visit shows two equal ways to start", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("remove a course from the plan, then undo", async ({ page }) => {
+test("remove a course from the plan, then undo", { tag: "@critical" }, async ({
+  page,
+}) => {
   await openDemo(page);
   const row = page.getByTestId("course-row-ENGL393");
   await row.click({ button: "right" });
@@ -88,7 +90,7 @@ test("remove a course from the plan, then undo", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("fix a problem with one click", async ({ page }) => {
+test("fix a problem with one click", { tag: "@critical" }, async ({ page }) => {
   await openDemo(page);
   await openTab(page, "Problems");
   const overlap = page.getByTestId("problem-overlap");
@@ -176,7 +178,7 @@ test.describe("register", () => {
     ).toHaveCount(0);
   });
 
-  test("download the .ics", async ({ page }) => {
+  test("download the .ics", { tag: "@critical" }, async ({ page }) => {
     await openDemo(page);
     await openTab(page, "Register");
     const button = page.getByRole("button", { name: /Add to your calendar/ });

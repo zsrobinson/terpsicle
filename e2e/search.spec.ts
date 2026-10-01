@@ -35,9 +35,9 @@ test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "desktop interactions");
   test.beforeEach(({ page }) => open(page));
 
-  test("search, hover for ghosts, open, and switch from the list", async ({
-    page,
-  }) => {
+  test("search, hover for ghosts, open, and switch from the list", {
+    tag: "@critical",
+  }, async ({ page }) => {
     await page.keyboard.press("/");
     await expect(searchBox(page)).toBeFocused();
     await searchBox(page).fill("cmsc 351");
@@ -264,7 +264,9 @@ test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout");
   test.beforeEach(({ page }) => open(page));
 
-  test("search and open a course in the drawer", async ({ page }) => {
+  test("search and open a course in the drawer", { tag: "@phone" }, async ({
+    page,
+  }) => {
     const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
     await tabs.getByRole("button", { name: "Search" }).tap();
     // A finger taps to open; only a mouse hovers to preview.

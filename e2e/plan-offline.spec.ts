@@ -47,11 +47,9 @@ function readQueryCache(): Promise<string[]> {
   });
 }
 
-test("the course index works offline from what was saved", async ({
-  page,
-  context,
-  isMobile,
-}) => {
+test("the course index works offline from what was saved", {
+  tag: "@critical",
+}, async ({ page, context, isMobile }) => {
   // One layout is enough: this is about the data, not the drawer.
   test.skip(isMobile, "desktop only");
   await page.goto("/plan");

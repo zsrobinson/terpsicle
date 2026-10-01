@@ -1,6 +1,4 @@
 import { readFileSync } from "node:fs";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type Browser,
   type BrowserContext,
@@ -18,6 +16,7 @@ import {
 import { newYorkClock } from "../src/core/todo/list";
 import { TEST_FEED_TOKENS, testFeedLink } from "../src/core/todo/test-feed";
 import { payloadOf } from "./push-message";
+import { startPushService } from "./push-service";
 
 // v3 end to end (docs/V3.md §11, `v3/e2e`) on `pnpm dev:mock`, in test mode.
 // One person, signed out at first:
@@ -89,26 +88,6 @@ async function signIn(page: Page, userId: string, path: string) {
 
 const spring = (page: Page) =>
   page.getByRole("region", { name: "Spring 2027", exact: true });
-
-/** A push service on this machine: answers 201 and keeps what it got. */
-async function startPushService() {
-  const received: { path: string; body: Buffer }[] = [];
-  const server = createServer((request, response) => {
-    const chunks: Buffer[] = [];
-    request.on("data", (chunk: Buffer) => chunks.push(chunk));
-    request.on("end", () => {
-      received.push({ path: request.url ?? "", body: Buffer.concat(chunks) });
-      response.writeHead(201).end();
-    });
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  return {
-    received,
-    origin: `http://127.0.0.1:${port}`,
-    close: () => new Promise((resolve) => server.close(resolve)),
-  };
-}
 
 test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, a check, and the 6pm push", async ({
   browser,

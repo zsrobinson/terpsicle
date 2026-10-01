@@ -43,5 +43,8 @@ export const E2E_USER_PATTERN = /^e2e[a-z0-9]{1,13}$/;
 export function findTestUser(id: string): TestUser | undefined {
   const listed = TEST_USERS.find((u) => u.identity.directoryId === id);
   if (listed) return listed;
-  return E2E_USER_PATTERN.test(id) ? testUser(id, "E2E Tester") : undefined;
+  // Mentions resolve by display name; throwaway people must be distinct there too.
+  return E2E_USER_PATTERN.test(id)
+    ? testUser(id, `E2E ${id.slice(3)}`)
+    : undefined;
 }
