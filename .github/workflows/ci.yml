@@ -247,6 +247,15 @@ jobs:
           LIVE_URL: ${{ steps.preview.outputs.url }}
         run: pnpm test:e2e:live
 
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: preview-smoke
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
       - name: Comment the preview URL
         uses: actions/github-script@v9
         env:

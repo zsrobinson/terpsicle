@@ -345,21 +345,11 @@ test.describe("phone", () => {
   test("tapping a tab raises the drawer to half, the handle to full", {
     tag: "@phone",
   }, async ({ page }) => {
-    await open(page);
+    // With a populated plan there is no adaptive first-visit rise to race.
+    await open(page, "/schedule?demo=1");
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("no viewport");
     const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
-    // A first visit's drawer rises to half by itself once the plan loads
-    // (the test above). A tap aimed while it rests at peek can land after
-    // it starts to slide, under the moving tab, and do nothing. So wait for
-    // the rise, then lower it with the open tab, so this tap is the one
-    // that raises it.
-    await expect(page.getByTestId("first-visit")).toBeVisible();
-    await expect(drawer(page)).toHaveAttribute("data-snap", "half");
-    await expect
-      .poll(() => drawerTop(page))
-      .toBeCloseTo(viewport.height / 2, -1);
-    await tabs.getByRole("button", { name: "Courses" }).tap();
     await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
 
     await tabs.getByRole("button", { name: "Search" }).tap();
@@ -385,6 +375,22 @@ test.describe("phone", () => {
     await page.keyboard.type("cmsc 401");
     await expect(
       page.locator('[data-course-result="CMSC401"]'),
+    ).toBeInViewport();
+  });
+
+  test("a shorter phone first visit shows both ways to start", {
+    tag: "@phone",
+  }, async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 659 });
+    await open(page);
+    await expect(page.getByTestId("first-visit")).toBeVisible();
+    // The guide cannot fit at half; this is intentional, not a tab's rise.
+    await expect(drawer(page)).toHaveAttribute("data-snap", "full");
+    await expect(
+      page.getByRole("button", { name: "Search for a course" }),
+    ).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "Generate plans" }),
     ).toBeInViewport();
   });
 });
