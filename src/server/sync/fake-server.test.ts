@@ -25,10 +25,10 @@ import {
   randomInt,
   seededRandom,
 } from "~/fixtures";
-import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
+import { pruneTombstones } from "./store";
 
 const ORIGIN = "https://terpsicle.com";
 const DAY = 86_400_000;
@@ -98,8 +98,13 @@ class Pair {
     return real;
   }
 
+  /**
+   * The daily job's sync step, the one the fake models; sync.test.ts runs
+   * the whole job. Its other steps (purges, digests, feedback, R2 sweeps)
+   * took a prune from 2 ms to 20–50 ms here and compare nothing.
+   */
   async prune(): Promise<void> {
-    await runDailyJob({ env: env as Env, now: now() });
+    await pruneTombstones(env.DB, now());
     this.fake.prune(now().toISOString());
     // The session aged past its lifetime meanwhile.
     await this.signIn();
@@ -176,7 +181,17 @@ describe("FakeSyncServer", () => {
     await pair.pull(0);
   });
 
-  it("stays alike through random pushes and pulls from three devices", async () => {
+  // One history of 60 steps, so later steps meet what earlier ones and the
+  // prunes left: about 65 real Worker requests in a row, at ~10 ms each
+  // (0.6–0.8 s on a quiet machine). Not a timing budget, so not in "perf":
+  // a correctness check belongs in the gate. CI runs the worker project
+  // beside the UI files on 4 cores, where it once took 5.7 s and ran past
+  // the 5 s default. 20 s is 3.5× that run, and still stops a hang.
+  const RANDOM_WALK_TIMEOUT = 20_000;
+
+  it("stays alike through random pushes and pulls from three devices", {
+    timeout: RANDOM_WALK_TIMEOUT,
+  }, async () => {
     const pair = new Pair();
     await pair.signIn();
     const rand = seededRandom("fake-sync-server");

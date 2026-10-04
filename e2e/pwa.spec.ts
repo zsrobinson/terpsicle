@@ -52,7 +52,7 @@ async function watchesASeat(page: Page, gate?: Promise<void>) {
       },
     });
   });
-  await page.goto("/schedule");
+  await offTheApp(page);
   const signedIn = await page.evaluate(async () => {
     const id = `e2e${Math.random().toString(36).slice(2, 12)}`;
     const response = await fetch("/api/auth/test-sign-in", {
@@ -63,17 +63,7 @@ async function watchesASeat(page: Page, gate?: Promise<void>) {
     return ((await response.json()) as { status: string }).status;
   });
   expect(signedIn).toBe("signed-in");
-  await page.evaluate(() =>
-    sessionStorage.setItem(
-      "terpsicle:pending-watch",
-      JSON.stringify({
-        termId: "202701",
-        sectionKey: "CMSC351-0101",
-        at: new Date().toISOString(),
-      }),
-    ),
-  );
-  await page.reload();
+  await pendingWatchThenApp(page);
 }
 
 /** A new tab with its own watch to start (cookies are the context's). */
@@ -94,7 +84,23 @@ async function watchesAnotherSeat(page: Page) {
       },
     }),
   );
-  await page.goto("/schedule");
+  await offTheApp(page);
+  await pendingWatchThenApp(page);
+}
+
+/**
+ * A page on the site that isn't the app, to sign in and leave the pending
+ * watch from. From a loaded /schedule it was a race: the app asks /api/me
+ * a second or more after load, and when that answer came after the sign-in
+ * and the pending watch, that page took the watch and started it itself,
+ * and the reload lost it: no "Watching" toast, so no dialog.
+ */
+async function offTheApp(page: Page) {
+  await page.goto("/icons/icon-192.png");
+}
+
+/** The watch asked for before signing in, then the one app load that starts it. */
+async function pendingWatchThenApp(page: Page) {
   await page.evaluate(() =>
     sessionStorage.setItem(
       "terpsicle:pending-watch",
@@ -105,7 +111,7 @@ async function watchesAnotherSeat(page: Page) {
       }),
     ),
   );
-  await page.reload();
+  await page.goto("/schedule");
 }
 
 const watchingToast = (page: Page) => page.getByText("Watching CMSC351 0101");
@@ -273,6 +279,11 @@ test.describe("install prompt", () => {
       await expect(sheet).toContainText(
         "Open Terpsicle from your Home Screen. We'll ask once, right there.",
       );
+      // The new account's first sync has its own toast, about a second
+      // after the watch's: let it come first, or a scan reads it entering.
+      await expect(
+        page.getByText("Your plan is saved to your account"),
+      ).toBeVisible();
       for (const colorScheme of ["light", "dark"] as const) {
         await page.emulateMedia({ colorScheme });
         await scan(page, `the iPhone setup sheet (${colorScheme})`);
@@ -320,6 +331,10 @@ test.describe("install prompt", () => {
     await browserOffersInstall(page);
     release();
 
+    // The key moment comes once the app has booted, asked who's signed in
+    // and started the watch (15 s, as in the iPhone tests above); then the
+    // dialog's code loads.
+    await expect(watchingToast(page)).toBeVisible({ timeout: 15_000 });
     const dialog = installDialog(page);
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText(

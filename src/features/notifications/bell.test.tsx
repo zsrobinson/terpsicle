@@ -18,8 +18,13 @@ vi.mock("~/server/fns/notifications", () => ({
 
 const api = vi.mocked(notificationsApi);
 
+// The list's days and "2 minutes ago" are read against the clock, so the
+// test fixes it, at noon in College Park: on the real clock, a run a few
+// minutes after midnight put "4 minutes ago" under Yesterday.
+const NOW = new Date("2026-09-24T16:00:00.000Z");
+
 const minutesAgo = (m: number) =>
-  new Date(Date.now() - m * 60_000).toISOString();
+  new Date(NOW.getTime() - m * 60_000).toISOString();
 
 const mention = anInboxItem({ id: "n1", createdAt: minutesAgo(2) });
 const seat = anInboxItem({
@@ -68,6 +73,8 @@ const bell = () => screen.findByTestId("notifications-bell");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Only the clock: the router, Query and user-event keep real timers.
+  vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
   forgetBell();
   client = createTestQueryClient();
   api.unread.mockResolvedValue({ unread: 2 });
@@ -80,6 +87,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   useAccount.setState({ status: "loading", flags: FLAGS_OFF, user: null });
 });
 

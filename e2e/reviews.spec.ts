@@ -298,18 +298,21 @@ test("course details in the scheduler link to the instructor's reviews", async (
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
+// One test a page, 4–8 s each on a phone: all seven in one test came to
+// 33–37 s, past its 30 s (main, 2026-10-04, both tries), each load waiting
+// for the network to go quiet before axe reads it.
 for (const scheme of ["light", "dark"] as const)
-  test(`the Reviews pages pass axe (${scheme})`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme: scheme });
-    for (const path of [
-      "/reviews",
-      "/reviews?q=CMSC",
-      "/reviews/cmsc351",
-      INSTRUCTOR,
-      "/reviews/keiko-ashdown",
-      "/reviews/dario-castellano?course=CMSC426",
-      "/reviews/policy",
-    ]) {
+  for (const path of [
+    "/reviews",
+    "/reviews?q=CMSC",
+    "/reviews/cmsc351",
+    INSTRUCTOR,
+    "/reviews/keiko-ashdown",
+    "/reviews/dario-castellano?course=CMSC426",
+    "/reviews/policy",
+  ])
+    test(`${path} passes axe (${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await page.waitForLoadState("networkidle");
@@ -325,5 +328,4 @@ for (const scheme of ["light", "dark"] as const)
           `axe: ${path} (${scheme})`,
         )
         .toEqual([]);
-    }
-  });
+    });
