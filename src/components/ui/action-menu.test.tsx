@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ActionContextMenu,
   ActionMenu,
   ActionMenuCheckboxItem,
   ActionMenuGroup,
@@ -12,6 +13,7 @@ import {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuSub,
   ActionMenuText,
 } from "./action-menu";
 import { TooltipProvider } from "./tooltip";
@@ -368,5 +370,210 @@ describe("ActionMenu's more-words and staying open", () => {
     await waitFor(() => expect(field).toHaveFocus());
     await new Promise((done) => setTimeout(done, 500));
     expect(field).toHaveFocus();
+  });
+});
+
+/** A block's menu: an action, and a submenu of where it can go. */
+function Block({
+  onMove = () => undefined,
+}: {
+  onMove?: (to: string) => void;
+}) {
+  const [credits, setCredits] = useState("3");
+  return (
+    <TooltipProvider delayDuration={0}>
+      <p data-testid="credits">{credits}</p>
+      <ActionMenu
+        title="CMSC216"
+        tooltip="Move, remove or change CMSC216"
+        trigger={<button type="button">CMSC216 options</button>}
+      >
+        <ActionMenuItem>About CMSC216</ActionMenuItem>
+        <ActionMenuSub label="Move to…">
+          <ActionMenuItem onSelect={() => onMove("fall")}>
+            Fall 2026
+          </ActionMenuItem>
+          <ActionMenuItem onSelect={() => onMove("spring")}>
+            Spring 2027
+          </ActionMenuItem>
+        </ActionMenuSub>
+        <ActionMenuSub label="Credits">
+          <ActionMenuRadioGroup value={credits} onValueChange={setCredits}>
+            <ActionMenuRadioItem value="3">3 credits</ActionMenuRadioItem>
+            <ActionMenuRadioItem value="4">4 credits</ActionMenuRadioItem>
+          </ActionMenuRadioGroup>
+        </ActionMenuSub>
+      </ActionMenu>
+    </TooltipProvider>
+  );
+}
+
+describe("ActionMenuSub", () => {
+  it("is a submenu beside its item on a desktop", async () => {
+    screenIs(false);
+    const user = userEvent.setup();
+    const onMove = vi.fn();
+    render(<Block onMove={onMove} />);
+    await user.click(screen.getByRole("button", { name: "CMSC216 options" }));
+    const moveTo = await screen.findByRole("menuitem", { name: "Move to…" });
+    expect(moveTo).toHaveAttribute("aria-haspopup", "menu");
+    // From the keyboard, as a submenu goes: right to open it.
+    await user.keyboard("{ArrowDown}{ArrowDown}");
+    await waitFor(() => expect(moveTo).toHaveFocus());
+    await user.keyboard("{ArrowRight}");
+    const fall = await screen.findByRole("menuitem", { name: "Fall 2026" });
+    await waitFor(() => expect(fall).toHaveFocus());
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(onMove).toHaveBeenCalledWith("spring");
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  });
+
+  it("takes the sheet's list's place on a phone, with a row back", async () => {
+    screenIs(true);
+    const user = userEvent.setup();
+    render(<Block />);
+    await user.click(screen.getByRole("button", { name: "CMSC216 options" }));
+    await screen.findByRole("dialog", { name: "CMSC216" });
+    const credits = screen.getByRole("menuitem", { name: "Credits" });
+    await user.click(credits);
+    // The list steps aside; the submenu's chosen item takes focus.
+    expect(
+      screen.queryByRole("menuitem", { name: "About CMSC216" }),
+    ).toBeNull();
+    const three = screen.getByRole("menuitemradio", { name: "3 credits" });
+    await waitFor(() => expect(three).toHaveFocus());
+    // Back to the list, onto the row it left from.
+    await user.click(screen.getByRole("menuitem", { name: /^Credits\s*, back$/ }));
+    expect(
+      screen.getByRole("menuitem", { name: "About CMSC216" }),
+    ).toBeVisible();
+    await waitFor(() => expect(credits).toHaveFocus());
+    // A pick inside one closes the sheet.
+    await user.click(screen.getByRole("menuitem", { name: "Credits" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "4 credits" }));
+    expect(screen.getByTestId("credits")).toHaveTextContent("4");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // And the next opening starts on the list again.
+    await user.click(screen.getByRole("button", { name: "CMSC216 options" }));
+    await screen.findByRole("dialog", { name: "CMSC216" });
+    expect(
+      screen.getByRole("menuitem", { name: "About CMSC216" }),
+    ).toBeVisible();
+  });
+});
+
+/** A row with a right-click menu. */
+function Row({ onRemove = () => undefined }: { onRemove?: () => void }) {
+  return (
+    <TooltipProvider delayDuration={0}>
+      <ActionContextMenu
+        title="CMSC216"
+        target={<div data-course="CMSC216">CMSC216 row</div>}
+      >
+        <ActionMenuItem>More about this course</ActionMenuItem>
+        <ActionMenuSeparator />
+        <ActionMenuItem onSelect={onRemove}>Remove</ActionMenuItem>
+      </ActionContextMenu>
+    </TooltipProvider>
+  );
+}
+
+describe("ActionContextMenu", () => {
+  it("opens at the pointer on a right click on a desktop", async () => {
+    screenIs(false);
+    const onRemove = vi.fn();
+    render(<Row onRemove={onRemove} />);
+    const row = screen.getByText("CMSC216 row");
+    // The row itself is the trigger.
+    expect(row).toHaveAttribute("data-course", "CMSC216");
+    fireEvent.contextMenu(row, { clientX: 20, clientY: 20 });
+    const menu = await screen.findByRole("menu", { name: "CMSC216" });
+    expect(menu).toHaveAttribute("data-slot", "action-menu");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("menuitem", { name: "Remove" }));
+    expect(onRemove).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  });
+
+  it("opens the same items as a sheet on a phone's long press", async () => {
+    screenIs(true);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const onRemove = vi.fn();
+      render(<Row onRemove={onRemove} />);
+      const row = screen.getByText("CMSC216 row");
+      fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 20 }] });
+      await vi.advanceTimersByTimeAsync(600);
+      fireEvent.touchEnd(row);
+      const sheet = await screen.findByRole("dialog", { name: "CMSC216" });
+      expect(sheet).toHaveAttribute("data-slot", "action-sheet");
+      // Never the small menu at the finger as well.
+      expect(document.querySelector("[data-slot=action-menu]")).toBeNull();
+      fireEvent.click(screen.getByRole("menuitem", { name: "Remove" }));
+      expect(onRemove).toHaveBeenCalledOnce();
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens the sheet on a phone's context menu too (Android's long press)", async () => {
+    screenIs(true);
+    render(<Row />);
+    fireEvent.contextMenu(screen.getByText("CMSC216 row"), {
+      clientX: 20,
+      clientY: 20,
+    });
+    expect(
+      await screen.findByRole("dialog", { name: "CMSC216" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menu", { name: "CMSC216" })).toBeVisible();
+  });
+
+  it("doesn't open on a short tap", async () => {
+    screenIs(true);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<Row />);
+      const row = screen.getByText("CMSC216 row");
+      fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 20 }] });
+      await vi.advanceTimersByTimeAsync(100);
+      fireEvent.touchEnd(row);
+      await vi.advanceTimersByTimeAsync(600);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("A group label under a sheet title that says it", () => {
+  it("names its group without saying it twice", async () => {
+    screenIs(true);
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider delayDuration={0}>
+        <ActionMenu
+          title="No classes on"
+          tooltip="Days off"
+          trigger={<button type="button">Days off</button>}
+        >
+          <ActionMenuGroup label="No classes on">
+            <ActionMenuCheckboxItem
+              checked={false}
+              onCheckedChange={() => undefined}
+            >
+              Friday
+            </ActionMenuCheckboxItem>
+          </ActionMenuGroup>
+        </ActionMenu>
+      </TooltipProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Days off" }));
+    await screen.findByRole("dialog", { name: "No classes on" });
+    expect(screen.getByRole("group", { name: "No classes on" })).toBeVisible();
+    expect(screen.getAllByText("No classes on")[1]).toHaveClass("sr-only");
   });
 });

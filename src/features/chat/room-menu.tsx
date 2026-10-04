@@ -11,18 +11,12 @@ import type { Room } from "~/core/chat";
 import { mainPlanFor } from "~/core/plans/main-plan";
 import type { CourseCode } from "~/core/schema";
 import {
+  ActionContextMenu,
   ActionMenu,
   ActionMenuItem,
   ActionMenuSeparator,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
 import { isMuted, useChatHome } from "./chat-home";
 import { showNote, showUndo } from "./undo";
 
@@ -174,31 +168,34 @@ export function RoomContextMenu({
 }) {
   const { muted, mute, leave } = useRoomActions(courseCode, room);
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        {unread > 0 ? (
-          <ContextMenuItem
-            onSelect={() => useChatHome.getState().markRoomRead(room.id)}
+    <ActionContextMenu target={children} title={room.label}>
+      {unread > 0 ? (
+        <ActionMenuItem
+          icon={<CheckCheck aria-hidden="true" />}
+          onSelect={() => useChatHome.getState().markRoomRead(room.id)}
+        >
+          Mark read
+        </ActionMenuItem>
+      ) : null}
+      <ActionMenuItem
+        icon={
+          muted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />
+        }
+        onSelect={() => void mute(!muted)}
+      >
+        {muted ? "Unmute" : "Mute"}
+      </ActionMenuItem>
+      {leave && room.kind === "course" ? (
+        <>
+          <ActionMenuSeparator />
+          <ActionMenuItem
+            icon={<LogOut aria-hidden="true" />}
+            onSelect={() => void leave()}
           >
-            <CheckCheck aria-hidden="true" />
-            Mark read
-          </ContextMenuItem>
-        ) : null}
-        <ContextMenuItem onSelect={() => void mute(!muted)}>
-          {muted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
-          {muted ? "Unmute" : "Mute"}
-        </ContextMenuItem>
-        {leave && room.kind === "course" ? (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => void leave()}>
-              <LogOut aria-hidden="true" />
-              Leave {courseCode} chat
-            </ContextMenuItem>
-          </>
-        ) : null}
-      </ContextMenuContent>
-    </ContextMenu>
+            Leave {courseCode} chat
+          </ActionMenuItem>
+        </>
+      ) : null}
+    </ActionContextMenu>
   );
 }

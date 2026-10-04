@@ -11,13 +11,10 @@ import {
 } from "~/state/hooks";
 import { useUi } from "~/state/ui-store";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuItemText,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionMenu,
+  ActionMenuItem,
+  ActionMenuSeparator,
+} from "~/ui/action-menu";
 import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -235,80 +232,72 @@ function PlanTab({
         </button>
       </WithTooltip>
       {active ? (
-        <DropdownMenu>
-          <WithTooltip
-            label={
-              others.length > 0 ? "Other plans and options" : "Plan options"
-            }
-          >
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={`${plan.name} options`}
-                className="mr-1 flex size-6 shrink-0 max-sm:mr-0.5 items-center justify-center rounded text-muted transition-colors hover:bg-raised hover:text-fg data-[state=open]:bg-raised data-[state=open]:text-fg"
-              >
-                <ChevronDown size={13} aria-hidden="true" />
-              </button>
-            </DropdownMenuTrigger>
-          </WithTooltip>
-          <DropdownMenuContent
-            onCloseAutoFocus={(event) => {
-              // The rename field takes focus instead of the menu button.
-              if (renaming.current) event.preventDefault();
-              renaming.current = false;
+        <ActionMenu
+          title={plan.name}
+          tooltip={
+            others.length > 0 ? "Other plans and options" : "Plan options"
+          }
+          className="max-w-[300px]"
+          // The rename field takes focus instead of the menu button.
+          finalFocus={() => {
+            const sent = renaming.current;
+            renaming.current = false;
+            return sent ? false : null;
+          }}
+          trigger={
+            <button
+              type="button"
+              aria-label={`${plan.name} options`}
+              className="mr-1 flex size-6 shrink-0 max-sm:mr-0.5 items-center justify-center rounded text-muted transition-colors hover:bg-raised hover:text-fg data-popup-open:bg-raised data-popup-open:text-fg"
+            >
+              <ChevronDown size={13} aria-hidden="true" />
+            </button>
+          }
+        >
+          {others.length > 0 ? (
+            <>
+              {others.map((p) => (
+                <ActionMenuItem
+                  key={p.id}
+                  icon={p.id === mainId ? <MainPlanMark /> : undefined}
+                  onSelect={() => onOpenOther(p.id)}
+                >
+                  Open {p.name}
+                  {p.id === mainId ? (
+                    <span className="sr-only">, your main plan</span>
+                  ) : null}
+                </ActionMenuItem>
+              ))}
+              <ActionMenuSeparator />
+            </>
+          ) : null}
+          <ActionMenuItem
+            onSelect={() => {
+              renaming.current = true;
+              onRename("menu");
             }}
           >
-            {others.length > 0 ? (
-              <>
-                {others.map((p) => (
-                  <DropdownMenuItem
-                    key={p.id}
-                    onSelect={() => onOpenOther(p.id)}
-                  >
-                    {p.id === mainId ? <MainPlanMark /> : null}
-                    <span className="truncate">Open {p.name}</span>
-                    {p.id === mainId ? (
-                      <span className="sr-only">, your main plan</span>
-                    ) : null}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-              </>
-            ) : null}
-            <DropdownMenuItem
-              onSelect={() => {
-                renaming.current = true;
-                onRename("menu");
-              }}
+            Rename
+          </ActionMenuItem>
+          <ActionMenuItem onSelect={() => copyPlan(plan.id)}>
+            Duplicate
+          </ActionMenuItem>
+          {drafts && !main ? (
+            <ActionMenuItem
+              icon={<MainPlanMark />}
+              hint={`Chat, Plan, Todo and your calendar will use ${plan.name} for ${term}.`}
+              onSelect={() => makeMainPlan(plan.id, "menu")}
             >
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => copyPlan(plan.id)}>
-              Duplicate
-            </DropdownMenuItem>
-            {drafts && !main ? (
-              <DropdownMenuItem
-                className="max-w-[300px] items-start"
-                onSelect={() => makeMainPlan(plan.id, "menu")}
-              >
-                <MainPlanMark className="mt-1.5" />
-                <span className="min-w-0 flex-1">
-                  <span className="block">Make main plan</span>
-                  <span className="block text-muted text-xs">
-                    Chat, Plan, Todo and your calendar will use {plan.name} for{" "}
-                    {term}.
-                  </span>
-                </span>
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => deletePlan(plan.id)}
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              Make main plan
+            </ActionMenuItem>
+          ) : null}
+          <ActionMenuItem
+            variant="destructive"
+            onSelect={() => deletePlan(plan.id)}
+          >
+            Delete
+          </ActionMenuItem>
+        </ActionMenu>
       ) : null}
     </li>
   );
@@ -365,31 +354,33 @@ function OverflowMenu({
   onOpen: (id: string) => void;
 }) {
   return (
-    <DropdownMenu>
-      <WithTooltip label="More plans">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`${plans.length} more ${plans.length === 1 ? "plan" : "plans"}`}
-            className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
-          >
-            {plans.length} more
-            <ChevronDown size={12} aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent>
-        {plans.map((p) => (
-          <DropdownMenuItem key={p.id} onSelect={() => onOpen(p.id)}>
-            {p.id === mainId ? <MainPlanMark /> : null}
-            <span className="truncate">{p.name}</span>
-            {p.id === mainId ? (
-              <span className="sr-only">, your main plan</span>
-            ) : null}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ActionMenu
+      title="More plans"
+      tooltip="More plans"
+      trigger={
+        <button
+          type="button"
+          aria-label={`${plans.length} more ${plans.length === 1 ? "plan" : "plans"}`}
+          className="tnum flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-base text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg"
+        >
+          {plans.length} more
+          <ChevronDown size={12} aria-hidden="true" />
+        </button>
+      }
+    >
+      {plans.map((p) => (
+        <ActionMenuItem
+          key={p.id}
+          icon={p.id === mainId ? <MainPlanMark /> : undefined}
+          onSelect={() => onOpen(p.id)}
+        >
+          {p.name}
+          {p.id === mainId ? (
+            <span className="sr-only">, your main plan</span>
+          ) : null}
+        </ActionMenuItem>
+      ))}
+    </ActionMenu>
   );
 }
 
@@ -402,53 +393,52 @@ function NewPlanMenu({
 }) {
   const generating = useRef(false);
   return (
-    <DropdownMenu>
-      <WithTooltip label="New plan">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="New plan"
-            className="flex size-8 shrink-0 items-center max-[380px]:size-7 justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg"
-          >
-            <Plus size={15} aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent
-        className="w-[220px]"
-        onCloseAutoFocus={(event) => {
-          // Generate's course field takes focus instead of the + button,
-          // once the menu has let go of it.
-          if (generating.current) {
-            event.preventDefault();
-            useUi.getState().requestFocus("generate");
-          }
-          generating.current = false;
+    <ActionMenu
+      title="New plan"
+      tooltip="New plan"
+      className="w-[220px]"
+      // Generate's course field takes focus instead of the + button, once
+      // the menu has let go of it.
+      finalFocus={() => {
+        const sent = generating.current;
+        generating.current = false;
+        if (!sent) return null;
+        useUi.getState().requestFocus("generate");
+        return false;
+      }}
+      trigger={
+        <button
+          type="button"
+          aria-label="New plan"
+          className="flex size-8 shrink-0 items-center max-[380px]:size-7 justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg"
+        >
+          <Plus size={15} aria-hidden="true" />
+        </button>
+      }
+    >
+      <ActionMenuItem
+        hint="No courses yet"
+        onSelect={() => createEmptyPlan(termId)}
+      >
+        Empty plan
+      </ActionMenuItem>
+      {current ? (
+        <ActionMenuItem
+          hint="Try changes without losing this one"
+          onSelect={() => copyPlan(current.id)}
+        >
+          Copy of {current.name}
+        </ActionMenuItem>
+      ) : null}
+      <ActionMenuItem
+        hint="From a list of courses"
+        onSelect={() => {
+          generating.current = true;
+          openGenerate();
         }}
       >
-        <DropdownMenuItem onSelect={() => createEmptyPlan(termId)}>
-          <DropdownMenuItemText label="Empty plan" hint="No courses yet" />
-        </DropdownMenuItem>
-        {current ? (
-          <DropdownMenuItem onSelect={() => copyPlan(current.id)}>
-            <DropdownMenuItemText
-              label={`Copy of ${current.name}`}
-              hint="Try changes without losing this one"
-            />
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          onSelect={() => {
-            generating.current = true;
-            openGenerate();
-          }}
-        >
-          <DropdownMenuItemText
-            label="Generate plans…"
-            hint="From a list of courses"
-          />
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        Generate plans…
+      </ActionMenuItem>
+    </ActionMenu>
   );
 }

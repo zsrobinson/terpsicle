@@ -430,7 +430,10 @@ describe("ChatPage", () => {
         name: "Rooms from Plan A, your main plan",
       }),
     );
-    expect(screen.getByText(`${term} · your main plan`)).toBeInTheDocument();
+    // The plans are a group headed by the term (the menu's title too).
+    expect(
+      screen.getByRole("group", { name: `${term} · your main plan` }),
+    ).toBeVisible();
     await user.click(screen.getByRole("menuitemradio", { name: "Plan B" }));
     const pushed = client.sync.push.mock.calls[0]?.[0] as {
       docs: { body: { mainPlans: unknown; chatPlans: unknown } }[];

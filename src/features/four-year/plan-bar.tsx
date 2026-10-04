@@ -1,7 +1,6 @@
 import { useLocation } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
-  Check,
   ChevronDown,
   Copy,
   Eraser,
@@ -27,22 +26,10 @@ import {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuSub,
   usePhoneMenus,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -105,71 +92,71 @@ function DocMenu({ onRename }: { onRename: () => void }) {
   const docs = useFourYear((s) => s.history.present.docs);
   const setActive = useFourYear((s) => s.setActive);
   return (
-    <DropdownMenu>
-      <WithTooltip label="Switch, rename, copy or delete this four-year plan">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            // The kit's one selected fill, as the scheduler's open plan tab.
-            className="flex h-8 min-w-0 items-center gap-1 rounded-md bg-accent-soft pr-1.5 pl-2.5 font-medium text-base transition-colors hover:bg-hover data-[state=open]:bg-hover"
+    <ActionMenu
+      title="Four-year plans"
+      tooltip="Switch, rename, copy or delete this four-year plan"
+      className="w-[240px]"
+      trigger={
+        <button
+          type="button"
+          // The kit's one selected fill, as the scheduler's open plan tab.
+          className="flex h-8 min-w-0 items-center gap-1 rounded-md bg-accent-soft pr-1.5 pl-2.5 font-medium text-base transition-colors hover:bg-hover data-popup-open:bg-hover"
+        >
+          <span className="truncate">{doc.name}</span>
+          <ChevronDown
+            size={13}
+            aria-hidden="true"
+            className="shrink-0 text-muted"
+          />
+        </button>
+      }
+    >
+      {docs.length > 1 ? (
+        <>
+          <ActionMenuRadioGroup
+            label="Your four-year plans"
+            value={doc.id}
+            onValueChange={setActive}
           >
-            <span className="truncate">{doc.name}</span>
-            <ChevronDown
-              size={13}
-              aria-hidden="true"
-              className="shrink-0 text-muted"
-            />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent className="w-[240px]">
-        {docs.length > 1 ? (
-          <>
-            <DropdownMenuLabel>Your four-year plans</DropdownMenuLabel>
             {docs.map((d) => (
-              <DropdownMenuItem key={d.id} onSelect={() => setActive(d.id)}>
-                <span className="min-w-0 flex-1 truncate">{d.name}</span>
-                {d.id === doc.id ? <Check aria-hidden="true" /> : null}
-              </DropdownMenuItem>
+              <ActionMenuRadioItem key={d.id} value={d.id}>
+                {d.name}
+              </ActionMenuRadioItem>
             ))}
-            <DropdownMenuSeparator />
-          </>
-        ) : null}
-        <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => duplicateDoc(doc)}>
-          Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => newDoc(doc.firstTermId)}>
-          New four-year plan
-        </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            Starts in {fourYearTermLabel(doc.firstTermId)}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-[180px]">
-            <DropdownMenuRadioGroup
-              value={doc.firstTermId}
-              onValueChange={(term) => setFirstTerm(doc, term)}
-            >
-              {firstTermChoices(today).map((term) => (
-                <DropdownMenuRadioItem key={term} value={term}>
-                  {fourYearTermLabel(term)}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        {Object.keys(doc.grades).length > 0 ? (
-          <DropdownMenuItem onSelect={() => removeGrades(doc)}>
-            Remove grades
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={() => deleteDoc(doc)}>
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </ActionMenuRadioGroup>
+          <ActionMenuSeparator />
+        </>
+      ) : null}
+      <ActionMenuItem onSelect={onRename}>Rename</ActionMenuItem>
+      <ActionMenuItem onSelect={() => duplicateDoc(doc)}>
+        Duplicate
+      </ActionMenuItem>
+      <ActionMenuItem onSelect={() => newDoc(doc.firstTermId)}>
+        New four-year plan
+      </ActionMenuItem>
+      <ActionMenuSub
+        label={`Starts in ${fourYearTermLabel(doc.firstTermId)}`}
+        className="w-[180px]"
+      >
+        <ActionMenuRadioGroup
+          value={doc.firstTermId}
+          onValueChange={(term) => setFirstTerm(doc, term)}
+        >
+          {firstTermChoices(today).map((term) => (
+            <ActionMenuRadioItem key={term} value={term}>
+              {fourYearTermLabel(term)}
+            </ActionMenuRadioItem>
+          ))}
+        </ActionMenuRadioGroup>
+      </ActionMenuSub>
+      <ActionMenuSeparator />
+      {Object.keys(doc.grades).length > 0 ? (
+        <ActionMenuItem onSelect={() => removeGrades(doc)}>
+          Remove grades
+        </ActionMenuItem>
+      ) : null}
+      <ActionMenuItem onSelect={() => deleteDoc(doc)}>Delete</ActionMenuItem>
+    </ActionMenu>
   );
 }
 

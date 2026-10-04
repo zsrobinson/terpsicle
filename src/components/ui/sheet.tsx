@@ -4,16 +4,19 @@ import {
   type ComponentProps,
   isValidElement,
   type ReactNode,
+  useEffect,
   useState,
 } from "react";
 import { HapticTap } from "./haptic";
+import { usePageIndent } from "./sheet-indent";
 import { WithTooltip } from "./tooltip";
 
 // The phone sheet (docs/COHESION.md §1.5): what a desktop popover becomes
 // on a phone, a Base UI Drawer from the bottom edge with a grabber, a
 // keyline and the drawer's offset along its top, square like the rest of
 // the Ink brand. A swipe down (a quick flick is enough), a tap above it or
-// Esc closes it, and the page behind scales back (./sheet-indent.tsx). Its
+// Esc closes it, and the page behind scales back (./sheet-indent.tsx), from
+// wherever it was opened, the workbench drawer included. Its
 // heading is the caller's, wrapped in `SheetTitle` so the sheet is named by
 // it: `<PageHeader size="panel" title={<SheetTitle asChild><span>…`.
 //
@@ -98,6 +101,13 @@ function Sheet({
     if (open) setSnap(first);
   }
   const large = snap === SNAP.large;
+  // The page scales back behind every sheet, the workbench drawer's too
+  // (./sheet-indent.tsx).
+  const holdPage = usePageIndent();
+  useEffect(
+    () => (open && holdPage ? holdPage() : undefined),
+    [open, holdPage],
+  );
   return (
     <Drawer.Root
       open={open}

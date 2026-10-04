@@ -254,7 +254,15 @@ function AccountItems({
         <ActionMenuLinkItem
           href="/settings#watching"
           tooltip="The sections you're watching for a seat"
-          icon={<Bell aria-hidden="true" className="text-muted" />}
+          // The glossary's "Watching" mark, a filled bell, as beside a
+          // watched section: Notifications above it keeps the plain bell.
+          icon={
+            <Bell
+              aria-hidden="true"
+              fill="currentColor"
+              className="text-muted"
+            />
+          }
         >
           Watching for a seat
         </ActionMenuLinkItem>

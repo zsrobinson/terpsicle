@@ -1145,7 +1145,7 @@ describe("your own tasks", () => {
     await screen.findByRole("checkbox", { name: "Done: Project 2" });
     // An ELMS item: check it off, or open it in ELMS.
     fireEvent.contextMenu(card("Project 2"), { clientX: 20, clientY: 20 });
-    let menu = await screen.findByRole("menu", { name: "Project 2, actions" });
+    let menu = await screen.findByRole("menu", { name: "Project 2" });
     expect(
       within(menu)
         .getAllByRole("menuitem")
@@ -1158,7 +1158,7 @@ describe("your own tasks", () => {
     });
     // Your own task: check it, change it, move it, or delete it.
     fireEvent.contextMenu(card("Office hours"), { clientX: 20, clientY: 20 });
-    menu = await screen.findByRole("menu", { name: "Office hours, actions" });
+    menu = await screen.findByRole("menu", { name: "Office hours" });
     expect(
       within(menu)
         .getAllByRole("menuitem")
@@ -1185,7 +1185,7 @@ describe("your own tasks", () => {
     );
     // Edit opens its details on its fields.
     fireEvent.contextMenu(card("Office hours"), { clientX: 20, clientY: 20 });
-    menu = await screen.findByRole("menu", { name: "Office hours, actions" });
+    menu = await screen.findByRole("menu", { name: "Office hours" });
     await user.click(within(menu).getByRole("menuitem", { name: "Edit" }));
     expect(await screen.findByRole("textbox", { name: "Title" })).toHaveValue(
       "Office hours",
