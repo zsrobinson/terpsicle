@@ -1,14 +1,22 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { elementCrop } from "~/core/feedback/redact";
 import type { FeedbackProduct, Pin } from "~/core/schema/feedback";
-import { feedbackApi } from "~/server/fns/feedback-api";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { noteToast, undoToast } from "~/ui/toast";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
 import { describeElement } from "./element";
+import { pinMutation, pinsQuery, unpin } from "./pin-queries";
 import { usePins } from "./pin-store";
 import {
   base64Of,
@@ -70,8 +78,7 @@ const STATUS_WORDS: Record<Pin["status"], string> = {
   spam: "Spam",
 };
 
-function PinDots() {
-  const pins = usePins((s) => s.pins);
+function PinDots({ pins }: { pins: readonly Pin[] }) {
   const visible = usePins((s) => s.visible);
   useTick(visible && pins.length > 0);
   if (!visible) return null;
@@ -124,9 +131,11 @@ function pickable(x: number, y: number): Element | null {
 }
 
 function Picker({
+  pathname,
   product,
   onDone,
 }: {
+  pathname: string;
   product: FeedbackProduct;
   onDone: () => void;
 }) {
@@ -218,6 +227,7 @@ function Picker({
       </div>
       {picked && outline ? (
         <NoteBox
+          pathname={pathname}
           element={picked}
           at={outline}
           product={product}
@@ -230,12 +240,15 @@ function Picker({
 }
 
 function NoteBox({
+  pathname,
   element,
   at,
   product,
   onCancel,
   onPinned,
 }: {
+  /** The route whose pins it joins. */
+  pathname: string;
   element: Element;
   at: Box;
   product: FeedbackProduct;
@@ -246,6 +259,8 @@ function NoteBox({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const id = useId();
+  const queryClient = useQueryClient();
+  const pinning = useMutation(pinMutation());
 
   const pin = async () => {
     if (!text.trim() || saving) return;
@@ -271,21 +286,24 @@ function NoteBox({
         // A note without pictures still says where it was.
         console.warn("Pin screenshot failed", e);
       }
-      const result = await feedbackApi.pin({
-        product,
-        path: window.location.pathname + window.location.search,
-        text: text.trim(),
-        element: described,
-        ...(screenshot ? { screenshot } : {}),
-        ...(elementShot ? { elementShot } : {}),
-        context: {
-          version: APP_VERSION,
-          viewport,
-          theme: currentTheme(),
+      // Its dot shows from here (./pin-queries).
+      const result = await pinning.mutateAsync({
+        pathname,
+        at: new Date(),
+        input: {
+          product,
+          path: window.location.pathname + window.location.search,
+          text: text.trim(),
+          element: described,
+          ...(screenshot ? { screenshot } : {}),
+          ...(elementShot ? { elementShot } : {}),
+          context: {
+            version: APP_VERSION,
+            viewport,
+            theme: currentTheme(),
+          },
         },
       });
-      const pathname = window.location.pathname;
-      void usePins.getState().load(pathname);
       // The kit's Undo, as for sent feedback (send.tsx): one window, and
       // focus on Undo holds it open.
       undoToast({
@@ -293,12 +311,14 @@ function NoteBox({
         message: "Pinned.",
         tooltip: "Take the note back",
         onUndo: () =>
-          void feedbackApi
-            .undo({ id: result.id, undoToken: result.undoToken })
+          void unpin(queryClient, {
+            pathname,
+            id: result.id,
+            undoToken: result.undoToken,
+          })
             .then(({ status }) => {
               if (status !== "undone")
                 noteToast("Too late to undo: the note's already in the inbox.");
-              return usePins.getState().load(pathname);
             })
             .catch(() =>
               noteToast("Couldn't undo. Check your connection and try again."),
@@ -392,28 +412,45 @@ function NoteBox({
   );
 }
 
+function onHistory(change: () => void): () => void {
+  window.addEventListener("popstate", change);
+  return () => window.removeEventListener("popstate", change);
+}
+
+/**
+ * The page's own pathname, where its pins are (the server matches it
+ * exactly). The bar's can be its product's root: the scheduler's tabs are
+ * routes under /schedule. Read on every render, which a new bar pathname
+ * or picking brings, and on Back and Forward.
+ */
+function usePagePathname(): string {
+  return useSyncExternalStore(onHistory, () => window.location.pathname);
+}
+
 /**
  * Everything admin-only on a page: the dots, and the picker while "Pin a
- * note" is on. Loads its route's pins, again whenever the route changes.
+ * note" is on. Asks for its route's pins on each route; none is fine
+ * (they're a convenience, and the inbox has them all).
  */
 export function AdminLayer({
-  pathname,
   product,
 }: {
+  /** The bar's pathname: a change draws the page's pins again. */
   pathname: string;
   product: FeedbackProduct;
 }) {
+  const pathname = usePagePathname();
   const picking = usePins((s) => s.picking);
   const stop = useCallback(() => usePins.getState().setPicking(false), []);
-  useEffect(() => {
-    void usePins.getState().load(pathname);
-  }, [pathname]);
+  const pins = useQuery(pinsQuery(pathname));
   // Leaving the page stops picking.
   useEffect(() => () => usePins.getState().setPicking(false), []);
   return (
     <>
-      <PinDots />
-      {picking ? <Picker product={product} onDone={stop} /> : null}
+      <PinDots pins={pins.data ?? []} />
+      {picking ? (
+        <Picker pathname={pathname} product={product} onDone={stop} />
+      ) : null}
     </>
   );
 }

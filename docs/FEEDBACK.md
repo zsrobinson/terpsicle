@@ -19,7 +19,7 @@ Signed-in people also get **You can reply by email**, off by default. Only then 
 
 ## Pinned notes
 
-Admins get a third mode in the sheet, **Pin a note**: hover outlines elements, a click opens a note box beside one, and the note stores the element (a stable selector, its visible text, its `data-*` ids and where it was), a cropped screenshot of it and one of the viewport, the page with its search params, viewport, theme, app version and the deployment's host. They land in the inbox as kind `review`. On the page they show as numbered dots, to admins only, on their route only.
+Admins get a third mode in the sheet, **Pin a note**: hover outlines elements, a click opens a note box beside one, and the note stores the element (a stable selector, its visible text, its `data-*` ids and where it was), a cropped screenshot of it and one of the viewport, the page with its search params, viewport, theme, app version and the deployment's host. They land in the inbox as kind `review`. On the page they show as numbered dots, to admins only, on their route only: the page's own pathname (a scheduler tab's, not `/schedule`), asked for as a query on each visit (`src/features/feedback/pin-queries.ts`). A new pin's dot shows as Pin is pressed and an Undo's goes at once; either comes back as it was if the server doesn't take it.
 
 ## The inbox and triage
 

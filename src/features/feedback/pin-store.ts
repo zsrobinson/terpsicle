@@ -1,10 +1,8 @@
 import { create } from "zustand";
-import type { Pin } from "~/core/schema/feedback";
-import { feedbackApi } from "~/server/fns/feedback-api";
 
 // The admin's pinned notes on this page (docs/FEEDBACK.md): whether the
-// dots show (remembered in this browser), whether the picker is on, and the
-// pins for the current route.
+// dots show (remembered in this browser) and whether the picker is on. The
+// pins themselves are a query (./pin-queries).
 
 const HIDDEN_KEY = "terpsicle:feedback-pins-hidden";
 
@@ -19,19 +17,13 @@ function readVisible(): boolean {
 interface PinState {
   visible: boolean;
   picking: boolean;
-  pathname: string | null;
-  pins: readonly Pin[];
   setVisible: (visible: boolean) => void;
   setPicking: (picking: boolean) => void;
-  /** Loads the pins on `pathname`; again after pinning. */
-  load: (pathname: string) => Promise<void>;
 }
 
-export const usePins = create<PinState>()((set, get) => ({
+export const usePins = create<PinState>()((set) => ({
   visible: readVisible(),
   picking: false,
-  pathname: null,
-  pins: [],
   setVisible: (visible) => {
     try {
       if (visible) localStorage.removeItem(HIDDEN_KEY);
@@ -42,13 +34,4 @@ export const usePins = create<PinState>()((set, get) => ({
     set({ visible });
   },
   setPicking: (picking) => set({ picking }),
-  load: async (pathname) => {
-    if (get().pathname !== pathname) set({ pathname, pins: [] });
-    try {
-      const { pins } = await feedbackApi.pins({ pathname });
-      if (get().pathname === pathname) set({ pins });
-    } catch {
-      // No dots is fine: they're a convenience, and the inbox has them all.
-    }
-  },
 }));
