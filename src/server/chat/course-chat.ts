@@ -285,7 +285,7 @@ export class CourseChat extends DurableObject<Env> {
     const [course, profile, sections] = await Promise.all([
       this.#course(),
       this.#profile(att.user, 0),
-      planSections(this.env.DB, att.user, att.term, att.course),
+      planSections(this.env, att.user, att.term, att.course),
     ]);
     if (!profile?.active) {
       this.#error(ws, null, "signed-out");
@@ -697,7 +697,7 @@ export class CourseChat extends DurableObject<Env> {
     const [course, sections] = await Promise.all([
       this.#course(),
       planSections(
-        this.env.DB,
+        this.env,
         target.reporterId,
         target.termId,
         target.courseCode,
@@ -925,7 +925,7 @@ export class CourseChat extends DurableObject<Env> {
       const sections =
         course && rows.some((r) => parseRoomId(r.room_id)?.kind !== "course")
           ? await planSections(
-              this.env.DB,
+              this.env,
               userId,
               target.termId,
               target.courseCode,
@@ -967,7 +967,7 @@ export class CourseChat extends DurableObject<Env> {
     const course = await this.#course();
     if (!course) return [];
     const sections = await planSections(
-      this.env.DB,
+      this.env,
       target.userId,
       target.termId,
       target.courseCode,

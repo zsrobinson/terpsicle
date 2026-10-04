@@ -10,7 +10,7 @@ import {
   feedPlanFor,
   feedTermIds,
 } from "~/core/ics";
-import { sectionKey, type TermId } from "~/core/schema";
+import { sectionKey, type TermId, type UserDataKeyVars } from "~/core/schema";
 import type {
   CalendarFeedResetResult,
   CalendarFeedResult,
@@ -21,14 +21,13 @@ import type { RouteContext } from "../api/route";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import { findSection, memoJson, readCalendar } from "../published";
+import { livePlans, mainPlansOf } from "../sync/store";
 import { doneAmong, hiddenCourses, listItems, listTasks } from "../todo/store";
 import {
   createFeed,
   feedOwner,
   getFeed,
-  mainPlansOf,
   markFetched,
-  plansInTerms,
   replaceFeed,
 } from "./store";
 import {
@@ -39,7 +38,8 @@ import {
   tokenFromPath,
 } from "./token";
 
-export interface CalendarFeedEnv {
+/** Plans and own tasks are sealed with the account's key (../security/user-keys.ts). */
+export interface CalendarFeedEnv extends UserDataKeyVars {
   DB: D1Database;
   /** The published catalog and calendars, and the HMAC key (under _jobs/). */
   DATA: R2Bucket;
@@ -124,8 +124,8 @@ async function feedTerms(
   termIds: readonly TermId[],
 ): Promise<FeedTerm[]> {
   const [plans, mainPlans] = await Promise.all([
-    plansInTerms(env.DB, userId, termIds),
-    mainPlansOf(env.DB, userId),
+    livePlans(env, userId, termIds),
+    mainPlansOf(env, userId),
   ]);
   const catalog = memoJson(env.DATA);
   const terms: FeedTerm[] = [];
@@ -159,7 +159,7 @@ async function feedBody(
   const [terms, items, tasks, hiddenKeys] = await Promise.all([
     feedTerms(env, userId, feedTermIds(today)),
     listItems(env.DB, userId, null),
-    listTasks(env.DB, userId, null, { undated: false }),
+    listTasks(env, userId, null, { undated: false }),
     hiddenCourses(env.DB, userId),
   ]);
   const hidden = new Set(hiddenKeys);

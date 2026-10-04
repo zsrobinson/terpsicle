@@ -8,6 +8,7 @@ import type {
   SyncPullResult,
   SyncPushInput,
   SyncPushResult,
+  UserDataKeyVars,
 } from "~/core/schema";
 import { FourYearDocSchema } from "~/core/schema/four-year";
 import { captureServerEvent } from "../analytics";
@@ -16,7 +17,8 @@ import type { IdentityRouteContext } from "../auth/api";
 import { refreshChatMembers } from "../chat/store";
 import { pullDocs, pushDocs } from "./store";
 
-export interface SyncEnv {
+/** Bodies are sealed with each account's key (../security/user-keys.ts). */
+export interface SyncEnv extends UserDataKeyVars {
   DB: D1Database;
   POSTHOG_TOKEN?: string;
   /** "true" lets four-year docs be saved (docs/V3.md §2.4, §8). */
@@ -47,12 +49,12 @@ export async function push(
       !FourYearDocSchema.safeParse(d.body).success,
   );
   if (invalidFourYear) return apiError("invalid-input");
-  const results = await pushDocs(env.DB, user.id, input.docs, ctx.now);
+  const results = await pushDocs(env, user.id, input.docs, ctx.now);
   // Chat rooms come from the stored plans (V2.md §8.2): what was saved moves
   // the person's chat_members.
   const saved = results.filter((r) => r.status === "ok");
   await refreshChatMembers(
-    env.DB,
+    env,
     user.id,
     {
       planIds: saved.filter((r) => r.kind === "plan").map((r) => r.id),
@@ -82,5 +84,5 @@ export async function pull(
 ): Promise<SyncPullResult | Response> {
   const user = ctx.session?.user;
   if (!user) return apiError("unauthorized");
-  return pullDocs(env.DB, user.id, input.since);
+  return pullDocs(env, user.id, input.since);
 }

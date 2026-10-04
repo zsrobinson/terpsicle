@@ -2,9 +2,21 @@
 // interactive transactions, but a batch runs as one: each push is a single
 // batch, so its reads, head bumps and writes can't interleave with another
 // push, and of two pushes on the same base rev exactly one wins.
+//
+// Every `sync_docs.body` is sealed with the account's key, bound to its
+// (user, kind, doc id) (docs/DATA.md §7.7, migrations/0025_sync_encryption.sql).
+// This is the only file that touches the table's rows
+// (scripts/check-imports.ts): Chat and the calendar feed read plans and
+// settings through `livePlans`, `settingsDocOf` and `membershipDocs` below,
+// and every body is opened by `openBody`.
 import { z } from "zod";
 import {
+  type MainPlans,
+  type Plan,
+  PlanDocSchema,
   RevSchema,
+  type SettingsDoc,
+  SettingsDocSchema,
   SYNC_MAX_FOUR_YEAR_DOCS,
   SYNC_MAX_PLANS,
   SYNC_PULL_PAGE,
@@ -15,7 +27,16 @@ import {
   type SyncPushDoc,
   type SyncPushDocResult,
   syncDocFromRow,
+  type TermId,
 } from "~/core/schema";
+import {
+  type AccountKey,
+  accountKey,
+  openForAccount,
+  SealedDataError,
+  sealForAccount,
+  type UserDataEnv,
+} from "../security/user-keys";
 
 const DAY_MS = 86_400_000;
 
@@ -75,17 +96,65 @@ const SAVE_DOC = `INSERT INTO sync_docs
     updated_at = excluded.updated_at
   RETURNING rev`;
 
+// ---------- Sealed bodies ----------
+
+/** Where a body lives: what it's bound to, after the account's id. */
+const bodyWhere = (kind: string, docId: string) => ["sync-doc", kind, docId];
+
+/** A body sealed for its row. */
+function sealBody(
+  account: AccountKey | null,
+  kind: string,
+  docId: string,
+  json: string,
+): Promise<string> {
+  if (!account) throw new SealedDataError();
+  return sealForAccount(account, bodyWhere(kind, docId), json);
+}
+
+/**
+ * The one way a stored body is read: opened with the account's key for the
+ * row it's in, so a body copied to another row or account, or changed,
+ * throws (SealedDataError) rather than being read.
+ */
+function openBody(
+  account: AccountKey | null,
+  kind: string,
+  docId: string,
+  sealed: string,
+): Promise<string> {
+  if (!account) throw new SealedDataError();
+  return openForAccount(account, bodyWhere(kind, docId), sealed);
+}
+
+/** A row as stored, with its body opened (still JSON text). */
+async function openRow(
+  account: AccountKey | null,
+  row: SyncDocRow,
+): Promise<SyncDocRow> {
+  if (row.body === null) return row;
+  return {
+    ...row,
+    body: await openBody(account, row.kind, row.doc_id, row.body),
+  };
+}
+
 /**
  * Saves each doc whose stored rev is its `baseRev`. Docs are independent: a
  * conflict on one doesn't stop the others. Results are in the push's order.
+ * The account's key is made by its first push of a doc with a body.
  */
 export async function pushDocs(
-  db: D1Database,
+  env: UserDataEnv,
   userId: string,
   docs: readonly SyncPushDoc[],
   now: Date,
 ): Promise<SyncPushDocResult[]> {
+  const db = env.DB;
   const at = now.toISOString();
+  const account = await accountKey(env, userId, {
+    create: docs.some((d) => d.body !== null),
+  });
   const statements: D1PreparedStatement[] = [
     db
       .prepare(
@@ -104,7 +173,10 @@ export async function pushDocs(
       CAPS[doc.kind],
     ];
     const termId = doc.kind === "plan" && doc.body ? doc.body.termId : null;
-    const body = doc.body === null ? null : JSON.stringify(doc.body);
+    const body =
+      doc.body === null
+        ? null
+        : await sealBody(account, doc.kind, doc.id, JSON.stringify(doc.body));
     statements.push(
       // What was stored when the decision was made, for a conflict's answer.
       db
@@ -117,22 +189,28 @@ export async function pushDocs(
     );
   }
   const results = await db.batch(statements);
-  return docs.map((doc, i): SyncPushDocResult => {
+  const answers: SyncPushDocResult[] = [];
+  for (const [i, doc] of docs.entries()) {
     const ref = { kind: doc.kind, id: doc.id };
     const before = results[1 + i * 3]?.results[0];
     const saved = results[3 + i * 3]?.results[0];
-    if (saved)
-      return { ...ref, status: "ok", rev: SavedSchema.parse(saved).rev };
+    if (saved) {
+      answers.push({ ...ref, status: "ok", rev: SavedSchema.parse(saved).rev });
+      continue;
+    }
     const stored = before ? SyncDocRowSchema.parse(before) : null;
-    if ((stored?.rev ?? 0) !== doc.baseRev)
-      return {
+    if ((stored?.rev ?? 0) !== doc.baseRev) {
+      answers.push({
         ...ref,
         status: "conflict",
-        doc: stored ? syncDocFromRow(stored) : null,
-      };
+        doc: stored ? syncDocFromRow(await openRow(account, stored)) : null,
+      });
+      continue;
+    }
     // The base matched, so only its kind's cap can have stopped it.
-    return { ...ref, status: "too-many-plans" };
-  });
+    answers.push({ ...ref, status: "too-many-plans" });
+  }
+  return answers;
 }
 
 /**
@@ -141,10 +219,11 @@ export async function pushDocs(
  * of the account's head (the account was deleted and made again).
  */
 export async function pullDocs(
-  db: D1Database,
+  env: UserDataEnv,
   userId: string,
   since: number,
 ): Promise<SyncPullResult> {
+  const db = env.DB;
   // One batch, so the head and the page are read at the same moment.
   const [heads, page] = await db.batch([
     db
@@ -166,7 +245,13 @@ export async function pullDocs(
   const rows: SyncDocRow[] = (page?.results ?? []).map((r) =>
     SyncDocRowSchema.parse(r),
   );
-  const docs = rows.slice(0, SYNC_PULL_PAGE).map(syncDocFromRow);
+  const shown = rows.slice(0, SYNC_PULL_PAGE);
+  const account = shown.some((r) => r.body !== null)
+    ? await accountKey(env, userId)
+    : null;
+  const docs = await Promise.all(
+    shown.map(async (r) => syncDocFromRow(await openRow(account, r))),
+  );
   return {
     status: "ok",
     cursor: docs.at(-1)?.rev ?? since,
@@ -207,4 +292,156 @@ export async function pruneTombstones(
       .bind(cutoff),
   ]);
   return pruned?.meta.changes ?? 0;
+}
+
+// ---------- What Chat and the calendar feed read ----------
+
+const BodyRowSchema = z.object({
+  kind: SyncDocRowSchema.shape.kind,
+  doc_id: z.string(),
+  body: z.string(),
+});
+
+/** Opens live rows' bodies and checks each against its kind's schema. */
+async function openLive(
+  env: UserDataEnv,
+  userId: string,
+  results: readonly unknown[],
+): Promise<{ plans: Plan[]; settings: SettingsDoc | null }> {
+  const rows = results.map((r) => BodyRowSchema.parse(r));
+  const account = rows.length > 0 ? await accountKey(env, userId) : null;
+  const plans: Plan[] = [];
+  let settings: SettingsDoc | null = null;
+  for (const row of rows) {
+    const body: unknown = JSON.parse(
+      await openBody(account, row.kind, row.doc_id, row.body),
+    );
+    if (row.kind === "plan") {
+      const plan = PlanDocSchema.safeParse(body);
+      if (plan.success) plans.push(plan.data);
+    } else if (row.kind === "settings") {
+      const parsed = SettingsDocSchema.safeParse(body);
+      if (parsed.success) settings = parsed.data;
+    }
+  }
+  return { plans, settings };
+}
+
+/** The person's live plans in these terms. */
+export async function livePlans(
+  env: UserDataEnv,
+  userId: string,
+  termIds: readonly TermId[],
+): Promise<Plan[]> {
+  if (termIds.length === 0) return [];
+  const { results } = await env.DB.prepare(
+    `SELECT kind, doc_id, body FROM sync_docs
+     WHERE user_id = ?1 AND kind = 'plan' AND deleted = 0
+       AND term_id IN (SELECT value FROM json_each(?2))`,
+  )
+    .bind(userId, JSON.stringify(termIds))
+    .all();
+  return (await openLive(env, userId, results)).plans;
+}
+
+/** The person's settings doc, or null before its first save. */
+export async function settingsDocOf(
+  env: UserDataEnv,
+  userId: string,
+): Promise<SettingsDoc | null> {
+  const { results } = await env.DB.prepare(
+    `SELECT kind, doc_id, body FROM sync_docs
+     WHERE user_id = ?1 AND kind = 'settings' AND deleted = 0`,
+  )
+    .bind(userId)
+    .all();
+  return (await openLive(env, userId, results)).settings;
+}
+
+/** Each term's main plan, from the settings doc; none before its first save. */
+export async function mainPlansOf(
+  env: UserDataEnv,
+  userId: string,
+): Promise<MainPlans> {
+  return (await settingsDocOf(env, userId))?.mainPlans ?? {};
+}
+
+const TermRowSchema = z.object({ term_id: z.string().nullable() });
+
+/** The terms of these plans (live ones and tombstones). */
+export async function termsOfPlans(
+  db: D1Database,
+  userId: string,
+  planIds: readonly string[],
+): Promise<TermId[]> {
+  if (planIds.length === 0) return [];
+  const { results } = await db
+    .prepare(
+      `SELECT DISTINCT term_id FROM sync_docs
+       WHERE user_id = ?1 AND kind = 'plan'
+         AND doc_id IN (SELECT value FROM json_each(?2))`,
+    )
+    .bind(userId, JSON.stringify(planIds))
+    .all();
+  return results.flatMap((r) => TermRowSchema.parse(r).term_id ?? []);
+}
+
+const HeadOnlySchema = z.object({ head: RevSchema });
+
+/**
+ * The person's head rev, read in one moment with their live plans in these
+ * terms and their settings doc: Chat rewrites its membership from them only
+ * while the head is still the one read.
+ */
+export async function membershipDocs(
+  env: UserDataEnv,
+  userId: string,
+  termIds: readonly TermId[],
+): Promise<{ head: number; plans: Plan[]; settings: SettingsDoc | null }> {
+  const [head, docs] = await env.DB.batch([
+    env.DB.prepare("SELECT head FROM sync_heads WHERE user_id = ?1").bind(
+      userId,
+    ),
+    env.DB.prepare(
+      `SELECT kind, doc_id, body FROM sync_docs
+       WHERE user_id = ?1 AND deleted = 0
+         AND (kind = 'settings' OR term_id IN (SELECT value FROM json_each(?2)))`,
+    ).bind(userId, JSON.stringify(termIds)),
+  ]);
+  return {
+    head: HeadOnlySchema.parse(head?.results[0] ?? { head: 0 }).head,
+    ...(await openLive(env, userId, docs?.results ?? [])),
+  };
+}
+
+/**
+ * For tests that write `sync_docs` rows directly: a body sealed as
+ * `pushDocs` seals it (making the account's key if it has none).
+ */
+export async function sealedBodyFor(
+  env: UserDataEnv,
+  userId: string,
+  kind: string,
+  docId: string,
+  body: unknown,
+): Promise<string> {
+  return sealBody(
+    await accountKey(env, userId, { create: true }),
+    kind,
+    docId,
+    JSON.stringify(body),
+  );
+}
+
+/** For tests that read `sync_docs` rows directly: a body as `pullDocs` opens it. */
+export async function openedBodyFor(
+  env: UserDataEnv,
+  userId: string,
+  kind: string,
+  docId: string,
+  sealed: string,
+): Promise<unknown> {
+  return JSON.parse(
+    await openBody(await accountKey(env, userId), kind, docId, sealed),
+  );
 }

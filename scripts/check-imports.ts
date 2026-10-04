@@ -6,6 +6,10 @@
 // - src/core never reads the clock: time comes in as an argument (CLAUDE.md);
 // - only src/server/todo/crypto.ts and fetch.ts touch the sealed ELMS feed
 //   link: its `url_enc` column and `openFeedLink` (docs/V3.md §5.1);
+// - only the files SEALED_TABLES lists name the tables holding what an
+//   account's key sealed (`sync_docs`, `todo_tasks`) or the keys themselves
+//   (`user_keys`), so every read goes through the code that opens them
+//   (docs/DATA.md §7.7);
 // - only the kit (src/components/ui) imports the haptic trick: controls
 //   tick through their `haptic` prop, never feature code (docs/decisions.md,
 //   "Haptics live in the kit");
@@ -36,6 +40,41 @@ const FEED_LINK = /\burl_enc\b|\bopenFeedLink\b/g;
 export const FEED_LINK_FILES: readonly string[] = [
   "src/server/todo/crypto.ts",
   "src/server/todo/fetch.ts",
+];
+
+/**
+ * Tables holding what an account's key sealed, or the keys themselves, and
+ * the only files that may name them (docs/DATA.md §7.7). Everyone else reads
+ * synced docs through src/server/sync/store.ts, which opens every body.
+ * purge.ts only deletes their rows.
+ */
+export const SEALED_TABLES: readonly {
+  pattern: RegExp;
+  files: readonly string[];
+  use: string;
+}[] = [
+  {
+    pattern: /\bsync_docs\b/g,
+    files: ["src/server/sync/store.ts", "src/server/auth/purge.ts"],
+    use: "read synced docs through src/server/sync/store.ts, which opens their sealed bodies",
+  },
+  {
+    pattern: /\buser_keys\b|\bwrapped_key\b/g,
+    files: ["src/server/security/user-keys.ts", "src/server/auth/purge.ts"],
+    use: "get an account's key from src/server/security/user-keys.ts",
+  },
+  {
+    // The due-tomorrow job selects tasks by date only; testing.ts (worker
+    // tests' helpers) only empties the table.
+    pattern: /\btodo_tasks\b/g,
+    files: [
+      "src/server/todo/store.ts",
+      "src/server/todo/due-tomorrow.ts",
+      "src/server/todo/testing.ts",
+      "src/server/auth/purge.ts",
+    ],
+    use: "read own tasks through src/server/todo/store.ts, which opens their sealed titles",
+  },
 ];
 
 /** The folder whose files may import {@link HAPTIC_MODULE}. */
@@ -74,7 +113,11 @@ function aliasFolder(absPath: string): string {
 function isCommented(text: string, index: number): boolean {
   const lineStart = text.lastIndexOf("\n", index) + 1;
   const trimmed = text.slice(lineStart, index).trimStart();
-  return trimmed.startsWith("//") || trimmed.startsWith("*");
+  return (
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/*") ||
+    trimmed.startsWith("*")
+  );
 }
 
 export function findImportProblems(rel: string, text: string): string[] {
@@ -143,6 +186,17 @@ export function findImportProblems(rel: string, text: string): string[] {
       problems.push(
         `${at(match.index)}  "${match[0]}": only ${FEED_LINK_FILES.join(" and ")} may touch the sealed feed link (docs/V3.md §5.1)`,
       );
+    }
+  }
+  if (!isTestFile(rel)) {
+    for (const table of SEALED_TABLES) {
+      if (table.files.includes(rel)) continue;
+      for (const match of text.matchAll(table.pattern)) {
+        if (isCommented(text, match.index)) continue;
+        problems.push(
+          `${at(match.index)}  "${match[0]}": only ${table.files.join(", ")} may name it; ${table.use} (docs/DATA.md §7.7)`,
+        );
+      }
     }
   }
   return problems;

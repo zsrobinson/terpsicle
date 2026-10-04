@@ -35,6 +35,7 @@ import { NOTIFICATIONS_ROUTES } from "../notifications/api-routes";
 import { EMAIL_OFF_ROUTE, handleEmailOff } from "../notifications/email-off";
 import { PUSH_ROUTES } from "../push/api-routes";
 import { REVIEWS_ROUTES } from "../reviews/api-routes";
+import { UserDataKeyMissing } from "../security/user-keys";
 import { SYNC_ROUTES } from "../sync/api-routes";
 import { TODO_ROUTES } from "../todo/api-routes";
 import {
@@ -208,15 +209,24 @@ export async function handleApi(
   );
   if (input === null) return reply(apiError("invalid-input"));
 
-  const result = await r.handle(env, input, {
-    now,
-    origin: linkOrigin(url),
-    waitUntil: (p) => ctx.waitUntil(p),
-    request,
-    session,
-    ...(options.fetch ? { fetch: options.fetch } : {}),
-    moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
-    authorActors: options.authorActors ?? authorActors(env),
-  });
+  let result: unknown;
+  try {
+    result = await r.handle(env, input, {
+      now,
+      origin: linkOrigin(url),
+      waitUntil: (p) => ctx.waitUntil(p),
+      request,
+      session,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+      moderationHandlers: options.moderationHandlers ?? moderationHandlers(env),
+      authorActors: options.authorActors ?? authorActors(env),
+    });
+  } catch (error) {
+    // Synced data without its secret: closed, never read or written in plain
+    // text (src/server/security/user-keys.ts).
+    if (error instanceof UserDataKeyMissing)
+      return reply(apiError("unavailable"));
+    throw error;
+  }
   return reply(result instanceof Response ? result : json(result));
 }

@@ -22,6 +22,14 @@ import {
   TodoTaskUidSchema,
 } from "~/core/schema";
 import { newYorkDateOf, ownTaskItem } from "~/core/todo";
+import {
+  type AccountKey,
+  accountKey,
+  openForAccount,
+  SealedDataError,
+  sealForAccount,
+  type UserDataEnv,
+} from "../security/user-keys";
 import type { FeedOwner } from "./crypto";
 
 export const TodoFeedRowSchema = z.object({
@@ -434,6 +442,10 @@ export async function setDone(
 
 // ---------- Own tasks ----------
 
+// A task's title is what the person typed, so it's sealed with their
+// account's key, bound to the task (docs/DATA.md §7.7). Dates and the course
+// stay plain: the due-tomorrow job and the calendar feed select by them.
+
 export const TodoTaskRowSchema = z.object({
   user_id: z.string(),
   uid: TodoTaskUidSchema,
@@ -446,6 +458,21 @@ export const TodoTaskRowSchema = z.object({
 });
 export type TodoTaskRow = z.infer<typeof TodoTaskRowSchema>;
 
+const titleWhere = (uid: string) => ["todo-task", uid];
+
+/** The row with its title opened; throws if it won't open. */
+async function openTask(
+  account: AccountKey | null,
+  raw: unknown,
+): Promise<TodoTaskRow> {
+  const row = TodoTaskRowSchema.parse(raw);
+  if (!account) throw new SealedDataError();
+  return {
+    ...row,
+    title: await openForAccount(account, titleWhere(row.uid), row.title),
+  };
+}
+
 const toTaskItem = (row: TodoTaskRow): TodoItem =>
   ownTaskItem({
     uid: row.uid,
@@ -455,26 +482,46 @@ const toTaskItem = (row: TodoTaskRow): TodoItem =>
     dueDate: row.due_date,
   });
 
+/** SQLite's order for these columns: nulls first, then by code unit. */
+const compareNullable = (a: string | null, b: string | null) =>
+  a === b ? 0 : a === null ? -1 : b === null ? 1 : a < b ? -1 : 1;
+
+/**
+ * Soonest first: dated before undated, then by date, untimed before timed,
+ * by time, then by title (only readable once opened) and uid.
+ */
+function compareTasks(a: TodoTaskRow, b: TodoTaskRow): number {
+  return (
+    Number(a.due_date === null) - Number(b.due_date === null) ||
+    compareNullable(a.due_date, b.due_date) ||
+    Number(a.due_at !== null) - Number(b.due_at !== null) ||
+    compareNullable(a.due_at, b.due_at) ||
+    compareNullable(a.title, b.title) ||
+    compareNullable(a.uid, b.uid)
+  );
+}
+
 /**
  * A person's own tasks due from `from` through `to` (all dated ones without
  * a range), and with `undated`, the ones with no date too. Soonest first.
  */
 export async function listTasks(
-  db: D1Database,
+  env: UserDataEnv,
   userId: string,
   range: { from: IsoDate; to: IsoDate } | null,
   { undated }: { undated: boolean },
 ): Promise<TodoItem[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT * FROM todo_tasks WHERE user_id = ?1
-       AND ((due_date IS NOT NULL AND (?2 IS NULL OR due_date BETWEEN ?2 AND ?3))
-            OR (?4 AND due_date IS NULL))
-       ORDER BY due_date IS NULL, due_date, due_at IS NOT NULL, due_at, title, uid`,
-    )
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM todo_tasks WHERE user_id = ?1
+     AND ((due_date IS NOT NULL AND (?2 IS NULL OR due_date BETWEEN ?2 AND ?3))
+          OR (?4 AND due_date IS NULL))`,
+  )
     .bind(userId, range?.from ?? null, range?.to ?? null, undated ? 1 : 0)
     .all();
-  return results.map((r) => toTaskItem(TodoTaskRowSchema.parse(r)));
+  if (results.length === 0) return [];
+  const account = await accountKey(env, userId);
+  const rows = await Promise.all(results.map((r) => openTask(account, r)));
+  return rows.sort(compareTasks).map(toTaskItem);
 }
 
 /** A task as it's saved: its New York date and the instant, when it has a time. */
@@ -488,32 +535,35 @@ export interface TaskToSave {
 
 /**
  * Adds a task or changes the person's task with that uid. A new one past
- * `max` isn't added: the answer is null then.
+ * `max` isn't added: the answer is null then. The account's key is made
+ * with its first task if it has none yet.
  */
 export async function upsertTask(
-  db: D1Database,
+  env: UserDataEnv,
   userId: string,
   task: TaskToSave,
   now: Date,
   max: number,
 ): Promise<TodoItem | null> {
   const at = now.toISOString();
-  const row = await db
-    .prepare(
-      `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
-       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7
-       WHERE (SELECT COUNT(*) FROM todo_tasks WHERE user_id = ?1) < ?8
-          OR EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)
-       ON CONFLICT (user_id, uid) DO UPDATE SET
-         title = excluded.title, course_code = excluded.course_code,
-         due_at = excluded.due_at, due_date = excluded.due_date,
-         updated_at = excluded.updated_at
-       RETURNING *`,
-    )
+  const account = await accountKey(env, userId, { create: true });
+  if (!account) throw new SealedDataError();
+  const title = await sealForAccount(account, titleWhere(task.uid), task.title);
+  const row = await env.DB.prepare(
+    `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
+     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7
+     WHERE (SELECT COUNT(*) FROM todo_tasks WHERE user_id = ?1) < ?8
+        OR EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)
+     ON CONFLICT (user_id, uid) DO UPDATE SET
+       title = excluded.title, course_code = excluded.course_code,
+       due_at = excluded.due_at, due_date = excluded.due_date,
+       updated_at = excluded.updated_at
+     RETURNING *`,
+  )
     .bind(
       userId,
       task.uid,
-      task.title,
+      title,
       task.courseCode,
       task.dueAt,
       task.dueDate,
@@ -521,7 +571,31 @@ export async function upsertTask(
       max,
     )
     .first();
-  return row ? toTaskItem(TodoTaskRowSchema.parse(row)) : null;
+  return row ? toTaskItem(await openTask(account, row)) : null;
+}
+
+/** For tests that write `todo_tasks` rows directly: a title sealed as `upsertTask` seals it. */
+export async function sealedTitleFor(
+  env: UserDataEnv,
+  userId: string,
+  uid: string,
+  title: string,
+): Promise<string> {
+  const account = await accountKey(env, userId, { create: true });
+  if (!account) throw new SealedDataError();
+  return sealForAccount(account, titleWhere(uid), title);
+}
+
+/** For tests that read `todo_tasks` rows directly: a title as `listTasks` opens it. */
+export async function openedTitleFor(
+  env: UserDataEnv,
+  userId: string,
+  uid: string,
+  sealed: string,
+): Promise<string> {
+  const account = await accountKey(env, userId);
+  if (!account) throw new SealedDataError();
+  return openForAccount(account, titleWhere(uid), sealed);
 }
 
 /** Deletes one of the person's tasks, and its done mark with it. */

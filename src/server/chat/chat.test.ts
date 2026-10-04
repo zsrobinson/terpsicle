@@ -67,6 +67,7 @@ import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
 import { moderationHandlers } from "../moderation/handlers";
 import { sendChatDigests } from "../notifications/digest";
+import { openedBodyFor } from "../sync/store";
 import { createWorker } from "../worker";
 import { CHAT_CLOSE, type CourseChat, chatScreening } from "./course-chat";
 import { chatTargetId } from "./moderation-handler";
@@ -1714,7 +1715,15 @@ describe("chat_members", () => {
     const stored = await env.DB.prepare(
       "SELECT body FROM sync_docs WHERE user_id = 'tstudent' AND kind = 'settings'",
     ).first<{ body: string }>();
-    expect(JSON.parse(stored?.body ?? "{}")).toMatchObject({
+    expect(
+      await openedBodyFor(
+        env,
+        "tstudent",
+        "settings",
+        "settings",
+        stored?.body ?? "",
+      ),
+    ).toMatchObject({
       mainPlans: { [TERM]: planB.id },
       chatPlans: { [TERM]: planB.id },
     });

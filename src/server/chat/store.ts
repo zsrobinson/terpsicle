@@ -12,13 +12,18 @@ import {
   DirectoryIdSchema,
   type MainPlans,
   type Plan,
-  PlanDocSchema,
   type RoomId,
   type RoomKind,
   type SectionCode,
-  SettingsDocSchema,
   type TermId,
 } from "~/core/schema";
+import type { UserDataEnv } from "../security/user-keys";
+import {
+  livePlans,
+  mainPlansOf,
+  membershipDocs,
+  termsOfPlans,
+} from "../sync/store";
 
 // ---------- profiles ----------
 
@@ -74,32 +79,18 @@ export async function readProfiles(
 
 // ---------- plans and membership (V2.md §8.2) ----------
 
-const PlanBodySchema = z.object({ body: z.string() });
-
 /** Every live plan the person has in the term, from their sync docs. */
-export async function plansInTerm(
-  db: D1Database,
+export function plansInTerm(
+  env: UserDataEnv,
   userId: string,
   termId: TermId,
 ): Promise<Plan[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT body FROM sync_docs
-       WHERE user_id = ?1 AND kind = 'plan' AND deleted = 0 AND term_id = ?2`,
-    )
-    .bind(userId, termId)
-    .all();
-  return results.flatMap((r) => {
-    const doc = PlanDocSchema.safeParse(
-      JSON.parse(PlanBodySchema.parse(r).body),
-    );
-    return doc.success ? [doc.data] : [];
-  });
+  return livePlans(env, userId, [termId]);
 }
 
 /** Sections of the course in any of the person's plans for the term. */
 export async function planSections(
-  db: D1Database,
+  env: UserDataEnv,
   userId: string,
   termId: TermId,
   courseCode: CourseCode,
@@ -107,16 +98,11 @@ export async function planSections(
   return sectionsInPlans(
     termId,
     courseCode,
-    await plansInTerm(db, userId, termId),
+    await plansInTerm(env, userId, termId),
   );
 }
 
 const TermRowSchema = z.object({ term_id: z.string().nullable() });
-const HeadRowSchema = z.object({ head: z.number().int() });
-const DocRowSchema = z.object({
-  kind: z.enum(["plan", "settings"]),
-  body: z.string(),
-});
 
 /**
  * Rewrites the person's `chat_members` for the terms a push touched, from
@@ -133,65 +119,42 @@ const DocRowSchema = z.object({
  * shows ("Alex, Sam and 3 others joined").
  */
 export async function refreshChatMembers(
-  db: D1Database,
+  env: UserDataEnv,
   userId: string,
   saved: { planIds: readonly string[]; settings: boolean },
   now: Date = new Date(),
 ): Promise<void> {
   if (saved.planIds.length === 0 && !saved.settings) return;
-  const [planTerms, memberTerms, chosenTerms] = await db.batch([
-    db
-      .prepare(
-        `SELECT DISTINCT term_id FROM sync_docs
-         WHERE user_id = ?1 AND kind = 'plan'
-           AND doc_id IN (SELECT value FROM json_each(?2))`,
-      )
-      .bind(userId, JSON.stringify(saved.planIds)),
-    db
-      .prepare(
-        `SELECT DISTINCT term_id FROM chat_members WHERE user_id = ?1 AND ?2`,
-      )
-      .bind(userId, saved.settings ? 1 : 0),
-    db
-      .prepare(
-        `SELECT j.key AS term_id FROM sync_docs, json_each(sync_docs.body, '$.mainPlans') AS j
-         WHERE user_id = ?1 AND kind = 'settings' AND ?2`,
-      )
-      .bind(userId, saved.settings ? 1 : 0),
+  const db = env.DB;
+  const [planTerms, memberTerms, chosen] = await Promise.all([
+    termsOfPlans(db, userId, saved.planIds),
+    saved.settings
+      ? db
+          .prepare(
+            "SELECT DISTINCT term_id FROM chat_members WHERE user_id = ?1",
+          )
+          .bind(userId)
+          .all()
+          .then(({ results }) =>
+            results.flatMap((r) => TermRowSchema.parse(r).term_id ?? []),
+          )
+      : [],
+    saved.settings ? mainPlansOf(env, userId) : {},
   ]);
-  const terms = new Set<TermId>();
-  for (const result of [planTerms, memberTerms, chosenTerms])
-    for (const r of result?.results ?? []) {
-      const term = TermRowSchema.parse(r).term_id;
-      if (term) terms.add(term);
-    }
+  const terms = new Set<TermId>([
+    ...planTerms,
+    ...memberTerms,
+    ...Object.keys(chosen),
+  ]);
   if (terms.size === 0) return;
   const termList = JSON.stringify([...terms]);
 
-  const [head, docs] = await db.batch([
-    db.prepare("SELECT head FROM sync_heads WHERE user_id = ?1").bind(userId),
-    db
-      .prepare(
-        `SELECT kind, body FROM sync_docs
-         WHERE user_id = ?1 AND deleted = 0
-           AND (kind = 'settings' OR term_id IN (SELECT value FROM json_each(?2)))`,
-      )
-      .bind(userId, termList),
-  ]);
-  const at = HeadRowSchema.parse(head?.results[0] ?? { head: 0 }).head;
-  const plans: Plan[] = [];
-  let mainPlans: MainPlans = {};
-  for (const r of docs?.results ?? []) {
-    const row = DocRowSchema.parse(r);
-    const body: unknown = JSON.parse(row.body);
-    if (row.kind === "plan") {
-      const plan = PlanDocSchema.safeParse(body);
-      if (plan.success) plans.push(plan.data);
-    } else {
-      const settings = SettingsDocSchema.safeParse(body);
-      if (settings.success) mainPlans = settings.data.mainPlans;
-    }
-  }
+  const {
+    head: at,
+    plans,
+    settings,
+  } = await membershipDocs(env, userId, [...terms]);
+  const mainPlans: MainPlans = settings?.mainPlans ?? {};
   const rows = [...terms].flatMap((t) => chatMembersFor(t, plans, mainPlans));
 
   // Both statements are skipped unless the head is still the one read.

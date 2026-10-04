@@ -438,6 +438,11 @@ Revisit if: a third product needs sync, or loading the whole engine on Plan cost
 Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `prefs` object in the settings doc and one `prefs` row on the device. It's loose, so every build carries keys it doesn't know, and a conflict settles it per product key, like a course's color. Schedule never edits it but always pushes it whole. Every page reads a localStorage copy (Reviews loads no IndexedDB up front), which whatever writes the row keeps current.
 Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
 
+### Account keys live in D1, beside what they seal
+2026-10-04 · agent · one feature
+Each account's data key is a `user_keys` row, sealed under the Worker secret `USER_DATA_KEY`, as the owner's plan laid out (DATA.md §7.7). Deleting the account deletes the row first, so nothing it sealed opens afterward. But D1's Time Travel can restore the whole database, keys and all, to any minute of the last 30 days, so for those 30 days a full restore would bring a deleted account's data back; after them nothing can. Keeping the wrapped keys in R2 instead, which has no point-in-time restore, would make deleting final at once, for an R2 read on each sync request.
+Revisit if: `/privacy` is to promise that deleted data can't come back even from a backup.
+
 ## Reviews
 
 ### Anonymous reviews, signed-in writers

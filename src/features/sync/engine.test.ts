@@ -578,6 +578,65 @@ describe("the first sign-in on a device", () => {
     expect(b.names()).toEqual(["Later", "Plan B"]);
     expect(server.plans().has(planB.id)).toBe(true);
   });
+
+  it("uploads everything again, with no copies, after the server is emptied", async () => {
+    // migrations/0025_sync_encryption.sql empties sync_docs and sync_heads
+    // rather than sealing plain rows in place: every device's next pull
+    // answers `reset`, and first sign-in's merge has to put it all back.
+    const cs = aFourYear({ id: "fouryear_cs_0001", name: "CS major" });
+    const a = track(await syncedDevice("a", server));
+    const b = track(await syncedDevice("b", server));
+    a.edit((t) => ({
+      ...t,
+      plans: [planA, planB],
+      fourYear: [cs],
+      blocks: [aBlock()],
+      colors: { CMSC351: "teal" },
+    }));
+    await a.settle();
+    await b.engine.sync();
+    const before = {
+      plans: server.plans(),
+      fourYear: server.docs.get(`four-year:${cs.id}`)?.body,
+      settings: server.docs.get("settings:settings")?.body,
+    };
+    expect(b.tables.plans).toEqual(a.tables.plans);
+
+    server.docs.clear();
+    server.head = 0;
+    server.prunedThrough = 0;
+    const calls = server.calls.length;
+
+    await a.engine.sync();
+    await b.engine.sync();
+    // Each device was told to start over, and pulled from 0.
+    const pulls = server.calls
+      .slice(calls)
+      .flatMap((c) => (c.kind === "pull" ? [c.input.since] : []));
+    expect(pulls.filter((since) => since === 0).length).toBeGreaterThan(1);
+    for (const device of [a, b]) {
+      expect(device.names()).toEqual(["Plan A", "Plan B"]);
+      expect(device.tables.fourYear).toEqual([cs]);
+      // Nothing was copied or renamed: a reset with no copies says nothing.
+      for (const notice of device.notices)
+        expect(notice).toMatchObject({
+          kind: "first-sign-in",
+          reset: true,
+          copies: [],
+          renamed: [],
+        });
+    }
+    expect(server.plans()).toEqual(before.plans);
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toEqual(
+      before.fourYear,
+    );
+    expect(server.docs.get("settings:settings")?.body).toEqual(before.settings);
+    // Both devices are in step again: an edit flows as before.
+    a.editPlan(planA.id, { name: "After" });
+    await a.settle();
+    await b.engine.sync();
+    expect(b.plan(planA.id)?.name).toBe("After");
+  });
 });
 
 describe("staying calm", () => {

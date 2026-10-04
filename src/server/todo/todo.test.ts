@@ -15,7 +15,9 @@ import {
 } from "~/core/schema";
 import { parseIcs, TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
 import { type ApiEnv, handleApi } from "../api/router";
+import { SealedDataError } from "../security/user-keys";
 import { CONNECT_TIMEOUT_MS, FEED_TIMEOUT_MS } from "./fetch";
+import { openedTitleFor } from "./store";
 import {
   clearTodo,
   type Device,
@@ -669,10 +671,23 @@ describe("own tasks", () => {
     await save(phone, { title: "Office hours", dueDate: null, dueTime: null });
     const rows = await env.DB.prepare(
       "SELECT title, due_at, due_date FROM todo_tasks",
-    ).all();
+    ).all<{ title: string }>();
     expect(rows.results).toEqual([
-      { title: "Office hours", due_at: null, due_date: null },
+      {
+        title: expect.stringMatching(/^v1\.acct\./),
+        due_at: null,
+        due_date: null,
+      },
     ]);
+    // What was typed is sealed with the account's key, bound to the task.
+    const sealed = rows.results[0]?.title ?? "";
+    expect(sealed).not.toContain("Office");
+    expect(await openedTitleFor(testEnv, "tstudent", task().uid, sealed)).toBe(
+      "Office hours",
+    );
+    await expect(
+      openedTitleFor(testEnv, "tstudent", "own-another-task", sealed),
+    ).rejects.toThrow(SealedDataError);
     // No date: listed whatever the range asks for.
     const later = await list(phone, "2026-12-01", "2026-12-31");
     expect(later.items.map((i) => [i.title, i.dueDate])).toEqual([

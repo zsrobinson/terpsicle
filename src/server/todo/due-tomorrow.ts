@@ -116,7 +116,7 @@ export async function sendDueTomorrow(
     const day = { from: tomorrow, to: tomorrow };
     const items = [
       ...(await listItems(env.DB, userId, day)),
-      ...(await listTasks(env.DB, userId, day, { undated: false })),
+      ...(await listTasks(env, userId, day, { undated: false })),
     ];
     const done = new Set(
       await doneAmong(

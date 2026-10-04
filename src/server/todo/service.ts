@@ -193,7 +193,7 @@ export async function list(
   // Own tasks with no date are always listed: they're under "No date".
   const items = [
     ...(await listItems(env.DB, userId, input)),
-    ...(await listTasks(env.DB, userId, input, { undated: true })),
+    ...(await listTasks(env, userId, input, { undated: true })),
   ];
   return {
     feed: opened ? feedState(opened) : null,
@@ -247,7 +247,7 @@ export async function saveTask(
   if (!taskDateInWindow(input.dueDate, newYorkDateOf(now.getTime())))
     return { status: "out-of-range" };
   const item = await upsertTask(
-    env.DB,
+    env,
     started.userId,
     {
       uid: input.uid,

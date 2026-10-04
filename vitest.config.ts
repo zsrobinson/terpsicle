@@ -101,6 +101,10 @@ export default defineConfig({
                   COURSE_CHAT: { className: "CourseChat", useSQLite: true },
                 },
                 bindings: {
+                  // Synced data's wrapping key, as production's secret
+                  // would be (32 bytes, base64url): a fixed test value.
+                  USER_DATA_KEY: "d29ya2VyLXRlc3QtdXNlci1kYXRhLWtleS1vbmUhISE",
+                  USER_DATA_KEY_ID: "k1",
                   TEST_CRONS: wrangler.triggers.crons ?? [],
                   // Which vars production and previews set (names only).
                   TEST_VAR_NAMES: {

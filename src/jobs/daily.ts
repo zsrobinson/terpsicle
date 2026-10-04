@@ -9,6 +9,7 @@ import {
 } from "~/server/notifications/digest";
 import { pruneDeliveries } from "~/server/notifications/store";
 import { pruneReviews } from "~/server/reviews/store";
+import { rewrapAccountKeys } from "~/server/security/user-keys";
 import { pruneTombstones } from "~/server/sync/store";
 import { pruneTodo } from "~/server/todo/store";
 import { type Job, runJob } from "./job";
@@ -29,7 +30,8 @@ import { type Job, runJob } from "./job";
  * mentions and replies after 30 days. It groups open feedback again with
  * Workers AI (src/server/feedback/group.ts). Until `avatars/` is empty, it
  * deletes the profile pictures kept before they were dropped
- * (src/server/auth/legacy-pictures.ts).
+ * (src/server/auth/legacy-pictures.ts). After a USER_DATA_KEY rotation it
+ * wraps account keys again under the new key (src/server/security/user-keys.ts).
  */
 export const runDailyJob: Job = async (context) => {
   await runJob("daily", context, async () => {
@@ -56,6 +58,17 @@ export const runDailyJob: Job = async (context) => {
     const watches = await endPastTermWatches(env);
     const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
     const legacyPicturesDeleted = await sweepLegacyPictures(env.USER_CONTENT);
+    // After a USER_DATA_KEY rotation, account keys move to the new one. A
+    // failure is reported by its error's name only, and the rest goes on.
+    const keyErrors: string[] = [];
+    const accountKeysRewrapped = await rewrapAccountKeys(env).catch(
+      (error: unknown) => {
+        keyErrors.push(
+          `account keys: ${error instanceof Error ? error.name : "error"}`,
+        );
+        return 0;
+      },
+    );
     // Grouping is a convenience: a model that doesn't answer leaves
     // yesterday's groups, and the job goes on.
     const grouping = await groupOpenFeedback(env, now).catch(() => null);
@@ -80,10 +93,11 @@ export const runDailyJob: Job = async (context) => {
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
         legacyPicturesDeleted,
+        accountKeysRewrapped,
         feedbackGroups: grouping?.groups ?? 0,
         feedbackGrouped: grouping?.grouped ?? 0,
       },
-      errors: [...purged.errors, ...digestErrors],
+      errors: [...purged.errors, ...digestErrors, ...keyErrors],
     };
   });
 };
