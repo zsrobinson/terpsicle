@@ -443,7 +443,9 @@ describe("ActionMenuSub", () => {
     const three = screen.getByRole("menuitemradio", { name: "3 credits" });
     await waitFor(() => expect(three).toHaveFocus());
     // Back to the list, onto the row it left from.
-    await user.click(screen.getByRole("menuitem", { name: /^Credits\s*, back$/ }));
+    await user.click(
+      screen.getByRole("menuitem", { name: /^Credits\s*, back$/ }),
+    );
     expect(
       screen.getByRole("menuitem", { name: "About CMSC216" }),
     ).toBeVisible();

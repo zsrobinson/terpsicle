@@ -61,7 +61,9 @@ test("the kit's menu is a sheet, and its submenu takes the list's place", async 
   ).toHaveAttribute("aria-checked", "true");
 
   await sheet.getByRole("menuitem", { name: "Move to…" }).tap();
-  await expect(sheet.getByRole("menuitem", { name: "Fall 2026" })).toBeVisible();
+  await expect(
+    sheet.getByRole("menuitem", { name: "Fall 2026" }),
+  ).toBeVisible();
   await expect(sheet.getByRole("menuitem", { name: "Rename" })).toBeHidden();
   await sheet.getByRole("menuitem", { name: /^Move to…\s*, back$/ }).tap();
   await expect(sheet.getByRole("menuitem", { name: "Rename" })).toBeVisible();
