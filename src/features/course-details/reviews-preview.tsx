@@ -1,7 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { useState } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { formatGpa, formatShare, gradeSummary } from "~/core/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import { combinedRatingWords, formatStars, mergeReviews } from "~/core/reviews";
@@ -102,8 +102,7 @@ export function ReviewsPreviewButton({
         open ? "bg-hover text-fg" : "text-muted hover:bg-hover hover:text-fg",
       )}
     >
-      <Mark id="reviews" size={14} />
-      Reviews
+      <IntegrationLabel product="reviews">Reviews</IntegrationLabel>
     </button>
   );
   const tooltip = `What students say about ${name}, and their grades in ${course.code}`;

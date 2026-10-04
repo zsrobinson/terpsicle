@@ -18,7 +18,11 @@ import { WithTooltip } from "./tooltip";
  * the router (sign-in's start, which the Worker answers).
  */
 export type EmptyAction = {
-  label: string;
+  /**
+   * Its words. A way into another product is the product's
+   * `IntegrationLabel`, its mark before the words (docs/DESIGN.md §7.9).
+   */
+  label: ReactNode;
   /** A 14px icon before the label (filled buttons only). */
   icon?: ReactNode;
   /** The tooltip, when the label alone doesn't say where it goes. */

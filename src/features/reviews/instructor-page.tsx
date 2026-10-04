@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { ViewWords } from "~/components/brand/view-words";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelNote } from "~/components/panel";
 import { addGradeCounts } from "~/core/grades/grades";
 import {
@@ -397,7 +397,7 @@ function InstructorGrades({
               onClick={() => crossLinkClicked("reviews", "schedule")}
               className="inline-flex items-center gap-1 text-muted underline decoration-hairline-strong underline-offset-2 hover:text-fg hover:decoration-fg"
             >
-              <ViewWords to="schedule" size={13} />
+              <IntegrationLabel product="schedule" />
             </Link>
           </WithTooltip>
         }

@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { ViewWords } from "~/components/brand/view-words";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { MetaSep } from "~/components/panel";
 import { formatGpa, formatRating, gradeSummary } from "~/core/grades";
 import { combinedRatingWords, combineRatings } from "~/core/reviews";
@@ -173,7 +173,7 @@ export function ReadThem({
           onClick={() => crossLinkClicked("schedule", "reviews")}
           className={link}
         >
-          <ViewWords to="reviews" size={12} />
+          <IntegrationLabel product="reviews" />
           <ArrowRight size={12} aria-hidden="true" />
         </a>
       </WithTooltip>
