@@ -23,6 +23,7 @@ import type {
 } from "~/core/schema/admin";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { adminApi } from "~/server/fns/admin-api";
+import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { AdminFrame } from "./admin-frame";
@@ -590,6 +591,29 @@ describe("the queue", () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
+  it("counts one less waiting after a decision, without asking for the list again", async () => {
+    const client = fakeClient([
+      anItem({ id: "BBBBBBBBBBBBBBBBBBBBBB" }),
+      anItem(),
+    ]);
+    const user = userEvent.setup();
+    renderQueue(client);
+    const views = await screen.findByRole("navigation", { name: "Queue" });
+    expect(
+      await within(views).findByRole("link", { name: "Waiting (2)" }),
+    ).toBeVisible();
+    const [first] = await screen.findAllByRole("article");
+    if (!first) throw new Error("no post");
+    await user.click(within(first).getByRole("button", { name: /Publish/ }));
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(1));
+    expect(
+      within(views).getByRole("link", { name: "Waiting (1)" }),
+    ).toBeVisible();
+    expect(client.queue).toHaveBeenCalledTimes(1);
+    // The numbers have changed, so they're asked for again.
+    await waitFor(() => expect(client.health).toHaveBeenCalledTimes(2));
+  });
+
   it("says so plainly when an action fails, and keeps the post", async () => {
     const client = fakeClient([anItem()], {
       resolve: vi.fn(async () => {
@@ -773,5 +797,42 @@ describe("the decision log", () => {
     await user.click(screen.getByRole("combobox", { name: "Stage" }));
     await user.click(await screen.findByRole("option", { name: "You" }));
     expect(onFilters).toHaveBeenCalledWith({ surface: "chat", stage: "human" });
+  });
+
+  it("says when older decisions didn't load, keeping the newer, and tries again", async () => {
+    let olderFails = true;
+    const client = {
+      decisions: vi.fn(async (input: { cursor?: string }) => {
+        if (input.cursor && olderFails) {
+          olderFails = false;
+          throw new ApiCallError("unavailable");
+        }
+        return {
+          decisions: input.cursor
+            ? [anEntry({ id: "EEEEEEEEEEEEEEEEEEEEEE", targetId: "older" })]
+            : [anEntry()],
+          cursor: input.cursor
+            ? null
+            : "2027-01-10T11:50:00.000Z~CCCCCCCCCCCCCCCCCCCCCC",
+          days: days(),
+        };
+      }),
+    } satisfies DecisionsClient;
+    const user = userEvent.setup();
+    renderInRouter(
+      <DecisionsPage filters={{}} onFilters={() => {}} client={client} />,
+      "/admin/decisions",
+    );
+    await user.click(await screen.findByRole("button", { name: "Show older" }));
+    expect(
+      await screen.findByText(
+        "Couldn't load older decisions. Terpsicle didn't answer the way it should. Try again.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/Couldn't load decisions/)).toBeNull();
+    expect(screen.getByText("review-9")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Try again/ }));
+    expect(await screen.findByText("older")).toBeVisible();
+    expect(screen.queryByText(/Couldn't load older/)).toBeNull();
   });
 });

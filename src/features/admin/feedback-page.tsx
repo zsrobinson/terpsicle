@@ -1,3 +1,4 @@
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bug,
   ClipboardCopy,
@@ -43,8 +44,17 @@ import { RowSkeleton } from "~/ui/skeleton";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminNav, PAGE_ROW } from "./admin-frame";
+import {
+  ADMIN_PAGE,
+  dropFeedbackItem,
+  type FeedbackQuery,
+  feedbackListQuery,
+  loadFailure,
+  restoreFeedbackItem,
+  setFeedbackItem,
+} from "./admin-queries";
 import { Filter, Filters } from "./decisions-page";
-import { failureWords, useLoad } from "./use-load";
+import { failureWords } from "./words";
 
 // `/admin/feedback` (docs/FEEDBACK.md, "Triage"): what people sent, newest
 // first, with the owner's pinned notes. Filters live in the URL. Similar
@@ -65,8 +75,6 @@ export type FeedbackClient = Pick<
   typeof feedbackAdminApi,
   "feedbackList" | "feedbackUpdate" | "feedbackDelete" | "feedbackGroup"
 >;
-
-const PAGE = 50;
 
 const KIND_PLURAL: Readonly<Record<FeedbackKind, string>> = {
   bug: "Bugs",
@@ -110,83 +118,25 @@ export function FeedbackPage({
   /** Where links point (tests pass one). */
   origin?: string;
 }) {
-  const query = {
-    ...(filters.item
-      ? { id: filters.item }
-      : {
-          status: filters.status,
-          kind: filters.kind,
-          product: filters.product,
-          host: filters.host,
-        }),
-    limit: PAGE,
-  };
-  const key = JSON.stringify(query);
-  const first = useLoad(
-    (signal) => client.feedbackList(query, { signal }),
-    key,
-  );
-  const [more, setMore] = useState<{
-    items: FeedbackItem[];
-    groups: FeedbackGroup[];
-    cursor: string | null;
-  } | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreFailed, setMoreFailed] = useState<string | null>(null);
-  // Changes made here since the list loaded, over the loaded rows.
-  const [changed, setChanged] = useState<ReadonlyMap<string, FeedbackItem>>(
-    new Map(),
-  );
-  const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
+  const query: FeedbackQuery = filters.item
+    ? { id: filters.item }
+    : {
+        status: filters.status,
+        kind: filters.kind,
+        product: filters.product,
+        host: filters.host,
+      };
+  const queryClient = useQueryClient();
+  const list = useInfiniteQuery(feedbackListQuery(client, query));
   const [grouping, setGrouping] = useState(false);
 
-  // A new filter starts over from the first page.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the filter
-  useEffect(() => {
-    setMore(null);
-    setMoreFailed(null);
-    setChanged(new Map());
-    setGone(new Set());
-  }, [key]);
-
-  const items = [...(first.data?.items ?? []), ...(more?.items ?? [])]
-    .filter((i) => !gone.has(i.id))
-    .map((i) => changed.get(i.id) ?? i);
-  const groups = new Map(
-    [...(first.data?.groups ?? []), ...(more?.groups ?? [])].map((g) => [
-      g.id,
-      g,
-    ]),
-  );
-  const cursor = more ? more.cursor : (first.data?.cursor ?? null);
-
-  const loadMore = async () => {
-    if (!cursor) return;
-    setLoadingMore(true);
-    setMoreFailed(null);
-    try {
-      const page = await client.feedbackList({ ...query, cursor });
-      setMore((prev) => ({
-        items: [...(prev?.items ?? []), ...page.items],
-        groups: [...(prev?.groups ?? []), ...page.groups],
-        cursor: page.cursor,
-      }));
-    } catch (error) {
-      setMoreFailed(failureWords(error));
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  const reload = () => {
-    setMore(null);
-    setChanged(new Map());
-    setGone(new Set());
-    first.reload();
-  };
-
-  const remember = (item: FeedbackItem) =>
-    setChanged((prev) => new Map(prev).set(item.id, item));
+  const pages = list.data?.pages ?? [];
+  const first = pages[0] ?? null;
+  const items = pages.flatMap((p) => p.items);
+  const groups = new Map(pages.flatMap((p) => p.groups).map((g) => [g.id, g]));
+  const failed = loadFailure(list);
+  const loadMore = () => void list.fetchNextPage();
+  const reload = () => void list.refetch();
 
   /** A status or note change, at once, and a toast with Undo for status. */
   const update = async (
@@ -203,7 +153,8 @@ export function FeedbackPage({
         reload();
         return false;
       }
-      remember(result.item);
+      // The server's copy, in every list that has it.
+      setFeedbackItem(queryClient, result.item);
       if (change.status && undoable) {
         undoToast({
           id: `feedback-status-${item.id}`,
@@ -230,7 +181,7 @@ export function FeedbackPage({
         reload();
         return;
       }
-      setGone((prev) => new Set(prev).add(item.id));
+      dropFeedbackItem(queryClient, item.id);
       undoToast({
         id: `feedback-deleted-${item.id}`,
         message: "Feedback deleted",
@@ -240,11 +191,7 @@ export function FeedbackPage({
             .feedbackDelete({ id: item.id, restore: true })
             .then((undone) => {
               if (undone.status === "restored")
-                setGone((prev) => {
-                  const next = new Set(prev);
-                  next.delete(item.id);
-                  return next;
-                });
+                restoreFeedbackItem(queryClient, query, item);
               else noteToast("Too late to put it back.");
             })
             .catch((error: unknown) =>
@@ -285,8 +232,8 @@ export function FeedbackPage({
 
   const set = (patch: FeedbackFilters) =>
     onFilters({ ...filters, ...patch, item: undefined });
-  const hosts = first.data?.hosts ?? [];
-  const newCount = first.data?.newCount;
+  const hosts = first?.hosts ?? [];
+  const newCount = first?.newCount;
 
   return (
     <>
@@ -366,16 +313,16 @@ export function FeedbackPage({
         </Filters>
       )}
 
-      {first.state === "failed" ? (
+      {failed ? (
         <InlineError
-          message={`Couldn't load feedback. ${first.message}`}
-          onRetry={first.reload}
+          message={`Couldn't load feedback. ${failed}`}
+          onRetry={reload}
         />
       ) : null}
 
-      {first.data === null && first.state === "loading" ? (
+      {list.isPending ? (
         <RowSkeleton rows={3} inset={false} label="Loading feedback" />
-      ) : items.length === 0 && first.data ? (
+      ) : items.length === 0 && first ? (
         <p className="py-2 text-muted">
           {filters.item
             ? "That feedback is gone: deleted, or past its year."
@@ -399,21 +346,21 @@ export function FeedbackPage({
         />
       )}
 
-      {moreFailed ? (
+      {list.isFetchNextPageError && !list.isFetching ? (
         <InlineError
-          message={`Couldn't load older feedback. ${moreFailed}`}
-          onRetry={() => void loadMore()}
+          message={`Couldn't load older feedback. ${failureWords(list.error)}`}
+          onRetry={loadMore}
         />
-      ) : cursor ? (
-        <WithTooltip label={`Show the next ${PAGE}`}>
+      ) : list.hasNextPage ? (
+        <WithTooltip label={`Show the next ${ADMIN_PAGE}`}>
           <Button
             variant="outline"
             size="sm"
             className="w-fit"
-            disabled={loadingMore}
-            onClick={() => void loadMore()}
+            disabled={list.isFetchingNextPage}
+            onClick={loadMore}
           >
-            {loadingMore ? "Loading…" : "Show older"}
+            {list.isFetchingNextPage ? "Loading…" : "Show older"}
           </Button>
         </WithTooltip>
       ) : null}

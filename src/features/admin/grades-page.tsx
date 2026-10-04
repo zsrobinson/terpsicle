@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Copy, ExternalLink, Mail } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { termLabel } from "~/core/catalog/terms";
@@ -19,7 +20,8 @@ import { RowSkeleton } from "~/ui/skeleton";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminNav, PAGE_ROW } from "./admin-frame";
-import { failureWords, useLoad } from "./use-load";
+import { gradesQuery, loadFailure } from "./admin-queries";
+import { failureWords } from "./words";
 
 // `/admin/grades` (V2 §10; owner, 2026-09-28: "something about the
 // semesters that need importing, and maybe a bit of info on a standard
@@ -36,8 +38,10 @@ const IMPORTER_URL =
   "https://github.com/planetterp/PlanetTerp/blob/master/home/management/commands/importgradedata.py";
 
 export function GradesPage({ client = adminApi }: { client?: GradesClient }) {
-  const loaded = useLoad((signal) => client.grades({ signal }), "grades");
-  const data = loaded.data;
+  const loaded = useQuery(gradesQuery(client));
+  const reload = () => void loaded.refetch();
+  const data = loaded.data ?? null;
+  const failed = loadFailure(loaded);
   const missing = data?.missing ?? [];
   const request = gradeRequestText(missing.map((m) => m.termId));
   return (
@@ -54,10 +58,10 @@ export function GradesPage({ client = adminApi }: { client?: GradesClient }) {
         views={<AdminNav current="grades" />}
       />
 
-      {loaded.state === "failed" ? (
+      {failed ? (
         <InlineError
-          message={`Couldn't load the semesters. ${loaded.message}`}
-          onRetry={loaded.reload}
+          message={`Couldn't load the semesters. ${failed}`}
+          onRetry={reload}
         />
       ) : null}
 
@@ -66,7 +70,7 @@ export function GradesPage({ client = adminApi }: { client?: GradesClient }) {
         aside={data ? missing.length : undefined}
       >
         {data === null ? (
-          loaded.state === "loading" ? (
+          loaded.isPending ? (
             <RowSkeleton rows={2} inset={false} label="Loading the semesters" />
           ) : null
         ) : missing.length === 0 ? (
@@ -80,7 +84,7 @@ export function GradesPage({ client = adminApi }: { client?: GradesClient }) {
                 key={m.termId}
                 semester={m}
                 client={client}
-                onSaved={loaded.reload}
+                onSaved={reload}
               />
             ))}
           </ul>

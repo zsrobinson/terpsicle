@@ -9,8 +9,12 @@ import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import type { AdminClient } from "./queue-page";
 import { StopAuthor } from "./stop-author";
-import { failureWords } from "./use-load";
-import { ADMIN_REASON_WORDS, REMOVE_REASONS, stopWords } from "./words";
+import {
+  ADMIN_REASON_WORDS,
+  failureWords,
+  REMOVE_REASONS,
+  stopWords,
+} from "./words";
 
 // "Remove a chat message" (V2 §10): for a message the owner found in Chat
 // rather than in the queue. Paste its thread link (or a ref from the
