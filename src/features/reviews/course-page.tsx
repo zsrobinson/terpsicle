@@ -55,6 +55,7 @@ import {
   WriteReviewButton,
 } from "./review-box";
 import {
+  FILTER_ROW,
   ReviewFilter,
   ReviewList,
   ReviewsTitle,
@@ -321,7 +322,7 @@ export function CoursePage({
             size="display"
             title={<ReviewsTitle count={combined.reviewCount} />}
             aside={
-              <div className="flex flex-wrap items-center gap-2">
+              <div className={FILTER_ROW}>
                 {withPages.length > 0 ? (
                   <ReviewFilter
                     label="Instructor"

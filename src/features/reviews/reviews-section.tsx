@@ -268,7 +268,7 @@ export function ReviewsSection({
       size="display"
       title={<ReviewsTitle count={count} course={course} />}
       aside={
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={FILTER_ROW}>
           {filter}
           <SortControl sort={sort} />
         </div>
@@ -350,6 +350,13 @@ const SORT_WORDS: Record<ReviewSort, string> = {
 };
 
 /**
+ * Where a Reviews list's filter and sort sit, beside its title; on a phone,
+ * under it, sharing the column's width edge to edge.
+ */
+export const FILTER_ROW =
+  "flex flex-wrap items-center gap-2 max-sm:w-full max-sm:flex-nowrap max-sm:*:min-w-0 max-sm:*:flex-1";
+
+/**
  * The reviews' order, on the Reviews line at the right. Each order is its
  * own address (`?sort=`, absent for latest), which the server renders, so
  * a shared link keeps its order; picking one replaces the address, since
@@ -379,7 +386,7 @@ export function SortControl({ sort }: { sort: ReviewSort }) {
         }}
       >
         <WithTooltip label="Sort the reviews by date or by rating">
-          <SelectTrigger id={id} className="h-9 w-40 text-sm">
+          <SelectTrigger id={id} className="h-9 w-40 text-sm max-sm:w-full">
             <SelectValue />
           </SelectTrigger>
         </WithTooltip>
@@ -442,7 +449,7 @@ export function ReviewFilter({
         onOpenChange={onOpenChange}
       >
         <WithTooltip label={tooltip}>
-          <SelectTrigger id={id} className="h-9 w-44 text-sm">
+          <SelectTrigger id={id} className="h-9 w-44 text-sm max-sm:w-full">
             <SelectValue />
           </SelectTrigger>
         </WithTooltip>

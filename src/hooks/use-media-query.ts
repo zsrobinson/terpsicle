@@ -23,3 +23,11 @@ export function useMediaQuery(query: string): boolean {
 export function useIsMobile(): boolean {
   return useMediaQuery(MOBILE_QUERY);
 }
+
+/** A touch screen, where copy says "tap" rather than "click" or "hover". */
+export const COARSE_POINTER = "(pointer: coarse)";
+
+/** The word for pressing something here: "Tap" on a touch screen. */
+export function usePressWord(): "Tap" | "Click" {
+  return useMediaQuery(COARSE_POINTER) ? "Tap" : "Click";
+}

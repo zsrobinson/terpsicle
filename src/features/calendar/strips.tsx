@@ -1,12 +1,13 @@
 import type { CourseCode, CourseColor } from "~/core/schema";
 import { CourseColorPicker } from "~/features/courses/color-picker";
-import { useMediaQuery } from "~/hooks/use-media-query";
+import {
+  COARSE_POINTER,
+  useMediaQuery,
+  usePressWord,
+} from "~/hooks/use-media-query";
 import { Kbd } from "~/ui/kbd";
 import { WithTooltip } from "~/ui/tooltip";
 import type { GhostSummary, UntimedSection } from "./layout";
-
-/** A touch screen, where copy says "tap" rather than "click" or "hover". */
-const COARSE_POINTER = "(pointer: coarse)";
 
 import { dotStyle, tintStyle } from "./tint";
 
@@ -83,7 +84,7 @@ export function GhostHint({
   const choosing =
     interactive && !readOnly && others > 0 && ghost.sectionCount > 1;
   // A phone's reader taps (QA S12).
-  const press = useMediaQuery(COARSE_POINTER) ? "Tap" : "Click";
+  const press = usePressWord();
   return (
     <div className={HINT_CLASS}>
       {interactive && !readOnly ? (

@@ -6,7 +6,8 @@ import { liveToasts } from "./toasts";
 // "Tab bar"): Home and the five products, six labeled tabs edge to edge,
 // whole at 375 and 393 points, each a 44px link with the one you're on
 // current. The workbench drawer rests on it and covers it at full; a text
-// field's keyboard and a Chat room take its place; toasts sit above it. The
+// field's keyboard and a Chat room take its place; toasts sit above it and
+// sheets cover it, wherever they open from. The
 // phone's term and plan are one control in the family bar, opening one sheet.
 
 test.skip(({ isMobile }) => !isMobile, "the tab bar is a phone's");
@@ -133,6 +134,55 @@ test("the drawer rests on the tab bar, and pulled all the way up covers it", asy
   await page.getByRole("button", { name: "Lower the panel" }).tap();
   await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
   await expect(tabBar(page)).toBeVisible();
+});
+
+test("a sheet covers it, even one opened from inside the drawer", {
+  tag: "@phone",
+}, async ({ page }) => {
+  await page.goto("/schedule/course/CMSC351?demo=1");
+  // Playwright can't give the page real safe areas; an iPhone's, by name.
+  await page.addStyleTag({
+    content: ":root { --safe-top: 47px; --safe-bottom: 34px; }",
+  });
+  await expect(tabBar(page)).toBeVisible();
+  // Course details' Reviews preview: a sheet opened inside the workbench
+  // drawer, which Base UI would nest under the tab bar.
+  await drawer(page)
+    .getByRole("button", { name: "Reviews", exact: true })
+    .first()
+    .tap();
+  const sheet = page.locator("[data-slot=sheet]");
+  const read = sheet.getByRole("link", { name: "View reviews" });
+  await expect(read).toBeVisible();
+  await expect(sheet).not.toHaveAttribute("data-starting-style");
+  // Its last line is above the home indicator, and nothing lies over it.
+  await expect
+    .poll(async () => {
+      const link = await read.boundingBox();
+      return link ? Math.round(844 - 34 - (link.y + link.height)) : null;
+    })
+    .toBeGreaterThanOrEqual(0);
+  expect(
+    await read.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        r.x + r.width / 2,
+        r.y + r.height / 2,
+      );
+      return top !== null && el.contains(top);
+    }),
+  ).toBe(true);
+  // The tab bar is behind the sheet's backdrop, not over it.
+  const bar = await box(page, "[data-tab-bar]");
+  expect(
+    await page.evaluate(
+      ({ x, y }) =>
+        Boolean(document.elementFromPoint(x, y)?.closest("[data-tab-bar]")),
+      { x: bar.x + bar.width / 2, y: bar.y + bar.height / 2 },
+    ),
+  ).toBe(false);
+  await read.tap();
+  await expect(page).toHaveURL(/\/reviews\/[^/?]+\?course=CMSC351$/);
 });
 
 test("a text field with the keyboard up hides it", async ({ page }) => {

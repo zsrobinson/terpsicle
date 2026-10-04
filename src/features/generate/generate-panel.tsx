@@ -24,6 +24,7 @@ import type {
 import { GenerateTabSearchSchema } from "~/core/schema/schedule-url";
 import { useFocusRequest } from "~/features/schedule/focus-request";
 import { useTabSearch } from "~/features/schedule/schedule-view";
+import { usePressWord } from "~/hooks/use-media-query";
 import { track } from "~/lib/analytics";
 import {
   fourYearLinkDb,
@@ -90,6 +91,7 @@ function useShownView(): GenerateView {
 
 export function GeneratePanel() {
   const { term, termId } = useActiveTerm();
+  const press = usePressWord();
   const current = useCurrentPlan();
   const catalog = useTermCatalog(termId);
   const plan = current?.plan ?? null;
@@ -302,7 +304,7 @@ export function GeneratePanel() {
               title="Preferences"
               right={
                 <span className="emph-meta">
-                  Put plans in order. Click again for 2×
+                  Put plans in order. {press} again for 2×
                 </span>
               }
             />
