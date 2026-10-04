@@ -8,6 +8,7 @@
 
 import { todoDueTag, withChannel } from "~/core/notifications";
 import {
+  dueTomorrowInbox,
   dueTomorrowKey,
   dueTomorrowPush,
   dueTomorrowRun,
@@ -16,6 +17,7 @@ import {
 } from "~/core/todo";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { readSettings, writeSettings } from "../notifications/store";
+import { userData } from "../security/user-keys";
 import {
   doneAmong,
   hiddenCourses,
@@ -34,6 +36,10 @@ export interface DueTomorrowResult {
   sent: number;
   /** The reminder off, no device, push off here, or every device failed. */
   unsent: number;
+  /** People skipped because something threw (their tasks wouldn't open). */
+  failed: number;
+  /** Those errors' names, never their messages. */
+  errors: string[];
 }
 
 /** Who to remind this run (see the top of this file). */
@@ -101,7 +107,13 @@ export async function sendDueTomorrow(
     batch?: number;
   },
 ): Promise<DueTomorrowResult> {
-  const result: DueTomorrowResult = { due: 0, sent: 0, unsent: 0 };
+  const result: DueTomorrowResult = {
+    due: 0,
+    sent: 0,
+    unsent: 0,
+    failed: 0,
+    errors: [],
+  };
   const run = dueTomorrowRun(options.now.getTime());
   if (!run) return result;
   const { today, tomorrow } = run;
@@ -112,11 +124,15 @@ export async function sendDueTomorrow(
     tomorrow,
     options.batch ?? TODO_DUE_BATCH,
   );
+  // Crons have no host: test mode is the caller's, or the var alone.
+  const data = userData(env, {
+    testMode: options.testMode ?? env.AUTH_TEST_MODE === "true",
+  });
   const one = async (userId: string) => {
     const day = { from: tomorrow, to: tomorrow };
     const items = [
       ...(await listItems(env.DB, userId, day)),
-      ...(await listTasks(env, userId, day, { undated: false })),
+      ...(await listTasks(data, userId, day, { undated: false })),
     ];
     const done = new Set(
       await doneAmong(
@@ -133,6 +149,8 @@ export async function sendDueTomorrow(
     result.due++;
     const key = dueTomorrowKey(userId, today);
     const words = dueTomorrowPush(open, tomorrow);
+    // The inbox row is stored as it is: it never names your own tasks.
+    const stored = dueTomorrowInbox(open, tomorrow);
     // A push that fails is claimed as failed and not tried again tonight:
     // the catch-up is for runs that didn't happen (V3.md §4 "As built").
     const sent = await notify(
@@ -146,8 +164,8 @@ export async function sendDueTomorrow(
             id: key,
             groupKey: todoDueTag(tomorrow),
             count: open.length,
-            title: words.title,
-            body: words.body,
+            title: stored.title,
+            body: stored.body,
             url: words.url,
           },
         ],
@@ -170,7 +188,13 @@ export async function sendDueTomorrow(
   let next = 0;
   await Promise.all(
     Array.from({ length: TODO_DUE_CONCURRENCY }, async () => {
-      for (let id = people[next++]; id; id = people[next++]) await one(id);
+      for (let id = people[next++]; id; id = people[next++])
+        // One person whose tasks won't open (no key, or a title that
+        // won't) is counted and logged by the error's name; the rest go on.
+        await one(id).catch((error: unknown) => {
+          result.failed++;
+          result.errors.push(error instanceof Error ? error.name : "error");
+        });
     }),
   );
   return result;

@@ -31,7 +31,7 @@ import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { markDeleting, upsertUser } from "../auth/store";
-import { sealedBodyFor } from "./store";
+import { sealedBodyFor } from "./testing";
 
 const ORIGIN = "https://terpsicle.com";
 const DAY = 86_400_000;

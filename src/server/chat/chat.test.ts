@@ -67,7 +67,7 @@ import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
 import { moderationHandlers } from "../moderation/handlers";
 import { sendChatDigests } from "../notifications/digest";
-import { openedBodyFor } from "../sync/store";
+import { openedBodyFor } from "../sync/testing";
 import { createWorker } from "../worker";
 import { CHAT_CLOSE, type CourseChat, chatScreening } from "./course-chat";
 import { chatTargetId } from "./moderation-handler";

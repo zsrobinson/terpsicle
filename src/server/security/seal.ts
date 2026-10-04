@@ -168,6 +168,18 @@ export async function openText(
   return plain ? decoder.decode(plain) : null;
 }
 
+/**
+ * Whether a stored value is in the sealed format at all (it may still not
+ * open). Anything else was written in plain text, by a build from before
+ * sealing. SQL's form: `NOT GLOB 'v1.*'` (UNSEALED below).
+ */
+export function isSealed(value: string): boolean {
+  return value.startsWith(`${VERSION}.`);
+}
+
+/** SQL for "this column isn't sealed", the inverse of `isSealed`. */
+export const UNSEALED = (column: string) => `${column} NOT GLOB 'v1.*'`;
+
 /** The key id a sealed value names, or null if it isn't one. */
 export function sealedKeyId(sealed: string): string | null {
   const [version, keyId] = sealed.split(".");

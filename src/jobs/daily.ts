@@ -10,8 +10,8 @@ import {
 import { pruneDeliveries } from "~/server/notifications/store";
 import { pruneReviews } from "~/server/reviews/store";
 import { rewrapAccountKeys } from "~/server/security/user-keys";
-import { pruneTombstones } from "~/server/sync/store";
-import { pruneTodo } from "~/server/todo/store";
+import { pruneTombstones, sweepUnsealedBodies } from "~/server/sync/store";
+import { pruneTodo, sweepUnsealedTasks } from "~/server/todo/store";
 import { type Job, runJob } from "./job";
 
 /**
@@ -31,7 +31,8 @@ import { type Job, runJob } from "./job";
  * Workers AI (src/server/feedback/group.ts). Until `avatars/` is empty, it
  * deletes the profile pictures kept before they were dropped
  * (src/server/auth/legacy-pictures.ts). After a USER_DATA_KEY rotation it
- * wraps account keys again under the new key (src/server/security/user-keys.ts).
+ * wraps account keys again under the new key (src/server/security/user-keys.ts),
+ * and it deletes synced bodies and own tasks' titles still in plain text.
  */
 export const runDailyJob: Job = async (context) => {
   await runJob("daily", context, async () => {
@@ -61,14 +62,16 @@ export const runDailyJob: Job = async (context) => {
     // After a USER_DATA_KEY rotation, account keys move to the new one. A
     // failure is reported by its error's name only, and the rest goes on.
     const keyErrors: string[] = [];
-    const accountKeysRewrapped = await rewrapAccountKeys(env).catch(
-      (error: unknown) => {
-        keyErrors.push(
-          `account keys: ${error instanceof Error ? error.name : "error"}`,
-        );
-        return 0;
-      },
-    );
+    const rewrap = await rewrapAccountKeys(env).catch((error: unknown) => {
+      keyErrors.push(
+        `account keys: ${error instanceof Error ? error.name : "error"}`,
+      );
+      return { moved: 0, left: 0, stuck: 0 };
+    });
+    // Anything saved in plain text by the build before sealing (between
+    // 0025_sync_encryption and its deploy) that no read has deleted yet.
+    const unsealedBodiesDeleted = await sweepUnsealedBodies(env.DB);
+    const unsealedTasksDeleted = await sweepUnsealedTasks(env.DB);
     // Grouping is a convenience: a model that doesn't answer leaves
     // yesterday's groups, and the job goes on.
     const grouping = await groupOpenFeedback(env, now).catch(() => null);
@@ -93,7 +96,11 @@ export const runDailyJob: Job = async (context) => {
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
         legacyPicturesDeleted,
-        accountKeysRewrapped,
+        accountKeysRewrapped: rewrap.moved,
+        accountKeysLeft: rewrap.left,
+        accountKeysStuck: rewrap.stuck,
+        unsealedBodiesDeleted,
+        unsealedTasksDeleted,
         feedbackGroups: grouping?.groups ?? 0,
         feedbackGrouped: grouping?.grouped ?? 0,
       },

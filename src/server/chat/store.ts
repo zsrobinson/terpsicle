@@ -17,7 +17,7 @@ import {
   type SectionCode,
   type TermId,
 } from "~/core/schema";
-import type { UserDataEnv } from "../security/user-keys";
+import type { UserData } from "../security/user-keys";
 import {
   livePlans,
   mainPlansOf,
@@ -81,16 +81,16 @@ export async function readProfiles(
 
 /** Every live plan the person has in the term, from their sync docs. */
 export function plansInTerm(
-  env: UserDataEnv,
+  data: UserData,
   userId: string,
   termId: TermId,
 ): Promise<Plan[]> {
-  return livePlans(env, userId, [termId]);
+  return livePlans(data, userId, [termId]);
 }
 
 /** Sections of the course in any of the person's plans for the term. */
 export async function planSections(
-  env: UserDataEnv,
+  data: UserData,
   userId: string,
   termId: TermId,
   courseCode: CourseCode,
@@ -98,7 +98,7 @@ export async function planSections(
   return sectionsInPlans(
     termId,
     courseCode,
-    await plansInTerm(env, userId, termId),
+    await plansInTerm(data, userId, termId),
   );
 }
 
@@ -119,13 +119,13 @@ const TermRowSchema = z.object({ term_id: z.string().nullable() });
  * shows ("Alex, Sam and 3 others joined").
  */
 export async function refreshChatMembers(
-  env: UserDataEnv,
+  data: UserData,
   userId: string,
   saved: { planIds: readonly string[]; settings: boolean },
   now: Date = new Date(),
 ): Promise<void> {
   if (saved.planIds.length === 0 && !saved.settings) return;
-  const db = env.DB;
+  const { db } = data;
   const [planTerms, memberTerms, chosen] = await Promise.all([
     termsOfPlans(db, userId, saved.planIds),
     saved.settings
@@ -139,7 +139,7 @@ export async function refreshChatMembers(
             results.flatMap((r) => TermRowSchema.parse(r).term_id ?? []),
           )
       : [],
-    saved.settings ? mainPlansOf(env, userId) : {},
+    saved.settings ? mainPlansOf(data, userId) : {},
   ]);
   const terms = new Set<TermId>([
     ...planTerms,
@@ -153,7 +153,7 @@ export async function refreshChatMembers(
     head: at,
     plans,
     settings,
-  } = await membershipDocs(env, userId, [...terms]);
+  } = await membershipDocs(data, userId, [...terms]);
   const mainPlans: MainPlans = settings?.mainPlans ?? {};
   const rows = [...terms].flatMap((t) => chatMembersFor(t, plans, mainPlans));
 

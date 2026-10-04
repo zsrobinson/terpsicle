@@ -22,13 +22,13 @@ import {
   TodoTaskUidSchema,
 } from "~/core/schema";
 import { newYorkDateOf, ownTaskItem } from "~/core/todo";
+import { isSealed, UNSEALED } from "../security/seal";
 import {
   type AccountKey,
-  accountKey,
   openForAccount,
   SealedDataError,
   sealForAccount,
-  type UserDataEnv,
+  type UserData,
 } from "../security/user-keys";
 import type { FeedOwner } from "./crypto";
 
@@ -444,7 +444,9 @@ export async function setDone(
 
 // A task's title is what the person typed, so it's sealed with their
 // account's key, bound to the task (docs/DATA.md §7.7). Dates and the course
-// stay plain: the due-tomorrow job and the calendar feed select by them.
+// stay plain: the due-tomorrow job and the calendar feed select by them. A
+// title in plain text (saved by the build before sealing, between the
+// migration and the deploy) is never read: the task is deleted on sight.
 
 export const TodoTaskRowSchema = z.object({
   user_id: z.string(),
@@ -458,14 +460,71 @@ export const TodoTaskRowSchema = z.object({
 });
 export type TodoTaskRow = z.infer<typeof TodoTaskRowSchema>;
 
-const titleWhere = (uid: string) => ["todo-task", uid];
+/** Where a title lives: what it's bound to, after the account's id. */
+export const titleWhere = (uid: string) => ["todo-task", uid];
+
+/** A task's title sealed for its row, as `upsertTask` stores it. */
+export function sealTaskTitle(
+  account: AccountKey,
+  uid: string,
+  title: string,
+): Promise<string> {
+  return sealForAccount(account, titleWhere(uid), title);
+}
+
+/**
+ * Deletes these tasks, whose titles are in plain text, with their done
+ * marks (each only while its title is still the one read). Logs how many,
+ * never what.
+ */
+async function dropUnsealedTasks(
+  db: D1Database,
+  userId: string,
+  rows: readonly TodoTaskRow[],
+): Promise<void> {
+  const results = await db.batch(
+    rows.flatMap((r) => [
+      db
+        .prepare(
+          `DELETE FROM todo_done WHERE user_id = ?1 AND uid = ?2
+           AND EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2 AND title = ?3)`,
+        )
+        .bind(userId, r.uid, r.title),
+      db
+        .prepare(
+          "DELETE FROM todo_tasks WHERE user_id = ?1 AND uid = ?2 AND title = ?3",
+        )
+        .bind(userId, r.uid, r.title),
+    ]),
+  );
+  const dropped = results
+    .filter((_, i) => i % 2 === 1)
+    .reduce((n, r) => n + (r.meta.changes ?? 0), 0);
+  console.warn({ todo: "deleted tasks saved in plain text", dropped });
+}
+
+/**
+ * The daily job's sweep for plain-text titles nobody has listed since: the
+ * same as on sight, for everyone. Returns how many tasks went.
+ */
+export async function sweepUnsealedTasks(db: D1Database): Promise<number> {
+  const [, deleted] = await db.batch([
+    db.prepare(
+      `DELETE FROM todo_done WHERE EXISTS (
+         SELECT 1 FROM todo_tasks t
+         WHERE t.user_id = todo_done.user_id AND t.uid = todo_done.uid
+           AND ${UNSEALED("t.title")})`,
+    ),
+    db.prepare(`DELETE FROM todo_tasks WHERE ${UNSEALED("title")}`),
+  ]);
+  return deleted?.meta.changes ?? 0;
+}
 
 /** The row with its title opened; throws if it won't open. */
 async function openTask(
   account: AccountKey | null,
-  raw: unknown,
+  row: TodoTaskRow,
 ): Promise<TodoTaskRow> {
-  const row = TodoTaskRowSchema.parse(raw);
   if (!account) throw new SealedDataError();
   return {
     ...row,
@@ -506,21 +565,26 @@ function compareTasks(a: TodoTaskRow, b: TodoTaskRow): number {
  * a range), and with `undated`, the ones with no date too. Soonest first.
  */
 export async function listTasks(
-  env: UserDataEnv,
+  data: UserData,
   userId: string,
   range: { from: IsoDate; to: IsoDate } | null,
   { undated }: { undated: boolean },
 ): Promise<TodoItem[]> {
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM todo_tasks WHERE user_id = ?1
-     AND ((due_date IS NOT NULL AND (?2 IS NULL OR due_date BETWEEN ?2 AND ?3))
-          OR (?4 AND due_date IS NULL))`,
-  )
+  const { results } = await data.db
+    .prepare(
+      `SELECT * FROM todo_tasks WHERE user_id = ?1
+       AND ((due_date IS NOT NULL AND (?2 IS NULL OR due_date BETWEEN ?2 AND ?3))
+            OR (?4 AND due_date IS NULL))`,
+    )
     .bind(userId, range?.from ?? null, range?.to ?? null, undated ? 1 : 0)
     .all();
-  if (results.length === 0) return [];
-  const account = await accountKey(env, userId);
-  const rows = await Promise.all(results.map((r) => openTask(account, r)));
+  const all = results.map((r) => TodoTaskRowSchema.parse(r));
+  const plain = all.filter((r) => !isSealed(r.title));
+  if (plain.length > 0) await dropUnsealedTasks(data.db, userId, plain);
+  const sealed = all.filter((r) => isSealed(r.title));
+  if (sealed.length === 0) return [];
+  const account = await data.accountKey(userId);
+  const rows = await Promise.all(sealed.map((r) => openTask(account, r)));
   return rows.sort(compareTasks).map(toTaskItem);
 }
 
@@ -539,27 +603,28 @@ export interface TaskToSave {
  * with its first task if it has none yet.
  */
 export async function upsertTask(
-  env: UserDataEnv,
+  data: UserData,
   userId: string,
   task: TaskToSave,
   now: Date,
   max: number,
 ): Promise<TodoItem | null> {
   const at = now.toISOString();
-  const account = await accountKey(env, userId, { create: true });
+  const account = await data.accountKey(userId, { create: true });
   if (!account) throw new SealedDataError();
-  const title = await sealForAccount(account, titleWhere(task.uid), task.title);
-  const row = await env.DB.prepare(
-    `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
-     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7
-     WHERE (SELECT COUNT(*) FROM todo_tasks WHERE user_id = ?1) < ?8
-        OR EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)
-     ON CONFLICT (user_id, uid) DO UPDATE SET
-       title = excluded.title, course_code = excluded.course_code,
-       due_at = excluded.due_at, due_date = excluded.due_date,
-       updated_at = excluded.updated_at
-     RETURNING *`,
-  )
+  const title = await sealTaskTitle(account, task.uid, task.title);
+  const row = await data.db
+    .prepare(
+      `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7
+       WHERE (SELECT COUNT(*) FROM todo_tasks WHERE user_id = ?1) < ?8
+          OR EXISTS (SELECT 1 FROM todo_tasks WHERE user_id = ?1 AND uid = ?2)
+       ON CONFLICT (user_id, uid) DO UPDATE SET
+         title = excluded.title, course_code = excluded.course_code,
+         due_at = excluded.due_at, due_date = excluded.due_date,
+         updated_at = excluded.updated_at
+       RETURNING *`,
+    )
     .bind(
       userId,
       task.uid,
@@ -571,31 +636,9 @@ export async function upsertTask(
       max,
     )
     .first();
-  return row ? toTaskItem(await openTask(account, row)) : null;
-}
-
-/** For tests that write `todo_tasks` rows directly: a title sealed as `upsertTask` seals it. */
-export async function sealedTitleFor(
-  env: UserDataEnv,
-  userId: string,
-  uid: string,
-  title: string,
-): Promise<string> {
-  const account = await accountKey(env, userId, { create: true });
-  if (!account) throw new SealedDataError();
-  return sealForAccount(account, titleWhere(uid), title);
-}
-
-/** For tests that read `todo_tasks` rows directly: a title as `listTasks` opens it. */
-export async function openedTitleFor(
-  env: UserDataEnv,
-  userId: string,
-  uid: string,
-  sealed: string,
-): Promise<string> {
-  const account = await accountKey(env, userId);
-  if (!account) throw new SealedDataError();
-  return openForAccount(account, titleWhere(uid), sealed);
+  return row
+    ? toTaskItem(await openTask(account, TodoTaskRowSchema.parse(row)))
+    : null;
 }
 
 /** Deletes one of the person's tasks, and its done mark with it. */

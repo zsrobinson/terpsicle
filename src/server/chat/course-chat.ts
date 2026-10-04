@@ -47,6 +47,7 @@ import {
   queueForOwner,
   withdrawFromQueue,
 } from "../moderation/service";
+import { userDataForJob } from "../security/user-keys";
 import { type ChatCourse, loadChatCourse, loadTermDates } from "./catalog";
 import { chatTargetId } from "./moderation-handler";
 import { chatNotifier } from "./notify";
@@ -285,7 +286,7 @@ export class CourseChat extends DurableObject<Env> {
     const [course, profile, sections] = await Promise.all([
       this.#course(),
       this.#profile(att.user, 0),
-      planSections(this.env, att.user, att.term, att.course),
+      planSections(userDataForJob(this.env), att.user, att.term, att.course),
     ]);
     if (!profile?.active) {
       this.#error(ws, null, "signed-out");
@@ -697,7 +698,7 @@ export class CourseChat extends DurableObject<Env> {
     const [course, sections] = await Promise.all([
       this.#course(),
       planSections(
-        this.env,
+        userDataForJob(this.env),
         target.reporterId,
         target.termId,
         target.courseCode,
@@ -914,6 +915,7 @@ export class CourseChat extends DurableObject<Env> {
   > {
     this.#bind(target.termId, target.courseCode);
     const course = await this.#course();
+    const data = userDataForJob(this.env);
     const out = [];
     for (const { userId, ids } of target.readers) {
       const rows = this.#store.exists
@@ -922,14 +924,22 @@ export class CourseChat extends DurableObject<Env> {
             return row?.status === "visible" && !row.deleted_at ? [row] : [];
           })
         : [];
+      // One reader whose plans won't open (no key, or a body that won't)
+      // reads only the course's room: the others' digests still go.
       const sections =
         course && rows.some((r) => parseRoomId(r.room_id)?.kind !== "course")
           ? await planSections(
-              this.env,
+              data,
               userId,
               target.termId,
               target.courseCode,
-            )
+            ).catch((error: unknown) => {
+              console.warn({
+                chat: "digest reader's plans didn't open",
+                error: error instanceof Error ? error.name : "error",
+              });
+              return [];
+            })
           : [];
       out.push({
         userId,
@@ -967,7 +977,7 @@ export class CourseChat extends DurableObject<Env> {
     const course = await this.#course();
     if (!course) return [];
     const sections = await planSections(
-      this.env,
+      userDataForJob(this.env),
       target.userId,
       target.termId,
       target.courseCode,

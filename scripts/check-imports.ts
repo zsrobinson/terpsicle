@@ -110,14 +110,45 @@ function aliasFolder(absPath: string): string {
   return first === "components" && second === "ui" ? "ui" : (first ?? "");
 }
 
+/**
+ * Where a file's comments are, as [start, end) offsets: `//` and `/* *\/`
+ * outside strings and template literals. A quote that doesn't close on its
+ * line (JSX text, a regex) ends there, and a backslash outside a string
+ * escapes the next character, as in a regex literal.
+ */
+function commentSpans(text: string): [number, number][] {
+  const spans: [number, number][] = [];
+  let quote: string | null = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote || (c === "\n" && quote !== "`")) quote = null;
+      continue;
+    }
+    if (c === "\\") i++;
+    else if (c === '"' || c === "'" || c === "`") quote = c;
+    else if (c === "/" && (text[i + 1] === "/" || text[i + 1] === "*")) {
+      const block = text[i + 1] === "*";
+      const close = text.indexOf(block ? "*/" : "\n", i + 2);
+      const end = close === -1 ? text.length : close + (block ? 2 : 0);
+      spans.push([i, end]);
+      i = end - 1;
+    }
+  }
+  return spans;
+}
+
+const spansOf = new Map<string, [number, number][]>();
+
 function isCommented(text: string, index: number): boolean {
-  const lineStart = text.lastIndexOf("\n", index) + 1;
-  const trimmed = text.slice(lineStart, index).trimStart();
-  return (
-    trimmed.startsWith("//") ||
-    trimmed.startsWith("/*") ||
-    trimmed.startsWith("*")
-  );
+  let spans = spansOf.get(text);
+  if (!spans) {
+    spans = commentSpans(text);
+    spansOf.clear();
+    spansOf.set(text, spans);
+  }
+  return spans.some(([start, end]) => index >= start && index < end);
 }
 
 export function findImportProblems(rel: string, text: string): string[] {

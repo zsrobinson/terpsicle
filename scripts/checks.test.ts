@@ -184,9 +184,28 @@ describe("the sealed tables rule", () => {
     expect(
       findImportProblems(
         "src/server/chat/store.ts",
-        "/** A `sync_docs` row */\n// todo_tasks",
+        "/** A `sync_docs` row */\n// todo_tasks\n/*\n * user_keys\n */\nconst url = 'http://x'; // sync_docs",
       ),
     ).toEqual([]);
+  });
+
+  it("skips only what's really inside a comment", () => {
+    const flagged = (code: string) =>
+      findImportProblems("src/server/chat/store.ts", code).map(
+        (p) => p.split("  ")[1]?.split(":")[0],
+      );
+    // Code after a closed comment on the same line.
+    expect(
+      flagged('/* x */ db.prepare("SELECT body FROM sync_docs");'),
+    ).toEqual(['"sync_docs"']);
+    // A line of SQL in a template literal that starts with `*` or `//`.
+    expect(
+      flagged("db.prepare(`SELECT\n  * FROM sync_docs\n  // todo_tasks`);"),
+    ).toEqual(['"sync_docs"', '"todo_tasks"']);
+    // A comment opener inside a string isn't one.
+    expect(flagged('const a = "/*"; db.prepare("FROM user_keys");')).toEqual([
+      '"user_keys"',
+    ]);
   });
 });
 

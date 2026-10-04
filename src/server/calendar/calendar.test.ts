@@ -41,8 +41,8 @@ import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { markDeleting, upsertUser } from "../auth/store";
 import { keyedHash } from "../crypto";
-import { sealedBodyFor } from "../sync/store";
-import { sealedTitleFor } from "../todo/store";
+import { sealedBodyFor } from "../sync/testing";
+import { sealedTitleFor } from "../todo/testing";
 import { createWorker } from "../worker";
 import {
   FEED_CACHE_CONTROL,

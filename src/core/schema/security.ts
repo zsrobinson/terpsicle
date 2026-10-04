@@ -94,8 +94,6 @@ export const UserDataKeyVarsSchema = z.object({
   USER_DATA_KEY_PREVIOUS: keyVar,
   /** During a rotation, the previous key's id (a var). */
   USER_DATA_KEY_PREVIOUS_ID: keyVar,
-  /** "true" on previews and in mock mode: the fixed, public test key. */
-  AUTH_TEST_MODE: keyVar,
 });
 /** The same names as the Worker's env has them, every one optional. */
 export interface UserDataKeyVars {
@@ -103,5 +101,9 @@ export interface UserDataKeyVars {
   USER_DATA_KEY_ID?: string;
   USER_DATA_KEY_PREVIOUS?: string;
   USER_DATA_KEY_PREVIOUS_ID?: string;
+  /**
+   * A cron's or Durable Object's test mode (they have no host); a request's
+   * is auth's `isTestMode`, which needs a preview or localhost host too.
+   */
   AUTH_TEST_MODE?: string;
 }

@@ -43,6 +43,18 @@ jobs:
         with:
           name: worker-build
 
+      # Synced data can't be read or written without this secret
+      # (docs/DATA.md §7.7), so stop before the migrations and the deploy
+      # when it isn't set. `secret list` gives names and types, never values.
+      - name: Check the USER_DATA_KEY secret is set
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          names=$(pnpm exec wrangler secret list --format json)
+          if ! printf '%s' "$names" | grep -Eq '"name": *"USER_DATA_KEY"'; then
+            echo "::error::Set the Worker secret USER_DATA_KEY before deploying (docs/DATA.md §7.7)."
+            exit 1
+          fi
+
       # Production. The previews database is migrated by ci.yml's preview job
       # (wrangler.preview-d1.jsonc).
       - name: Apply D1 migrations

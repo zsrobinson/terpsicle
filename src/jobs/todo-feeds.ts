@@ -101,13 +101,15 @@ export const runTodoFeedsJob: Job = async (context) => {
     );
 
     // After the fetches, so tonight's reminder reads what ELMS says now.
-    let reminders = { due: 0, sent: 0, unsent: 0 };
+    let reminders = { due: 0, sent: 0, unsent: 0, failed: 0 };
     try {
-      reminders = await sendDueTomorrow(context.env, {
+      const sent = await sendDueTomorrow(context.env, {
         now,
         testMode: env.AUTH_TEST_MODE === "true",
         ...(context.fetch ? { fetch: context.fetch } : {}),
       });
+      reminders = sent;
+      errors.push(...sent.errors.map((name) => `due tomorrow: ${name}`));
     } catch (error) {
       errors.push(
         `due tomorrow: ${error instanceof Error ? error.name : "error"}`,
@@ -119,6 +121,7 @@ export const runTodoFeedsJob: Job = async (context) => {
         dueTomorrow: reminders.due,
         dueTomorrowSent: reminders.sent,
         dueTomorrowUnsent: reminders.unsent,
+        dueTomorrowFailed: reminders.failed,
       },
       errors,
     };
