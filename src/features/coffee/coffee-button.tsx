@@ -7,16 +7,20 @@ import { Button } from "~/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
-// The coffee button (the owner, 2026-09-28): beside Feedback in the family
-// bar, a small popover asks whether Terpsicle helps, and links out to the
-// developer's Buy Me a Coffee page. It never nags: nothing opens it but a
-// click. On phones, where the bar has no room for it, it's a link in the
-// account menu instead.
+// The coffee button, "Support Terpsicle" (the owner, 2026-09-28): in the
+// family bar's account cluster, a small popover asks whether Terpsicle
+// helps, and links out to Terpsicle's Buy Me a Coffee page. Its words are
+// about supporting Terpsicle, not a person (the owner, 2026-09-30: "remove
+// 'me'"). It never nags: nothing opens it but a click. On phones, where the
+// bar has no room for it, it's a link in the account menu instead.
 
 export const COFFEE_URL = "https://buymeacoffee.com/zsrobinson";
 
 export const COFFEE_PITCH =
-  "Does Terpsicle help you out? Support its development by buying its developer a coffee.";
+  "Does Terpsicle help you out? A coffee helps keep it running and growing.";
+
+/** The link out, on the popover's button and the phone menu's item. */
+export const COFFEE_LINK = "Buy Terpsicle a coffee";
 
 /** Lucide's coffee cup with a heart in it, in Lucide's stroke. */
 export const CoffeeHeart = createLucideIcon("coffee-heart", [
@@ -41,19 +45,8 @@ export const CoffeeHeart = createLucideIcon("coffee-heart", [
   ],
 ]);
 
-/**
- * The bar's button and its popover, on tablets and desktops. Its box follows
- * Feedback's beside it: 28px beside Feedback's label, 32px where Feedback
- * is an icon too.
- */
-export function CoffeeButton({
-  labelFrom2xl = false,
-  className,
-}: {
-  /** As Feedback's: its label shows from 1536px, so it's 32px below that. */
-  labelFrom2xl?: boolean;
-  className?: string;
-}) {
+/** The bar's button and its popover, on tablets and desktops. */
+export function CoffeeButton() {
   const [open, setOpen] = useState(false);
   return (
     <Popover
@@ -71,10 +64,10 @@ export function CoffeeButton({
             data-testid="coffee-button"
             className={cn(
               "flex shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
-              labelFrom2xl ? "size-7 max-2xl:size-8" : "size-7",
+              // The bell's box beside it.
+              "size-8",
               // Phones (MOBILE_QUERY) before the page's code knows it's one.
               "max-[769px]:hidden",
-              className,
             )}
           >
             <CoffeeHeart size={16} aria-hidden="true" />
@@ -95,7 +88,7 @@ export function CoffeeButton({
               }}
             >
               <CoffeeHeart aria-hidden="true" />
-              Buy me a coffee
+              {COFFEE_LINK}
             </a>
           </Button>
         </WithTooltip>
@@ -118,7 +111,7 @@ export function CoffeeMenuItem() {
         />
       }
     >
-      Buy me a coffee
+      {COFFEE_LINK}
     </ActionMenuLinkItem>
   );
 }

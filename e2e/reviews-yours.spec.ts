@@ -291,22 +291,25 @@ test("the bar's other products fold to their marks until you reach for them", as
     "",
   );
 
-  // Hovering the tabs opens every name.
-  await tabs.hover();
+  // Hovering a tab opens its name, and only its (the family bar's one
+  // implementation, ProductTabs; e2e/family-bar.spec.ts has the rest).
+  await tabs.getByRole("link", { name: "Schedule" }).hover();
   await expect.poll(() => width("Schedule")).toBeGreaterThan(30);
+  expect(await width("Chat")).toBeLessThan(1);
   await page.mouse.move(700, 600);
   await expect.poll(() => width("Schedule")).toBeLessThan(1);
 
-  // So does tabbing into them.
+  // So does tabbing to one.
   await tabs.getByRole("link", { name: "Chat" }).focus();
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Tab");
   await expect.poll(() => width("Chat")).toBeGreaterThan(20);
 
-  // Other products' bars keep their names.
+  // Every product's bar folds the same way.
   await page.goto("/todo");
   await hydrated(page);
-  await expect.poll(() => width("Schedule")).toBeGreaterThan(30);
+  await expect.poll(() => width("Todo")).toBeGreaterThan(30);
+  await expect.poll(() => width("Schedule")).toBeLessThan(1);
 });
 
 test("a signed-in visitor never sees the signed-out copy, from the first paint", async ({

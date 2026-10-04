@@ -33,7 +33,6 @@ export function TopBar({
     <AppBar
       current="schedule"
       heading
-      crowdedBelow2xl
       compact={compact}
       feedback="schedule"
       pathname={SCHEDULE_PATH}
