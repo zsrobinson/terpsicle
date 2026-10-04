@@ -111,7 +111,7 @@ Revisit if: the framework can't do something; say what in the PR.
 
 ### TanStack Query for server data and its caching
 2026-09-28 · owner · app-wide
-"we should *absolutely* be relying on tanstack query as its the standard thing for all of this… tanstack is our friend." Every copy of server data (published `/data` files, `/api` answers) goes through a `queryOptions` factory and the one `QueryClient` in router context: its stale times, refetch on focus, polling (`refetchInterval`), retries, optimistic mutations and persister, not hand-rolled ones. Local-first data (plans, four-year docs, synced prefs in Dexie, and the sync engine), URL state and UI state stay out. Areas move over one PR at a time, review numbers first.
+"we should *absolutely* be relying on tanstack query as its the standard thing for all of this… tanstack is our friend." Every copy of server data (published `/data` files, `/api` answers) goes through a `queryOptions` factory and the one `QueryClient` in router context: its stale times, refetch on focus, polling (`refetchInterval`), retries, optimistic mutations and persister, not hand-rolled ones. Local-first data (plans, four-year docs, synced prefs in Dexie, and the sync engine), URL state and UI state stay out. Areas move over one PR at a time, review numbers first. (changed 2026-10-04: every area has moved, the admin pages and pins last; what stays out on purpose is that local-first data and the sync engine's pull timer, Chat's live socket (which writes into the cache), the calendar feed's secret link, writes with nothing cached to read, URL and UI state, and Reviews' own reads while Reviews is on hold.)
 Revisit if: never on its own.
 
 ### The query cache persists published data only, per query

@@ -4,7 +4,6 @@ import type { AdminHealth } from "~/core/schema/admin";
 import { InlineError } from "~/ui/inline-error";
 import { PageSection } from "~/ui/page-section";
 import { Skeleton } from "~/ui/skeleton";
-import type { Loaded } from "./use-load";
 import { count, percent } from "./words";
 
 // The queue page's first section (V2 §10): the day's model calls against the
@@ -12,13 +11,17 @@ import { count, percent } from "./words";
 // The page header's Refresh loads these and the queue again.
 
 export function HealthSection({
-  health,
+  health: h,
+  failed,
+  onRetry,
   now,
 }: {
-  health: Loaded<AdminHealth> & { reload: () => void };
+  health: AdminHealth | undefined;
+  /** Why the numbers couldn't load, in words. */
+  failed: string | null;
+  onRetry: () => void;
   now: Date;
 }) {
-  const h = health.data;
   return (
     <PageSection title="Health">
       {h ? (
@@ -49,7 +52,7 @@ export function HealthSection({
             note={queueNote(h, now)}
           />
         </div>
-      ) : health.state === "failed" ? null : (
+      ) : failed ? null : (
         // The stats' shape: a label, a number and a note, three across.
         <div
           role="status"
@@ -65,10 +68,10 @@ export function HealthSection({
           ))}
         </div>
       )}
-      {health.state === "failed" ? (
+      {failed ? (
         <InlineError
-          message={`Couldn't load the numbers. ${health.message}`}
-          onRetry={health.reload}
+          message={`Couldn't load the numbers. ${failed}`}
+          onRetry={onRetry}
           retryTooltip="Load the numbers again"
         />
       ) : null}
