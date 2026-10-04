@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -10,6 +11,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MeResult, MeUser } from "~/core/schema";
 import { api } from "~/server/fns/api";
+import { createTestQueryClient } from "~/state/query/testing";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import {
@@ -23,10 +25,12 @@ import {
   FLAGS_OFF,
   type SignOutHooks,
   setAccountClient,
+  setAccountQueryClient,
   setSignOutHooks,
   useAccount,
 } from "./account-store";
 import { initials } from "./avatar";
+import { meKey } from "./me-query";
 import { GOOGLE_PROFILE_URL, SettingsPage } from "./settings-account";
 import { SignInPage } from "./signin-page";
 import { TestSignInPage } from "./test-sign-in-page";
@@ -133,6 +137,8 @@ beforeEach(() => {
     user: null,
     deleteAfter: null,
   });
+  // Each test is a new page: its own answer to /api/me.
+  setAccountQueryClient(createTestQueryClient());
   fakeHooks();
   localStorage.clear();
 });
@@ -408,6 +414,21 @@ describe("/settings", () => {
     wrap(<AccountBoot />);
     await vi.waitFor(() => expect(window.location.search).toBe(""));
     expect(screen.queryByText(KEPT_ACCOUNT_NOTE)).toBeNull();
+  });
+
+  it("asks /api/me in the page's query client", async () => {
+    const client = fakeClient(signedIn());
+    const page = createTestQueryClient();
+    render(
+      <QueryClientProvider client={page}>
+        <AccountBoot />
+      </QueryClientProvider>,
+    );
+    await vi.waitFor(() =>
+      expect(useAccount.getState().status).toBe("signed-in"),
+    );
+    expect(client.me).toHaveBeenCalledTimes(1);
+    expect(page.getQueryData(meKey)).toEqual(signedIn());
   });
 
   it("signs out and removes plans from this device, with no dialog", async () => {
