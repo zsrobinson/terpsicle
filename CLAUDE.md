@@ -11,7 +11,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 - **TanStack Start and Router:** routes and nested routes, `validateSearch` with search params as state, loaders, automatic code splitting, `Link` preloading (`defaultPreload: "intent"`), `useNavigate` and history, and SSR where a route uses it.
 - **TanStack Query:** every copy of server data (published `/data` files, `/api` answers): `queryOptions` factories per area, `useQuery`, `ensureQueryData` in loaders, stale times, refetch on focus, `refetchInterval` for polling, retries, `useMutation` for optimistic writes, and the per-query persister for published data offline. No hand-rolled `once`, in-flight maps, `visibilitychange` refetches or poll timers. Local-first data in Dexie (plans, four-year docs, synced prefs) stays out.
 - **Cloudflare:** Workers, D1, R2, Durable Objects, Cron Triggers, Workers AI and Email.
-- **Libraries:** Radix (through shadcn/ui) for components, Tailwind, zod, Dexie, zustand for app state that isn't URL state, and PostHog.
+- **Libraries:** Base UI (styled in Ink) for components, Tailwind, zod, Dexie, zustand for app state that isn't URL state, and PostHog.
 
 **The scheduler's routes:** each rail tab and drill-in is a route under `/schedule` (`src/routes/schedule.*.tsx`) that the router splits and preloads; the sidebar keeps their components mounted, and `src/features/schedule/schedule-nav.ts` moves between them (`src/features/schedule/README.md`, "URL state").
 
@@ -52,6 +52,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 - Nothing a review reader, the admin or moderation sees may carry a review's author.
 - Analytics stay anonymous: never `identify()`, and no names, emails, directory IDs or user-written text in events. No session recording, anywhere.
 - User-written text (reviews, chat) renders as plain text, never as HTML.
+- Never describe encryption as end-to-end.
 - Earshot and Orgs are dropped: add none of their code, tables or routes.
 
 ## Git
