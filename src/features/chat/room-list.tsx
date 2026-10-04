@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelBody, PanelNote } from "~/components/panel";
 import { termLabel } from "~/core/catalog/terms";
 import type { ChatListCourse } from "~/core/chat";
@@ -18,7 +19,6 @@ import { InlineError } from "~/ui/inline-error";
 import { GroupHeader } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
-import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, termPlans, useChatHome, useMainPlan } from "./chat-home";
 import type { ChatGo } from "./nav";
@@ -185,9 +185,9 @@ function RoomsFrom() {
   const term = terms.find((t) => t.id === termId)?.name ?? termLabel(termId);
   if (plans.length < 2 || synced.settings === null)
     return (
-      <span>
+      <IntegrationLabel product="schedule">
         Rooms from {main.name}, your {term} plan
-      </span>
+      </IntegrationLabel>
     );
   const pick = (planId: string) => {
     const before = main.id;
@@ -220,10 +220,9 @@ function RoomsFrom() {
             aria-label={`Rooms from ${main.name}, your main plan`}
             className="-ml-1.5 flex h-7 max-w-full items-center gap-1.5 px-1.5 text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-md:h-11"
           >
-            <MainPlanMark className="size-1.5" />
-            <span className="truncate">
+            <IntegrationLabel product="schedule" className="truncate">
               Rooms from {main.name}, your main plan
-            </span>
+            </IntegrationLabel>
             <ChevronDown size={12} aria-hidden="true" className="shrink-0" />
           </button>
         </DropdownMenuTrigger>

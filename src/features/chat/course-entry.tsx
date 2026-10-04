@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { peopleWords } from "~/core/chat";
 import { chatPath } from "~/core/chat/room-paths";
 import { type CourseCode, courseRoomId, type TermId } from "~/core/schema";
@@ -60,8 +60,7 @@ export function CourseChatEntry({
         href={chatPath({ course: courseCode, join: 1 })}
         className={buttonVariants({ variant: "outline", size: "sm" })}
       >
-        <Mark id="chat" size={16} className="size-4" />
-        {label}
+        <IntegrationLabel product="chat">{label}</IntegrationLabel>
         {people ? (
           <span className="tnum font-normal text-muted">
             · {peopleWords(people)}

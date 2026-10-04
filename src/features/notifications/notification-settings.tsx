@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import {
   channelOn,
   NOTIFICATION_CHANNELS,
@@ -334,10 +334,7 @@ function ProductRows({
   return (
     <PageSection
       title={
-        <span className="flex items-center gap-2">
-          <Mark id={product.id} size={16} />
-          {product.name}
-        </span>
+        <IntegrationLabel product={product.id}>{product.name}</IntegrationLabel>
       }
       aside={columns ? <ColumnHeads /> : undefined}
     >
