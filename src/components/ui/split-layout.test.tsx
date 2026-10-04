@@ -37,54 +37,48 @@ describe("SplitLayout", () => {
     expect(screen.getByLabelText("Main")).toHaveClass("gap-8");
   });
 
-  it("starts the narrow column beside a head, and after it on a phone", () => {
-    render(
-      <SplitLayout
-        size="display"
-        top={<h1>Clyde Kruskal</h1>}
-        mainProps={{ "aria-label": "Reviews" }}
-        sideProps={{ "aria-label": "More" }}
-        main={<p>Every review</p>}
-        side={<p>Review them</p>}
-      />,
-    );
-    const head = screen.getByRole("heading", { name: "Clyde Kruskal" });
-    const side = screen.getByLabelText("More");
-    const main = screen.getByLabelText("Reviews");
-    // DOM (and phone) order: the head, the narrow column, the reviews.
-    expect(
-      head.compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      side.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(side).toHaveClass("lg:row-span-2", "lg:col-start-3");
-    expect(main).toHaveClass("lg:row-start-2", "lg:col-span-2");
-  });
-
-  it("starts the narrow column's second part level with the wide column's, and after it on a phone", () => {
+  it("starts the narrow column beside a head, each column flowing on its own", () => {
     render(
       <SplitLayout
         size="display"
         top={<h1>CMSC351</h1>}
-        mainProps={{ "aria-label": "Reviews" }}
-        sideProps={{ "aria-label": "Rating" }}
-        main={<p>Every review</p>}
+        mainProps={{ "aria-label": "Wide" }}
+        sideProps={{ "aria-label": "Narrow" }}
+        main={<h2>Reviews</h2>}
         side={<p>3.1</p>}
         after={<h2>Grades</h2>}
       />,
     );
-    const main = screen.getByLabelText("Reviews");
-    const side = screen.getByLabelText("Rating");
-    const after = screen.getByRole("heading", { name: "Grades" }).parentElement;
-    expect(
-      main.compareDocumentPosition(after as Node) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    // The reviews and what follows the rating start on one row.
-    expect(after).toHaveClass("lg:col-start-3", "lg:row-start-2");
-    expect(main).toHaveClass("lg:row-start-2");
-    expect(side).toHaveClass("lg:row-start-1");
-    expect(side).not.toHaveClass("lg:row-span-2");
+    const wide = screen.getByLabelText("Wide");
+    const narrow = screen.getByLabelText("Narrow");
+    const head = screen.getByRole("heading", { name: "CMSC351" });
+    const reviews = screen.getByRole("heading", { name: "Reviews" });
+    const rating = screen.getByText("3.1");
+    const grades = screen.getByRole("heading", { name: "Grades" });
+    // Two columns from lg: the head and the reviews in the wide one, the
+    // rating and the grades in the narrow one, each part under the last
+    // (owner, 2026-10-04: "those two columns and things flowing naturally
+    // within them"), so no part waits on a row the other column sets.
+    expect(wide).toHaveClass("lg:col-span-2", "lg:flex-col");
+    expect(narrow).toHaveClass("lg:col-start-3", "lg:flex-col");
+    expect(wide).toContainElement(head);
+    expect(wide).toContainElement(reviews);
+    expect(narrow).toContainElement(rating);
+    expect(narrow).toContainElement(grades);
+    const layout = wide.parentElement as HTMLElement;
+    for (const el of [layout, ...layout.querySelectorAll("*")]) {
+      expect(el.className).not.toMatch(/row-start|row-span|grid-rows/);
+    }
+    // On a phone, one column: the head, the rating, the reviews, then the
+    // grades.
+    expect(wide).toHaveClass("max-lg:contents");
+    expect(narrow).toHaveClass("max-lg:contents");
+    const order = (el: HTMLElement) =>
+      Number(
+        /max-lg:order-(\d)/.exec(
+          (el.parentElement as HTMLElement).className,
+        )?.[1],
+      );
+    expect([head, rating, reviews, grades].map(order)).toEqual([1, 2, 3, 4]);
   });
 });

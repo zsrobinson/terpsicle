@@ -70,10 +70,11 @@ import { SignInPrompt } from "./sign-in-prompt";
 // filtered to one (as on PlanetTerp), in the order `?sort=` asks; the
 // instructor filter left of the sort opens one instructor's page for this
 // course (owner, 2026-09-30). The narrow one: its rating from every review
-// of it, then its grades, level with the reviews, and who taught it term by
-// term. On a phone: the course, who teaches it now, the box, the rating,
-// the reviews, then the grades and who taught it. No back link (owner). The route's loader read
-// it all, so the server's HTML has it.
+// of it, then its grades and who taught it term by term, each column
+// flowing on its own (owner, 2026-10-04). On a phone: the course, who
+// teaches it now, the box, the rating, the reviews, then the grades and
+// who taught it. No back link (owner). The route's loader read it all, so
+// the server's HTML has it.
 
 type Row = CourseInstructorRow;
 
@@ -221,8 +222,7 @@ export function CoursePage({
       )}
     </div>
   );
-  // Its grades (level with the reviews), then who taught it: the narrow
-  // column's second part.
+  // Its grades, then who taught it: the narrow column's second part.
   const more = (
     <>
       <PageSection size="side" title="Grades">
@@ -314,7 +314,7 @@ export function CoursePage({
         }
         sideProps={{ "aria-label": `More about ${code}`, className: "lg:pt-8" }}
         side={<RatingSummary combined={combined} />}
-        // Level with the reviews on a wide screen; after them on a phone.
+        // Under the rating on a wide screen; after the reviews on a phone.
         after={more}
         main={
           <PageSection

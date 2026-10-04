@@ -63,10 +63,11 @@ import { SignInPrompt } from "./sign-in-prompt";
 // The wide one: who they are, the box to review them yourself, then the
 // reviews, ours and PlanetTerp's, in the order `?sort=` asks, with the
 // course filter (`?course=`) left of the sort. The narrow one: their
-// rating, then their grades, level with the reviews so the filter plainly
-// covers both (owner, 2026-09-30). On a phone: the name, the box, the
-// rating, the reviews, then the grades. No back link: where it went changed in ways you wouldn't
-// expect (owner). The route's loader read it all, so the server's HTML has it.
+// rating, then their grades, each column flowing on its own (owner,
+// 2026-10-04). On a phone: the name, the box, the rating, the reviews,
+// then the grades. No back link: where it went changed in ways you
+// wouldn't expect (owner). The route's loader read it all, so the server's
+// HTML has it.
 
 /** Courses the status line names. */
 const STATUS_COURSES = 3;
@@ -281,8 +282,7 @@ export function InstructorPage({
           className: SIDE_START,
         }}
         side={<RatingSummary combined={combined} />}
-        // Level with the reviews on a wide screen, so the course filter
-        // plainly covers both; after them on a phone.
+        // Under the rating on a wide screen; after the reviews on a phone.
         after={<InstructorGrades data={data} name={name} />}
         main={
           <ReviewsSection
