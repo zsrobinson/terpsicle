@@ -4,7 +4,12 @@
 
 export type Engine = "webkit" | "chromium" | "android" | "ios";
 
-export type SwipeIntent = "drag" | "scroll";
+/**
+ * How a swipe is meant: a "drag" moves what's under the finger, a "scroll"
+ * scrolls it, and an "edge" swipe comes in from the screen's edge (Safari's
+ * Back), moving from the instant it lands, as a thumb does.
+ */
+export type SwipeIntent = "drag" | "scroll" | "edge";
 
 export interface Point {
   x: number;
@@ -39,8 +44,8 @@ export interface Device {
   tap(at: Point): Promise<void>;
   /**
    * One finger from `from` to `to` over `ms`, in visual-viewport CSS px.
-   * `intent` only matters where there's no real finger: a "scroll" is sent
-   * as a wheel, a "drag" as a pointer drag.
+   * Where there's no real finger, a "scroll" is sent as a wheel and the rest
+   * as a pointer drag; on ios an "edge" swipe has no press before it moves.
    */
   swipe(from: Point, to: Point, ms: number, intent: SwipeIntent): Promise<void>;
   /** Types into whatever has focus, through the keyboard. */

@@ -6,7 +6,7 @@ import type { Check, Probe } from "./checks";
 import { visibleBand } from "./checks";
 import type { Engine } from "./device";
 import { expectation, type Lab, type Target } from "./lab";
-import { call } from "./page-scripts";
+import { call, FIND } from "./page-scripts";
 
 export interface Scenario {
   id: string;
@@ -21,6 +21,12 @@ const GRABBER: Target = {
   selector: `${DRAWER} button[aria-label$="the panel"]`,
 };
 const SEARCH_BOX: Target = { selector: 'input[aria-label="Search courses"]' };
+/** A drill-in's Back (DrillBackBar), when it goes to Search. */
+const BACK_TO_SEARCH: Target = {
+  selector: `${DRAWER} button`,
+  text: "Back to Search",
+  visible: true,
+};
 const RESULTS: Target = { selector: "#search-results" };
 const PANEL_BODY: Target = {
   selector: "#sidebar-panel > [data-layer][data-active] [data-panel-body]",
@@ -86,6 +92,21 @@ async function search(lab: Lab, query: string): Promise<void> {
     "the search box",
   );
   await lab.wait(SETTLE);
+  // On android and ios one browser profile serves every scenario, so the app
+  // can restore a course left open over Search (add-sections leaves CMSC131
+  // open). Its box stays mounted under it: go back to it as a person would.
+  if (
+    !(await lab.exists({ ...SEARCH_BOX, visible: true })) &&
+    (await lab.exists(BACK_TO_SEARCH))
+  ) {
+    await lab.tap(BACK_TO_SEARCH);
+    await lab.waitFor(
+      `${call(FIND, { ...SEARCH_BOX, visible: true })}.found`,
+      5000,
+      "the search box, back from a course",
+    );
+    await lab.wait(SETTLE);
+  }
   await lab.tap(SEARCH_BOX);
   await lab.wait(SETTLE);
   // Clear anything restored from last time, then type.
@@ -659,7 +680,7 @@ export const SCENARIOS: Scenario[] = [
       });
       const typed = await lab.device.evaluate<boolean>(MOTION_RECORDER);
       if (lab.device.engine === "ios") {
-        // Safari's own Back gesture: a drag in from the screen's left edge,
+        // Safari's own Back gesture: a swipe in from the screen's left edge,
         // over the calendar (the drawer below has its own drags).
         const { innerHeight } = await lab.device.evaluate<{
           innerHeight: number;
@@ -668,6 +689,7 @@ export const SCENARIOS: Scenario[] = [
           { x: 1, y: innerHeight * 0.3 },
           { dx: 280, dy: 0 },
           350,
+          "edge",
         );
       } else {
         // No edge gesture to send here: the browser's Back, which it doesn't
