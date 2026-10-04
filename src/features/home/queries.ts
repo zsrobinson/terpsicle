@@ -8,11 +8,12 @@ import { chatApi } from "~/server/fns/chat-api";
 // factories (docs/decisions.md, "TanStack Query for server data"): the
 // account's answers, then what it reads from published files.
 //
-// The account's answers: your rooms' unread counts, your seat watches and
-// the reviews you've written. Each is one small `/api` call, asked again
-// when you come back to the tab (the client's focus refetch), and tried
-// once more before a part says it couldn't load. Signed-in only: the
-// caller turns each on.
+// The account's answers: your rooms' unread counts and the reviews you've
+// written. Each is one small `/api` call, asked again when you come back
+// to the tab (the client's focus refetch), and tried once more before a
+// part says it couldn't load. Signed-in only: the caller turns each on.
+// Your seat watches aren't here: Home reads the app's one list
+// (~/state/query/seat-watches), the one Schedule's bells change.
 
 /** How long an answer counts as current on Home: a glance, not a feed. */
 const HOME_STALE_MS = 60_000;
@@ -24,19 +25,6 @@ export function chatRoomsQuery(termId: TermId | null) {
     queryFn: async () => {
       if (termId === null) return [];
       return (await chatApi.unread({ termId })).rooms;
-    },
-    staleTime: HOME_STALE_MS,
-    retry: 1,
-  });
-}
-
-/** Your seat watches in a term; null while seat alerts are off. */
-export function seatWatchesQuery(termId: TermId) {
-  return queryOptions({
-    queryKey: ["home", "seat-watches", termId],
-    queryFn: async () => {
-      const result = await api.alerts.list({ termId });
-      return result.status === "ok" ? result.watches : null;
     },
     staleTime: HOME_STALE_MS,
     retry: 1,

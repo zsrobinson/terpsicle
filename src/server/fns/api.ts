@@ -55,6 +55,19 @@ export class ApiCallError extends Error {
   }
 }
 
+/**
+ * The retry rule for `/api` queries (TanStack Query's `retry`): a network
+ * failure is tried twice more; an answer the server gave (signed out, too
+ * many, bad input), or an error we don't know, won't change by asking
+ * again. Published files have their own (`retryPublished`,
+ * ~/state/query/published).
+ */
+export function retryApi(failures: number, error: unknown): boolean {
+  return (
+    error instanceof ApiCallError && error.reason === "network" && failures < 2
+  );
+}
+
 /** A call that failed: its route and status (0 without a network), never a body. */
 export interface ApiFailure {
   route: string;

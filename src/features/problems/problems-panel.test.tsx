@@ -23,6 +23,8 @@ describe("Problems tab", () => {
     localStorage.clear();
     vi.mocked(track).mockClear();
     resetSeatWatches();
+    // Signed in, the shell asks for the list: never the real API here.
+    fakeSeatWatchesClient();
   });
 
   it("lists problems by severity, calmly, with no banner", async () => {

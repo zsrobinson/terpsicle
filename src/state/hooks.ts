@@ -43,7 +43,7 @@ import { type CampusMap, planConnections } from "~/core/travel";
 import { type TermCatalog, useCatalog } from "./catalog-store";
 import { useAcademicCalendars, useCampus } from "./data-hooks";
 import { activePlanId, plansInTerm } from "./plan-ops";
-import { useWatchedSections } from "./seat-watches";
+import { useWatchedSections } from "./query/seat-watches";
 import { useShare } from "./share-store";
 import { useUi } from "./ui-store";
 import { useWorkspace } from "./workspace-store";

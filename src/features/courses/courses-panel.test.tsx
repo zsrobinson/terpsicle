@@ -121,11 +121,12 @@ describe("Courses tab", () => {
   });
 
   it("says Watching, with a filled bell, on a section with a seat watch", async () => {
-    await renderPlanTab([panels], "courses");
+    const { queryClient } = await renderPlanTab([panels], "courses");
     const row = await screen.findByTestId("course-row-CMSC351");
     expect(within(row).queryByText("Watching")).toBeNull();
     act(() =>
       watching(
+        queryClient,
         aMeUser(),
         aSeatWatch({ termId: TEST_TERM_ID, sectionKey: "CMSC351-0301" }),
       ),
