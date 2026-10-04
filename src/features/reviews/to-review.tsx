@@ -80,17 +80,18 @@ function useYourClasses(reviewed: ReadonlySet<string> | null): Row[] | null {
 }
 
 /**
- * Where your classes came from, each with its product's mark: one source
- * says so ("From your schedule"); both name the two products.
+ * Where your classes came from, with each product's mark: one source says
+ * so ("From your schedule"); both put the two marks before "From your
+ * plans", which fits beside the section's title.
  */
 function ClassesFrom({ rows }: { rows: readonly Row[] }) {
   const schedule = rows.some((r) => r.from === "schedule");
   const plan = rows.some((r) => r.from === "plan");
   if (schedule && plan)
     return (
-      <span>
-        From <IntegrationLabel product="schedule">Schedule</IntegrationLabel>{" "}
-        and <IntegrationLabel product="plan">Plan</IntegrationLabel>
+      <span className="whitespace-nowrap">
+        <IntegrationLabel product="schedule" iconOnly className="mr-0.5" />
+        <IntegrationLabel product="plan">From your plans</IntegrationLabel>
       </span>
     );
   return <TookSource from={schedule ? "schedule" : "plan"} />;
