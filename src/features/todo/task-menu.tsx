@@ -11,7 +11,7 @@ import {
 import { undoToast } from "~/ui/toast";
 import { saveFailedNote, TASK_TOAST_ID } from "./task-form";
 import type { CheckedVia, ViewProps } from "./todo-lists";
-import { useTodo } from "./todo-store";
+import { useSaveTask } from "./use-todo";
 
 // An item's right-click menu (on a phone, a long press opens it as a
 // sheet), the kit's ActionContextMenu: what makes sense for that item.
@@ -33,7 +33,7 @@ export function TaskContextMenu({
   /** The card or row, which the menu opens from. */
   children: ReactElement<Record<string, unknown>>;
 }) {
-  const saveTask = useTodo((s) => s.saveTask);
+  const saveTask = useSaveTask();
   const done = props.done.has(item.uid);
   const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
   const own = item.source === "own";

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
@@ -7,7 +8,7 @@ import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
-import { useTodo } from "./todo-store";
+import { connectElms } from "./todo-mutations";
 
 // Connecting ELMS (docs/V3.md §3.2): three steps and a paste. The link is a
 // secret: it's checked here for its shape, sent only in `todo/connect`'s
@@ -63,7 +64,7 @@ export function ConnectForm({
   /** The button under the field at every width (Todo's side panel). */
   stacked?: boolean;
 }) {
-  const connect = useTodo((s) => s.connect);
+  const client = useQueryClient();
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<ConnectAnswer | null>(null);
@@ -82,7 +83,7 @@ export function ConnectForm({
       return;
     }
     setBusy(true);
-    const result = await connect(pasted);
+    const result = await connectElms(client, pasted);
     setBusy(false);
     switch (result.status) {
       case "connected":

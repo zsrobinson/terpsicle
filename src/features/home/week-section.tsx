@@ -40,7 +40,7 @@ export function WeekSection({
     [todo, clock.today, weekStart],
   );
   const totals = weekTotals(rows);
-  const check = useCheckOff();
+  const check = useCheckOff(todo.done);
 
   return (
     <HomeSection

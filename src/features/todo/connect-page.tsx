@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { feedWords } from "~/core/todo";
@@ -20,13 +21,26 @@ import {
 } from "./connect-form";
 import { FileDrop } from "./file-drop";
 import {
+  confirmDisconnect,
+  disconnectElms,
+  flushDisconnect,
+  undoDisconnect,
+} from "./todo-mutations";
+import {
   TODO_CONNECT_PATH,
   TODO_PATH,
   TodoFrame,
   TodoOff,
   useNow,
 } from "./todo-page";
-import { useTodo } from "./todo-store";
+import { type TodoPhase, todoWeekQuery } from "./todo-queries";
+import {
+  useAskElms,
+  useDisconnecting,
+  useElmsSync,
+  useForgetTodoOnSignOut,
+  weekPhase,
+} from "./use-todo";
 
 // `/todo/connect` (docs/V3.md §3.2, §3.7): connect ELMS, see how the
 // connection is doing, disconnect (Undo, no dialog), and add a calendar file.
@@ -36,11 +50,9 @@ const DISCONNECT_TOAST = "todo-disconnect";
 
 function Connection() {
   const { now } = useNow();
-  const feed = useTodo((s) => s.feed);
-  const disconnecting = useTodo((s) => s.disconnecting);
-  const disconnect = useTodo((s) => s.disconnect);
-  const undoDisconnect = useTodo((s) => s.undoDisconnect);
-  const confirmDisconnect = useTodo((s) => s.confirmDisconnect);
+  const client = useQueryClient();
+  const { feed } = useElmsSync();
+  const disconnecting = useDisconnecting();
   const [connected, setConnected] = useState(false);
   // Its card, once connecting asks (V2 §6.7).
   usePushAskCard("todo-connected");
@@ -52,7 +64,7 @@ function Connection() {
 
   const onDisconnect = () => {
     setConnected(false);
-    disconnect();
+    disconnectElms(client);
     undoToast({
       id: DISCONNECT_TOAST,
       message: "ELMS disconnected",
@@ -112,21 +124,24 @@ function Connection() {
   );
 }
 
-function SignedIn() {
+/**
+ * This week's list, which says how ELMS is, asked for when `on`; ELMS is
+ * asked again as the page opens if its last read is old.
+ */
+function useConnection(on: boolean) {
   const { today } = useNow();
-  const phase = useTodo((s) => s.phase);
-  const load = useTodo((s) => s.load);
-  const flushDisconnect = useTodo((s) => s.flushDisconnect);
+  const week = useQuery({ ...todoWeekQuery(today), enabled: on });
+  useAskElms(on);
+  useForgetTodoOnSignOut();
+  return { phase: weekPhase(on, week), retry: () => void week.refetch() };
+}
 
-  useEffect(() => {
-    void load(today, Date.now());
-  }, [load, today]);
-
+function SignedIn({ phase, retry }: { phase: TodoPhase; retry: () => void }) {
   // Leaving the page ends Undo's window: send the disconnect now.
   useEffect(() => {
     window.addEventListener("pagehide", flushDisconnect);
     return () => window.removeEventListener("pagehide", flushDisconnect);
-  }, [flushDisconnect]);
+  }, []);
 
   return (
     <>
@@ -136,7 +151,7 @@ function SignedIn() {
         ) : phase === "failed" ? (
           <InlineError
             message="We couldn't check your ELMS connection. Check your internet and try again."
-            onRetry={() => void load(today, Date.now())}
+            onRetry={retry}
           />
         ) : (
           <RowSkeleton
@@ -161,17 +176,18 @@ function SignedIn() {
 export function ConnectPage() {
   const status = useAccount((s) => s.status);
   const on = useAccount((s) => s.flags.todo);
+  const { phase, retry } = useConnection(status === "signed-in" && on);
+  const { feed } = useElmsSync();
   // Named like the list's "ELMS link" once there's one to look after;
   // until the connection's known, a placeholder rather than a wrong name.
-  const title = useTodo((s) =>
-    s.phase === "failed"
+  const title =
+    phase === "failed"
       ? "ELMS link"
-      : s.phase !== "ready"
+      : phase !== "ready"
         ? null
-        : s.feed
+        : feed
           ? "ELMS link"
-          : "Connect ELMS",
-  );
+          : "Connect ELMS";
   if (status !== "loading" && !on) return <TodoOff />;
   return (
     <TodoFrame>
@@ -198,7 +214,7 @@ export function ConnectPage() {
             />
           </div>
         ) : (
-          <SignedIn />
+          <SignedIn phase={phase} retry={retry} />
         )}
       </div>
     </TodoFrame>

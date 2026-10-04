@@ -1,10 +1,12 @@
 import "fake-indexeddb/auto";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
   createRouter,
   RouterProvider,
   stringifySearchWith,
+  useRouterState,
 } from "@tanstack/react-router";
 import {
   act,
@@ -20,7 +22,11 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Flags,
+  TodoDeleteTaskInput,
+  TodoDoneInput,
+  TodoHideCourseInput,
   TodoItem,
+  TodoListInput,
   TodoListResult,
   TodoSaveTaskInput,
 } from "~/core/schema";
@@ -31,11 +37,13 @@ import {
   testFeedLink,
 } from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
+import { useHomeTodo } from "~/features/home/use-home";
 import { prefsDb } from "~/features/prefs/save";
 import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import { track } from "~/lib/analytics";
-import { ApiCallError } from "~/server/fns/api";
+import { ApiCallError, type ApiOptions } from "~/server/fns/api";
+import { createTestQueryClient } from "~/state/query/testing";
 import {
   readSidebarWidth,
   writeSidebarWidth,
@@ -45,8 +53,9 @@ import { TooltipProvider } from "~/ui/tooltip";
 import { Composer } from "./composer";
 import { ConnectPage } from "./connect-page";
 import { importWords } from "./file-drop";
+import { resetTodoMutations } from "./todo-mutations";
 import { TodoPage } from "./todo-page";
-import { resetTodo, setTodoClient, type TodoClient } from "./todo-store";
+import { setTodoClient, type TodoClient } from "./todo-queries";
 
 // 2026-09-28 is a Monday, and it's noon in New York; the fixture item is
 // due Tuesday the 29th at 11:59pm.
@@ -58,6 +67,10 @@ vi.mock("~/lib/analytics", async (original) => ({
 
 const NOW = "2026-09-28T16:00:00.000Z";
 
+/**
+ * The routes, over one list that remembers what's saved, as the server
+ * does: the weeks are read again once a run of changes settles.
+ */
 function fakeClient(list: Partial<TodoListResult> = {}) {
   let answer: TodoListResult = {
     feed: aTodoFeedState({ lastSuccessAt: "2026-09-28T15:46:00.000Z" }),
@@ -66,17 +79,29 @@ function fakeClient(list: Partial<TodoListResult> = {}) {
     hidden: [],
     ...list,
   };
+  const without = (uids: readonly string[], uid: string) =>
+    uids.filter((u) => u !== uid);
   const client = {
-    list: vi.fn(async () => answer),
+    list: vi.fn(async (_range: TodoListInput, _options?: ApiOptions) => answer),
     connect: vi.fn(
-      async (): Promise<Awaited<ReturnType<TodoClient["connect"]>>> => ({
-        status: "connected",
-        feed: aTodoFeedState(),
-        items: [],
-      }),
+      async (): Promise<Awaited<ReturnType<TodoClient["connect"]>>> => {
+        answer = { ...answer, feed: aTodoFeedState() };
+        return { status: "connected", feed: aTodoFeedState(), items: [] };
+      },
     ),
-    disconnect: vi.fn(async () => ({ status: "disconnected" as const })),
-    done: vi.fn(async () => ({ status: "ok" as const })),
+    disconnect: vi.fn(async () => {
+      answer = {
+        ...answer,
+        feed: null,
+        items: answer.items.filter((i) => i.source !== "elms"),
+      };
+      return { status: "disconnected" as const };
+    }),
+    done: vi.fn(async ({ uid, done }: TodoDoneInput) => {
+      const others = without(answer.done, uid);
+      answer = { ...answer, done: done ? [...others, uid] : others };
+      return { status: "ok" as const };
+    }),
     refresh: vi.fn(
       async (): Promise<Awaited<ReturnType<TodoClient["refresh"]>>> => ({
         status: "too-soon",
@@ -88,21 +113,36 @@ function fakeClient(list: Partial<TodoListResult> = {}) {
       added: 2,
       skipped: 1,
     })),
-    hideCourse: vi.fn(async () => ({ status: "ok" as const })),
+    hideCourse: vi.fn(async ({ key, hidden }: TodoHideCourseInput) => {
+      const others = without(answer.hidden, key);
+      answer = { ...answer, hidden: hidden ? [...others, key] : others };
+      return { status: "ok" as const };
+    }),
     saveTask: vi.fn(
       async (
         input: TodoSaveTaskInput,
-      ): Promise<Awaited<ReturnType<TodoClient["saveTask"]>>> => ({
-        status: "saved",
-        item: ownTaskItem({
+      ): Promise<Awaited<ReturnType<TodoClient["saveTask"]>>> => {
+        const item = ownTaskItem({
           uid: input.uid,
           title: input.title.trim(),
           courseCode: input.courseCode,
           ...ownTaskDue(input.dueDate, input.dueTime),
-        }),
-      }),
+        });
+        answer = {
+          ...answer,
+          items: [...answer.items.filter((i) => i.uid !== item.uid), item],
+        };
+        return { status: "saved", item };
+      },
     ),
-    deleteTask: vi.fn(async () => ({ status: "ok" as const })),
+    deleteTask: vi.fn(async ({ uid }: TodoDeleteTaskInput) => {
+      answer = {
+        ...answer,
+        items: answer.items.filter((i) => i.uid !== uid),
+        done: without(answer.done, uid),
+      };
+      return { status: "ok" as const };
+    }),
     /** What the next `todo/list` answers. */
     answer: (next: Partial<TodoListResult>) => {
       answer = { ...answer, ...next };
@@ -111,6 +151,9 @@ function fakeClient(list: Partial<TodoListResult> = {}) {
   setTodoClient(client as unknown as TodoClient);
   return client;
 }
+
+/** The page's query client: a fresh one for each test. */
+let queries: QueryClient;
 
 /** The page in a one-route router (its frame links to the other products). */
 function wrap(node: ReactNode) {
@@ -121,10 +164,12 @@ function wrap(node: ReactNode) {
     stringifySearch: stringifySearchWith(JSON.stringify),
   });
   render(
-    <TooltipProvider delayDuration={0}>
-      <RouterProvider router={router} />
-      <Toaster />
-    </TooltipProvider>,
+    <QueryClientProvider client={queries}>
+      <TooltipProvider delayDuration={0}>
+        <RouterProvider router={router} />
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>,
   );
   return router;
 }
@@ -145,6 +190,18 @@ function signedIn(on = true, chat: Flags["chat"] = "off") {
 
 function renderTodo(anchor?: string) {
   return wrap(<TodoPage anchor={anchor} />);
+}
+
+/** The page at `/todo`, its week from `?date` as the route reads it. */
+function TodoAtUrl() {
+  const date = useRouterState({
+    select: (s) => (s.location.search as { date?: string }).date,
+  });
+  return <TodoPage anchor={date} />;
+}
+
+function renderTodoRoute() {
+  return wrap(<TodoAtUrl />);
 }
 
 /** The workbench's sidebar, at a desktop's width. */
@@ -175,7 +232,8 @@ beforeEach(() => {
   vi.mocked(track).mockClear();
   window.localStorage.clear();
   showSyncedPrefs({});
-  resetTodo();
+  resetTodoMutations();
+  queries = createTestQueryClient();
 });
 
 afterEach(() => {
@@ -685,17 +743,61 @@ describe("the week", () => {
     expect(today.tagName).toBe("A");
   });
 
-  it("loads a week the list doesn't hold yet", async () => {
+  it("asks for the week on screen, and the weeks before and after it", async () => {
     const client = fakeClient({ items });
     signedIn();
     renderTodo("2027-01-06");
     await screen.findByRole("heading", { level: 1, name: /Jan 4 – Jan 10/ });
-    await waitFor(() =>
-      expect(client.list).toHaveBeenCalledWith({
-        from: "2026-12-07",
-        to: "2027-04-05",
+    for (const [from, to] of [
+      ["2027-01-04", "2027-01-10"],
+      ["2026-12-28", "2027-01-03"],
+      ["2027-01-11", "2027-01-17"],
+    ])
+      await waitFor(() =>
+        expect(client.list).toHaveBeenCalledWith(
+          { from, to },
+          expect.anything(),
+        ),
+      );
+  });
+
+  it("goes ahead a week from what it has: the next week's already there", async () => {
+    const lab = aTodoItem({
+      uid: "event-assignment-6",
+      title: "Lab 6",
+      dueDate: "2026-10-07",
+      dueAt: null,
+    });
+    const client = fakeClient({ items: [...items, lab] });
+    signedIn();
+    renderTodoRoute();
+    await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" });
+    // This week, and the weeks either side of it.
+    await waitFor(() => expect(client.list).toHaveBeenCalledTimes(3));
+    expect(screen.queryByText("Lab 6")).toBeNull();
+    const user = userEvent.setup();
+    await user.click(
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: "Ahead a week",
       }),
     );
+    await screen.findByRole("heading", { level: 1, name: "Oct 5 – Oct 11" });
+    // On the week as it opens, read from the cache: not asked for again.
+    expect(screen.getByText("Lab 6")).toBeVisible();
+    const asked = (from: string) =>
+      client.list.mock.calls.filter(([range]) => range.from === from).length;
+    expect(asked("2026-10-05")).toBe(1);
+    // The week after it is asked for now, for the next Ahead.
+    await waitFor(() => expect(asked("2026-10-12")).toBe(1));
+    // Back again: this week, from the cache too.
+    await user.click(
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: "Back a week",
+      }),
+    );
+    await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" });
+    expect(screen.getByText("Project 2")).toBeVisible();
+    expect(asked("2026-09-28")).toBe(1);
   });
 
   it("starts on Monday, even for an account that picked Sunday before", async () => {
@@ -784,6 +886,56 @@ describe("the week", () => {
     expect(
       within(await screen.findByRole("dialog")).queryByRole("link"),
     ).toBeNull();
+  });
+});
+
+describe("Home and Todo", () => {
+  /** What Home's This week reads: done, of this week's items. */
+  function HomeWeek() {
+    const todo = useHomeTodo("2026-09-28", true);
+    return (
+      <output data-testid="home-week">
+        {todo.phase === "ready"
+          ? todo.items
+              .filter((i) => todo.done.has(i.uid))
+              .map((i) => i.title)
+              .join(", ") || "nothing done"
+          : todo.phase}
+      </output>
+    );
+  }
+
+  it("read one copy of the week: asked for once, and a check on either shows on both at once", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    wrap(
+      <>
+        <HomeWeek />
+        <TodoPage />
+      </>,
+    );
+    const home = await screen.findByTestId("home-week");
+    await waitFor(() => expect(home).toHaveTextContent("nothing done"));
+    expect(
+      client.list.mock.calls.filter(([r]) => r.from === "2026-09-28"),
+    ).toHaveLength(1);
+    // The server takes its time: both have the check before it answers.
+    let answer: () => void = () => {};
+    client.done.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = () => resolve({ status: "ok" });
+      }),
+    );
+    const user = userEvent.setup();
+    const box = await screen.findByRole("checkbox", {
+      name: "Done: Project 2",
+    });
+    await user.click(box);
+    expect(box).toBeChecked();
+    expect(home).toHaveTextContent("Project 2");
+    act(() => answer());
+    await waitFor(() => expect(client.done).toHaveBeenCalledTimes(1));
+    expect(home).toHaveTextContent("Project 2");
   });
 });
 
@@ -1094,10 +1246,12 @@ describe("the composer, folded", () => {
   it("is the field alone until it's in use, then opens its pickers", async () => {
     fakeClient();
     render(
-      <TooltipProvider delayDuration={0}>
-        <Composer courses={["CMSC216"]} colors={{}} compact />
-        <button type="button">elsewhere</button>
-      </TooltipProvider>,
+      <QueryClientProvider client={queries}>
+        <TooltipProvider delayDuration={0}>
+          <Composer courses={["CMSC216"]} colors={{}} compact />
+          <button type="button">elsewhere</button>
+        </TooltipProvider>
+      </QueryClientProvider>,
     );
     const user = userEvent.setup();
     const field = screen.getByRole("textbox", { name: "New task" });
@@ -1290,7 +1444,7 @@ describe("the connect page", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Disconnect" }));
     window.dispatchEvent(new Event("pagehide"));
-    expect(client.disconnect).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(client.disconnect).toHaveBeenCalledTimes(1));
   });
 
   it("is named ELMS link once connected, and Connect ELMS before", async () => {

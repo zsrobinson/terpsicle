@@ -5,9 +5,6 @@ import {
   courseWeek,
   isThisWeek,
   isWeekend,
-  mergeRange,
-  rangeLoaded,
-  rangeToLoad,
   shiftWeek,
   shortDayLabel,
   totalOf,
@@ -135,53 +132,5 @@ describe("courseWeek", () => {
       "Robotics Club",
       "Other",
     ]);
-  });
-});
-
-describe("loading more of the calendar", () => {
-  const due = (uid: string, dueDate: string | null) =>
-    dueDate === null
-      ? anOwnTask({ uid })
-      : aTodoItem({ uid, dueDate, dueAt: null });
-
-  it("knows what's loaded", () => {
-    const loaded = [{ from: "2026-09-01", to: "2026-12-29" }];
-    expect(rangeLoaded(loaded, { from: "2026-09-28", to: "2026-10-04" })).toBe(
-      true,
-    );
-    expect(rangeLoaded(loaded, { from: "2026-12-28", to: "2027-01-03" })).toBe(
-      false,
-    );
-  });
-
-  it("asks from four weeks back, as far ahead as one call goes", () => {
-    expect(rangeToLoad({ from: "2027-01-04", to: "2027-01-10" }, 119)).toEqual({
-      from: "2026-12-07",
-      to: "2027-04-05",
-    });
-  });
-
-  it("keeps what's outside the new range and takes the answer inside it", () => {
-    const merged = mergeRange(
-      {
-        items: [
-          due("old", "2026-09-10"),
-          due("moved", "2026-12-20"),
-          due("own-undated-0000", null),
-        ],
-        done: new Set(["old", "moved"]),
-      },
-      { from: "2026-12-07", to: "2027-04-05" },
-      {
-        items: [due("new", "2027-01-05"), due("own-undated-0000", null)],
-        done: ["new"],
-      },
-    );
-    expect(merged.items.map((i) => i.uid)).toEqual([
-      "old",
-      "new",
-      "own-undated-0000",
-    ]);
-    expect([...merged.done].sort()).toEqual(["new", "old"]);
   });
 });
