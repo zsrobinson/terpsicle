@@ -1,3 +1,4 @@
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { Mark } from "~/components/brand/mark";
 import { SCHEDULE_PATH } from "~/core/routing";
 import type { CourseCode } from "~/core/schema";
@@ -63,7 +64,7 @@ export function ChatClosed() {
         title="Chat isn't open yet"
         line="When it is, you'll talk with the people in your classes here, in rooms for each course and section."
         primary={{
-          label: "View schedule",
+          label: <IntegrationLabel product="schedule" />,
           hint: "Plan your classes",
           to: SCHEDULE_PATH,
         }}

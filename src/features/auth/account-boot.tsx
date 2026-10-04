@@ -1,7 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { SIGNED_IN_KEPT, SIGNED_IN_PARAM } from "~/core/schema";
 import { track } from "~/lib/analytics";
-import { useAccount } from "./account-store";
+import { setAccountQueryClient, useAccount } from "./account-store";
 
 /** Set once this browser has signed in, for `firstOnDevice`. */
 const SIGNED_IN_BEFORE_KEY = "terpsicle:signed-in-before";
@@ -11,12 +12,15 @@ export const KEPT_ACCOUNT_NOTE = "Your account is staying";
 export const KEPT_ACCOUNT_DETAIL = "Signing in cancelled its deletion.";
 
 /**
- * Asks /api/me who's signed in, once per page load, on every route. After a
- * sign-in, strips `?signed-in=1` (V2.md §4.2) and counts it; after this
- * device's first, it's the install prompt's `first-sign-in` moment (§3.4).
+ * Asks /api/me who's signed in, once per page load, on every route, in the
+ * page's query client (./me-query). After a sign-in, strips `?signed-in=1`
+ * (V2.md §4.2) and counts it; after this device's first, it's the install
+ * prompt's `first-sign-in` moment (§3.4).
  */
 export function AccountBoot() {
+  const queryClient = useQueryClient();
   useEffect(() => {
+    setAccountQueryClient(queryClient);
     void useAccount.getState().load();
     const url = new URL(window.location.href);
     const signedIn = url.searchParams.get(SIGNED_IN_PARAM);
@@ -48,6 +52,6 @@ export function AccountBoot() {
           }),
         () => {},
       );
-  }, []);
+  }, [queryClient]);
   return null;
 }

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { ViewWords } from "~/components/brand/view-words";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { termLabel } from "~/core/catalog/terms";
 import {
   fourYearColumnFor,
@@ -74,7 +74,7 @@ export function ViewSchedule({ termId }: { termId: TermId }) {
             onClick={() => crossLinkClicked("plan", "schedule")}
             className={LINK}
           >
-            <ViewWords to="schedule" />
+            <IntegrationLabel product="schedule" />
             <ArrowRight aria-hidden="true" className="size-3.5" />
           </Link>
         </WithTooltip>
@@ -97,7 +97,7 @@ export function ViewTodos() {
           onClick={() => crossLinkClicked("plan", "todo")}
           className={LINK}
         >
-          <ViewWords to="todo" />
+          <IntegrationLabel product="todo" />
           <ArrowRight aria-hidden="true" className="size-3.5" />
         </Link>
       </WithTooltip>

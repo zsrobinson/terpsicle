@@ -26,7 +26,7 @@ Before writing any of these, find the platform's version:
 | Back, Forward, "go back to where I was" | `useNavigate`, `navigate({ replace: true })`, the router's history |
 | A scheduled job | A Cron Trigger and an entry in `CRON_JOBS` |
 | Shared live state, sockets | A Durable Object (see below) |
-| A component (dialog, menu, tooltip, tabs) | Radix through `src/components/ui` (shadcn/ui) |
+| A component (dialog, menu, tooltip, tabs) | The kit in `src/components/ui`, on Base UI (`@base-ui/react`); a new primitive starts from Base UI's docs styling in our look (`docs/decisions.md`) |
 | Validation | zod schemas in `src/core/schema` |
 | Browser storage for local-first data (plans, docs, prefs) | Dexie (`src/state/db.ts`); a cache of server data is the query cache instead |
 | App state that isn't URL state or server data | zustand |

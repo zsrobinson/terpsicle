@@ -4,18 +4,21 @@ import {
   type ComponentProps,
   isValidElement,
   type ReactNode,
+  useEffect,
   useState,
 } from "react";
 import { HapticTap } from "./haptic";
+import { usePageIndent } from "./sheet-indent";
 import { WithTooltip } from "./tooltip";
 
 // The phone sheet (docs/COHESION.md §1.5): what a desktop popover becomes
 // on a phone, a Base UI Drawer from the bottom edge with a grabber, a
 // keyline and the drawer's offset along its top, square like the rest of
 // the Ink brand. A swipe down (a quick flick is enough), a tap above it or
-// Esc closes it, and the page behind scales back (./sheet-indent.tsx). Its
+// Esc closes it, and the page behind scales back (./sheet-indent.tsx), from
+// wherever it was opened, the workbench drawer included. Its
 // heading is the caller's, wrapped in `SheetTitle` so the sheet is named by
-// it: `<PageHeader size="panel" title={<SheetTitle asChild><span>…`.
+// it: `<PageHeader size="panel" title={<SheetTitle render={<span />}>…`.
 //
 // Detents, as iOS names them: by default the sheet is as tall as what's in
 // it (up to the screen, less the gap at the top). With
@@ -25,23 +28,37 @@ import { WithTooltip } from "./tooltip";
 // Motion is the drawer docs': 450ms on cubic-bezier(.32,.72,0,1), and a
 // release as quick as the fling. Reduce Motion: no slide and no scale-back,
 // the sheet fades.
+//
+// It's modal over everything, the phone's tab bar included, as iOS's sheets
+// are: it goes to the end of <body>, past the tab bar (z-40), with its own
+// backdrop, wherever it was opened from. Opened inside the workbench drawer
+// (a Base UI drawer too, inside the page's stacking context), Base UI would
+// nest it in that drawer's portal, under the tab bar and with no backdrop:
+// a course's Reviews preview ended under the bar.
 
-/** The sheet's name for assistive tech: wrap the visible heading in it. */
+/**
+ * The sheet's name for assistive tech: wrap the visible heading in it, an
+ * `<h2>` of its own or the element `render` gives.
+ */
 function SheetTitle({
-  asChild,
-  children,
+  render,
+  id,
   ...props
-}: ComponentProps<typeof Drawer.Title> & {
-  /** Names the sheet by the child element instead of an `<h2>` of its own. */
-  asChild?: boolean;
-}) {
-  if (asChild && isValidElement<{ id?: string }>(children))
-    // The child's own id, if it has one, is the one the sheet points at.
-    return <Drawer.Title render={children} id={children.props.id} {...props} />;
-  return <Drawer.Title {...props}>{children}</Drawer.Title>;
+}: ComponentProps<typeof Drawer.Title>) {
+  // The rendered element's own id, if it has one, is the one the sheet
+  // points at.
+  const own = isValidElement<{ id?: string }>(render)
+    ? render.props.id
+    : undefined;
+  return <Drawer.Title render={render} id={id ?? own} {...props} />;
 }
 
 type Detent = "medium" | "large";
+
+/** Where every sheet goes: the end of the page, over the tab bar. */
+function topLayer(): HTMLElement | undefined {
+  return typeof document === "undefined" ? undefined : document.body;
+}
 
 // Base UI's snap points: a fraction of the viewport. The large sheet is the
 // screen less its top gap, so 1 lands it there (and marks `data-expanded`).
@@ -86,6 +103,13 @@ function Sheet({
     if (open) setSnap(first);
   }
   const large = snap === SNAP.large;
+  // The page scales back behind every sheet, the workbench drawer's too
+  // (./sheet-indent.tsx).
+  const holdPage = usePageIndent();
+  useEffect(
+    () => (open && holdPage ? holdPage() : undefined),
+    [open, holdPage],
+  );
   return (
     <Drawer.Root
       open={open}
@@ -100,8 +124,11 @@ function Sheet({
         : {})}
     >
       <Drawer.VirtualKeyboardProvider>
-        <Drawer.Portal>
+        <Drawer.Portal container={topLayer()}>
           <Drawer.Backdrop
+            // Base UI leaves a nested drawer's backdrop out; on screen ours
+            // is never nested (above).
+            forceRender
             className={cn(
               "fixed inset-0 z-40 min-h-dvh bg-fg/20",
               // Fades as the sheet is dragged away. With detents, Base UI's
@@ -131,7 +158,7 @@ function Sheet({
               }}
               className={cn(
                 "relative flex w-full flex-col border-keyline border-t bg-bg text-fg shadow-drawer outline-none",
-                "[--sheet-gap:calc(max(env(safe-area-inset-top,0px),1.25rem)+0.5rem)]",
+                "[--sheet-gap:calc(max(var(--safe-top),1.25rem)+0.5rem)]",
                 steps
                   ? "h-[calc(100dvh-var(--sheet-gap))]"
                   : "max-h-[calc(100dvh-var(--sheet-gap))]",
@@ -145,8 +172,8 @@ function Sheet({
                 // its last row; then the home indicator's inset and the
                 // keyboard's.
                 steps
-                  ? "pb-[calc(max(0px,calc(var(--drawer-snap-point-offset,0px)+var(--drawer-swipe-movement-y,0px)))+env(safe-area-inset-bottom,0px)+var(--drawer-keyboard-inset,0px))]"
-                  : "pb-[calc(env(safe-area-inset-bottom,0px)+var(--drawer-keyboard-inset,0px))]",
+                  ? "pb-[calc(max(0px,calc(var(--drawer-snap-point-offset,0px)+var(--drawer-swipe-movement-y,0px)))+var(--safe-bottom)+var(--drawer-keyboard-inset,0px))]"
+                  : "pb-[calc(var(--safe-bottom)+var(--drawer-keyboard-inset,0px))]",
                 // Paper under the sheet when a drag lifts it past the top.
                 "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-12 after:bg-bg",
                 // Reduce Motion: it fades in and out where it rests.

@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { Mark } from "~/components/brand/mark";
 import { PanelBody } from "~/components/panel";
 import { ADMIN_KIT_PATH } from "~/core/routing";
@@ -23,22 +24,18 @@ import { GEN_ED_LABELS } from "~/core/schema";
 import type { KitPart } from "~/core/schema/admin-kit";
 import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
 import {
+  ActionContextMenu,
   ActionMenu,
   ActionMenuCheckboxItem,
+  ActionMenuGroup,
   ActionMenuItem,
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuSub,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
 import {
   COURSE_SEARCH_TIP,
   CourseResultRow,
@@ -50,22 +47,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "~/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuItemText,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { EmptyState } from "~/ui/empty-state";
 import { FilterChips } from "~/ui/filter-chips";
 import { InlineError } from "~/ui/inline-error";
@@ -304,7 +285,7 @@ function PageParts() {
                   href="/schedule"
                   className="font-medium text-fg underline decoration-hairline-strong underline-offset-2"
                 >
-                  View schedule
+                  <IntegrationLabel product="schedule" />
                 </a>
               </>
             }
@@ -449,7 +430,10 @@ function PageParts() {
                 icon: <Search aria-hidden="true" />,
                 to: "/chat",
               }}
-              secondary={{ label: "View schedule", to: "/schedule" }}
+              secondary={{
+                label: <IntegrationLabel product="schedule" />,
+                to: "/schedule",
+              }}
             />
           </Demo>
           <Demo
@@ -507,6 +491,58 @@ function PageParts() {
             line="When ELMS lists an assignment or exam for one of your classes, it shows up here."
             primary={{ label: "Connect ELMS", to: "/todo/connect" }}
           />
+        </Demo>
+      </PageSection>
+
+      <PageSection title="Integration icons" aside="IntegrationLabel">
+        <Demo
+          className="flex flex-wrap items-center gap-6 p-4"
+          caption="Wherever one product shows up in another, its mark comes first, at 20px, in any control. The host keeps its look. Without words it says the product's View words."
+        >
+          <WithTooltip label="A link into another product">
+            <a
+              href="/schedule"
+              className="font-medium text-fg underline underline-offset-2 hover:no-underline"
+            >
+              <IntegrationLabel product="schedule" />
+            </a>
+          </WithTooltip>
+          <WithTooltip label="A button into another product">
+            <Button variant="outline" size="sm">
+              <IntegrationLabel product="chat">
+                Join CMSC351 chat
+              </IntegrationLabel>
+            </Button>
+          </WithTooltip>
+          <WithTooltip label="A quiet control that opens a piece of another product">
+            <button
+              type="button"
+              className="flex h-6 items-center rounded-md px-1.5 text-muted text-xs hover:bg-hover hover:text-fg"
+            >
+              <IntegrationLabel product="reviews">Reviews</IntegrationLabel>
+            </button>
+          </WithTooltip>
+          <WithTooltip label="View chat: talk with the people in CMSC216">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View chat for CMSC216"
+            >
+              <IntegrationLabel product="chat" iconOnly />
+            </Button>
+          </WithTooltip>
+          <p className="text-muted">
+            Import your transcript in{" "}
+            <WithTooltip label="A link in a sentence keeps the line's baseline">
+              <a
+                href="/plan"
+                className="text-fg underline decoration-hairline-strong underline-offset-2"
+              >
+                <IntegrationLabel product="plan">Plan</IntegrationLabel>
+              </a>
+            </WithTooltip>
+            , and your classes show up here.
+          </p>
         </Demo>
       </PageSection>
 
@@ -897,11 +933,7 @@ function ControlParts() {
       >
         <PageHeader
           size="panel"
-          title={
-            <SheetTitle asChild>
-              <span>Notifications</span>
-            </SheetTitle>
-          }
+          title={<SheetTitle render={<span />}>Notifications</SheetTitle>}
         />
         <p className="px-4 py-3 text-muted text-sm">
           Nothing new. Notifications show up here, pushed or not.
@@ -915,8 +947,8 @@ function ControlParts() {
         <PageHeader
           size="panel"
           title={
-            <SheetTitle asChild>
-              <span id={`${id}-notes`}>Notifications</span>
+            <SheetTitle render={<span id={`${id}-notes`} />}>
+              Notifications
             </SheetTitle>
           }
         />
@@ -1145,76 +1177,71 @@ function PopupParts() {
   const [dialog, setDialog] = useState(false);
   return (
     <>
-      <PageSection title="Menus" aside="DropdownMenu · ContextMenu">
+      <PageSection
+        title="Menus"
+        aside="ActionMenu · ActionMenuSub · ActionContextMenu"
+      >
         <Pair>
           <Demo
             className="p-4"
-            caption="A menu: a label, a choice of one, checks, a shortcut, a submenu and a destructive item."
+            caption="A menu: a label, a choice of one, checks, a shortcut, a submenu and a destructive item. On a phone, a sheet; its submenu takes the sheet's list's place."
           >
-            <DropdownMenu>
-              <WithTooltip label="Other plans and options">
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" data-kit-menu="">
-                    Plan A
-                    <ChevronDown aria-hidden="true" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </WithTooltip>
-              <DropdownMenuContent>
-                <DropdownMenuLabel>Spring 2027</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={plan} onValueChange={setPlan}>
-                  <DropdownMenuRadioItem value="a">
-                    Plan A
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="b">
-                    Plan B
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
+            <ActionMenu
+              title="Plan A"
+              description="Spring 2027"
+              tooltip="Other plans and options"
+              trigger={
+                <Button variant="outline" data-kit-menu="">
+                  Plan A
+                  <ChevronDown aria-hidden="true" />
+                </Button>
+              }
+            >
+              <ActionMenuRadioGroup
+                label="Spring 2027"
+                value={plan}
+                onValueChange={setPlan}
+              >
+                <ActionMenuRadioItem value="a">Plan A</ActionMenuRadioItem>
+                <ActionMenuRadioItem value="b">Plan B</ActionMenuRadioItem>
+              </ActionMenuRadioGroup>
+              <ActionMenuSeparator />
+              <ActionMenuGroup>
+                <ActionMenuCheckboxItem
                   checked={openSeats}
                   onCheckedChange={setOpenSeats}
                 >
                   Open seats only
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
+                </ActionMenuCheckboxItem>
+                <ActionMenuCheckboxItem
                   checked={accessible}
                   onCheckedChange={setAccessible}
                 >
                   Accessible routes
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Plus aria-hidden="true" />
-                  New plan
-                  <DropdownMenuShortcut>N</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <DropdownMenuItemText
-                    label="Generate plans…"
-                    hint="Every schedule that fits your courses"
-                  />
-                </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Move to…</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem>Fall 2026</DropdownMenuItem>
-                    <DropdownMenuItem>Spring 2027</DropdownMenuItem>
-                    <DropdownMenuItem disabled>Fall 2027</DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Rename</DropdownMenuItem>
-                <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                <DropdownMenuItem variant="destructive">
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </ActionMenuCheckboxItem>
+              </ActionMenuGroup>
+              <ActionMenuSeparator />
+              <ActionMenuItem icon={<Plus aria-hidden="true" />} shortcut="N">
+                New plan
+              </ActionMenuItem>
+              <ActionMenuItem hint="Every schedule that fits your courses">
+                Generate plans…
+              </ActionMenuItem>
+              <ActionMenuSub label="Move to…">
+                <ActionMenuItem>Fall 2026</ActionMenuItem>
+                <ActionMenuItem>Spring 2027</ActionMenuItem>
+                <ActionMenuItem disabled>Fall 2027</ActionMenuItem>
+              </ActionMenuSub>
+              <ActionMenuSeparator />
+              <ActionMenuItem>Rename</ActionMenuItem>
+              <ActionMenuItem>Duplicate</ActionMenuItem>
+              <ActionMenuItem variant="destructive">Delete</ActionMenuItem>
+            </ActionMenu>
           </Demo>
-          <Demo caption="A row's right-click menu: the same items as its ⋯ menu.">
-            <ContextMenu>
-              <ContextMenuTrigger asChild>
+          <Demo caption="A row's right-click menu (a long press on a phone, which opens it as a sheet): the same items as its ⋯ menu.">
+            <ActionContextMenu
+              title="CMSC216"
+              target={
                 <ListRow
                   data-kit-context=""
                   secondary="Right-click for its menu"
@@ -1223,23 +1250,25 @@ function PopupParts() {
                   <span className="ident">CMSC216</span> Introduction to
                   Computer Systems
                 </ListRow>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem>
-                  <Info aria-hidden="true" className="text-muted" />
-                  More about this course
-                </ContextMenuItem>
-                <ContextMenuItem>
-                  <Layers aria-hidden="true" className="text-muted" />
-                  Show all sections
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem>
-                  <Trash2 aria-hidden="true" className="text-muted" />
-                  Remove
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+              }
+            >
+              <ActionMenuItem
+                icon={<Info aria-hidden="true" className="text-muted" />}
+              >
+                More about this course
+              </ActionMenuItem>
+              <ActionMenuItem
+                icon={<Layers aria-hidden="true" className="text-muted" />}
+              >
+                Show all sections
+              </ActionMenuItem>
+              <ActionMenuSeparator />
+              <ActionMenuItem
+                icon={<Trash2 aria-hidden="true" className="text-muted" />}
+              >
+                Remove
+              </ActionMenuItem>
+            </ActionContextMenu>
           </Demo>
         </Pair>
       </PageSection>
@@ -1252,11 +1281,13 @@ function PopupParts() {
           >
             <Popover>
               <WithTooltip label="Share a link to this plan">
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" data-kit-popover="">
-                    <Share2 aria-hidden="true" />
-                    Share
-                  </Button>
+                <PopoverTrigger
+                  render={
+                    <Button variant="outline" size="sm" data-kit-popover="" />
+                  }
+                >
+                  <Share2 aria-hidden="true" />
+                  Share
                 </PopoverTrigger>
               </WithTooltip>
               <PopoverContent

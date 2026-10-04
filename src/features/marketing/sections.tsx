@@ -71,8 +71,8 @@ export function ClosingSection() {
           {status === "signed-in" ? CLOSING.bodySignedIn : CLOSING.body}
         </p>
         <LazyTooltip label="No account needed">
-          <Button asChild className="mk-cta">
-            <a href={SCHEDULE_PATH}>View schedule</a>
+          <Button className="mk-cta" render={<a href={SCHEDULE_PATH} />}>
+            View schedule
           </Button>
         </LazyTooltip>
       </div>

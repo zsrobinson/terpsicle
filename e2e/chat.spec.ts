@@ -316,6 +316,10 @@ test(
     const id = await message(page, edited).getAttribute("data-message-id");
     await messageAction(message(page, edited), "More", isMobile);
     await page.getByRole("menuitem", { name: "Delete" }).click();
+    // On a phone the menu is a sheet, so Delete sat at the bottom, where the
+    // toast now slides up under the test's mouse, which a phone doesn't
+    // have: hovered, the toast would wait forever.
+    if (isMobile) await page.mouse.move(0, 0);
     // The same message, by its id: sent once Undo runs out.
     const tombstone = (p: Page) =>
       p.getByRole("log").locator(`[data-message-id="${id}"]`);

@@ -24,14 +24,12 @@ import {
 } from "~/core/time";
 import { track } from "~/lib/analytics";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionMenu,
+  ActionMenuCheckboxItem,
+  ActionMenuGroup,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+} from "~/ui/action-menu";
 import { chipClass } from "~/ui/filter-chips";
 import { Input } from "~/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
@@ -246,33 +244,33 @@ function TimeFilter({
   const on = value !== null;
   const label = on ? onLabel(formatTime(value)) : offLabel;
   return (
-    <DropdownMenu>
-      <WithTooltip label={on ? `${countTip(count)}${tip}` : tip}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`${name}: ${on ? label : "any time"}`}
-            className={filterClass(on)}
-          >
-            <Face on={on} label={label} count={count} menu />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent className="min-w-[160px]">
-        <DropdownMenuLabel>{name}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={value === null ? ANY : String(value)}
-          onValueChange={(v) => onChange(v === ANY ? null : Number(v))}
+    <ActionMenu
+      title={name}
+      tooltip={on ? `${countTip(count)}${tip}` : tip}
+      className="min-w-[160px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={`${name}: ${on ? label : "any time"}`}
+          className={filterClass(on)}
         >
-          <DropdownMenuRadioItem value={ANY}>Any time</DropdownMenuRadioItem>
-          {options.map((m) => (
-            <DropdownMenuRadioItem key={m} value={String(m)} className="tnum">
-              {onLabel(formatTime(m))}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <Face on={on} label={label} count={count} menu />
+        </button>
+      }
+    >
+      <ActionMenuRadioGroup
+        label={name}
+        value={value === null ? ANY : String(value)}
+        onValueChange={(v) => onChange(v === ANY ? null : Number(v))}
+      >
+        <ActionMenuRadioItem value={ANY}>Any time</ActionMenuRadioItem>
+        {options.map((m) => (
+          <ActionMenuRadioItem key={m} value={String(m)}>
+            <span className="tnum">{onLabel(formatTime(m))}</span>
+          </ActionMenuRadioItem>
+        ))}
+      </ActionMenuRadioGroup>
+    </ActionMenu>
   );
 }
 
@@ -302,22 +300,23 @@ function DaysOffFilter({
         .join(" or ")}`
     : "Only plans that keep the days you pick free";
   return (
-    <DropdownMenu>
-      <WithTooltip label={on ? `${countTip(count)}${tip}` : tip}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={on ? `Days off: ${label}` : "Days off"}
-            className={filterClass(on)}
-          >
-            <Face on={on} label={label} count={count} menu />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent className="min-w-[160px]">
-        <DropdownMenuLabel>No classes on</DropdownMenuLabel>
+    <ActionMenu
+      title="No classes on"
+      tooltip={on ? `${countTip(count)}${tip}` : tip}
+      className="min-w-[160px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={on ? `Days off: ${label}` : "Days off"}
+          className={filterClass(on)}
+        >
+          <Face on={on} label={label} count={count} menu />
+        </button>
+      }
+    >
+      <ActionMenuGroup label="No classes on">
         {WEEKDAYS.map((day) => (
-          <DropdownMenuCheckboxItem
+          <ActionMenuCheckboxItem
             key={day}
             checked={days.includes(day)}
             onCheckedChange={() =>
@@ -329,10 +328,10 @@ function DaysOffFilter({
             }
           >
             {DAY_LONG_NAMES[day]}
-          </DropdownMenuCheckboxItem>
+          </ActionMenuCheckboxItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </ActionMenuGroup>
+    </ActionMenu>
   );
 }
 
@@ -366,14 +365,16 @@ function CreditsFilter({
   return (
     <Popover>
       <WithTooltip label={on ? `${countTip(count)}${tip}` : tip}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={on ? `Credits: ${label}` : "Credits"}
-            className={filterClass(on)}
-          >
-            <Face on={on} label={label ?? "Credits"} count={count} menu />
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-label={on ? `Credits: ${label}` : "Credits"}
+              className={filterClass(on)}
+            />
+          }
+        >
+          <Face on={on} label={label ?? "Credits"} count={count} menu />
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent className="w-60">

@@ -16,7 +16,6 @@ import { useGenerateDrafts } from "./generate-drafts";
 import { ensureCampus } from "./query/catalog";
 import { connectPublished, usePublishedSource } from "./query/published";
 import { createTestQueryClient } from "./query/testing";
-import { INITIAL_SEAT_WATCHES_STATE, useSeatWatches } from "./seat-watches";
 import { useShare } from "./share-store";
 import { INITIAL_UI_STATE, useUi } from "./ui-store";
 import { INITIAL_WORKSPACE_STATE, useWorkspace } from "./workspace-store";
@@ -27,7 +26,6 @@ export function resetStores(): void {
   useUi.setState(INITIAL_UI_STATE);
   useCatalog.setState(INITIAL_CATALOG_STATE);
   useShare.setState({ shared: null });
-  useSeatWatches.setState(INITIAL_SEAT_WATCHES_STATE);
   useGenerateDrafts.setState({ drafts: {} });
 }
 

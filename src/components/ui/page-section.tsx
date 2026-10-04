@@ -68,9 +68,11 @@ export function PageSection({
         </Heading>
         {aside ? (
           <div
-            className={
-              size === "page" ? "emph-meta" : "emph-secondary text-base"
-            }
+            className={cn(
+              size === "page" ? "emph-meta" : "emph-secondary text-base",
+              // Under the title, it has the column's width to fill.
+              size === "display" && "max-sm:self-stretch",
+            )}
           >
             {aside}
           </div>

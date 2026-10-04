@@ -72,7 +72,7 @@ export const MARKETING_NEVER_EAGER: readonly {
   },
   {
     pattern:
-      /^src\/components\/ui\/(tooltip|dropdown-menu|popover|dialog|sheet|select|context-menu)\.tsx$|(^|\/)@radix-ui\/react-(tooltip|menu|popover|dialog)\/|(^|\/)@base-ui\/react\/(tooltip\/(?!provider\/)|menu\/|popover\/|dialog\/)|(^|\/)@floating-ui\//,
+      /^src\/components\/ui\/((tooltip|dropdown-menu|popover|dialog|sheet|select)\.tsx|popup-focus\.ts)$|(^|\/)@base-ui\/react\/(tooltip\/(?!provider\/)|menu\/|context-menu\/|popover\/|dialog\/)|(^|\/)@floating-ui\//,
     why: "tooltips load on first pointer or key use (components/lazy-tooltip.tsx); / has no other popup",
   },
   { pattern: /(^|\/)sonner\//, why: "toasts load after the page (__root.tsx)" },
@@ -382,8 +382,8 @@ export const ROUTE_BUDGETS: readonly {
     budget: TODO_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
-  // Home reads this device's plans raw (no Dexie, no scheduler stores) and
-  // published files through Reviews' reader.
+  // Home reads this device's plans raw (no Dexie, no scheduler stores), and
+  // published files through their queries, which load on first use.
   {
     route: "/home",
     budget: HOME_BUDGET,

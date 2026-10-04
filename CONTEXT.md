@@ -35,8 +35,12 @@ The phone's bottom bar: Home and the five products, six labeled tabs, the one yo
 _Avoid_: bottom nav, dock
 
 **View link**:
-A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
+A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each wears the product's mark (an integration) and is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
 _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
+
+**Integration**:
+A place where one product shows a piece of another or links into it: Reviews' preview in Schedule's course details, "Join CMSC351 chat", Plan's "View schedule", a bell row. It always wears that product's mark before its words. Code says `IntegrationLabel`.
+_Avoid_: component icon (that's the product's mark), cross-link (in copy)
 
 ## Shared
 
@@ -68,7 +72,7 @@ What a popover becomes on a phone: a panel that slides up from the bottom edge w
 _Avoid_: modal, bottom sheet
 
 **Action menu**:
-A menu written once that's a menu under its button from 768px up and a sheet of the same items on a phone, headed by the menu's title (the plans, the account, the term, a sort). Code says `ActionMenu`.
+A menu written once that's a menu under its button from 768px up and a sheet of the same items on a phone, headed by the menu's title (the plans, the account, the term, a sort). A submenu ("Move to…") opens beside its item on a desktop and takes the sheet's list's place on a phone, under a row that goes back. A row's right-click menu is one too: on a phone a long press opens it as the same sheet. Every menu in the products is one. Code says `ActionMenu`, `ActionMenuSub` and `ActionContextMenu`.
 _Avoid_: dropdown
 
 **Push, pop and tab**:

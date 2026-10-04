@@ -1,13 +1,13 @@
+import { useMutation } from "@tanstack/react-query";
 import { cn } from "cn";
 import { Bell } from "lucide-react";
-import { useState } from "react";
 import type { SeatWatch, TermId } from "~/core/schema";
-import { useSeatWatches } from "~/state/seat-watches";
+import { useSeatWatchList } from "~/state/query/seat-watches";
 import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { courseHref, sectionLabel, termLabel } from "./labels";
-import { stopWatching } from "./seat-watches";
+import { stopWatchingMutation } from "./seat-watches";
 
 // "Watching": the sections the signed-in person watches for a seat, in
 // Settings (#watching, from the account menu) and in Export. Stop is
@@ -37,7 +37,7 @@ export function WatchingList({
   termId?: TermId;
   className?: string;
 }) {
-  const watches = useSeatWatches((s) => s.watches);
+  const watches = useSeatWatchList();
   if (watches === null) return null;
   if (watches.length === 0)
     return (
@@ -66,7 +66,7 @@ function WatchRow({
   watch: SeatWatch;
   showTerm: boolean;
 }) {
-  const [busy, setBusy] = useState(false);
+  const stop = useMutation(stopWatchingMutation());
   const label = sectionLabel(watch.sectionKey);
   return (
     <ListRow
@@ -87,13 +87,13 @@ function WatchRow({
           <Button
             variant="ghost"
             size="row"
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              void stopWatching(watch.termId, watch.sectionKey).finally(() =>
-                setBusy(false),
-              );
-            }}
+            disabled={stop.isPending}
+            onClick={() =>
+              stop.mutate({
+                termId: watch.termId,
+                sectionKey: watch.sectionKey,
+              })
+            }
           >
             Stop
           </Button>

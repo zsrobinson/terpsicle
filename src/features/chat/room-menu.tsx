@@ -8,22 +8,16 @@ import {
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import type { Room } from "~/core/chat";
-import { mainPlanFor } from "~/core/plans/main-plan";
 import type { CourseCode } from "~/core/schema";
 import {
+  ActionContextMenu,
   ActionMenu,
   ActionMenuItem,
   ActionMenuSeparator,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
-import { isMuted, useChatHome } from "./chat-home";
+import { isMuted, useChatHome, useChatUnread, useMainPlan } from "./chat-home";
+import { followCourse, muteRoom, unfollowCourse } from "./chat-mutations";
 import { showNote, showUndo } from "./undo";
 
 // A room's actions, in two places: the one button in its top bar (the
@@ -44,26 +38,19 @@ export const ROOM_RULES = [
 
 /** Mute and leave for a room, as both menus offer them. */
 function useRoomActions(courseCode: CourseCode, room: Room) {
-  const muted = useChatHome((s) => isMuted(s, room.id));
+  const unread = useChatUnread();
+  const mutes = useChatHome((s) => s.mutes);
+  const muted = isMuted(mutes, unread, room.id);
   const following = useChatHome((s) =>
     s.termId ? (s.follows[s.termId] ?? []).includes(courseCode) : false,
   );
-  const plan = useChatHome((s) =>
-    s.termId
-      ? mainPlanFor(
-          s.termId,
-          s.synced.plans,
-          s.synced.settings?.body.mainPlans ?? {},
-        )
-      : null,
-  );
+  const plan = useMainPlan();
   const inPlan = plan?.courses.some((c) => c.courseCode === courseCode);
   const [busy, setBusy] = useState(false);
-  const home = useChatHome.getState;
 
   const mute = async (on: boolean) => {
     setBusy(true);
-    const ok = await home().mute(courseCode, room.id, on);
+    const ok = await muteRoom(courseCode, room.id, on);
     setBusy(false);
     if (!ok)
       showNote(
@@ -72,9 +59,9 @@ function useRoomActions(courseCode: CourseCode, room: Room) {
       );
   };
   const leave = async () => {
-    if (!(await home().unfollow(courseCode)))
+    if (!(await unfollowCourse(courseCode)))
       return showNote(`We couldn't leave ${courseCode} chat.`, leave);
-    showUndo(`Left ${courseCode} chat`, () => void home().follow(courseCode));
+    showUndo(`Left ${courseCode} chat`, () => void followCourse(courseCode));
   };
   return {
     muted,
@@ -174,31 +161,34 @@ export function RoomContextMenu({
 }) {
   const { muted, mute, leave } = useRoomActions(courseCode, room);
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        {unread > 0 ? (
-          <ContextMenuItem
-            onSelect={() => useChatHome.getState().markRoomRead(room.id)}
+    <ActionContextMenu target={children} title={room.label}>
+      {unread > 0 ? (
+        <ActionMenuItem
+          icon={<CheckCheck aria-hidden="true" />}
+          onSelect={() => useChatHome.getState().markRoomRead(room.id)}
+        >
+          Mark read
+        </ActionMenuItem>
+      ) : null}
+      <ActionMenuItem
+        icon={
+          muted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />
+        }
+        onSelect={() => void mute(!muted)}
+      >
+        {muted ? "Unmute" : "Mute"}
+      </ActionMenuItem>
+      {leave && room.kind === "course" ? (
+        <>
+          <ActionMenuSeparator />
+          <ActionMenuItem
+            icon={<LogOut aria-hidden="true" />}
+            onSelect={() => void leave()}
           >
-            <CheckCheck aria-hidden="true" />
-            Mark read
-          </ContextMenuItem>
-        ) : null}
-        <ContextMenuItem onSelect={() => void mute(!muted)}>
-          {muted ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
-          {muted ? "Unmute" : "Mute"}
-        </ContextMenuItem>
-        {leave && room.kind === "course" ? (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => void leave()}>
-              <LogOut aria-hidden="true" />
-              Leave {courseCode} chat
-            </ContextMenuItem>
-          </>
-        ) : null}
-      </ContextMenuContent>
-    </ContextMenu>
+            Leave {courseCode} chat
+          </ActionMenuItem>
+        </>
+      ) : null}
+    </ActionContextMenu>
   );
 }

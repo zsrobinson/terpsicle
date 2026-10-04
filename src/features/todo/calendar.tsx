@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ExternalLink, Plus } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { addDays } from "~/core/ics/dates";
 import type { IsoDate, TodoItem } from "~/core/schema";
 import {
@@ -143,11 +144,15 @@ function ItemDetails({
         </WithTooltip>
         {link ? (
           <WithTooltip label="Open it in ELMS, in a new tab">
-            <Button size="sm" variant="ghost" asChild>
-              <a href={link} target="_blank" rel="noopener noreferrer">
-                <ExternalLink aria-hidden="true" />
-                Open in ELMS
-              </a>
+            <Button
+              size="sm"
+              variant="ghost"
+              render={
+                <a href={link} target="_blank" rel="noopener noreferrer" />
+              }
+            >
+              <ExternalLink aria-hidden="true" />
+              Open in ELMS
             </Button>
           </WithTooltip>
         ) : null}
@@ -181,15 +186,15 @@ function WithDetails({
   /** Open, and whether on its fields (the menu's Edit). */
   shown: "details" | "edit" | null;
   onShown: (shown: "details" | "edit" | null) => void;
-  children: (trigger: { label: string }) => ReactNode;
+  children: (trigger: { label: string }) => ReactElement;
 }) {
   const setOpen = (open: boolean) => onShown(open ? "details" : null);
   return (
     <Popover open={shown !== null} onOpenChange={setOpen}>
       <WithTooltip label="Details">
-        <PopoverTrigger asChild>
-          {children({ label: `${item.title}, details` })}
-        </PopoverTrigger>
+        <PopoverTrigger
+          render={children({ label: `${item.title}, details` })}
+        />
       </WithTooltip>
       <PopoverContent className="w-80 max-w-[calc(100vw-16px)]">
         <ItemDetails
@@ -474,7 +479,7 @@ export function ScheduleLink({
         onClick={onClick}
         className="text-muted underline-offset-2 hover:text-fg hover:underline max-md:py-3"
       >
-        View schedule
+        <IntegrationLabel product="schedule" />
       </Link>
     </WithTooltip>
   );

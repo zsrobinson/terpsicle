@@ -1,36 +1,17 @@
-import { useEffect, useState } from "react";
-import { Mark } from "~/components/brand/mark";
+import { useQuery } from "@tanstack/react-query";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { peopleWords } from "~/core/chat";
 import { chatPath } from "~/core/chat/room-paths";
 import { type CourseCode, courseRoomId, type TermId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { chatApi } from "~/server/fns/chat-api";
 import { buttonVariants } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
+import { roomMembersQuery } from "./queries";
 
 // The way into a course's chat from the scheduler's course details
 // (V2.md §8.2): "Join CMSC351 chat · 42 people". Loaded on demand, and only
 // while Chat is on, so the scheduler's first load doesn't carry it. Signed
 // out, the link leads to Chat's sign-in moment and back.
-
-/** Course room head counts, once per course per page load. */
-const counts = new Map<string, Promise<number | null>>();
-
-function peopleIn(
-  termId: TermId,
-  courseCode: CourseCode,
-): Promise<number | null> {
-  const key = `${termId}:${courseCode}`;
-  let count = counts.get(key);
-  if (!count) {
-    count = chatApi
-      .members({ termId, courseCode, roomId: courseRoomId(termId, courseCode) })
-      .then((r) => (r.status === "ok" ? r.total : null))
-      .catch(() => null);
-    counts.set(key, count);
-  }
-  return count;
-}
 
 export function CourseChatEntry({
   termId,
@@ -40,18 +21,16 @@ export function CourseChatEntry({
   courseCode: CourseCode;
 }) {
   const signedIn = useAccount((s) => s.status === "signed-in");
-  const [people, setPeople] = useState<number | null>(null);
-  useEffect(() => {
-    setPeople(null);
-    if (!signedIn) return;
-    let live = true;
-    void peopleIn(termId, courseCode).then((n) => {
-      if (live) setPeople(n);
-    });
-    return () => {
-      live = false;
-    };
-  }, [signedIn, termId, courseCode]);
+  // The course room's head count, shared with its room's "@" list.
+  const people = useQuery({
+    ...roomMembersQuery({
+      id: courseRoomId(termId, courseCode),
+      termId,
+      courseCode,
+    }),
+    enabled: signedIn,
+    select: (m) => m.total,
+  }).data;
 
   const label = `Join ${courseCode} chat`;
   return (
@@ -60,9 +39,8 @@ export function CourseChatEntry({
         href={chatPath({ course: courseCode, join: 1 })}
         className={buttonVariants({ variant: "outline", size: "sm" })}
       >
-        <Mark id="chat" size={16} className="size-4" />
-        {label}
-        {people ? (
+        <IntegrationLabel product="chat">{label}</IntegrationLabel>
+        {signedIn && people ? (
           <span className="tnum font-normal text-muted">
             · {peopleWords(people)}
           </span>

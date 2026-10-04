@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
@@ -16,7 +17,8 @@ import { Sheet, SheetTitle } from "~/ui/sheet";
 import { WithTooltip } from "~/ui/tooltip";
 import { ConnectForm, ConnectSteps } from "./connect-form";
 import { TODO_CONNECT_PATH } from "./todo-bar";
-import { useTodo } from "./todo-store";
+import { syncTodoNow } from "./todo-mutations";
+import { useElmsSync, useTodoList } from "./use-todo";
 import { openElmsSettings, useTodoWorkbench } from "./workbench-store";
 
 // Todo's sync, in the family bar (the owner, 2026-09-29): "ELMS synced 3
@@ -38,10 +40,11 @@ export const SYNC_NAME = "Sync";
 /** How Todo's sync is doing, for the bar's line and its cloud. */
 type SyncState = "loading" | "syncing" | "none" | "broken" | "stale" | "ok";
 
-function useSyncState(now: number): { state: SyncState; line: string } {
-  const feed = useTodo((s) => s.feed);
-  const ready = useTodo((s) => s.phase === "ready");
-  const busy = useTodo((s) => s.refreshing || s.syncing);
+function useSyncState(
+  now: number,
+  ready: boolean,
+): { state: SyncState; line: string } {
+  const { feed, busy } = useElmsSync();
   const words = feedWords(feed, now);
   if (!ready) return { state: "loading", line: "Loading your deadlines…" };
   if (busy) return { state: "syncing", line: "Syncing ELMS…" };
@@ -54,8 +57,8 @@ function useSyncState(now: number): { state: SyncState; line: string } {
 }
 
 /** The bar's line under the week: "ELMS synced 3 minutes ago". */
-export function SyncLine({ now }: { now: number }) {
-  const { line } = useSyncState(now);
+export function SyncLine({ now, ready }: { now: number; ready: boolean }) {
+  const { line } = useSyncState(now, ready);
   return (
     <span role="status" className="tnum truncate">
       {line}
@@ -74,9 +77,8 @@ const ICONS: Record<SyncState, typeof CloudCheck> = {
 
 /** Sync now, with what ELMS last said. */
 function SyncNow() {
-  const syncNow = useTodo((s) => s.syncNow);
-  const busy = useTodo((s) => s.refreshing || s.syncing);
-  const note = useTodo((s) => s.refreshNote);
+  const client = useQueryClient();
+  const { busy, note } = useElmsSync();
   return (
     <>
       <WithTooltip label="Read ELMS and your account's tasks again now">
@@ -85,7 +87,7 @@ function SyncNow() {
           size="sm"
           className="shrink-0"
           disabled={busy}
-          onClick={() => void syncNow()}
+          onClick={() => void syncTodoNow(client)}
         >
           <RefreshCw
             aria-hidden="true"
@@ -126,8 +128,8 @@ function SyncSettings({
   now: number;
   onDone: () => void;
 }) {
-  const feed = useTodo((s) => s.feed);
-  const listedAt = useTodo((s) => s.listedAt);
+  const { feed } = useElmsSync();
+  const { listedAt } = useTodoList();
   const words = feedWords(feed, now);
   const ours =
     listedAt === null
@@ -207,13 +209,16 @@ function SyncSettings({
 export function TodoSyncButton({
   hasFileItems,
   now,
+  ready,
 }: {
   hasFileItems: boolean;
   now: number;
+  /** The week on screen has loaded. */
+  ready: boolean;
 }) {
   const open = useTodoWorkbench((s) => s.elmsOpen);
   const mobile = useIsMobile();
-  const { state, line } = useSyncState(now);
+  const { state, line } = useSyncState(now, ready);
   const Icon = ICONS[state];
   const trigger = (
     <button
@@ -232,7 +237,7 @@ export function TodoSyncButton({
   return (
     <Popover open={open} onOpenChange={openElmsSettings}>
       <WithTooltip label={tooltip} side="bottom">
-        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+        <PopoverTrigger render={trigger} />
       </WithTooltip>
       <PopoverContent
         side="bottom"

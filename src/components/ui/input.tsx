@@ -76,7 +76,8 @@ function SearchField({
       <input
         type="search"
         value={value}
-        className="h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted [&::-webkit-search-cancel-button]:hidden"
+        // A placeholder longer than a phone's field ends in "…", not mid-word.
+        className="h-full min-w-0 flex-1 text-ellipsis bg-transparent outline-none placeholder:text-muted [&::-webkit-search-cancel-button]:hidden"
         {...props}
       />
       {onClear && hasText ? (

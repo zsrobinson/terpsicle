@@ -1,40 +1,21 @@
-import type { z } from "zod";
-import {
-  type AcademicCalendar,
-  AcademicCalendarSchema,
-  COURSE_INDEX_MANIFEST_KEY,
-  type Course,
-  type CourseCode,
-  CourseIndexManifestSchema,
-  CourseSearchFileSchema,
-  type CourseSearchRow,
-  calendarKey,
-  courseSearchKey,
-  DeptChunkSchema,
-  deptChunkKey,
-  ManifestSchema,
-  manifestKey,
-  type Plan,
-  type SettingsSyncDoc,
-  TERMS_KEY,
-  type Term,
-  type TermId,
-  TermsFileSchema,
+import type { QueryClient } from "@tanstack/react-query";
+import type {
+  AcademicCalendar,
+  Course,
+  CourseCode,
+  Plan,
+  SettingsSyncDoc,
+  Term,
+  TermId,
 } from "~/core/schema";
-import { clientConfig } from "~/lib/config";
-import type { api } from "~/server/fns/api";
-import type { chatApi } from "~/server/fns/chat-api";
+import type { ChatApi } from "./chat-client";
 
 // What the chat list reads, without the scheduler's stores (so /chat stays
-// light): the terms and the courses it shows, straight from published data
-// under /data (in mock mode the Worker serves the mock bucket there too,
-// scripts/seed-mock-data.ts), and your synced plans and settings from
-// sync/pull. Rooms come from synced plans because that's what the server
+// light): the terms and the courses it shows, from published data through
+// the page's query client (./chat-reads, loaded on first use), and your
+// synced plans and settings from sync/pull (read through `chatSyncedQuery`,
+// ./queries). Rooms come from synced plans because that's what the server
 // checks (V2.md §8.2).
-
-export type ChatApi = Pick<typeof api, "sync" | "reports"> & {
-  chat: typeof chatApi;
-};
 
 export interface Synced {
   /** Live plans, every term. */
@@ -74,64 +55,24 @@ export async function pullSynced(client: ChatApi): Promise<Synced> {
 export interface ChatData {
   /** Every term, newest first. */
   terms(): Promise<Term[]>;
-  /** Some courses of a term, reading only their departments' chunks. */
+  /** Some courses of a term, reading only their departments' files. */
   courses(
     termId: TermId,
     codes: Iterable<CourseCode>,
   ): Promise<Map<CourseCode, Course>>;
-  /** Every course's code and title, any term: the course index's search file (Plan and Reviews search it too). */
-  courseSearch(): Promise<readonly CourseSearchRow[]>;
   /** A term's academic calendar, for Now and Next; null when there's none (yet). */
   calendar(termId: TermId): Promise<AcademicCalendar | null>;
 }
 
-/** Published data from `/data/<key>`, validated like everything else read there. */
-export function fetchChatData(
-  baseUrl: string = clientConfig.dataBaseUrl,
-  fetcher: typeof fetch = (...args) => fetch(...args),
-): ChatData {
-  const base = baseUrl.replace(/\/+$/, "");
-  const read = async <S extends z.ZodType>(key: string, schema: S) => {
-    const response = await fetcher(`${base}/${key}`);
-    if (!response.ok) throw new Error(`${key}: ${response.status}`);
-    return schema.parse(await response.json()) as z.infer<S>;
-  };
+/** Loaded on first use: it brings the data layer, which /chat's first load leaves out. */
+const reads = () => import("./chat-reads");
+
+/** Published data through the page's query client (./chat-reads). */
+export function queryChatData(client: QueryClient): ChatData {
   return {
-    terms: async () =>
-      [...(await read(TERMS_KEY, TermsFileSchema)).terms].sort((a, b) =>
-        b.id.localeCompare(a.id),
-      ),
-    courses: async (termId, codes) => {
-      const manifest = await read(manifestKey(termId), ManifestSchema);
-      const wanted = new Set(codes);
-      const depts = new Set([...wanted].map((c) => c.slice(0, 4)));
-      const out = new Map<CourseCode, Course>();
-      await Promise.all(
-        manifest.departments
-          .filter((d) => depts.has(d.code))
-          .map(async (d) => {
-            const chunk = await read(
-              deptChunkKey(termId, d.code, d.hash),
-              DeptChunkSchema,
-            );
-            for (const course of chunk.courses)
-              if (wanted.has(course.code)) out.set(course.code, course);
-          }),
-      );
-      return out;
-    },
-    courseSearch: async () => {
-      const manifest = await read(
-        COURSE_INDEX_MANIFEST_KEY,
-        CourseIndexManifestSchema,
-      );
-      const file = await read(
-        courseSearchKey(manifest.search.hash),
-        CourseSearchFileSchema,
-      );
-      return file.courses;
-    },
-    calendar: (termId) =>
-      read(calendarKey(termId), AcademicCalendarSchema).catch(() => null),
+    terms: async () => (await reads()).readTerms(client),
+    courses: async (termId, codes) =>
+      (await reads()).readCourses(client, termId, codes),
+    calendar: async (termId) => (await reads()).readCalendar(client, termId),
   };
 }

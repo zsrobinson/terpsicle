@@ -18,17 +18,10 @@ function Install() {
         Install Terpsicle
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            install.current?.focus();
-          }}
-        >
+        <DialogContent initialFocus={install}>
           <DialogTitle>Put Terpsicle on your home screen</DialogTitle>
-          <DialogDescription asChild>
-            <ul>
-              <li>Opens like an app</li>
-            </ul>
+          <DialogDescription render={<ul />}>
+            <li>Opens like an app</li>
           </DialogDescription>
           <button type="button" onClick={() => setOpen(false)}>
             Not now
@@ -51,7 +44,7 @@ describe("Dialog", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "Put Terpsicle on your home screen",
     });
-    // The description is the list itself (asChild).
+    // The description is the list itself (its render prop).
     expect(dialog).toHaveAccessibleDescription("Opens like an app");
     expect(screen.getByRole("list")).toBeInTheDocument();
     await waitFor(() =>

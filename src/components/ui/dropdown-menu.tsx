@@ -10,77 +10,34 @@ import {
   POPUP_LAYER,
   POSITIONER,
 } from "./popup";
-import {
-  type AsChild,
-  asChildRender,
-  type CompatEvent,
-  radixPositionerProps,
-  returnFocusProp,
-  selectAsClick,
-  triggerState,
-  useWatchedOpen,
-} from "./radix-compat";
-import { quietTooltips } from "./tooltip";
+import { focusBackQuietly } from "./popup-focus";
 
 // The kit's dropdown menu, on Base UI's Menu, in Ink: a raised card with a
 // hairline, 13px items and a quick pop-in (reference prototype `Menu`).
 
-const MenuOpen = React.createContext(false);
-
-function DropdownMenu({
-  modal = false,
-  open,
-  defaultOpen,
-  onOpenChange,
-  ...props
-}: MenuPrimitive.Root.Props) {
-  const [isOpen, handleOpenChange] = useWatchedOpen(
-    open,
-    defaultOpen,
-    onOpenChange,
-  );
+function DropdownMenu({ modal = false, ...props }: MenuPrimitive.Root.Props) {
   // Not modal: a modal menu locks the page's scroll and blocks the rest of
   // it. Focus still moves into the menu, arrows and Esc work, and closing
   // returns focus to the trigger.
   return (
-    <MenuOpen.Provider value={isOpen}>
-      <MenuPrimitive.Root
-        modal={modal}
-        open={open}
-        defaultOpen={defaultOpen}
-        onOpenChange={handleOpenChange}
-        // As on Radix: the arrows stop at the first and last item.
-        loopFocus={false}
-        {...props}
-      />
-    </MenuOpen.Provider>
-  );
-}
-
-function DropdownMenuTrigger({
-  asChild,
-  children,
-  ...props
-}: MenuPrimitive.Trigger.Props & AsChild) {
-  const open = React.useContext(MenuOpen);
-  return (
-    <MenuPrimitive.Trigger
-      data-slot="dropdown-menu-trigger"
+    <MenuPrimitive.Root
+      modal={modal}
+      // The arrows stop at the first and last item.
+      loopFocus={false}
       {...props}
-      {...triggerState(open)}
-      {...asChildRender(asChild, children)}
     />
   );
 }
 
-type ContentProps = Omit<MenuPrimitive.Popup.Props, "finalFocus"> &
+function DropdownMenuTrigger(props: MenuPrimitive.Trigger.Props) {
+  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
+}
+
+type ContentProps = MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding"
-  > & {
-    /** Radix's: prevent it to keep focus where the handler put it. */
-    onCloseAutoFocus?: (event: CompatEvent) => void;
-  };
+  >;
 
 function DropdownMenuContent({
   className,
@@ -89,7 +46,7 @@ function DropdownMenuContent({
   align = "start",
   alignOffset,
   collisionPadding = 8,
-  onCloseAutoFocus,
+  finalFocus,
   ...props
 }: ContentProps) {
   const popup = React.useRef<HTMLDivElement>(null);
@@ -104,14 +61,13 @@ function DropdownMenuContent({
         collisionPadding={collisionPadding}
         {...POSITIONER}
         className={POPUP_LAYER}
-        {...radixPositionerProps}
       >
         <MenuPrimitive.Popup
           ref={popup}
           data-slot="dropdown-menu-content"
           // Focus goes back to the trigger: its tooltip would open over
           // what the person was looking at.
-          finalFocus={returnFocusProp(onCloseAutoFocus, popup, quietTooltips)}
+          finalFocus={focusBackQuietly(finalFocus, popup)}
           className={cn(MENU_POPUP, className)}
           {...props}
         />
@@ -124,20 +80,18 @@ function DropdownMenuGroup(props: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />;
 }
 
-type ItemProps = Omit<MenuPrimitive.Item.Props, "onSelect"> &
-  AsChild & {
-    variant?: "default" | "destructive";
-    /** Radix's: runs on a pick; prevent it to keep the menu open. */
-    onSelect?: (event: CompatEvent) => void;
-  };
+type ItemProps = MenuPrimitive.Item.Props & {
+  variant?: "default" | "destructive";
+};
 
+/**
+ * A pick: `onClick` runs on a press, Enter or Space, and the menu closes
+ * (`closeOnClick={false}` keeps it open). `render` draws it as a link.
+ */
 function DropdownMenuItem({
   className,
   variant = "default",
-  asChild,
   children,
-  onSelect,
-  onClick,
   ...props
 }: ItemProps) {
   const destructive = variant === "destructive";
@@ -145,43 +99,13 @@ function DropdownMenuItem({
     <MenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-variant={variant}
-      className={cn(
-        MENU_ITEM,
-        variant === "destructive" && "text-error",
-        className,
-      )}
-      onClick={selectAsClick(onSelect, onClick)}
+      className={cn(MENU_ITEM, destructive && "text-error", className)}
       {...props}
-      {...asChildRender(asChild, withTap(asChild, children, !destructive))}
-    />
-  );
-}
-
-/**
- * An item's content with an iPhone's tick on a tap (./haptic) as its last
- * child: inside the item, or inside its asChild link. Never on a
- * destructive item.
- */
-function withTap(
-  asChild: boolean | undefined,
-  children: React.ReactNode,
-  tap = true,
-): React.ReactNode {
-  if (!tap) return children;
-  if (asChild && React.isValidElement<{ children?: React.ReactNode }>(children))
-    return React.cloneElement(
-      children,
-      {},
-      <>
-        {children.props.children}
-        <HapticTap />
-      </>,
-    );
-  return (
-    <>
+    >
       {children}
-      <HapticTap />
-    </>
+      {/* An iPhone's tick on a tap (./haptic), never on a destructive item. */}
+      {destructive ? null : <HapticTap />}
+    </MenuPrimitive.Item>
   );
 }
 
@@ -226,7 +150,7 @@ function ItemCheck({ radio }: { radio?: boolean }) {
   );
 }
 
-/** One choice of several; picking it closes the menu, as on Radix. */
+/** One choice of several; picking it closes the menu. */
 function DropdownMenuRadioItem({
   className,
   children,
@@ -267,8 +191,8 @@ function DropdownMenuCheckboxItem({
 }
 
 /**
- * A heading over the items that follow. A plain line, as Radix's was: Base
- * UI's group label only works inside a group, and these head a run of items.
+ * A heading over the items that follow. A plain line: Base UI's group
+ * label only works inside a group, and these head a run of items.
  */
 function DropdownMenuLabel({
   className,
@@ -356,7 +280,6 @@ function DropdownMenuSubContent({
         collisionPadding={collisionPadding}
         {...POSITIONER}
         className={POPUP_LAYER}
-        {...radixPositionerProps}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-sub-content"

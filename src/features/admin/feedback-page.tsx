@@ -677,15 +677,19 @@ function ItemRow({
               </Button>
             </WithTooltip>
             <WithTooltip label="A new issue with where to look, never their words or screenshot">
-              <Button variant="ghost" size="row" asChild>
-                <a
-                  href={githubIssueUrl(item, adminLink)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink aria-hidden="true" />
-                  Open GitHub issue
-                </a>
+              <Button
+                variant="ghost"
+                size="row"
+                render={
+                  <a
+                    href={githubIssueUrl(item, adminLink)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
+              >
+                <ExternalLink aria-hidden="true" />
+                Open GitHub issue
               </Button>
             </WithTooltip>
             <WithTooltip label="Delete it and its screenshots">

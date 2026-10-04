@@ -3,21 +3,20 @@ import { addDays } from "~/core/ics/dates";
 import type { TodoItem } from "~/core/schema";
 import { isElmsUrl, shortDayLabel, taskFieldsOf } from "~/core/todo";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
+  ActionContextMenu,
+  ActionMenuItem,
+  ActionMenuLinkItem,
+  ActionMenuSeparator,
+} from "~/ui/action-menu";
 import { undoToast } from "~/ui/toast";
 import { saveFailedNote, TASK_TOAST_ID } from "./task-form";
 import type { CheckedVia, ViewProps } from "./todo-lists";
-import { useTodo } from "./todo-store";
+import { useSaveTask } from "./use-todo";
 
-// An item's right-click menu (a long press on a phone), the kit's
-// ContextMenu: what makes sense for that item. Every item checks off; an
-// ELMS item opens in ELMS; your own task can be changed, moved a day
-// either way, or deleted, each with Undo.
+// An item's right-click menu (on a phone, a long press opens it as a
+// sheet), the kit's ActionContextMenu: what makes sense for that item.
+// Every item checks off; an ELMS item opens in ELMS; your own task can be
+// changed, moved a day either way, or deleted, each with Undo.
 
 export function TaskContextMenu({
   item,
@@ -34,7 +33,7 @@ export function TaskContextMenu({
   /** The card or row, which the menu opens from. */
   children: ReactElement<Record<string, unknown>>;
 }) {
-  const saveTask = useTodo((s) => s.saveTask);
+  const saveTask = useSaveTask();
   const done = props.done.has(item.uid);
   const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
   const own = item.source === "own";
@@ -60,40 +59,38 @@ export function TaskContextMenu({
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent aria-label={`${item.title}, actions`}>
-        <ContextMenuItem onSelect={() => props.onToggle(item, via)}>
-          {done ? "Mark not done" : "Mark done"}
-        </ContextMenuItem>
-        {link ? (
-          <ContextMenuItem
-            render={<a href={link} target="_blank" rel="noopener noreferrer" />}
-          >
-            Open in ELMS
-          </ContextMenuItem>
-        ) : null}
-        {own ? (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={onEdit}>Edit</ContextMenuItem>
-            {item.dueDate !== null ? (
-              <>
-                <ContextMenuItem onSelect={() => move(-1)}>
-                  Move a day earlier
-                </ContextMenuItem>
-                <ContextMenuItem onSelect={() => move(1)}>
-                  Move a day later
-                </ContextMenuItem>
-              </>
-            ) : null}
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => props.onDeleteTask(item)}>
-              Delete
-            </ContextMenuItem>
-          </>
-        ) : null}
-      </ContextMenuContent>
-    </ContextMenu>
+    <ActionContextMenu target={children} title={item.title}>
+      <ActionMenuItem onSelect={() => props.onToggle(item, via)}>
+        {done ? "Mark not done" : "Mark done"}
+      </ActionMenuItem>
+      {link ? (
+        <ActionMenuLinkItem
+          href={link}
+          render={<a href={link} target="_blank" rel="noopener noreferrer" />}
+        >
+          Open in ELMS
+        </ActionMenuLinkItem>
+      ) : null}
+      {own ? (
+        <>
+          <ActionMenuSeparator />
+          <ActionMenuItem onSelect={onEdit}>Edit</ActionMenuItem>
+          {item.dueDate !== null ? (
+            <>
+              <ActionMenuItem onSelect={() => move(-1)}>
+                Move a day earlier
+              </ActionMenuItem>
+              <ActionMenuItem onSelect={() => move(1)}>
+                Move a day later
+              </ActionMenuItem>
+            </>
+          ) : null}
+          <ActionMenuSeparator />
+          <ActionMenuItem onSelect={() => props.onDeleteTask(item)}>
+            Delete
+          </ActionMenuItem>
+        </>
+      ) : null}
+    </ActionContextMenu>
   );
 }

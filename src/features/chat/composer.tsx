@@ -220,7 +220,8 @@ export function Composer({
           aria-activedescendant={
             mentions.open ? optionId(mentions.active) : undefined
           }
-          className="min-h-8 flex-1 resize-none max-md:min-h-11"
+          // A phone's line sits in the middle of the 44px field, beside Send.
+          className="min-h-8 flex-1 resize-none max-md:min-h-11 max-md:py-2 max-md:leading-6"
         />
         <WithTooltip label="Send" shortcut="↵">
           <Button size="icon" aria-label="Send" disabled={!text} onClick={send}>
@@ -305,14 +306,16 @@ export function Allowed({
       {...(onOpenChange ? { onOpenChange } : {})}
     >
       <WithTooltip label="Chat's rules">
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="flex shrink-0 items-center gap-1 underline-offset-2 hover:text-fg hover:underline max-md:min-h-11"
-          >
-            <Info size={12} aria-hidden="true" />
-            {policy.title}
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className="flex shrink-0 items-center gap-1 underline-offset-2 hover:text-fg hover:underline max-md:min-h-11"
+            />
+          }
+        >
+          <Info size={12} aria-hidden="true" />
+          {policy.title}
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent align="start" className="w-80 text-sm">

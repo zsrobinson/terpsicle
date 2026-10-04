@@ -58,7 +58,7 @@ export function usePlanHandoff(
     // course link, Search), and only the Courses tab carries this already.
     void import("./handoff")
       .then(({ arriveFromPlan }) => arriveFromPlan(want))
-      .catch((error: unknown) => console.warn("View schedule", error))
+      .catch((error: unknown) => console.warn("Plan handoff", error))
       .finally(end);
   }, [request, hydrated, sharing, terms, termsFailed, termId]);
 

@@ -142,12 +142,11 @@ export function NotificationsBell({
             aria-label={bellLabel(unread)}
             aria-haspopup="dialog"
             aria-expanded={open}
-            data-state={open ? "open" : "closed"}
             data-testid="notifications-bell"
             onPointerEnter={prefetch}
             onFocus={prefetch}
             onClick={() => setOpen(!open)}
-            className="relative flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7"
+            className="relative flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg aria-expanded:bg-hover aria-expanded:text-fg max-[380px]:size-7"
           >
             <Bell size={16} aria-hidden="true" />
             {unread > 0 ? <BellCount unread={unread} /> : null}

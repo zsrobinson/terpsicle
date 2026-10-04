@@ -31,16 +31,27 @@ const EXCLUDE = [".maplibregl-canvas", "[data-base-ui-focus-guard]"];
 // them. Every other rule still checks them.
 // The kit marks each with `data-floating`; Base UI portals each one in a
 // `data-base-ui-portal` div, which axe otherwise reports in its place.
-const FLOATING = [
-  "[data-floating]",
-  "[data-base-ui-portal]",
-  "[data-radix-popper-content-wrapper]",
-];
+const FLOATING = ["[data-floating]", "[data-base-ui-portal]"];
 
 export async function scan(page: Page, what: string) {
-  // Let entry animations (drill-in slide, popovers) finish: axe reads
-  // colors mid-fade as low contrast.
+  // Let entry animations (drill-in slide, popovers, toasts) finish: axe
+  // reads colors mid-fade as low contrast. A moment for ones about to
+  // start, then every running one that ends (a spinner's never does): the
+  // moment alone let a toast that came just before be read mid-fade (the
+  // iPhone sheet's scan in pwa.spec.ts).
   await page.waitForTimeout(250);
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (a) =>
+            a.playState === "running" &&
+            Number.isFinite(a.effect?.getComputedTiming().endTime ?? Infinity),
+        )
+        .map((a) => a.finished.catch(() => {})),
+    ),
+  );
   let everything = new AxeBuilder({ page })
     .withTags(TAGS)
     .disableRules("region");

@@ -16,7 +16,14 @@ import {
   ThumbsUp,
   Trash2,
 } from "lucide-react";
-import { type KeyboardEvent, memo, useEffect, useId, useState } from "react";
+import {
+  type KeyboardEvent,
+  memo,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import {
   CHAT_REPORT_REASON_WORDS,
   type ChatItem,
@@ -39,21 +46,14 @@ import {
   type Reaction,
 } from "~/core/schema";
 import { Avatar } from "~/features/auth/avatar";
+import {
+  ActionContextMenu,
+  ActionMenu,
+  ActionMenuItem,
+  ActionMenuSeparator,
+} from "~/ui/action-menu";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { Textarea } from "~/ui/input";
 import { ListRow } from "~/ui/list-row";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
@@ -142,7 +142,12 @@ export const MessageRow = memo(function MessageRow({
         held !== null
           ? // Only you see it: tinted, with a warn edge, in both themes.
             "bg-warn-soft"
-          : cn("hover:bg-hover", selected && "bg-hover"),
+          : cn(
+              // Lit while its ⋯ menu, reaction picker or right-click menu
+              // is open.
+              "hover:bg-hover menu-open:bg-hover",
+              selected && "bg-hover",
+            ),
       )}
     >
       {held !== null ? (
@@ -247,8 +252,7 @@ export const MessageRow = memo(function MessageRow({
   );
   if (!menu) return article;
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{article}</ContextMenuTrigger>
+    <ActionContextMenu target={article} title={messageTitle(item, mine)}>
       <MessageMenu
         item={item}
         mine={mine}
@@ -258,9 +262,14 @@ export const MessageRow = memo(function MessageRow({
         onEdit={() => setMode("edit")}
         onReport={() => setMode("report")}
       />
-    </ContextMenu>
+    </ActionContextMenu>
   );
 });
+
+/** A message's menus' title, which heads their sheet on a phone. */
+function messageTitle(item: ChatItem, mine: boolean): string {
+  return mine ? "Your message" : `${item.author.name}'s message`;
+}
 
 /**
  * A message's right-click (or long-press) menu: reply in a thread, copy its
@@ -288,47 +297,49 @@ function MessageMenu({
   const link = () =>
     `${window.location.origin}${roomPath(item.room, item.replyTo ?? item.id)}`;
   return (
-    <ContextMenuContent>
+    <>
       {canReply ? (
-        <ContextMenuItem onSelect={() => actions.openThread(item)}>
-          <Reply aria-hidden="true" />
+        <ActionMenuItem
+          icon={<Reply aria-hidden="true" />}
+          onSelect={() => actions.openThread(item)}
+        >
           Reply in a thread
-        </ContextMenuItem>
+        </ActionMenuItem>
       ) : null}
-      <ContextMenuItem
+      <ActionMenuItem
+        icon={<Copy aria-hidden="true" />}
         onSelect={() => void navigator.clipboard?.writeText(item.text)}
       >
-        <Copy aria-hidden="true" />
         Copy text
-      </ContextMenuItem>
-      <ContextMenuItem
+      </ActionMenuItem>
+      <ActionMenuItem
+        icon={<Link2 aria-hidden="true" />}
         onSelect={() => {
           void navigator.clipboard?.writeText(link());
           showNote("Link copied");
         }}
       >
-        <Link2 aria-hidden="true" />
         Copy link
-      </ContextMenuItem>
-      <ContextMenuSeparator />
+      </ActionMenuItem>
+      <ActionMenuSeparator />
       {mine && writable && !removed ? (
-        <ContextMenuItem onSelect={onEdit}>
-          <Pencil aria-hidden="true" />
+        <ActionMenuItem icon={<Pencil aria-hidden="true" />} onSelect={onEdit}>
           Edit
-        </ContextMenuItem>
+        </ActionMenuItem>
       ) : null}
       {mine ? (
-        <ContextMenuItem onSelect={() => actions.remove(item)}>
-          <Trash2 aria-hidden="true" />
+        <ActionMenuItem
+          icon={<Trash2 aria-hidden="true" />}
+          onSelect={() => actions.remove(item)}
+        >
           Delete
-        </ContextMenuItem>
+        </ActionMenuItem>
       ) : (
-        <ContextMenuItem onSelect={onReport}>
-          <Flag aria-hidden="true" />
+        <ActionMenuItem icon={<Flag aria-hidden="true" />} onSelect={onReport}>
           Report
-        </ContextMenuItem>
+        </ActionMenuItem>
       )}
-    </ContextMenuContent>
+    </>
   );
 }
 
@@ -484,10 +495,10 @@ function ReactionPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <WithTooltip label="React">
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="React">
-            <SmilePlus />
-          </Button>
+        <PopoverTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label="React" />}
+        >
+          <SmilePlus />
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent align="end" className="flex w-auto gap-1 p-1">
@@ -545,6 +556,12 @@ function Toolbar({
   // Open menus keep the toolbar up: they're anchored to it.
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Edit and Report put a field in the message's place, which takes focus.
+  const toField = useRef(false);
+  const handOff = (run: () => void) => () => {
+    toField.current = true;
+    run();
+  };
   const canReply = writable && visible && !inThread && item.replyTo === null;
   const removed = item.moderation.state === "removed";
   return (
@@ -577,40 +594,53 @@ function Toolbar({
           </Button>
         </WithTooltip>
       ) : null}
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <WithTooltip label="More">
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More">
-              <Ellipsis />
-            </Button>
-          </DropdownMenuTrigger>
-        </WithTooltip>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onSelect={() => void navigator.clipboard?.writeText(item.text)}
+      <ActionMenu
+        title={messageTitle(item, mine)}
+        tooltip="More"
+        align="end"
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        finalFocus={() => {
+          const sent = toField.current;
+          toField.current = false;
+          return sent ? false : null;
+        }}
+        trigger={
+          <Button variant="ghost" size="icon-sm" aria-label="More">
+            <Ellipsis />
+          </Button>
+        }
+      >
+        <ActionMenuItem
+          icon={<Copy aria-hidden="true" />}
+          onSelect={() => void navigator.clipboard?.writeText(item.text)}
+        >
+          Copy text
+        </ActionMenuItem>
+        {mine && writable && !removed ? (
+          <ActionMenuItem
+            icon={<Pencil aria-hidden="true" />}
+            onSelect={handOff(onEdit)}
           >
-            <Copy aria-hidden="true" />
-            Copy text
-          </DropdownMenuItem>
-          {mine && writable && !removed ? (
-            <DropdownMenuItem onSelect={onEdit}>
-              <Pencil aria-hidden="true" />
-              Edit
-            </DropdownMenuItem>
-          ) : null}
-          {mine ? (
-            <DropdownMenuItem onSelect={() => actions.remove(item)}>
-              <Trash2 aria-hidden="true" />
-              Delete
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem onSelect={onReport}>
-              <Flag aria-hidden="true" />
-              Report
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            Edit
+          </ActionMenuItem>
+        ) : null}
+        {mine ? (
+          <ActionMenuItem
+            icon={<Trash2 aria-hidden="true" />}
+            onSelect={() => actions.remove(item)}
+          >
+            Delete
+          </ActionMenuItem>
+        ) : (
+          <ActionMenuItem
+            icon={<Flag aria-hidden="true" />}
+            onSelect={handOff(onReport)}
+          >
+            Report
+          </ActionMenuItem>
+        )}
+      </ActionMenu>
     </div>
   );
 }

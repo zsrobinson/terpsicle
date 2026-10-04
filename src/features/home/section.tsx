@@ -2,7 +2,7 @@ import { Link, type LinkProps } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { track } from "~/lib/analytics";
 import { viewWords } from "~/lib/cross-link";
 import type { ProductId } from "~/lib/products";
@@ -46,12 +46,7 @@ export function HomeSection({
         // Inline, not flex: the heading's baseline stays its words', so the
         // link beside it lines up with them rather than the mark's edge.
         <span>
-          <Mark
-            id={product}
-            size={20}
-            className="mr-2 inline-block align-[-5px]"
-          />
-          {title}
+          <IntegrationLabel product={product}>{title}</IntegrationLabel>
           {tag}
           {meta ? <span className="emph-meta ml-2">{meta}</span> : null}
         </span>

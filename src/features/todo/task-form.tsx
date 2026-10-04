@@ -24,7 +24,7 @@ import {
 } from "~/ui/select";
 import { noteToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { useTodo } from "./todo-store";
+import { useSaveTask } from "./use-todo";
 
 // Changing one of your own tasks (docs/V3.md §3.10) in place: its title,
 // date, time and course (adding one is the composer's). The title is plain
@@ -298,7 +298,7 @@ export function TaskEditor({
   stacked?: boolean;
   onClose: () => void;
 }) {
-  const saveTask = useTodo((s) => s.saveTask);
+  const saveTask = useSaveTask();
   const save = (fields: TaskFields): boolean => {
     const send = () =>
       void saveTask(uid, fields).then((status) => {

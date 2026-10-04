@@ -312,20 +312,37 @@ function NoteBox({
   };
 
   return (
-    <Popover open onOpenChange={(open) => (open ? null : onCancel())}>
-      <PopoverAnchor asChild>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed"
-          style={{ left: at.x, top: at.y, width: at.width, height: at.height }}
-        />
-      </PopoverAnchor>
+    <Popover
+      open
+      onOpenChange={(open, details) => {
+        // A press or focus outside leaves the note open; Esc cancels it.
+        if (
+          details.reason === "outside-press" ||
+          details.reason === "focus-out"
+        )
+          details.cancel();
+        else if (!open) onCancel();
+      }}
+    >
+      <PopoverAnchor
+        render={
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed"
+            style={{
+              left: at.x,
+              top: at.y,
+              width: at.width,
+              height: at.height,
+            }}
+          />
+        }
+      />
       <PopoverContent
         data-feedback-ui=""
         side="bottom"
         align="start"
         className="w-[300px]"
-        onInteractOutside={(e) => e.preventDefault()}
       >
         <form
           className="space-y-2"

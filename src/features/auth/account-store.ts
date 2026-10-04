@@ -1,16 +1,28 @@
+// Types only from TanStack Query: a value import here (a module every
+// product's chunks share) splits its core out of `/`'s entry chunk.
+import type { QueryCacheNotifyEvent, QueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
-import { type Flags, FlagsSchema, type MeUser } from "~/core/schema";
+import {
+  type Flags,
+  FlagsSchema,
+  type MeResult,
+  type MeUser,
+} from "~/core/schema";
 import { SYNC_RESET_KEY } from "~/features/sync/status";
-import { api } from "~/server/fns/api";
+import { accountClient, meKey, meQuery, signedOutAnswer } from "./me-query";
 
-// Who's signed in, as the app sees it (docs/AUTH.md). Loaded once per page
-// from POST /api/me; every account control reads it. Nothing is stored in
-// the browser about who you are: the session is an HttpOnly cookie. Only
-// the product flags are remembered (`FLAGS_KEY`), so a failed check
-// doesn't hide products, and whether this browser was last signed in
-// (`SIGNED_IN_KEY`, a yes or no), so a page can draw the right state while
-// /api/me answers instead of flashing the signed-out one (owner,
-// 2026-09-30).
+export { type AccountClient, setAccountClient } from "./me-query";
+
+// Who's signed in, as the app sees it (docs/AUTH.md); every account control
+// reads it. The answer is one query over POST /api/me (./me-query), asked
+// once per page by AccountBoot and retried by the query; this store
+// mirrors it, so its readers never need a query observer (`/` loads none).
+// Nothing is stored in the browser about who you are: the session is an
+// HttpOnly cookie. Each answer leaves a boot hint for the next page: the
+// product flags (`FLAGS_KEY`), so a failed check doesn't hide products,
+// and whether this browser was last signed in (`SIGNED_IN_KEY`, a yes or
+// no), so a page can draw the right state while /api/me answers instead
+// of flashing the signed-out one (owner, 2026-09-30).
 
 export type AccountStatus = "loading" | "signed-out" | "signed-in";
 
@@ -30,6 +42,11 @@ export interface AccountState {
   /** When this browser's just-deleted account goes (for the settings page). */
   deleteAfter: string | null;
 
+  /**
+   * Asks /api/me again (the query refetches, whatever it holds). Resolves
+   * once the store has something to draw: the answer, or the first
+   * failure while the query keeps retrying.
+   */
   load: () => Promise<void>;
   /**
    * Ends the session. Plans stay on the device unless `removeLocal` (a
@@ -40,8 +57,6 @@ export interface AccountState {
   /** Schedules deletion and signs out; returns when the account goes. */
   deleteAccount: () => Promise<string>;
 }
-
-export type AccountClient = Pick<typeof api, "me" | "auth" | "account">;
 
 /** Everything off: until /api/me answers, or when it can't. */
 export const FLAGS_OFF: Flags = {
@@ -101,16 +116,6 @@ function rememberFlags(flags: Flags): void {
   }
 }
 
-/** How long to wait before asking /api/me again after each failure. */
-export const ME_RETRY_MS: readonly number[] = [2_000, 8_000, 30_000];
-
-let client: AccountClient = api;
-
-/** Test hook: a fake API client. */
-export function setAccountClient(next: AccountClient): void {
-  client = next;
-}
-
 /** "Sign out and remove plans from this device" is for a shared computer (V2.md §4.7). */
 export const REMOVE_TOOLTIP =
   "For a shared computer: signs out and clears your plans from this browser. They stay on your account.";
@@ -158,10 +163,103 @@ export function setSignOutHooks(next: () => Promise<SignOutHooks>): void {
   signOutHooks = next;
 }
 
-let retryTimer: ReturnType<typeof setTimeout> | undefined;
-let failures = 0;
-// A retry keeps counting; any other ask (a new page, a sign-in) starts over.
-let retrying = false;
+// ---------- the query's answer, mirrored ----------
+
+let queryClient: QueryClient | null = null;
+let stopMirroring = (): void => {};
+
+/** The store's fields for an answer from /api/me. */
+function answerState(answer: MeResult): Partial<AccountState> {
+  return answer.status === "signed-in"
+    ? {
+        status: "signed-in",
+        flags: answer.flags,
+        user: answer.user,
+        pushPublicKey: answer.pushPublicKey,
+      }
+    : {
+        status: "signed-out",
+        flags: answer.flags,
+        user: null,
+        pushPublicKey: null,
+      };
+}
+
+/** An answer arrived (asked for, or set by a sign-out): draw it, and hint the next page. */
+function mirrorAnswer(answer: MeResult): void {
+  rememberFlags(answer.flags);
+  rememberStatus(answer.status);
+  useAccount.setState(answerState(answer));
+}
+
+/**
+ * An ask failed and the query is trying again. Offline, a busy server, or
+ * an older Worker without /api/me: someone already known stays as they
+ * were; otherwise it's signed out with the products last seen here
+ * (everything off on a first visit: the scheduler never needs an account).
+ */
+function mirrorFailure(answer: MeResult | undefined): void {
+  if (useAccount.getState().status !== "loading") return;
+  useAccount.setState(
+    answer
+      ? answerState(answer)
+      : {
+          status: "signed-out",
+          flags: rememberedFlags() ?? FLAGS_OFF,
+          user: null,
+          pushPublicKey: null,
+        },
+  );
+}
+
+/** What happened to the answer's query, when the event is about it. */
+function meEvent(event: QueryCacheNotifyEvent) {
+  if (event.type !== "updated" || event.query.queryKey[0] !== meKey[0])
+    return null;
+  const { type } = event.action;
+  return {
+    answer: event.query.state.data as MeResult | undefined,
+    answered: type === "success",
+    failed: type === "failed" || type === "error",
+  };
+}
+
+/**
+ * Which query client holds the answer: the page's, which AccountBoot hands
+ * over before it first asks (a test hands its own). The store follows
+ * that client's answer from then on.
+ */
+export function setAccountQueryClient(next: QueryClient): void {
+  if (next === queryClient) return;
+  stopMirroring();
+  queryClient = next;
+  stopMirroring = next.getQueryCache().subscribe((event) => {
+    const me = meEvent(event);
+    if (me?.answered && me.answer) mirrorAnswer(me.answer);
+    else if (me?.failed) mirrorFailure(me.answer);
+  });
+  const known = next.getQueryData<MeResult>(meKey);
+  if (known) useAccount.setState(answerState(known));
+}
+
+/** Resolves at the answer's next failure; `stop` stops listening. */
+function nextFailure(client: QueryClient) {
+  let stop = (): void => {};
+  const failed = new Promise<void>((resolve) => {
+    stop = client.getQueryCache().subscribe((event) => {
+      if (meEvent(event)?.failed) resolve();
+    });
+  });
+  return { failed, stop };
+}
+
+/** The answer is now signed out, keeping the products that are on. */
+function forgetWho(): void {
+  const answer = signedOutAnswer(useAccount.getState().flags);
+  // The cache's subscription draws it; with no client yet, draw it here.
+  if (queryClient) queryClient.setQueryData(meKey, answer);
+  else mirrorAnswer(answer);
+}
 
 export const useAccount = create<AccountState>()((set, get) => ({
   status: "loading",
@@ -172,57 +270,29 @@ export const useAccount = create<AccountState>()((set, get) => ({
   deleteAfter: null,
 
   load: async () => {
-    clearTimeout(retryTimer);
-    if (!retrying) failures = 0;
-    retrying = false;
+    // AccountBoot hands the page's client over before it first asks.
+    const client = queryClient;
+    if (!client) return;
     // What this browser last saw, while /api/me answers (after the first
     // render, so the server's page and the browser's agree).
-    const known = rememberedFlags();
     if (get().status === "loading") {
       // Both or neither: a status without the flags that went with it
       // can't say whether Reviews is on.
-      const last = known ? rememberedStatus() : null;
-      set(known ? { flags: known, lastKnown: last } : { lastKnown: null });
-    }
-    try {
-      const result = await client.me();
-      failures = 0;
-      rememberFlags(result.flags);
-      rememberStatus(result.status);
+      const known = rememberedFlags();
       set(
-        result.status === "signed-in"
-          ? {
-              status: "signed-in",
-              flags: result.flags,
-              user: result.user,
-              pushPublicKey: result.pushPublicKey,
-            }
-          : {
-              status: "signed-out",
-              flags: result.flags,
-              user: null,
-              pushPublicKey: null,
-            },
+        known
+          ? { flags: known, lastKnown: rememberedStatus() }
+          : { lastKnown: null },
       );
-    } catch {
-      // Offline, a busy server, or an older Worker without /api/me. Someone
-      // already known stays as they were; otherwise it's signed out with
-      // the products last seen here (everything off on a first visit: the
-      // scheduler never needs an account). Then ask again, a few times.
-      if (get().status === "loading")
-        set({
-          status: "signed-out",
-          flags: known ?? FLAGS_OFF,
-          user: null,
-          pushPublicKey: null,
-        });
-      const wait = ME_RETRY_MS[failures++];
-      if (wait !== undefined)
-        retryTimer = setTimeout(() => {
-          retrying = true;
-          void get().load();
-        }, wait);
     }
+    const { failed, stop } = nextFailure(client);
+    // Always asks: a load means something says the account changed.
+    const answered = client.query({ ...meQuery(), staleTime: 0 }).then(
+      () => {},
+      () => {},
+    );
+    await Promise.race([answered, failed]);
+    stop();
   },
 
   signOut: async (options) => {
@@ -233,7 +303,7 @@ export const useAccount = create<AccountState>()((set, get) => ({
     const hooks = removeLocal ? await signOutHooks() : null;
     await hooks?.beforeSignOut({ removeLocal, userId });
     const endpoint = await pushEndpoint();
-    await client.auth.signOut({
+    await accountClient().auth.signOut({
       removeLocal,
       ...(endpoint ? { pushEndpoint: endpoint } : {}),
     });
@@ -244,21 +314,15 @@ export const useAccount = create<AccountState>()((set, get) => ({
     } catch {
       // Storage blocked: afterSignOut clears it directly.
     }
-    set({ status: "signed-out", user: null, pushPublicKey: null });
-    rememberStatus("signed-out");
+    forgetWho();
     const after = hooks ?? (await signOutHooks().catch(() => null));
     await after?.afterSignOut({ removeLocal }).catch(console.error);
   },
 
   deleteAccount: async () => {
-    const result = await client.account.delete();
-    rememberStatus("signed-out");
-    set({
-      status: "signed-out",
-      user: null,
-      pushPublicKey: null,
-      deleteAfter: result.deleteAfter,
-    });
+    const result = await accountClient().account.delete();
+    set({ deleteAfter: result.deleteAfter });
+    forgetWho();
     return result.deleteAfter;
   },
 }));

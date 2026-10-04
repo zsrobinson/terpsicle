@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -6,7 +7,7 @@ import {
   RouterProvider,
   stringifySearchWith,
 } from "@tanstack/react-router";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,11 +15,7 @@ import { ChunkLoadError } from "~/components/panel-load-boundary";
 import { LOCAL_DB_NAME } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
-import {
-  resetFourYearStart,
-  startFourYear,
-  useFourYearFacts,
-} from "~/features/four-year/data";
+import { resetFourYearStart, startFourYear } from "~/features/four-year/data";
 import {
   INITIAL_FOUR_YEAR_STORE,
   useFourYear,
@@ -31,6 +28,8 @@ import {
   aFourYearWildcardEntry,
   aPlan,
   aPlanCourse,
+  aTerm,
+  aTermsFile,
   mockDataSource,
 } from "~/fixtures";
 import { MOBILE_QUERY } from "~/hooks/use-media-query";
@@ -38,7 +37,9 @@ import { track } from "~/lib/analytics";
 import { isApple } from "~/lib/shortcuts";
 import { createBucketDataSource } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
+import { termsQuery } from "~/state/query/catalog";
 import { connectPublished } from "~/state/query/published";
+import { createTestQueryClient } from "~/state/query/testing";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Route } from "./plan";
@@ -79,11 +80,13 @@ let router: ReturnType<typeof createRouter>;
 
 /**
  * The real `/plan` routes (the layout's search schema, a route per view,
- * the old `?tab=` redirect, push and replace, Back) on a memory history.
+ * the old `?tab=` redirect, push and replace, Back) on a memory history,
+ * in `client` when given (else a fresh one per render).
  */
-function renderPlan(initial = "/plan") {
+function renderPlan(initial = "/plan", client?: QueryClient) {
+  connectPublished(createBucketDataSource(mockDataSource));
   // Before the page's own call, which then shares this start.
-  void startFourYear({ source: createBucketDataSource(mockDataSource) });
+  void startFourYear();
   const root = createRootRoute();
   const plan = Route.update({
     id: "/plan",
@@ -112,6 +115,15 @@ function renderPlan(initial = "/plan") {
       <RouterProvider router={router} />
       <Toaster />
     </TooltipProvider>,
+    client
+      ? {
+          wrapper: ({ children }) => (
+            <QueryClientProvider client={client}>
+              {children}
+            </QueryClientProvider>
+          ),
+        }
+      : undefined,
   );
   return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 }
@@ -163,7 +175,6 @@ beforeEach(async () => {
   })) as unknown as typeof window.matchMedia;
   useFourYear.setState(INITIAL_FOUR_YEAR_STORE);
   connectPublished(null);
-  useFourYearFacts.setState({ latestTermId: null, calendars: [] });
   resetFourYearStart();
   await Dexie.delete(LOCAL_DB_NAME);
 });
@@ -535,10 +546,25 @@ describe("View schedule", () => {
 
   it("says so, instead of linking, while Testudo doesn't list the term", async () => {
     await seed(NEXT);
-    renderPlan();
+    // The term list the page reads, the one Schedule reads: Fall 2026 is
+    // the newest term on it.
+    const client = createTestQueryClient();
+    client.setQueryData(
+      termsQuery(createBucketDataSource(mockDataSource)).queryKey,
+      aTermsFile({
+        terms: [
+          aTerm({
+            id: "202608",
+            name: "Fall 2026",
+            season: "fall",
+            year: 2026,
+          }),
+        ],
+      }),
+    );
+    renderPlan("/plan", client);
     const spring = await screen.findByRole("region", { name: /^Spring 2027$/ });
-    await act(() => useFourYearFacts.setState({ latestTermId: "202608" }));
-    expect(within(spring).getByText("Not on Testudo yet")).toBeVisible();
+    expect(await within(spring).findByText("Not on Testudo yet")).toBeVisible();
     expect(
       within(spring).queryByRole("link", { name: "View schedule" }),
     ).toBeNull();

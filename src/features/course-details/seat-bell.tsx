@@ -1,12 +1,12 @@
+import { useMutation } from "@tanstack/react-query";
 import { cn } from "cn";
 import { Bell } from "lucide-react";
-import { useState } from "react";
 import type { SectionKey, TermId } from "~/core/schema";
 import {
   rememberPendingWatch,
-  stopWatching,
+  stopWatchingMutation,
   useSeatWatch,
-  watchSeat,
+  watchSeatMutation,
 } from "~/features/alerts/seat-watches";
 import { currentPath, GoogleButton } from "~/features/auth/sign-in-panel";
 import { Button } from "~/ui/button";
@@ -40,7 +40,10 @@ export function SeatBell({
   variant?: "icon" | "button";
 }) {
   const state = useSeatWatch(termId, sectionKey);
-  const [busy, setBusy] = useState(false);
+  const watch = useMutation(watchSeatMutation());
+  const stop = useMutation(stopWatchingMutation());
+  // Shown at once either way; the bell waits for the server's answer.
+  const busy = watch.isPending || stop.isPending;
   if (state.kind === "unavailable") return null;
 
   const label = sectionKey.replace("-", " ");
@@ -52,14 +55,12 @@ export function SeatBell({
       : "Watch for a seat: we'll let you know if it fills and one opens again";
   const words = watching ? "Watching" : "Watch for a seat";
 
-  const toggle = async () => {
-    setBusy(true);
-    if (watching) await stopWatching(termId, sectionKey);
-    else await watchSeat(termId, sectionKey);
-    setBusy(false);
+  const toggle = () => {
+    if (watching) stop.mutate({ termId, sectionKey });
+    else watch.mutate({ termId, sectionKey });
   };
   // Signed out, the popover's trigger handles the click instead.
-  const onClick = state.kind === "signed-out" ? undefined : () => void toggle();
+  const onClick = state.kind === "signed-out" ? undefined : toggle;
   const trigger =
     variant === "button" ? (
       <Button
@@ -97,7 +98,7 @@ export function SeatBell({
     return (
       <Popover>
         <WithTooltip label={tooltip}>
-          <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+          <PopoverTrigger render={trigger} />
         </WithTooltip>
         <PopoverContent
           className="w-72"

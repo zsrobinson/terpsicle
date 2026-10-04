@@ -88,19 +88,22 @@ export function CalendarFeedSection() {
             data-ph-no-autocapture=""
           >
             <WithTooltip label="Opens Calendar on this device to subscribe">
-              <Button asChild>
-                <a href={webcalUrl(feed.url)}>Add to Apple Calendar</a>
+              <Button render={<a href={webcalUrl(feed.url)} />}>
+                Add to Apple Calendar
               </Button>
             </WithTooltip>
             <WithTooltip label="Opens Google Calendar in a new tab to subscribe">
-              <Button asChild variant="outline">
-                <a
-                  href={googleCalendarUrl(feed.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Add to Google Calendar
-                </a>
+              <Button
+                variant="outline"
+                render={
+                  <a
+                    href={googleCalendarUrl(feed.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
+              >
+                Add to Google Calendar
               </Button>
             </WithTooltip>
             <WithTooltip label="For Outlook or any app that subscribes by URL">

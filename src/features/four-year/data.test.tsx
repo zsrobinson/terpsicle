@@ -1,9 +1,18 @@
-import { onlineManager, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  type QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isUnknownCourse } from "~/core/four-year/course-lookup";
-import { COURSE_INDEX_MANIFEST_KEY, courseIndexDeptKey } from "~/core/schema";
+import {
+  COURSE_INDEX_MANIFEST_KEY,
+  calendarKey,
+  courseIndexDeptKey,
+  TERMS_KEY,
+} from "~/core/schema";
 import {
   aCourseIndexEntry,
   aCourseIndexManifest,
@@ -11,14 +20,35 @@ import {
   aFourYearCreditEntry,
   aFourYearEntry,
   FIXTURE_HASH,
+  mockCalendars,
+  mockDataSource,
+  mockTermsFile,
 } from "~/fixtures";
-import { DataError, type DataSource } from "~/state/data-source";
+import { resetPageSource } from "~/lib/published-source";
+import {
+  createBucketDataSource,
+  DataError,
+  type DataSource,
+} from "~/state/data-source";
+import { calendarQuery, termsQuery } from "~/state/query/catalog";
 import { courseIndexSource } from "~/state/query/course-index-testing";
-import { connectPublished, publishedKey } from "~/state/query/published";
+import {
+  createMemoryQueryStorage,
+  flushQueryStorage,
+  setQueryStorage,
+} from "~/state/query/persister";
+import {
+  connectPublished,
+  publishedKey,
+  usePublishedSource,
+} from "~/state/query/published";
 import { createTestQueryClient } from "~/state/query/testing";
 import {
   docDepts,
+  resetFourYearStart,
+  startFourYear,
   useCourseSearch,
+  useFourYearFacts,
   useIndexDepts,
   useIndexEntry,
   useIndexStale,
@@ -235,6 +265,188 @@ describe("offline, a newer format, and a manifest that moved on", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** The mock bucket, counting what's read from it, and able to go offline. */
+function aServer() {
+  const bucket = createBucketDataSource(mockDataSource);
+  const reads: string[] = [];
+  let offline = false;
+  const source: DataSource = {
+    kind: bucket.kind,
+    async readJson(key, options) {
+      reads.push(key);
+      if (offline) throw new DataError(key, "network", "offline");
+      return bucket.readJson(key, options);
+    },
+    async readBinary(key, options) {
+      reads.push(key);
+      if (offline) throw new DataError(key, "network", "offline");
+      return bucket.readBinary(key, options);
+    },
+  };
+  return {
+    source,
+    goOffline: () => {
+      offline = true;
+    },
+    /** The keys read since the last call. */
+    take: () => reads.splice(0),
+  };
+}
+
+/** Lets the files' saves (a task after each fetch) finish. */
+async function settled(client: QueryClient) {
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flushQueryStorage();
+}
+
+const inClient = (client: QueryClient) =>
+  function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+  };
+
+const newestTerm = mockTermsFile.terms
+  .map((t) => t.id)
+  .sort()
+  .at(-1);
+const byTerm = (calendars: readonly { termId: string }[]) =>
+  [...calendars].sort((a, b) => a.termId.localeCompare(b.termId));
+
+describe("the term list and calendars (useFourYearFacts)", () => {
+  beforeEach(() => {
+    setQueryStorage(createMemoryQueryStorage());
+    resetPageSource();
+  });
+  afterEach(() => {
+    setQueryStorage(null);
+    resetPageSource();
+    onlineManager.setOnline(true);
+  });
+
+  it("reads them through Schedule's own queries, once for the page", async () => {
+    const server = aServer();
+    connectPublished(server.source);
+    const client = createTestQueryClient();
+    // What the scheduler's catalog store reads first.
+    await client.fetchQuery(termsQuery(server.source));
+    await settled(client);
+    server.take();
+
+    const { result } = renderHook(() => useFourYearFacts((f) => f), {
+      wrapper: inClient(client),
+    });
+    await waitFor(() =>
+      expect(result.current.calendars).toHaveLength(mockCalendars.length),
+    );
+    expect(result.current.latestTermId).toBe(newestTerm);
+    // Only the active terms are listed: an archived one is the history's.
+    expect([...result.current.listedTermIds]).toEqual(
+      mockTermsFile.terms.filter((t) => t.status === "active").map((t) => t.id),
+    );
+    expect(byTerm(result.current.calendars)).toEqual(byTerm(mockCalendars));
+    // Each calendar is in the query the scheduler and Home read.
+    for (const c of mockCalendars)
+      expect(
+        client.getQueryData(calendarQuery(server.source, c.termId).queryKey),
+      ).toEqual(c);
+    await settled(client);
+    // The term list wasn't read again; each calendar once.
+    expect(server.take().sort()).toEqual(
+      mockTermsFile.terms.map((t) => calendarKey(t.id)).sort(),
+    );
+
+    // Another part of the page (a column's foot) reads nothing more.
+    const again = renderHook(() => useFourYearFacts((f) => f.latestTermId), {
+      wrapper: inClient(client),
+    });
+    expect(again.result.current).toBe(newestTerm);
+    await settled(client);
+    expect(server.take()).toEqual([]);
+  });
+
+  it("keeps the same answer between renders while nothing changes", async () => {
+    connectPublished(aServer().source);
+    const client = createTestQueryClient();
+    const { result, rerender } = renderHook(
+      () => useFourYearFacts((f) => f.calendars),
+      { wrapper: inClient(client) },
+    );
+    await waitFor(() =>
+      expect(result.current).toHaveLength(mockCalendars.length),
+    );
+    const before = result.current;
+    rerender();
+    expect(result.current).toBe(before);
+  });
+
+  it("shows what this device saved when it's offline", async () => {
+    const first = aServer();
+    connectPublished(first.source);
+    const before = createTestQueryClient();
+    const seen = renderHook(() => useFourYearFacts((f) => f), {
+      wrapper: inClient(before),
+    });
+    await waitFor(() =>
+      expect(seen.result.current.calendars).toHaveLength(mockCalendars.length),
+    );
+    await settled(before);
+    seen.unmount();
+
+    // A new page, with no connection: the facts still come, from the disk.
+    const later = aServer();
+    later.goOffline();
+    onlineManager.setOnline(false);
+    connectPublished(later.source);
+    const client = createTestQueryClient();
+    const { result } = renderHook(() => useFourYearFacts((f) => f), {
+      wrapper: inClient(client),
+    });
+    await waitFor(() =>
+      expect(result.current.calendars).toHaveLength(mockCalendars.length),
+    );
+    expect(result.current.latestTermId).toBe(newestTerm);
+    expect(byTerm(result.current.calendars)).toEqual(byTerm(mockCalendars));
+  });
+
+  it("is no newest term and no calendars when the term list can't load", async () => {
+    const server = aServer();
+    server.goOffline();
+    onlineManager.setOnline(false);
+    connectPublished(server.source);
+    const client = createTestQueryClient();
+    const { result } = renderHook(() => useFourYearFacts((f) => f), {
+      wrapper: inClient(client),
+    });
+    await waitFor(() =>
+      expect(
+        client.getQueryState(termsQuery(server.source).queryKey)?.status,
+      ).toBe("error"),
+    );
+    expect(result.current).toEqual({
+      latestTermId: null,
+      listedTermIds: new Set(),
+      calendars: [],
+    });
+    expect(server.take()).toEqual([TERMS_KEY]);
+  });
+});
+
+describe("startFourYear", () => {
+  afterEach(() => {
+    resetFourYearStart();
+    resetPageSource();
+  });
+
+  it("reads from the source the page already has, as Schedule connected it", async () => {
+    const server = aServer();
+    connectPublished(server.source);
+    await startFourYear();
+    expect(usePublishedSource.getState().source).toBe(server.source);
   });
 });
 

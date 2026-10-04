@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -12,6 +13,7 @@ import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { useChatHome } from "./chat-home";
 import type { ChatGo } from "./nav";
+import { chatCourseRowsQuery } from "./queries";
 import { ROW_LINK } from "./room-row";
 
 // Finding any course's chat from the chat list (V2.md §8.2: course rooms
@@ -35,8 +37,12 @@ export function CourseFinder({
   const termName = useChatHome(
     (s) => s.terms.find((t) => t.id === s.termId)?.name ?? "this term",
   );
-  const rows = useChatHome((s) => s.courseRows);
-  const rowsState = useChatHome((s) => s.courseRowsState);
+  // Loaded on first use, so /chat's first load doesn't carry every course.
+  const [wanted, setWanted] = useState(false);
+  const courseRows = useQuery({ ...chatCourseRowsQuery(), enabled: wanted });
+  const rows = courseRows.data ?? null;
+  // While it asks again after a failure, it shows the skeleton.
+  const failed = courseRows.isError && !courseRows.isFetching;
   const [query, setQuery] = useState("");
   const [opening, setOpening] = useState<CourseCode | null>(null);
   const [notOffered, setNotOffered] = useState<CourseCode | null>(null);
@@ -52,8 +58,11 @@ export function CourseFinder({
     if (focus > 0) box.current?.focus();
   }, [focus]);
 
-  // Loaded on first use, so /chat's first load doesn't carry every course.
-  const wake = () => void useChatHome.getState().ensureCourseRows();
+  // After a failure, typing, focusing or Try again asks again.
+  const wake = () => {
+    setWanted(true);
+    if (failed) void courseRows.refetch();
+  };
 
   const open = async (code: CourseCode) => {
     if (!termId || opening) return;
@@ -105,7 +114,7 @@ export function CourseFinder({
       </div>
       {/* Each state below announces itself (a status). */}
       <div id={`${id}-results`} className="empty:hidden">
-        {typed === "" ? null : rowsState === "error" ? (
+        {typed === "" ? null : failed ? (
           <InlineError
             className="px-4 py-0"
             message="We couldn't load the course list. Check your connection and try again."

@@ -1,14 +1,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "cn";
-import * as React from "react";
 import { POPUP_MOTION } from "./popup";
-import {
-  type AsChild,
-  asChildRender,
-  type CompatEvent,
-  focusProp,
-} from "./radix-compat";
-import { quietTooltips } from "./tooltip";
+import { focusQuietly } from "./popup-focus";
 
 // The kit's dialog, on Base UI, in Ink: a raised card over a soft wash of
 // the page (never a dark scrim), with the same quick pop-in as popovers.
@@ -22,16 +15,10 @@ function Dialog(props: DialogPrimitive.Root.Props) {
 function DialogContent({
   className,
   children,
-  onOpenAutoFocus,
-  onCloseAutoFocus,
+  initialFocus,
+  finalFocus,
   ...props
-}: Omit<DialogPrimitive.Popup.Props, "initialFocus" | "finalFocus"> & {
-  /** Radix's: prevent it to put focus somewhere yourself. */
-  onOpenAutoFocus?: (event: CompatEvent) => void;
-  /** Radix's: prevent it to put focus somewhere yourself. */
-  onCloseAutoFocus?: (event: CompatEvent) => void;
-}) {
-  const popup = React.useRef<HTMLDivElement>(null);
+}: DialogPrimitive.Popup.Props) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
@@ -39,10 +26,9 @@ function DialogContent({
         className="fixed inset-0 z-50 bg-bg/60 transition-opacity duration-(--dur-pop) ease-pop data-ending-style:opacity-0 data-starting-style:opacity-0"
       />
       <DialogPrimitive.Popup
-        ref={popup}
         data-slot="dialog-content"
-        initialFocus={focusProp(onOpenAutoFocus, popup, quietTooltips)}
-        finalFocus={focusProp(onCloseAutoFocus, popup, quietTooltips)}
+        initialFocus={focusQuietly(initialFocus)}
+        finalFocus={focusQuietly(finalFocus)}
         className={cn(
           "-translate-x-1/2 -translate-y-1/2 fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[380px] overflow-y-auto rounded-lg border border-hairline bg-raised p-6 text-fg shadow-pop outline-none",
           POPUP_MOTION,
@@ -70,16 +56,13 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
 
 function DialogDescription({
   className,
-  asChild,
-  children,
   ...props
-}: DialogPrimitive.Description.Props & AsChild) {
+}: DialogPrimitive.Description.Props) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn("emph-secondary", className)}
       {...props}
-      {...asChildRender(asChild, children)}
     />
   );
 }

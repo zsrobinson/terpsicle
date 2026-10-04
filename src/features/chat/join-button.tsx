@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { mainPlanFor } from "~/core/plans/main-plan";
 import type { CourseCode } from "~/core/schema";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import { useChatHome } from "./chat-home";
+import { useChatHome, useMainPlan } from "./chat-home";
+import { followCourse } from "./chat-mutations";
 import { showNote } from "./undo";
 
 // Join, in the room's header, for a course you opened but haven't joined
@@ -13,17 +13,14 @@ import { showNote } from "./undo";
 
 /** Whether the course is in your list already: from your main plan, or joined. */
 function useIsYours(courseCode: CourseCode): boolean {
-  return useChatHome((s) => {
-    if (!s.termId) return true;
-    if ((s.follows[s.termId] ?? []).includes(courseCode)) return true;
-    return (
-      mainPlanFor(
-        s.termId,
-        s.synced.plans,
-        s.synced.settings?.body.mainPlans ?? {},
-      )?.courses.some((c) => c.courseCode === courseCode) ?? false
-    );
-  });
+  const followed = useChatHome((s) =>
+    s.termId ? (s.follows[s.termId] ?? []).includes(courseCode) : true,
+  );
+  const plan = useMainPlan();
+  return (
+    followed ||
+    (plan?.courses.some((c) => c.courseCode === courseCode) ?? false)
+  );
 }
 
 export function JoinButton({ courseCode }: { courseCode: CourseCode }) {
@@ -32,7 +29,7 @@ export function JoinButton({ courseCode }: { courseCode: CourseCode }) {
   if (yours) return null;
   const join = async () => {
     setBusy(true);
-    const result = await useChatHome.getState().follow(courseCode);
+    const result = await followCourse(courseCode);
     setBusy(false);
     if (result === "too-many")
       showNote(

@@ -65,7 +65,7 @@ for (const scheme of ["light", "dark"] as const) {
       plan.click(),
     );
     await expect(plan).toBeFocused();
-    await expect(plan).toHaveAttribute("data-state", "closed");
+    await expect(plan).not.toHaveAttribute("data-popup-open");
 
     await check(page, `context menu (${scheme})`, page.getByRole("menu"), () =>
       page.getByText("Right-click for its menu").click({ button: "right" }),

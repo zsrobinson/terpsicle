@@ -21,7 +21,7 @@ import {
   usePlacedSections,
   useTermCatalog,
 } from "~/state/hooks";
-import { useSeatWatches } from "~/state/seat-watches";
+import { useSeatWatchList } from "~/state/query/seat-watches";
 import { InlineError } from "~/ui/inline-error";
 import { WithTooltip } from "~/ui/tooltip";
 import { copySectionCodes, downloadIcs } from "./actions";
@@ -149,7 +149,7 @@ export function RegisterPanel() {
 
 /** The sections you're watching for a seat, when there are any. */
 function Watching({ termId }: { termId: TermId }) {
-  const count = useSeatWatches((s) => s.watches?.length ?? 0);
+  const count = useSeatWatchList()?.length ?? 0;
   if (count === 0) return null;
   return (
     <section aria-label="Watching for a seat">

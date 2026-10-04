@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
-import { ViewWords } from "~/components/brand/view-words";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelNote } from "~/components/panel";
 import { termLabel } from "~/core/catalog/terms";
 import { formatGpa } from "~/core/grades/grades";
@@ -55,6 +55,7 @@ import {
   WriteReviewButton,
 } from "./review-box";
 import {
+  FILTER_ROW,
   ReviewFilter,
   ReviewList,
   ReviewsTitle,
@@ -292,7 +293,7 @@ export function CoursePage({
                         onClick={() => crossLinkClicked("reviews", "schedule")}
                         className="inline-flex items-center gap-1 text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
                       >
-                        <ViewWords to="schedule" size={16} />
+                        <IntegrationLabel product="schedule" />
                       </Link>
                     </WithTooltip>
                   </>
@@ -321,7 +322,7 @@ export function CoursePage({
             size="display"
             title={<ReviewsTitle count={combined.reviewCount} />}
             aside={
-              <div className="flex flex-wrap items-center gap-2">
+              <div className={FILTER_ROW}>
                 {withPages.length > 0 ? (
                   <ReviewFilter
                     label="Instructor"
@@ -485,26 +486,25 @@ function WriteMenu({
   return (
     <DropdownMenu>
       <WithTooltip label={`Pick who taught you ${code}`}>
-        <DropdownMenuTrigger asChild>
-          <Button size="lg">
-            Write a review
-            <ChevronDown aria-hidden="true" />
-          </Button>
+        <DropdownMenuTrigger render={<Button size="lg" />}>
+          Write a review
+          <ChevronDown aria-hidden="true" />
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent
         align="end"
         className="max-h-80"
-        onCloseAutoFocus={(event) => {
-          if (picked.current) event.preventDefault();
+        finalFocus={() => {
+          const back = !picked.current;
           picked.current = false;
+          return back;
         }}
       >
         <DropdownMenuLabel>Who taught you?</DropdownMenuLabel>
         {rows.map((row) => (
           <DropdownMenuItem
             key={row.id ?? row.name}
-            onSelect={() => {
+            onClick={() => {
               picked.current = true;
               onWrite(row.name);
             }}

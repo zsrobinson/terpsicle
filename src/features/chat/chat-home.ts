@@ -1,3 +1,5 @@
+import { type QueryClient, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { create } from "zustand";
 import {
   chatTerm,
@@ -18,30 +20,33 @@ import {
   type ChatUnreadRoom,
   type Course,
   type CourseCode,
-  type CourseSearchRow,
   type Plan,
   type RoomId,
   type Term,
   type TermId,
 } from "~/core/schema";
 import { newYorkClock } from "~/core/todo/list";
-import { api } from "~/server/fns/api";
-import { chatApi } from "~/server/fns/chat-api";
+import { type ChatApi, chatClient, setChatClient } from "./chat-client";
+import { type ChatData, queryChatData, type Synced } from "./chat-data";
 import {
-  type ChatApi,
-  type ChatData,
-  fetchChatData,
-  pullSynced,
-  type Synced,
-} from "./chat-data";
+  type CourseLatest,
+  chatLatestQuery,
+  chatSyncedQuery,
+  latestBehind,
+  withLatest,
+} from "./queries";
 import { type LiveListener, liveSessionFor } from "./session";
+import { chatUnreadQuery } from "./unread-query";
 
-// The chat list's state (V2.md §8.6): the term, your synced plans and
-// settings, the catalog courses the list shows, unread counts, and courses
-// you follow. Loaded once you're signed in; conversations live in their
-// own sessions (./session). The term is always Chat's term (`chatTerm`: the
-// one in session, or between terms the next to start), never a pick: a
-// chat for a term you aren't in yet is confusing (owner, 2026-09-29).
+// The chat list's state (V2.md §8.6): the term, the catalog courses the
+// list shows, courses you follow, and which course sockets are open.
+// What the server says (your synced plans and settings, unread counts,
+// each room's newest message) is in the page's query client (./queries),
+// which the sockets write into as messages land (`listLive`). Loaded once
+// you're signed in; conversations live in their own sessions (./session).
+// The term is always Chat's term (`chatTerm`: the one in session, or
+// between terms the next to start), never a pick: a chat for a term you
+// aren't in yet is confusing (owner, 2026-09-29).
 
 export type ChatHomeStatus = "idle" | "loading" | "ready" | "error";
 
@@ -73,17 +78,7 @@ export interface ChatHomeState {
   /** Now and Next (V2 §5.5), for the term's tag in the bar. */
   tags: TermTags;
   termId: TermId | null;
-  synced: Synced;
   courses: Map<CourseCode, Course>;
-  unread: ChatUnreadRoom[];
-  /**
-   * Each room's newest message, the list's second line (the owner,
-   * 2026-09-29), from the course's object: asked again only when a room's
-   * `lastSeq` moves, and kept current by the room that's open.
-   */
-  latest: Record<RoomId, ChatLatestMessage>;
-  /** The `lastSeq` each room's `latest` was asked at. */
-  latestSeq: Record<RoomId, number>;
   /**
    * Courses whose socket is open (./live-list, or the open room's): their
    * rows update live, so the list asks `chat/latest` only for the others.
@@ -94,26 +89,16 @@ export interface ChatHomeState {
   follows: Record<TermId, CourseCode[]>;
   /** Mutes set here, for rooms chat/unread doesn't list yet (no messages). */
   mutes: Record<RoomId, boolean>;
-  /** Every course's code and title, for finding any course's room; null until asked for. */
-  courseRows: readonly CourseSearchRow[] | null;
-  courseRowsState: "idle" | "loading" | "ready" | "error";
 
   /** Loads everything for Chat's term. */
   load: () => Promise<void>;
-  refreshUnread: () => Promise<void>;
-  /** Loads `courseRows` once; after an error, asking again tries again. */
-  ensureCourseRows: () => Promise<void>;
+  /**
+   * Loads the catalog entries of courses the list has gained since: a
+   * room the unread poll brought, a main plan changed elsewhere.
+   */
+  loadListCourses: () => Promise<void>;
   /** Makes sure a course's catalog entry is loaded (a room opened by link or Find a course). */
   ensureCourse: (courseCode: CourseCode) => Promise<Course | null>;
-  follow: (
-    courseCode: CourseCode,
-  ) => Promise<"ok" | "too-many" | "other-term" | "failed">;
-  unfollow: (courseCode: CourseCode) => Promise<boolean>;
-  mute: (
-    courseCode: CourseCode,
-    room: RoomId,
-    muted: boolean,
-  ) => Promise<boolean>;
   /** You've seen a room's newest message: its count goes to 0 here at once. */
   markRead: (room: RoomId) => void;
   /** The open room's newest message, as its socket has it. */
@@ -131,87 +116,124 @@ export interface ChatHomeState {
 
 export interface ChatHomeDeps {
   client: ChatApi;
-  data: ChatData;
 }
-
-let deps: ChatHomeDeps = {
-  client: { sync: api.sync, reports: api.reports, chat: chatApi },
-  data: fetchChatData(),
-};
 
 /** Test hook. */
 export function setChatHomeDeps(next: ChatHomeDeps): void {
-  deps = next;
+  setChatClient(next.client);
+}
+
+const notConnected = (): Promise<never> =>
+  Promise.reject(new Error("Chat's published reads aren't connected yet"));
+
+/** Published data, read through the page's query client once it's connected. */
+let data: ChatData = {
+  terms: notConnected,
+  courses: notConnected,
+  calendar: notConnected,
+};
+
+/** The page's query client, which holds what the server says. */
+let queryClient: QueryClient | null = null;
+
+/**
+ * Reads through the page's query client from now on, so Chat shares every
+ * file and answer with the other products in the page (the chat page
+ * connects it before it loads).
+ */
+export function connectChatData(client: QueryClient): void {
+  queryClient = client;
+  data = queryChatData(client);
+}
+
+/** The page's query client, once Chat's page has connected it. */
+export function chatQueryClient(): QueryClient | null {
+  return queryClient;
 }
 
 const EMPTY: Synced = { plans: [], settings: null };
+const NO_ROOMS: ChatUnreadRoom[] = [];
+
+/** Your synced plans and settings as last read, without asking. */
+export function cachedSynced(): Synced {
+  return queryClient?.getQueryData(chatSyncedQuery().queryKey) ?? EMPTY;
+}
+
+/** Your rooms' unread rows as last heard, without asking. */
+export function cachedUnread(termId: TermId | null): ChatUnreadRoom[] {
+  return (
+    queryClient?.getQueryData(chatUnreadQuery(termId).queryKey) ?? NO_ROOMS
+  );
+}
+
+/** Changes the unread rows in the cache, if they've loaded; `change` returns `rows` for no change. */
+export function updateUnread(
+  termId: TermId | null,
+  change: (rows: ChatUnreadRoom[]) => ChatUnreadRoom[],
+): void {
+  if (!queryClient || !termId) return;
+  queryClient.setQueryData(chatUnreadQuery(termId).queryKey, (rows) => {
+    if (!rows) return undefined;
+    const next = change(rows);
+    return next === rows ? undefined : next;
+  });
+}
+
+/** A room's term and course, from its id. */
+function roomCourse(room: RoomId): { termId: TermId; courseCode: CourseCode } {
+  const [termId = "", courseCode = ""] = room.split(":");
+  return { termId, courseCode };
+}
+
+/** Puts a room's newest message in its course's entry (see `withLatest`). */
+function writeLatest(message: ChatLatestMessage, seq?: number): void {
+  if (!queryClient) return;
+  const { termId, courseCode } = roomCourse(message.room);
+  queryClient.setQueryData(
+    chatLatestQuery(termId, courseCode).queryKey,
+    (entry) => {
+      const next = withLatest(entry, message, seq);
+      return next === entry ? undefined : next;
+    },
+  );
+}
+
+/** Changes the courses you follow in a term, here and in this browser's copy. */
+export function changeFollows(
+  termId: TermId,
+  change: (codes: readonly CourseCode[]) => CourseCode[],
+): void {
+  const follows = { ...useChatHome.getState().follows };
+  follows[termId] = change(follows[termId] ?? []);
+  writeFollows(follows);
+  useChatHome.setState({ follows });
+}
+
+/** The courses the list shows in a term, from these answers. */
+function listCodes(
+  termId: TermId,
+  synced: Synced,
+  unread: readonly ChatUnreadRoom[],
+): CourseCode[] {
+  return chatListCourseCodes({
+    termId,
+    mainPlan: mainPlanFor(
+      termId,
+      synced.plans,
+      synced.settings?.body.mainPlans ?? {},
+    ),
+    follows: useChatHome.getState().follows[termId] ?? [],
+    unread: [...unread],
+  });
+}
 
 export const useChatHome = create<ChatHomeState>()((set, get) => {
   const coursesFor = async (termId: TermId, codes: CourseCode[]) => {
     const have = get().termId === termId ? get().courses : new Map();
     const missing = codes.filter((c) => !have.has(c));
     if (missing.length === 0) return have;
-    const loaded = await deps.data.courses(termId, missing);
+    const loaded = await data.courses(termId, missing);
     return new Map([...have, ...loaded]);
-  };
-
-  const listCodes = (
-    termId: TermId,
-    synced: Synced,
-    unread: ChatUnreadRoom[],
-  ) =>
-    chatListCourseCodes({
-      termId,
-      mainPlan: mainPlanFor(
-        termId,
-        synced.plans,
-        synced.settings?.body.mainPlans ?? {},
-      ),
-      follows: get().follows[termId] ?? [],
-      unread,
-    });
-
-  /** Asks the courses' objects for the rooms whose newest message moved. */
-  const refreshLatest = async (termId: TermId, rooms: ChatUnreadRoom[]) => {
-    const { latestSeq: asked, live } = get();
-    // A course with an open socket keeps its rows current itself.
-    const stale = rooms.filter(
-      (r) => asked[r.room] !== r.lastSeq && !live[r.courseCode],
-    );
-    if (stale.length === 0) return;
-    const byCourse = new Map<CourseCode, ChatUnreadRoom[]>();
-    for (const r of stale)
-      byCourse.set(r.courseCode, [...(byCourse.get(r.courseCode) ?? []), r]);
-    await Promise.all(
-      [...byCourse].map(async ([courseCode, list]) => {
-        try {
-          const { latest } = await deps.client.chat.latest({
-            termId,
-            courseCode,
-            rooms: list.map((r) => r.room),
-          });
-          set({
-            latest: {
-              ...get().latest,
-              ...Object.fromEntries(latest.map((m) => [m.room, m])),
-            },
-            latestSeq: {
-              ...get().latestSeq,
-              ...Object.fromEntries(list.map((r) => [r.room, r.lastSeq])),
-            },
-          });
-        } catch {
-          // The rows keep what they had; the next refresh asks again.
-        }
-      }),
-    );
-  };
-
-  const open = async (termId: TermId, synced: Synced) => {
-    const { rooms } = await deps.client.chat.unread({ termId });
-    const courses = await coursesFor(termId, listCodes(termId, synced, rooms));
-    set({ termId, synced, unread: rooms, courses, status: "ready" });
-    await refreshLatest(termId, rooms);
   };
 
   return {
@@ -219,28 +241,24 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     terms: [],
     tags: { now: null, next: null },
     termId: null,
-    synced: EMPTY,
     courses: new Map(),
-    unread: [],
-    latest: {},
-    latestSeq: {},
     live: {},
     viewing: null,
     follows: typeof window === "undefined" ? {} : readFollows(),
     mutes: {},
-    courseRows: null,
-    courseRowsState: "idle",
 
     load: async () => {
       set({ status: "loading" });
       try {
+        const client = queryClient;
+        if (!client) throw new Error("Chat's reads aren't connected yet");
         const today = newYorkClock(Date.now()).date;
+        // What's cached shows at once: the page asks for your plans again
+        // as it opens (`useChatReads`).
         const [terms, synced, calendars] = await Promise.all([
-          deps.data.terms(),
-          pullSynced(deps.client),
-          Promise.all(
-            termTagCandidates(today).map((id) => deps.data.calendar(id)),
-          ),
+          data.terms(),
+          client.ensureQueryData(chatSyncedQuery()),
+          Promise.all(termTagCandidates(today).map((id) => data.calendar(id))),
         ]);
         const tags = termTags(
           today,
@@ -253,42 +271,32 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         );
         set({ terms, tags });
         if (!picked) {
-          set({ status: "ready", synced });
+          set({ status: "ready" });
           return;
         }
-        await open(picked, synced);
+        // Home's copy, if it asked a moment ago.
+        const rooms = await client.ensureQueryData(chatUnreadQuery(picked));
+        const courses = await coursesFor(
+          picked,
+          listCodes(picked, synced, rooms),
+        );
+        set({ termId: picked, courses, status: "ready" });
       } catch {
         set({ status: "error" });
       }
     },
 
-    refreshUnread: async () => {
+    loadListCourses: async () => {
       const { termId } = get();
       if (!termId) return;
       try {
-        const { rooms } = await deps.client.chat.unread({ termId });
         const courses = await coursesFor(
           termId,
-          listCodes(termId, get().synced, rooms),
+          listCodes(termId, cachedSynced(), cachedUnread(termId)),
         );
-        set({ unread: rooms, courses });
-        await refreshLatest(termId, rooms);
+        if (courses !== get().courses) set({ courses });
       } catch {
-        // Keep the counts we have; the next refresh tries again.
-      }
-    },
-
-    ensureCourseRows: async () => {
-      const state = get().courseRowsState;
-      if (state === "loading" || state === "ready") return;
-      set({ courseRowsState: "loading" });
-      try {
-        set({
-          courseRows: await deps.data.courseSearch(),
-          courseRowsState: "ready",
-        });
-      } catch {
-        set({ courseRowsState: "error" });
+        // The rows say what they have; the next change asks again.
       }
     },
 
@@ -304,95 +312,31 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
       }
     },
 
-    follow: async (courseCode) => {
-      const { termId } = get();
-      if (!termId) return "failed";
-      try {
-        const result = await deps.client.chat.follow({ termId, courseCode });
-        if (result.status !== "ok") return result.status;
-      } catch {
-        return "failed";
-      }
-      const follows = { ...get().follows };
-      follows[termId] = [...new Set([...(follows[termId] ?? []), courseCode])];
-      writeFollows(follows);
-      set({ follows });
-      return "ok";
-    },
-
-    unfollow: async (courseCode) => {
-      const { termId } = get();
-      if (!termId) return false;
-      try {
-        await deps.client.chat.unfollow({ termId, courseCode });
-      } catch {
-        return false;
-      }
-      const follows = { ...get().follows };
-      follows[termId] = (follows[termId] ?? []).filter((c) => c !== courseCode);
-      writeFollows(follows);
-      set({
-        follows,
-        // Its rooms leave the list now; unread would bring them back until refreshed.
-        unread: get().unread.filter(
-          (r) => r.courseCode !== courseCode || inMainPlan(get(), courseCode),
-        ),
-      });
-      return true;
-    },
-
-    mute: async (courseCode, room, muted) => {
-      const { termId } = get();
-      if (!termId) return false;
-      const before = get().mutes;
-      set({ mutes: { ...before, [room]: muted } });
-      try {
-        await deps.client.chat.mute({
-          termId,
-          courseCode,
-          roomId: room,
-          muted,
-        });
-        return true;
-      } catch {
-        set({ mutes: before });
-        return false;
-      }
-    },
-
-    noteLatest: (message) => {
-      const before = get().latest[message.room];
-      if (
-        before &&
-        before.createdAt === message.createdAt &&
-        before.text === message.text &&
-        before.deleted === message.deleted
-      )
-        return;
-      // An edit of an older message doesn't take the newest one's place.
-      if (before && before.createdAt > message.createdAt) return;
-      set({ latest: { ...get().latest, [message.room]: message } });
-    },
+    noteLatest: (message) => writeLatest(message),
 
     setViewing: (viewing) => set({ viewing }),
 
     markRoomRead: (room) => {
       get().markRead(room);
-      const newest = get().latest[room];
-      const courseCode = room.split(":")[1] ?? "";
+      const { termId, courseCode } = roomCourse(room);
+      const newest = queryClient?.getQueryData(
+        chatLatestQuery(termId, courseCode).queryKey,
+      )?.byRoom[room];
       if (newest) liveSessionFor(courseCode)?.readUpTo(room, newest.id);
     },
 
     markRead: (room) =>
-      set({
-        unread: get().unread.map((r) =>
-          r.room === room ? { ...r, unread: 0 } : r,
-        ),
-      }),
+      updateUnread(get().termId, (rows) =>
+        rows.some((r) => r.room === room && r.unread !== 0)
+          ? rows.map((r) => (r.room === room ? { ...r, unread: 0 } : r))
+          : rows,
+      ),
 
     setMainPlan: async (planId) => {
-      const { termId, synced } = get();
-      if (!termId || !synced.settings) return false;
+      const { termId } = get();
+      const synced = cachedSynced();
+      const client = queryClient;
+      if (!termId || !synced.settings || !client) return false;
       let settings = synced.settings;
       // Saved with the rev we have; after a conflict, once more on the server's copy.
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -400,19 +344,24 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         // With its old name too, as every push has it (settingsDocOf).
         const body = { ...settings.body, mainPlans, chatPlans: mainPlans };
         try {
-          const { results } = await deps.client.sync.push({
+          const { results } = await chatClient().sync.push({
             docs: [
               { kind: "settings", id: "settings", baseRev: settings.rev, body },
             ],
           });
           const result = results[0];
           if (result?.status === "ok") {
-            const next = {
+            client.setQueryData(chatSyncedQuery().queryKey, {
               ...synced,
               settings: { ...settings, rev: result.rev, body },
-            };
-            set({ synced: next });
-            await open(termId, next);
+            });
+            // The server's rooms for you moved with it.
+            await Promise.all([
+              client.invalidateQueries({
+                queryKey: chatUnreadQuery(termId).queryKey,
+              }),
+              get().loadListCourses(),
+            ]);
             return true;
           }
           if (result?.status === "conflict" && result.doc?.kind === "settings")
@@ -427,27 +376,73 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
   };
 });
 
-function inMainPlan(state: ChatHomeState, courseCode: CourseCode): boolean {
-  if (!state.termId) return false;
-  const plan = mainPlanFor(
-    state.termId,
-    state.synced.plans,
-    state.synced.settings?.body.mainPlans ?? {},
+/**
+ * What Chat's page asks the server for, once a page: your synced plans as
+ * it opens, and your rooms' unread counts every minute while it's on
+ * screen (`chatUnreadQuery`). The list's courses follow what they bring.
+ */
+export function useChatReads(): void {
+  const termId = useChatHome((s) => s.termId);
+  const status = useChatHome((s) => s.status);
+  const follows = useChatHome((s) => s.follows);
+  const synced = useQuery(chatSyncedQuery()).data;
+  const unread = useQuery({
+    ...chatUnreadQuery(termId),
+    enabled: termId !== null,
+  }).data;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each answer can bring a course
+  useEffect(() => {
+    if (status === "ready") void useChatHome.getState().loadListCourses();
+  }, [status, synced, unread, follows]);
+}
+
+/** Your synced plans and settings, as Chat's page last read them. */
+export function useChatSynced(): Synced {
+  return useQuery({ ...chatSyncedQuery(), enabled: false }).data ?? EMPTY;
+}
+
+/** Your rooms' unread rows in Chat's term, as last heard. */
+export function useChatUnread(): ChatUnreadRoom[] {
+  const termId = useChatHome((s) => s.termId);
+  return (
+    useQuery({ ...chatUnreadQuery(termId), enabled: false }).data ?? NO_ROOMS
   );
-  return plan?.courses.some((c) => c.courseCode === courseCode) ?? false;
+}
+
+const NO_MESSAGES: CourseLatest["byRoom"] = {};
+
+/**
+ * A course's rooms' newest messages, for its rows in the list: asked for
+ * once, then again only when a room's unread row moves past what was
+ * asked and the course has no open socket to have said so.
+ */
+export function useCourseLatest(
+  termId: TermId,
+  courseCode: CourseCode,
+  rows: readonly ChatUnreadRoom[],
+): CourseLatest["byRoom"] {
+  const live = useChatHome((s) => Boolean(s.live[courseCode]));
+  const { data: entry, refetch } = useQuery({
+    ...chatLatestQuery(termId, courseCode),
+    enabled: rows.length > 0,
+  });
+  const behind = latestBehind(entry, rows, live);
+  // Asked again as the rows move, even while an earlier ask is out.
+  const seqs = rows.map((r) => `${r.room}=${r.lastSeq}`).join(",");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the seqs say when to look again
+  useEffect(() => {
+    if (behind) void refetch({ cancelRefetch: false });
+  }, [behind, seqs, refetch]);
+  return entry?.byRoom ?? NO_MESSAGES;
 }
 
 /** The main plan for the term on screen: your rooms come from it. */
 export function useMainPlan(): Plan | null {
-  return useChatHome((s) =>
-    s.termId
-      ? mainPlanFor(
-          s.termId,
-          s.synced.plans,
-          s.synced.settings?.body.mainPlans ?? {},
-        )
-      : null,
-  );
+  const termId = useChatHome((s) => s.termId);
+  const synced = useChatSynced();
+  return termId
+    ? mainPlanFor(termId, synced.plans, synced.settings?.body.mainPlans ?? {})
+    : null;
 }
 
 /** The term's plans in tab order, for "Rooms from Plan A, your main plan ▾". */
@@ -458,12 +453,19 @@ export function termPlans(
   return termId ? tabsInTerm(plans, termId) : [];
 }
 
+/** What the list is made of. */
+export interface ChatListState {
+  termId: TermId | null;
+  synced: Synced;
+  unread: readonly ChatUnreadRoom[];
+  courses: ReadonlyMap<CourseCode, Course>;
+  follows: Readonly<Record<TermId, CourseCode[]>>;
+  mutes: Readonly<Record<RoomId, boolean>>;
+}
+
 /** The list as it shows. Compute in a memo: it's a new array each call. */
 export function chatListOf(
-  state: Pick<
-    ChatHomeState,
-    "termId" | "synced" | "unread" | "courses" | "follows" | "mutes"
-  >,
+  state: ChatListState,
   /** The course whose room is open, listed last if it isn't yours. */
   viewing: CourseCode | null = null,
 ): ChatListCourse[] {
@@ -483,6 +485,16 @@ export function chatListOf(
   });
 }
 
+/** The list as it is now, outside React (the join from Schedule). */
+export function currentChatList(): ChatListCourse[] {
+  const home = useChatHome.getState();
+  return chatListOf({
+    ...home,
+    synced: cachedSynced(),
+    unread: cachedUnread(home.termId),
+  });
+}
+
 /** Unread rows with the mutes set here since they were read. */
 export function withMutes(
   unread: readonly ChatUnreadRoom[],
@@ -494,69 +506,77 @@ export function withMutes(
 }
 
 /** Whether you muted a room, here or before. */
-export function isMuted(state: ChatHomeState, room: RoomId): boolean {
-  return (
-    state.mutes[room] ??
-    state.unread.find((r) => r.room === room)?.muted ??
-    false
-  );
+export function isMuted(
+  mutes: Readonly<Record<RoomId, boolean>>,
+  unread: readonly ChatUnreadRoom[],
+  room: RoomId,
+): boolean {
+  return mutes[room] ?? unread.find((r) => r.room === room)?.muted ?? false;
 }
 
 /**
- * The list's side of every course socket (./session's `LiveListener`): a
- * welcome's unread counts, and each message as it lands, which moves its
- * room's newest message and, for one someone else just sent in a room
- * that isn't on screen, its unread count. A muted room updates its line too;
- * the list never shows it as unread.
+ * The list's side of every course socket (./session's `LiveListener`),
+ * written into the query cache, so the list, the tab's title and Home all
+ * see it without asking: a welcome's unread counts, and each message as
+ * it lands, which moves its room's newest message and, for one someone
+ * else just sent in a room that isn't on screen, its unread count. A
+ * muted room updates its line too; the list never shows it as unread.
  */
 export const listLive: LiveListener = {
   welcome: (courseCode, rooms) => {
     const counts = new Map(rooms.map((r) => [r.room, r.unread]));
-    const { unread, viewing } = useChatHome.getState();
-    useChatHome.setState({
-      unread: unread.map((r) =>
-        r.courseCode === courseCode && counts.has(r.room)
-          ? { ...r, unread: r.room === viewing ? 0 : (counts.get(r.room) ?? 0) }
-          : r,
-      ),
+    const { termId, viewing } = useChatHome.getState();
+    updateUnread(termId, (rows) => {
+      let changed = false;
+      const next = rows.map((r) => {
+        if (r.courseCode !== courseCode || !counts.has(r.room)) return r;
+        const unread = r.room === viewing ? 0 : (counts.get(r.room) ?? 0);
+        if (unread === r.unread) return r;
+        changed = true;
+        return { ...r, unread };
+      });
+      return changed ? next : rows;
     });
   },
   message: (message, fresh, you) => {
-    const home = useChatHome.getState();
-    const courseCode = message.room.split(":")[1] ?? "";
-    home.noteLatest({
+    const latest: ChatLatestMessage = {
       id: message.id,
       room: message.room,
       author: message.author,
       text: message.deleted ? "" : chatPreview(message.text),
       deleted: message.deleted,
       createdAt: message.createdAt,
+    };
+    if (!fresh || message.author.directoryId === you) {
+      writeLatest(latest);
+      return;
+    }
+    const { viewing } = useChatHome.getState();
+    const { termId, courseCode } = roomCourse(message.room);
+    const seen = viewing === message.room;
+    let seq: number | undefined;
+    updateUnread(termId, (rows) => {
+      const row = rows.find((r) => r.room === message.room);
+      const next: ChatUnreadRoom = row
+        ? {
+            ...row,
+            lastSeq: row.lastSeq + 1,
+            unread: seen ? 0 : row.unread + 1,
+            lastMessageAt: message.createdAt,
+          }
+        : {
+            room: message.room,
+            courseCode,
+            lastSeq: 1,
+            unread: seen ? 0 : 1,
+            lastMessageAt: message.createdAt,
+            muted: false,
+          };
+      seq = next.lastSeq;
+      return row ? rows.map((r) => (r === row ? next : r)) : [...rows, next];
     });
-    if (!fresh || message.author.directoryId === you) return;
-    const seen = home.viewing === message.room;
-    const row = home.unread.find((r) => r.room === message.room);
-    const next: ChatUnreadRoom = row
-      ? {
-          ...row,
-          lastSeq: row.lastSeq + 1,
-          unread: seen ? 0 : row.unread + 1,
-          lastMessageAt: message.createdAt,
-        }
-      : {
-          room: message.room,
-          courseCode,
-          lastSeq: 1,
-          unread: seen ? 0 : 1,
-          lastMessageAt: message.createdAt,
-          muted: false,
-        };
-    useChatHome.setState({
-      unread: row
-        ? home.unread.map((r) => (r === row ? next : r))
-        : [...home.unread, next],
-      // The seq it was asked at moves with it: the poll needn't ask again.
-      latestSeq: { ...home.latestSeq, [message.room]: next.lastSeq },
-    });
+    // The seq it was asked at moves with it: nothing needs asking again.
+    writeLatest(latest, seq);
   },
   status: (courseCode, open) => {
     const { live } = useChatHome.getState();

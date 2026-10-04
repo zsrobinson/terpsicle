@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { Asterisk, Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import {
   type CatalogIndex,
   noMatchesMessage,
@@ -27,6 +27,7 @@ import type {
   Wildcard,
 } from "~/core/schema";
 import { dotStyle } from "~/features/calendar/tint";
+import { usePressWord } from "~/hooks/use-media-query";
 import { newLocalId } from "~/state/ids";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
@@ -74,6 +75,7 @@ export function CourseList({
   inputRef?: Ref<HTMLInputElement>;
 }) {
   const listed = useMemo(() => new Set(draftCourseCodes(items)), [items]);
+  const press = usePressWord();
   const setItems = (
     change: (items: GenerateDraftItem[]) => GenerateDraftItem[],
   ) => update((d) => ({ ...d, items: change([...d.items]) }));
@@ -196,7 +198,7 @@ export function CourseList({
       {items.length > 0 ? (
         <p className="text-xs text-faint">
           {prefilledFrom ? `From ${prefilledFrom}. ` : null}
-          Solid is required, dashed is optional. Click a course to switch.
+          Solid is required, dashed is optional. {press} a course to switch.
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-1.5">
@@ -273,8 +275,9 @@ function FromFourYear({
           className="w-full text-sm"
           onClick={onGenerate}
         >
-          <Mark id="plan" size={14} />
-          Generate from four-year plan
+          <IntegrationLabel product="plan">
+            Generate from four-year plan
+          </IntegrationLabel>
         </Button>
       </WithTooltip>
       <ul
