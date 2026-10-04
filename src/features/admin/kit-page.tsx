@@ -933,11 +933,7 @@ function ControlParts() {
       >
         <PageHeader
           size="panel"
-          title={
-            <SheetTitle asChild>
-              <span>Notifications</span>
-            </SheetTitle>
-          }
+          title={<SheetTitle render={<span />}>Notifications</SheetTitle>}
         />
         <p className="px-4 py-3 text-muted text-sm">
           Nothing new. Notifications show up here, pushed or not.
@@ -951,8 +947,8 @@ function ControlParts() {
         <PageHeader
           size="panel"
           title={
-            <SheetTitle asChild>
-              <span id={`${id}-notes`}>Notifications</span>
+            <SheetTitle render={<span id={`${id}-notes`} />}>
+              Notifications
             </SheetTitle>
           }
         />
@@ -1285,11 +1281,13 @@ function PopupParts() {
           >
             <Popover>
               <WithTooltip label="Share a link to this plan">
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" data-kit-popover="">
-                    <Share2 aria-hidden="true" />
-                    Share
-                  </Button>
+                <PopoverTrigger
+                  render={
+                    <Button variant="outline" size="sm" data-kit-popover="" />
+                  }
+                >
+                  <Share2 aria-hidden="true" />
+                  Share
                 </PopoverTrigger>
               </WithTooltip>
               <PopoverContent

@@ -40,17 +40,19 @@ export function CourseColorPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <WithTooltip label={`Change ${courseCode}'s color`}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={`${courseCode} color: ${COURSE_COLOR_LABELS[color]}`}
-            className={cn(
-              "-m-1.5 flex size-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-hover data-[state=open]:bg-hover",
-              className,
-            )}
-          >
-            {dot}
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-label={`${courseCode} color: ${COURSE_COLOR_LABELS[color]}`}
+              className={cn(
+                "-m-1.5 flex size-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-hover aria-expanded:bg-hover",
+                className,
+              )}
+            />
+          }
+        >
+          {dot}
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent className="w-auto p-2" aria-label="Course colors">

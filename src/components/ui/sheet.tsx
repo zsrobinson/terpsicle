@@ -18,7 +18,7 @@ import { WithTooltip } from "./tooltip";
 // Esc closes it, and the page behind scales back (./sheet-indent.tsx), from
 // wherever it was opened, the workbench drawer included. Its
 // heading is the caller's, wrapped in `SheetTitle` so the sheet is named by
-// it: `<PageHeader size="panel" title={<SheetTitle asChild><span>…`.
+// it: `<PageHeader size="panel" title={<SheetTitle render={<span />}>…`.
 //
 // Detents, as iOS names them: by default the sheet is as tall as what's in
 // it (up to the screen, less the gap at the top). With
@@ -36,19 +36,21 @@ import { WithTooltip } from "./tooltip";
 // nest it in that drawer's portal, under the tab bar and with no backdrop:
 // a course's Reviews preview ended under the bar.
 
-/** The sheet's name for assistive tech: wrap the visible heading in it. */
+/**
+ * The sheet's name for assistive tech: wrap the visible heading in it, an
+ * `<h2>` of its own or the element `render` gives.
+ */
 function SheetTitle({
-  asChild,
-  children,
+  render,
+  id,
   ...props
-}: ComponentProps<typeof Drawer.Title> & {
-  /** Names the sheet by the child element instead of an `<h2>` of its own. */
-  asChild?: boolean;
-}) {
-  if (asChild && isValidElement<{ id?: string }>(children))
-    // The child's own id, if it has one, is the one the sheet points at.
-    return <Drawer.Title render={children} id={children.props.id} {...props} />;
-  return <Drawer.Title {...props}>{children}</Drawer.Title>;
+}: ComponentProps<typeof Drawer.Title>) {
+  // The rendered element's own id, if it has one, is the one the sheet
+  // points at.
+  const own = isValidElement<{ id?: string }>(render)
+    ? render.props.id
+    : undefined;
+  return <Drawer.Title render={render} id={id ?? own} {...props} />;
 }
 
 type Detent = "medium" | "large";

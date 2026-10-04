@@ -98,7 +98,7 @@ export function SeatBell({
     return (
       <Popover>
         <WithTooltip label={tooltip}>
-          <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+          <PopoverTrigger render={trigger} />
         </WithTooltip>
         <PopoverContent
           className="w-72"

@@ -64,8 +64,8 @@ export function MarketingHeader() {
 function OpenTerpsicle() {
   return (
     <LazyTooltip label="Back to your schedule">
-      <Button variant="ghost" size="sm" asChild>
-        <a href={SCHEDULE_PATH}>Open Terpsicle</a>
+      <Button variant="ghost" size="sm" render={<a href={SCHEDULE_PATH} />}>
+        Open Terpsicle
       </Button>
     </LazyTooltip>
   );
@@ -77,10 +77,10 @@ function SignInLink({ hidden }: { hidden: boolean }) {
       <Button
         variant="ghost"
         size="sm"
-        asChild
         className={hidden ? "invisible" : undefined}
+        render={<a href="/signin" />}
       >
-        <a href="/signin">Sign in</a>
+        Sign in
       </Button>
     </LazyTooltip>
   );

@@ -33,7 +33,12 @@ import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { GroupHeader, ListRow } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
-import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  pressedOn,
+} from "~/ui/popover";
 import { Sheet, SheetTitle } from "~/ui/sheet";
 import { RowSkeleton } from "~/ui/skeleton";
 import { noteToast } from "~/ui/toast";
@@ -318,10 +323,13 @@ function InboxPanel({
       </PanelBody>
       <PanelFooter className="bg-transparent">
         <WithTooltip label="Choose what notifies you, and where">
-          <Button variant="link" size="sm" asChild className="px-0">
-            <Link to="/settings/notifications" onClick={close}>
-              Notification settings
-            </Link>
+          <Button
+            variant="link"
+            size="sm"
+            className="px-0"
+            render={<Link to="/settings/notifications" onClick={close} />}
+          >
+            Notification settings
           </Button>
         </WithTooltip>
       </PanelFooter>
@@ -374,30 +382,29 @@ export function InboxSurface({
         <InboxPanel
           close={close}
           inbox={inbox}
-          title={
-            <SheetTitle asChild>
-              <span>Notifications</span>
-            </SheetTitle>
-          }
+          title={<SheetTitle render={<span />}>Notifications</SheetTitle>}
         />
       </Sheet>
     );
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover
+      open={open}
+      onOpenChange={(next, details) => {
+        // The bell toggles it: a press on it isn't a click away.
+        if (pressedOn(anchor, details)) details.cancel();
+        else onOpenChange(next);
+      }}
+    >
       <PopoverAnchor virtualRef={anchor} />
       <PopoverContent
         align="end"
         role="dialog"
         aria-label="Notifications"
         data-testid="notifications"
-        className="flex max-h-[min(36rem,var(--radix-popover-content-available-height))] w-[400px] flex-col p-0"
-        // The bell toggles it: a press on it isn't a click away.
-        onInteractOutside={(e) => {
-          if (anchor.current?.contains(e.target as Node)) e.preventDefault();
-        }}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
+        className="flex max-h-[min(36rem,var(--available-height))] w-[400px] flex-col p-0"
+        finalFocus={() => {
           returnFocus();
+          return false;
         }}
       >
         <InboxPanel close={close} inbox={inbox} title="Notifications" />

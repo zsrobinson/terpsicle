@@ -129,7 +129,7 @@ export function ReviewsPreviewButton({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <WithTooltip label={tooltip}>
-        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+        <PopoverTrigger render={trigger} />
       </WithTooltip>
       <PopoverContent
         side="bottom"

@@ -54,7 +54,7 @@ export interface CspOptions {
  * The policy (docs/V2.md §12). Every source is here for a reason:
  * - scripts: our files, TanStack's per-request inline scripts by nonce, and
  *   our own head scripts by hash; PostHog loads through /ingest, our origin;
- * - styles: `'unsafe-inline'` for Radix's and Sonner's style attributes;
+ * - styles: `'unsafe-inline'` for Base UI's and Sonner's style attributes;
  * - images: `data:` for small inlined icons, `blob:` for MapLibre;
  * - fonts: Geist is bundled into /assets;
  * - connect: our origin (API, /data, /ingest), the live data origin for

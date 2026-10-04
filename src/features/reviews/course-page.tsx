@@ -486,26 +486,25 @@ function WriteMenu({
   return (
     <DropdownMenu>
       <WithTooltip label={`Pick who taught you ${code}`}>
-        <DropdownMenuTrigger asChild>
-          <Button size="lg">
-            Write a review
-            <ChevronDown aria-hidden="true" />
-          </Button>
+        <DropdownMenuTrigger render={<Button size="lg" />}>
+          Write a review
+          <ChevronDown aria-hidden="true" />
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent
         align="end"
         className="max-h-80"
-        onCloseAutoFocus={(event) => {
-          if (picked.current) event.preventDefault();
+        finalFocus={() => {
+          const back = !picked.current;
           picked.current = false;
+          return back;
         }}
       >
         <DropdownMenuLabel>Who taught you?</DropdownMenuLabel>
         {rows.map((row) => (
           <DropdownMenuItem
             key={row.id ?? row.name}
-            onSelect={() => {
+            onClick={() => {
               picked.current = true;
               onWrite(row.name);
             }}

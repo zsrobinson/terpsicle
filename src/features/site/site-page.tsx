@@ -111,8 +111,8 @@ function pageContext(path: string): ReactNode {
 export function OpenScheduleButton() {
   return (
     <WithTooltip label="Plan your classes">
-      <Button asChild className="w-fit">
-        <Link to={SCHEDULE_PATH}>View schedule</Link>
+      <Button className="w-fit" render={<Link to={SCHEDULE_PATH} />}>
+        View schedule
       </Button>
     </WithTooltip>
   );

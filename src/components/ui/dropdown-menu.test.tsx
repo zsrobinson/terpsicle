@@ -26,8 +26,8 @@ function PlanMenu({
     <TooltipProvider delayDuration={0}>
       <DropdownMenu>
         <WithTooltip label="Plan options">
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">Plan A</Button>
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
+            Plan A
           </DropdownMenuTrigger>
         </WithTooltip>
         <DropdownMenuContent>
@@ -36,17 +36,12 @@ function PlanMenu({
             <DropdownMenuRadioItem value="a">Plan A</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="b">Plan B</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
-          <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              onKeep();
-            }}
-          >
+          <DropdownMenuItem onClick={onRename}>Rename</DropdownMenuItem>
+          <DropdownMenuItem closeOnClick={false} onClick={onKeep}>
             Sign in again
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a href="/settings">Settings</a>
+          <DropdownMenuItem render={<a href="/settings" />}>
+            Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -60,18 +55,17 @@ describe("DropdownMenu", () => {
   it("opens from its trigger, whose tooltip it leaves alone, and marks it open", async () => {
     render(<PlanMenu />);
     const user = userEvent.setup();
-    expect(trigger()).toHaveAttribute("data-state", "closed");
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
     // Hovering first opens the trigger's tooltip; the press still opens
     // the menu on the same button.
     await user.hover(trigger());
     await screen.findByRole("tooltip");
     await user.click(trigger());
     expect(await screen.findByRole("menu")).toBeInTheDocument();
-    expect(trigger()).toHaveAttribute("data-state", "open");
     expect(trigger()).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("runs onSelect and closes, handing focus back to the trigger", async () => {
+  it("runs onClick and closes, handing focus back to the trigger", async () => {
     const onRename = vi.fn();
     render(<PlanMenu onRename={onRename} />);
     const user = userEvent.setup();
@@ -80,10 +74,10 @@ describe("DropdownMenu", () => {
     expect(onRename).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
     expect(trigger()).toHaveFocus();
-    expect(trigger()).toHaveAttribute("data-state", "closed");
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("stays open when onSelect prevents it, as on Radix", async () => {
+  it("stays open after a pick with closeOnClick off", async () => {
     const onKeep = vi.fn();
     render(<PlanMenu onKeep={onKeep} />);
     const user = userEvent.setup();
@@ -130,9 +124,9 @@ describe("DropdownMenu", () => {
         <DropdownMenu defaultOpen>
           <DropdownMenuTrigger>Plan A</DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href="/settings">Settings</a>
+            <DropdownMenuItem onClick={onRename}>Rename</DropdownMenuItem>
+            <DropdownMenuItem render={<a href="/settings" />}>
+              Settings
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
           </DropdownMenuContent>
@@ -156,7 +150,7 @@ describe("DropdownMenu", () => {
     }
   });
 
-  it("renders an asChild item as its link", async () => {
+  it("renders an item as the link its render prop gives", async () => {
     render(<PlanMenu />);
     const user = userEvent.setup();
     await user.click(trigger());

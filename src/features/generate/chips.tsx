@@ -365,14 +365,16 @@ function CreditsFilter({
   return (
     <Popover>
       <WithTooltip label={on ? `${countTip(count)}${tip}` : tip}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label={on ? `Credits: ${label}` : "Credits"}
-            className={filterClass(on)}
-          >
-            <Face on={on} label={label ?? "Credits"} count={count} menu />
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-label={on ? `Credits: ${label}` : "Credits"}
+              className={filterClass(on)}
+            />
+          }
+        >
+          <Face on={on} label={label ?? "Credits"} count={count} menu />
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent className="w-60">
