@@ -53,6 +53,7 @@ export {
   classesToReview,
   reviewedHere,
   reviewsByRecency,
+  type TookFrom,
   type TookHere,
   tookHere,
   type YourPlans,

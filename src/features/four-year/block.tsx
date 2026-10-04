@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { MoreHorizontal } from "lucide-react";
 import type { DragEvent } from "react";
-import { ViewWords } from "~/components/brand/view-words";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import { isUnknownCourse } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
@@ -192,7 +192,7 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
                 params={{ slug: courseSlug(entry.code) }}
                 onClick={() => crossLinkClicked("plan", "reviews")}
               >
-                <ViewWords to="reviews" />
+                <IntegrationLabel product="reviews" />
               </Link>
             </DropdownMenuItem>
           </WithTooltip>

@@ -1,7 +1,7 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { type ReactNode, useCallback, useId } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { termLabel } from "~/core/catalog/terms";
 import {
   type CalloutId,
@@ -202,7 +202,7 @@ export function HomeCallout({
       data-home-callout={id}
       className="flex-row items-start gap-3 p-4"
     >
-      <Mark id={words.mark} size={20} className="mt-px shrink-0" />
+      <IntegrationLabel product={words.mark} iconOnly className="mt-px" />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex flex-col gap-0.5">
           <h2 id={titleId} className="emph-heading text-base">

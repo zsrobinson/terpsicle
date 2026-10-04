@@ -54,6 +54,11 @@ Revisit if: never on its own.
 "the fix i was looking for was a little simpler than a giant 7-step design system thing, it was more about standardizing how we do these types of sections in the sidebar. consider also that we sort of have two design languages, one for the dashboard sort of pages with the sidebar, and another for more public pages or things like the dashboard or settings where the hierarchy comes more from larger text and whatnot rather than darker backgrounds." Schedule, Chat, Plan and Todo are workbench pages. On them, section bands and borders carry the hierarchy, in one pattern: a section's band (`SectionHeader`, or `GroupHeader`), then a lighter band for a group inside it (`GroupHeader nested`), then rows on the page, with a hairline above every band. Chat's room list is the reference. Home, Reviews and Settings are reading pages, where larger type carries the hierarchy and there are no bands (docs/DESIGN.md §7.8).
 Revisit if: a page is both, or a new product doesn't fit either.
 
+### Integration icons: a product inside another wears its mark
+2026-09-29 · owner · app-wide
+"really throughout terpsicle, i'd like us to include the component icon for something if there's an integration there, just to make it obvious. make that a key design decision along with our others, like the hierarchy." Wherever one product shows a piece of another or links into it (Reviews in Schedule's course details, "Join CMSC351 chat", Plan's and Todo's "View schedule", Chat's rooms from your plan, a bell row), the control or section wears that product's mark at 20px, before its words, as the family bar's tabs do. It's one shared component, `IntegrationLabel` (`src/components/brand/integration-label.tsx`), which also writes every "View …" link's words, and tests fail on a link into another product without it (docs/DESIGN.md §7.9). Home's "View …" links are the one exception: each section's title already wears its mark. (This grew from the owner's earlier note on "View …" links, the same day: "remember my note about wanting to have the icon of the page you're switching to".)
+Revisit if: never on its own.
+
 ### Base UI for every primitive, styled in Ink
 2026-09-28 · owner · app-wide
 Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.
@@ -179,11 +184,6 @@ Revisit if: never on its own.
 2026-09-26 · agent · app-wide
 After the week, the daily purge removes every row with the person's directory ID or addresses and their chat messages in every course object (there are no pictures to remove). Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
-
-### A product's part inside another wears its mark
-2026-09-29 · owner · app-wide
-Where one product shows a piece of another (Reviews' preview in Schedule's course details, first), the control that opens it carries that product's mark, as the family bar's tabs do, so people learn which product they're reaching into. Every "View …" link into another product does too ("remember my note about wanting to have the icon of the page you're switching to"): `ViewWords` (`src/components/brand/view-words.tsx`) writes the mark and the words together, and a test keeps "View …" words from being written anywhere else. Home's sections are the exception, since each title already wears its product's mark.
-Revisit if: a product's mark gets in the way where space is tight.
 
 ### LLMs only in moderation
 2026-09-26 · owner · app-wide

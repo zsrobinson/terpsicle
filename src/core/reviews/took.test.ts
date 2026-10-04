@@ -53,9 +53,25 @@ describe("classesTaken", () => {
         new Set(["202601", "202508", "202608"]),
       ),
     ).toEqual([
-      { termId: "202601", course: "CMSC351", instructors: ["Clyde Kruskal"] },
-      { termId: "202601", course: "MATH240", instructors: [] },
-      { termId: "202508", course: "CMSC250", instructors: ["Ada Brandt"] },
+      {
+        termId: "202601",
+        course: "CMSC351",
+        instructors: ["Clyde Kruskal"],
+        from: "schedule",
+      },
+      // A bookmark names nobody, but Schedule still knows you took it.
+      {
+        termId: "202601",
+        course: "MATH240",
+        instructors: [],
+        from: "schedule",
+      },
+      {
+        termId: "202508",
+        course: "CMSC250",
+        instructors: ["Ada Brandt"],
+        from: "schedule",
+      },
     ]);
   });
 
@@ -81,8 +97,14 @@ describe("classesTaken", () => {
         new Set(["202601"]),
       ),
     ).toEqual([
-      { termId: "202601", course: "CMSC351", instructors: ["Clyde Kruskal"] },
-      { termId: "202501", course: "MATH141", instructors: [] },
+      // Schedule knows more than the four-year plan: the merge is its.
+      {
+        termId: "202601",
+        course: "CMSC351",
+        instructors: ["Clyde Kruskal"],
+        from: "schedule",
+      },
+      { termId: "202501", course: "MATH141", instructors: [], from: "plan" },
     ]);
   });
 
@@ -110,8 +132,13 @@ describe("classesTaken", () => {
         new Set(["202605", "202608", "202701"]),
       ),
     ).toEqual([
-      { termId: "202605", course: "MATH240", instructors: ["Ada Brandt"] },
-      { termId: "202601", course: "CMSC351", instructors: [] },
+      {
+        termId: "202605",
+        course: "MATH240",
+        instructors: ["Ada Brandt"],
+        from: "schedule",
+      },
+      { termId: "202601", course: "CMSC351", instructors: [], from: "plan" },
     ]);
   });
 
@@ -127,9 +154,19 @@ describe("classesTaken", () => {
 
 describe("tookHere", () => {
   const taken = [
-    { termId: "202601", course: "CMSC351", instructors: ["Clyde Kruskal"] },
-    { termId: "202508", course: "CMSC250", instructors: ["Clyde  kruskal"] },
-    { termId: "202501", course: "MATH141", instructors: [] },
+    {
+      termId: "202601",
+      course: "CMSC351",
+      instructors: ["Clyde Kruskal"],
+      from: "schedule",
+    },
+    {
+      termId: "202508",
+      course: "CMSC250",
+      instructors: ["Clyde  kruskal"],
+      from: "schedule",
+    },
+    { termId: "202501", course: "MATH141", instructors: [], from: "plan" },
   ] as const;
 
   it("finds a course page's class, with who taught it", () => {
@@ -141,7 +178,12 @@ describe("tookHere", () => {
           instructorName: null,
         },
       ),
-    ).toEqual({ termId: "202501", course: "MATH141", instructor: null });
+    ).toEqual({
+      termId: "202501",
+      course: "MATH141",
+      instructor: null,
+      from: "plan",
+    });
   });
 
   it("finds an instructor's newest class by their name, however it's spaced", () => {
@@ -152,6 +194,7 @@ describe("tookHere", () => {
       termId: "202601",
       course: "CMSC351",
       instructor: "Clyde Kruskal",
+      from: "schedule",
     });
     expect(
       tookHere(list, { course: "CMSC250", instructorName: "Clyde Kruskal" }),
@@ -159,6 +202,7 @@ describe("tookHere", () => {
       termId: "202508",
       course: "CMSC250",
       instructor: "Clyde  kruskal",
+      from: "schedule",
     });
     expect(
       tookHere(list, { course: null, instructorName: "Ada Brandt" }),
@@ -186,7 +230,14 @@ describe("tookHere", () => {
 });
 
 describe("a class whose instructor isn't known", () => {
-  const taken = [{ termId: "202601", course: "CMSC351", instructors: [] }];
+  const taken = [
+    {
+      termId: "202601",
+      course: "CMSC351",
+      instructors: [],
+      from: "plan" as const,
+    },
+  ];
 
   it("is asked about on an instructor's page only for a course they taught", () => {
     expect(
@@ -195,7 +246,12 @@ describe("a class whose instructor isn't known", () => {
         instructorName: "Clyde Kruskal",
         taught: new Set(["CMSC351", "CMSC451"]),
       }),
-    ).toEqual({ termId: "202601", course: "CMSC351", instructor: null });
+    ).toEqual({
+      termId: "202601",
+      course: "CMSC351",
+      instructor: null,
+      from: "plan",
+    });
     expect(
       tookHere(taken, {
         course: null,
@@ -212,12 +268,28 @@ describe("a class whose instructor isn't known", () => {
         termId: "202508",
         course: "CMSC250",
         instructors: ["Ada Brandt", "Jo Canada"],
+        from: "schedule" as const,
       },
     ];
     expect(classesToReview(mixed, new Set())).toEqual([
-      { termId: "202601", course: "CMSC351", instructor: null },
-      { termId: "202508", course: "CMSC250", instructor: "Ada Brandt" },
-      { termId: "202508", course: "CMSC250", instructor: "Jo Canada" },
+      {
+        termId: "202601",
+        course: "CMSC351",
+        instructor: null,
+        from: "plan",
+      },
+      {
+        termId: "202508",
+        course: "CMSC250",
+        instructor: "Ada Brandt",
+        from: "schedule",
+      },
+      {
+        termId: "202508",
+        course: "CMSC250",
+        instructor: "Jo Canada",
+        from: "schedule",
+      },
     ]);
     expect(
       classesToReview(
@@ -228,7 +300,12 @@ describe("a class whose instructor isn't known", () => {
         ]),
       ),
     ).toEqual([
-      { termId: "202508", course: "CMSC250", instructor: "Ada Brandt" },
+      {
+        termId: "202508",
+        course: "CMSC250",
+        instructor: "Ada Brandt",
+        from: "schedule",
+      },
     ]);
   });
 });

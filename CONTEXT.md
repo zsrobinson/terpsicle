@@ -35,8 +35,12 @@ The phone's bottom bar: Home and the five products, six labeled tabs, the one yo
 _Avoid_: bottom nav, dock
 
 **View link**:
-A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
+A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each wears the product's mark (an integration) and is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
 _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
+
+**Integration**:
+A place where one product shows a piece of another or links into it: Reviews' preview in Schedule's course details, "Join CMSC351 chat", Plan's "View schedule", a bell row. It always wears that product's mark before its words. Code says `IntegrationLabel`.
+_Avoid_: component icon (that's the product's mark), cross-link (in copy)
 
 ## Shared
 

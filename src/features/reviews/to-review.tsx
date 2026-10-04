@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ArrowRight, PenLine } from "lucide-react";
 import { useEffect, useState } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { termLabel } from "~/core/catalog/terms";
 import {
   classesToReview,
@@ -22,7 +23,7 @@ import { WithTooltip } from "~/ui/tooltip";
 import { browserReader, loadPlanetTerp } from "./data";
 import { ROW_LINK } from "./frame";
 import { useAccountView, useReviewsLevel, useSignedIn } from "./level";
-import { useClassesTaken, useMineSettled } from "./review-box";
+import { TookSource, useClassesTaken, useMineSettled } from "./review-box";
 import { useMine } from "./reviews-section";
 
 // The narrow column of /reviews (owner, 2026-09-29: "a list of recent
@@ -78,6 +79,23 @@ function useYourClasses(reviewed: ReadonlySet<string> | null): Row[] | null {
   return rows;
 }
 
+/**
+ * Where your classes came from, each with its product's mark: one source
+ * says so ("From your schedule"); both name the two products.
+ */
+function ClassesFrom({ rows }: { rows: readonly Row[] }) {
+  const schedule = rows.some((r) => r.from === "schedule");
+  const plan = rows.some((r) => r.from === "plan");
+  if (schedule && plan)
+    return (
+      <span>
+        From <IntegrationLabel product="schedule">Schedule</IntegrationLabel>{" "}
+        and <IntegrationLabel product="plan">Plan</IntegrationLabel>
+      </span>
+    );
+  return <TookSource from={schedule ? "schedule" : "plan"} />;
+}
+
 export function YourReviewsColumn() {
   const signedIn = useSignedIn();
   const view = useAccountView();
@@ -112,7 +130,7 @@ export function YourReviewsColumn() {
       <PageSection
         size="side"
         title={mineHere ? "Review your classes" : "Classes you took"}
-        aside={rows.length > 0 ? "From your plans" : undefined}
+        aside={rows.length > 0 ? <ClassesFrom rows={rows} /> : undefined}
       >
         {rows.length > 0 ? (
           <ul aria-label="Classes to review" className={BANDS}>
@@ -137,7 +155,7 @@ export function YourReviewsColumn() {
                 to="/plan"
                 className="text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg"
               >
-                Plan
+                <IntegrationLabel product="plan">Plan</IntegrationLabel>
               </Link>
             </WithTooltip>
             , and the classes you took show up here.

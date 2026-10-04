@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { Asterisk, Minus, Plus, X } from "lucide-react";
 import { type Ref, useMemo } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import {
   type CatalogIndex,
   noMatchesMessage,
@@ -273,8 +273,9 @@ function FromFourYear({
           className="w-full text-sm"
           onClick={onGenerate}
         >
-          <Mark id="plan" size={14} />
-          Generate from four-year plan
+          <IntegrationLabel product="plan">
+            Generate from four-year plan
+          </IntegrationLabel>
         </Button>
       </WithTooltip>
       <ul
