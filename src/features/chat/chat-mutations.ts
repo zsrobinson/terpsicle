@@ -14,7 +14,7 @@ import {
   updateUnread,
   useChatHome,
 } from "./chat-home";
-import { chatUnreadQuery } from "./queries";
+import { chatUnreadQuery } from "./unread-query";
 
 // Joining, leaving and muting from Chat (V2.md §8.6), as mutations over
 // the list (docs/decisions.md, "TanStack Query for server data"): each

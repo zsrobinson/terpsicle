@@ -69,7 +69,7 @@ import {
 } from "./chat-home";
 import { ChatPage } from "./chat-page";
 import type { ChatView } from "./nav";
-import { chatUnreadQuery } from "./queries";
+import { chatUnreadQuery } from "./unread-query";
 
 const USER: MeUser = {
   id: "tstudent",

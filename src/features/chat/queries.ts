@@ -1,8 +1,4 @@
-import {
-  type QueryClient,
-  queryOptions,
-  skipToken,
-} from "@tanstack/react-query";
+import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import type { Join, Room } from "~/core/chat";
 import type {
   ChatAuthor,
@@ -17,6 +13,7 @@ import { retryApi } from "~/server/fns/api";
 import { chatApi } from "~/server/fns/chat-api";
 import { chatClient } from "./chat-client";
 import { pullSynced, type Synced } from "./chat-data";
+import { chatUnreadQuery } from "./unread-query";
 
 // Chat's server data read through TanStack Query (docs/decisions.md,
 // "TanStack Query for server data"). The list's unread counts and each
@@ -24,49 +21,15 @@ import { pullSynced, type Synced } from "./chat-data";
 // into as messages land (./chat-home's `listLive`): the socket is the live
 // feed, and these are what it feeds.
 
-/** The keys of Chat's per-person answers, for the socket's writes. */
+/**
+ * The keys of Chat's per-person answers, for the socket's writes. The
+ * unread counts are ./unread-query's, which Home reads too.
+ */
 export const chatKeys = {
-  unread: (termId: TermId | null) => ["chat", "unread", termId] as const,
   latest: (termId: TermId, courseCode: CourseCode) =>
     ["chat", "latest", termId, courseCode] as const,
   synced: ["chat", "synced"] as const,
 };
-
-/**
- * How often your rooms' unread counts are asked for while Chat or Home is
- * open and on screen (V2 §8.3: one D1 query that wakes no room). A hidden
- * tab doesn't ask; coming back to it does, once the counts are
- * `UNREAD_STALE_MS` old.
- */
-export const UNREAD_EVERY_MS = 60_000;
-export const UNREAD_STALE_MS = 30_000;
-
-/**
- * Your rooms in a term that have messages, with their unread counts: one
- * copy for the page, which Chat's list, the tab's title and Home's Chat
- * part all read, and which each course's socket keeps current between
- * asks. Only the page itself asks (Chat's page, or Home); the rest read
- * the copy (`enabled: false`), so it's asked once a minute however many
- * places show it.
- */
-export function chatUnreadQuery(termId: TermId | null) {
-  return queryOptions<
-    ChatUnreadRoom[],
-    Error,
-    ChatUnreadRoom[],
-    ReturnType<typeof chatKeys.unread>
-  >({
-    queryKey: chatKeys.unread(termId),
-    queryFn:
-      termId === null
-        ? skipToken
-        : async ({ signal }) =>
-            (await chatClient().chat.unread({ termId }, { signal })).rooms,
-    staleTime: UNREAD_STALE_MS,
-    refetchInterval: UNREAD_EVERY_MS,
-    retry: retryApi,
-  });
-}
 
 /** A course's rooms' newest messages, the list's second line (the owner, 2026-09-29). */
 export interface CourseLatest {

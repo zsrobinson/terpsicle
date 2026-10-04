@@ -12,7 +12,7 @@ import { api } from "~/server/fns/api";
 // refetch), and tried once more before a part says it couldn't load.
 // Signed-in only: the caller turns it on. Your rooms' unread counts and
 // seat watches aren't here: Home reads Chat's one copy of the counts
-// (`chatUnreadQuery`, ~/features/chat/queries) and the app's one list of
+// (`chatUnreadQuery`, ~/features/chat/unread-query) and the app's one list of
 // watches (~/state/query/seat-watches), the ones Chat and Schedule change.
 
 /** How long an answer counts as current on Home: a glance, not a feed. */

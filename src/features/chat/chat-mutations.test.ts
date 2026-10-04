@@ -10,7 +10,7 @@ import { createTestQueryClient } from "~/state/query/testing";
 import { type ChatApi, setChatClient } from "./chat-client";
 import { connectChatData, useChatHome } from "./chat-home";
 import { followCourse, muteRoom, unfollowCourse } from "./chat-mutations";
-import { chatUnreadQuery } from "./queries";
+import { chatUnreadQuery } from "./unread-query";
 
 // Joining, leaving and muting show at once and come back down when the
 // server says no; the counts are asked for again once they've settled.

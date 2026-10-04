@@ -13,7 +13,7 @@ import type { CourseCode } from "~/core/schema";
 import { DAY_LONG_NAMES, formatShortDate } from "~/core/time/format";
 import { DEFAULT_WEEK_START } from "~/core/todo/weeks";
 import { useAccount } from "~/features/auth/account-store";
-import { chatUnreadQuery } from "~/features/chat/queries";
+import { chatUnreadQuery } from "~/features/chat/unread-query";
 import { SitePage } from "~/features/site/site-page";
 import { PageHeader } from "~/ui/page-header";
 import { SplitLayout } from "~/ui/split-layout";

@@ -13,8 +13,9 @@ import {
 } from "~/fixtures";
 import { createTestQueryClient } from "~/state/query/testing";
 import { connectChatData, listLive, useChatHome } from "./chat-home";
-import { chatLatestQuery, chatUnreadQuery } from "./queries";
+import { chatLatestQuery } from "./queries";
 import { isFreshMessage } from "./session";
+import { chatUnreadQuery } from "./unread-query";
 
 // The list's side of the course sockets: each frame is written into the
 // page's query cache, the one copy the list, the title and Home read.

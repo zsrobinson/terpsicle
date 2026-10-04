@@ -32,11 +32,11 @@ import {
   type CourseLatest,
   chatLatestQuery,
   chatSyncedQuery,
-  chatUnreadQuery,
   latestBehind,
   withLatest,
 } from "./queries";
 import { type LiveListener, liveSessionFor } from "./session";
+import { chatUnreadQuery } from "./unread-query";
 
 // The chat list's state (V2.md §8.6): the term, the catalog courses the
 // list shows, courses you follow, and which course sockets are open.

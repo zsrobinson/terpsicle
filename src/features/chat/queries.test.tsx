@@ -34,12 +34,11 @@ import {
 import { Composer } from "./composer";
 import {
   chatSyncedQuery,
-  chatUnreadQuery,
   MEMBERS_STALE_MS,
   mentionable,
   roomMembersQuery,
-  UNREAD_EVERY_MS,
 } from "./queries";
+import { chatUnreadQuery, UNREAD_EVERY_MS } from "./unread-query";
 
 // Who's in a room, read through the page's query client: one copy per
 // room, kept for a few minutes, shared by "@" and course details' count.
