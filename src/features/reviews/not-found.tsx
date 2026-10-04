@@ -33,7 +33,6 @@ export function ReviewsNotFound({ data }: { data: unknown }) {
     <ReviewsFrame>
       <PageHeader
         size="display"
-        back={{ label: "Reviews", to: "/reviews" }}
         title={
           what === "instructor" ? "Instructor not found" : "Course not found"
         }

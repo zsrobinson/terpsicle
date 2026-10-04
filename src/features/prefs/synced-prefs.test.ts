@@ -1,7 +1,8 @@
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PREFS_STORAGE_KEY, withAiFeatures } from "~/core/prefs";
+import { withCalloutDismissed } from "~/core/home";
+import { PREFS_STORAGE_KEY } from "~/core/prefs";
 import { SETTINGS_DOC_KEY } from "~/core/sync";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aMeUser } from "~/fixtures";
@@ -45,13 +46,13 @@ describe("saving the prefs", () => {
   });
 
   it("keeps them in the prefs row and the page's copy, signed out", async () => {
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
-    expect(syncedPrefs()).toEqual({ ai: { features: false } });
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", true));
+    expect(syncedPrefs()).toEqual({ home: { dismissed: ["plan"] } });
     expect((await db.settings.get("prefs"))?.value).toEqual({
-      ai: { features: false },
+      home: { dismissed: ["plan"] },
     });
     expect(JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) ?? "")).toEqual({
-      ai: { features: false },
+      home: { dismissed: ["plan"] },
     });
     // Nothing to send: this device doesn't sync with an account.
     expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toBeUndefined();
@@ -63,8 +64,8 @@ describe("saving the prefs", () => {
       later: { view: "week" },
     };
     await db.settings.put({ key: "prefs", value: theirs });
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
-    expect(syncedPrefs()).toEqual({ ...theirs, ai: { features: false } });
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", true));
+    expect(syncedPrefs()).toEqual({ ...theirs, home: { dismissed: ["plan"] } });
   });
 
   it("marks the settings doc unsaved on a device that syncs with an account", async () => {
@@ -79,7 +80,7 @@ describe("saving the prefs", () => {
       inFlight: false,
       base: null,
     });
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", true));
     expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toMatchObject({
       rev: 3,
       dirty: true,
@@ -119,18 +120,18 @@ describe("a change while the account's prefs are on their way", () => {
 
   it("keeps the change, and marks it for the account, once the join lands", async () => {
     signedIn();
-    await saveSyncedPrefs((p) => withAiFeatures(p, true));
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", true));
     await joinAccount({
-      ai: { features: false },
+      home: { dismissed: [] },
       chatRules: { seen: ["CMSC131"] },
     });
     await vi.waitFor(async () => {
       expect(syncedPrefs()).toEqual({
-        ai: { features: true },
+        home: { dismissed: ["plan"] },
         chatRules: { seen: ["CMSC131"] },
       });
       expect((await db.settings.get("prefs"))?.value).toEqual({
-        ai: { features: true },
+        home: { dismissed: ["plan"] },
         chatRules: { seen: ["CMSC131"] },
       });
       expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toMatchObject({
@@ -141,22 +142,22 @@ describe("a change while the account's prefs are on their way", () => {
 
   it("lets the account's win for a change made signed out", async () => {
     useAccount.setState({ status: "signed-out", user: null });
-    await saveSyncedPrefs((p) => withAiFeatures(p, true));
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", true));
     signedIn();
-    await joinAccount({ ai: { features: false } });
+    await joinAccount({ home: { dismissed: [] } });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(syncedPrefs()).toEqual({ ai: { features: false } });
+    expect(syncedPrefs()).toEqual({ home: { dismissed: [] } });
   });
 
   it("doesn't replay a change made after the join", async () => {
     signedIn();
-    await joinAccount({ ai: { features: false } });
-    await saveSyncedPrefs((p) => withAiFeatures(p, true));
-    await saveSyncedPrefs((p) => withAiFeatures(p, false));
-    showSyncedPrefs({ ai: { features: false } });
+    await joinAccount({ home: { dismissed: [] } });
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", true));
+    await saveSyncedPrefs((p) => withCalloutDismissed(p, "plan", false));
+    showSyncedPrefs({ home: { dismissed: [] } });
     settleAccountPrefs();
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(syncedPrefs()).toEqual({ ai: { features: false } });
+    expect(syncedPrefs()).toEqual({ home: { dismissed: [] } });
   });
 });
 

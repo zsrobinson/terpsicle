@@ -45,8 +45,8 @@ export function PrivacyPage() {
           <p>
             Your plans, blocks and settings are saved in your browser, on your
             device. Nothing about them is sent to Terpsicle unless you sign in.
-            Loading courses, seats and review summaries doesn't tell Terpsicle
-            who you are.
+            Loading courses, seats and reviews doesn't tell Terpsicle who you
+            are.
           </p>
           <p>
             A share link carries a copy of your plan inside the link itself.
@@ -65,8 +65,8 @@ export function PrivacyPage() {
             for it.
           </p>
           <p>
-            Once you sign in, your plans and settings (like whether AI summaries
-            show) sync to your account, so they follow you to your other
+            Once you sign in, your plans and settings (like the day Todo's weeks
+            start) sync to your account, so they follow you to your other
             devices. Synced plans are stored on Terpsicle's servers, encrypted
             at rest. Terpsicle sets one cookie to keep you signed in, and no
             other cookies.

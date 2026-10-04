@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import {
   type CalloutId,
@@ -15,6 +15,7 @@ import { DEFAULT_WEEK_START } from "~/core/todo/weeks";
 import { useAccount } from "~/features/auth/account-store";
 import { SitePage } from "~/features/site/site-page";
 import { PageHeader } from "~/ui/page-header";
+import { SplitLayout } from "~/ui/split-layout";
 import { HomeCallout, useDismissedCallouts } from "./callouts";
 import { ChatSection } from "./chat-section";
 import { ComingUpSection } from "./coming-up-section";
@@ -156,73 +157,72 @@ export function HomePage() {
             : date
         }
       />
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3">
-        <div
-          data-home-column="now"
-          className="flex min-w-0 flex-col gap-6 lg:col-span-2"
-        >
-          <TodaySection
-            clock={clock}
-            local={local}
-            now={tags.now}
-            calendars={calendars}
-            campus={campus}
-            signedIn={signedIn}
-            colors={colors}
-          />
-          {todoOn && (!todoReady || todo.connected) ? (
-            <WeekSection
+      <SplitLayout
+        mainProps={{ "data-home-column": "now" } as ComponentProps<"div">}
+        sideProps={{ "data-home-column": "next" } as ComponentProps<"div">}
+        main={
+          <>
+            <TodaySection
               clock={clock}
-              todo={todo}
-              weekStart={weekStart}
-              colors={colors}
-            />
-          ) : (
-            callout("todo")
-          )}
-          {callout("sign-in")}
-          {chatOn &&
-          chatTerm &&
-          (rooms.isPending || rooms.isError || chatActive) ? (
-            <ChatSection termId={chatTerm} rooms={rooms} colors={colors} />
-          ) : (
-            callout("chat")
-          )}
-        </div>
-        {/* Under Now on a phone: its first part keeps the rule every other part has. */}
-        <div
-          data-home-column="next"
-          className="flex min-w-0 flex-col gap-6 max-lg:[&>section:first-child]:border-t max-lg:[&>section:first-child]:pt-3"
-        >
-          {tags.next && (nextPlan?.courses.length ?? 0) > 0 ? (
-            <ScheduleSection local={local} next={tags.next} campus={campus} />
-          ) : callouts.includes("next-term") ? (
-            callout("next-term")
-          ) : nextPlan ? (
-            <ScheduleSection local={local} next={tags.next} campus={campus} />
-          ) : null}
-          {local?.fourYear && flags.plan ? (
-            <PlanSection
-              doc={local.fourYear}
-              today={clock.today}
+              local={local}
+              now={tags.now}
               calendars={calendars}
-            />
-          ) : (
-            callout("plan")
-          )}
-          {todoConnected ? (
-            <ComingUpSection
-              clock={clock}
-              todo={todo}
-              weekStart={weekStart}
+              campus={campus}
+              signedIn={signedIn}
               colors={colors}
             />
-          ) : null}
-          {signedIn && flags.reviews === "on" && local ? (
-            <ReviewsSection local={local} today={clock.today} />
-          ) : null}
-        </div>
-      </div>
+            {todoOn && (!todoReady || todo.connected) ? (
+              <WeekSection
+                clock={clock}
+                todo={todo}
+                weekStart={weekStart}
+                colors={colors}
+              />
+            ) : (
+              callout("todo")
+            )}
+            {callout("sign-in")}
+            {chatOn &&
+            chatTerm &&
+            (rooms.isPending || rooms.isError || chatActive) ? (
+              <ChatSection termId={chatTerm} rooms={rooms} colors={colors} />
+            ) : (
+              callout("chat")
+            )}
+          </>
+        }
+        side={
+          <>
+            {tags.next && (nextPlan?.courses.length ?? 0) > 0 ? (
+              <ScheduleSection local={local} next={tags.next} campus={campus} />
+            ) : callouts.includes("next-term") ? (
+              callout("next-term")
+            ) : nextPlan ? (
+              <ScheduleSection local={local} next={tags.next} campus={campus} />
+            ) : null}
+            {local?.fourYear && flags.plan ? (
+              <PlanSection
+                doc={local.fourYear}
+                today={clock.today}
+                calendars={calendars}
+              />
+            ) : (
+              callout("plan")
+            )}
+            {todoConnected ? (
+              <ComingUpSection
+                clock={clock}
+                todo={todo}
+                weekStart={weekStart}
+                colors={colors}
+              />
+            ) : null}
+            {signedIn && flags.reviews === "on" && local ? (
+              <ReviewsSection local={local} today={clock.today} />
+            ) : null}
+          </>
+        }
+      />
     </SitePage>
   );
 }

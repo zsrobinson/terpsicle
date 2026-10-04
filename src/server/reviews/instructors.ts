@@ -1,6 +1,6 @@
 // Which instructor a review is about (V2 §7.2, §7.4). The id doesn't depend
 // on PlanetTerp: it's their slug when the name join knows the instructor (so
-// summaries and links keep working), else one we mint. The Testudo name is
+// links keep working), else one we mint. The Testudo name is
 // joined once per department and remembered in instructor_names.
 import { MINTED_ID_BYTES, mintedInstructorId } from "~/core/reviews";
 import {

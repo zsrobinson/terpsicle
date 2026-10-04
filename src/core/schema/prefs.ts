@@ -6,10 +6,6 @@ import { CourseCodeSchema } from "./primitives";
 // on the device. Local while signed out, the account's once signed in. Each
 // product owns its own key; sync carries every key whole, known or not.
 
-/** Settings → AI features → "Show AI summaries". Missing means on. */
-export const AiPrefsSchema = z.object({ features: z.boolean() });
-export type AiPrefs = z.infer<typeof AiPrefsSchema>;
-
 /** Courses whose chat room rules you've closed with "Got it". */
 export const ChatRulesPrefsSchema = z.object({
   seen: z.array(CourseCodeSchema),
@@ -30,10 +26,11 @@ export type HomePrefs = z.infer<typeof HomePrefsSchema>;
  * product's) passes through untouched, so no build drops what it can't read.
  * That includes `todo`, where Todo's "Weeks start on" was kept until its
  * weeks became Monday's alone (docs/decisions.md, "Todo is one week"): an
- * account that has it still reads, and it's never read back.
+ * account that has it still reads, and it's never read back. The same goes
+ * for `ai`, Settings' "Show AI summaries" until Reviews dropped its AI
+ * features.
  */
 export const SyncedPrefsSchema = z.looseObject({
-  ai: AiPrefsSchema.optional(),
   chatRules: ChatRulesPrefsSchema.optional(),
   home: HomePrefsSchema.optional(),
 });

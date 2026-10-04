@@ -180,15 +180,20 @@ Revisit if: never on its own.
 After the week, the daily purge removes every row with the person's directory ID or addresses and their chat messages in every course object (there are no pictures to remove). Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
 
-### LLMs only in three places
+### A product's part inside another wears its mark
+2026-09-29 · owner · app-wide
+Where one product shows a piece of another (Reviews' preview in Schedule's course details, first), the control that opens it carries that product's mark, as the family bar's tabs do, so people learn which product they're reaching into. Every "View …" link into another product does too ("remember my note about wanting to have the icon of the page you're switching to"): `ViewWords` (`src/components/brand/view-words.tsx`) writes the mark and the words together, and a test keeps "View …" words from being written anywhere else. Home's sections are the exception, since each title already wears its product's mark.
+Revisit if: a product's mark gets in the way where space is tight.
+
+### LLMs only in moderation
 2026-09-26 · owner · app-wide
-Review summaries, their small generated chips, and moderation. No other LLM features.
+Moderation (and grouping the owner's feedback in admin). No LLM feature anyone else sees. (changed 2026-09-29: the owner removed review summaries and their chips; see "No AI features in Reviews".)
 Revisit if: the owner asks for one.
 
 ### AI features can be turned off
 2026-09-27 · owner · app-wide
-"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`.
-Revisit if: never on its own.
+"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`. (changed 2026-09-29: Reviews' summaries were the only AI feature anyone saw, and the owner removed them, so the pref, Settings' "Show AI summaries" and `useAiFeatures()` went with them. A new visible AI feature brings the switch back with it.)
+Revisit if: a visible AI feature returns.
 
 ### Moderation is model-first
 2026-09-26 · owner · app-wide
@@ -437,8 +442,63 @@ Revisit if: never on its own.
 
 ### Full reviews live at /reviews
 2026-09-26 · owner · one feature
-The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`.
+The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".)
 Revisit if: people don't find reviews from the scheduler.
+
+### No AI features in Reviews
+2026-09-29 · owner · one feature
+"let's remove all AI features for reviews. we can add it back later, but i'm making that decision now. clean up anything that references it or relies on that." Gone: the review summaries and their theme chips, `review-summary` and `src/server/summaries`, the private copy of PlanetTerp's review text kept for them (`_jobs/planetterp/reviews/`), `SUMMARIES_DAILY_CAP`, their analytics events, and the "Show AI summaries" pref with its Settings row and ⋯ menus. Moderation still uses models; nothing a reader sees does.
+Revisit if: the owner brings summaries back.
+
+### Course pages work like PlanetTerp's
+2026-09-29 · owner · one feature
+"planetterp deprioritizes viewing results per course, not filtered by instructor... their main page for courses just groups by term and shows what professors taught it, their average GPAs (across all their courses). i want users who use our site to already be familiar with it because they've used planetterp before." A course's page shows every review of it, never filtered by default. Its side column, "Who taught it", lists each term newest first with everyone who taught it then, from our instructor history (`history/`, #221), so an instructor appears under every term they taught; whoever teaches it now is under this term, and anyone the history lacks is under the newest term PlanetTerp's grades know. Each has their average GPA across all their courses in the department's file and their rating; each name is the filter, their page for the course.
+Revisit if: a course's term list grows too long to scan (then fold the older terms).
+
+### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
+2026-09-29 · owner · one feature
+"the whole app is free... if you're on that page and not signed in you've already proved that point." The page's title is the product's name, with no "free, no sign-in" line. Like PlanetTerp's front page it has recent reviews (ours and PlanetTerp's, newest first), grades across every course, and a row of counts (courses, professors, reviews, course grades) that counts up from 0 once when it comes into view, and doesn't move with Reduce Motion. The counts are PlanetTerp's data (the index's `totals`).
+Revisit if: our own reviews outnumber PlanetTerp's, so the counts should be ours.
+
+### What Reviews knows you took
+2026-09-29 · owner · one feature
+Your classes come from the four-year plan's past terms (a transcript import fills them), which know the course but not who taught it, and from Schedule's main plan only for terms the Schedule of Classes still lists, which know the instructor. Where the instructor isn't known, Reviews asks ("Who taught you?", "Did you take CMSC351 with …?") and never claims. No copy tells anyone to build a past term's schedule: Testudo doesn't list old terms.
+Revisit if: transcripts start carrying instructors.
+
+### PlanetTerp's reviews fill on a page's first visit
+2026-09-29 · agent · one feature
+The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
+Revisit if: PlanetTerp asks us not to call its API from page loads.
+
+### Reviews pages: two columns from the top, no back link
+2026-09-29 · owner · one feature
+"having the 2/3 1/3 thing extend all the way to the top, with the 1/3 starting with that similar outline box to review them, followed by courses (which could really be selectable chips rather than a long list …), followed by grades." The wide column is the name, the rating box and the reviews; the narrow one is the review box, the courses as chips (each fused with an arrow to the course's own page), then grades (`SplitLayout`'s `top` and `after`; on a phone the grades come after the reviews). The rating box shows the number, the stars and the count, with no PlanetTerp notice or source ("we don't need the notice about planetterp or mention which site the review aggregate is from"); the math stays in its tooltip. No back link on any Reviews page: "the back location switches in ways you wouldn't expect". A course page's "Who taught it" draws a rule after each term's label, and the narrow column's type steps down: section, term, name, meta. (changed 2026-09-30, by the owner: "we should switch the purple review box with the 'took a class with?' box … we don't need that whole section with courses, actually. let's have it as a box to the left of the sorting dropdown, with all courses as the default select option. let's have a similar thing for 'all instructors' for the course page, but clicking on one of the options actually brings you to the instructor page with that course and sorting preselected. let's try to line up the start of the reviews section and the grade section vertically". The wide column is now the name, the review box, then the reviews with a course filter (instructor pages; "All courses") or an instructor filter (course pages; "All instructors", which opens that instructor's page with the course and order) left of the sort; the narrow one is the rating box, then the grades, which start level with the reviews (`SplitLayout`'s `after`), then a course's "Who taught it". The header says "Reviews in CMSC351 42", as the grades say "Grades in CMSC351". "Taught CMSC320, CMSC351 …" links each code, and "and more" opens the course filter. The narrow column's sections have no rules.) (changed 2026-10-04, by the owner: "only last thing i'd say is to not worry about 'grades' and 'reviews' starting at the same y-position since it creates a weird gap under the average review score. let's instead just have those two columns and things flowing naturally within them." Each column starts at the top and flows on its own: the grades sit right under the rating box, wherever the reviews start. On a phone the order stays the name, the review box, the rating, the reviews, then the grades.)
+Revisit if: the narrow column crowds on a laptop screen.
+
+### Account-dependent parts never show the signed-out state first
+2026-09-30 · owner · app-wide
+"there's a bit of a flash of un-signed in state on the reviews tab." The server's render is anonymous (for search engines and the edge cache), so a part that depends on the account (the review box, what you took, /reviews' narrow column, the bar's account) draws a placeholder of its size until the page knows, never the signed-out words. The account store remembers whether this browser was last signed in (`terpsicle:signed-in`, a yes or no, nothing about who), and a page draws that state at once while /api/me confirms: signed out, the signed-out parts; signed in, the placeholders until your reviews and plans are read.
+Revisit if: pages render per person on the server.
+
+### Instructors PlanetTerp doesn't know get a page from the history
+2026-09-30 · owner (the page), agent (its address) · one feature
+The owner asked that every instructor row be clickable: about 500 names in the instructor history join no PlanetTerp slug. Each gets our own page, the history page: what they taught in the department, term by term, and the review box (the first review mints their id, V2 §7.2). Nothing indexes these names, so the address carries the course it's opened from, `/reviews/<name>?course=CMSC351`, and the page reads that course's department history to find them. It's thin, so it's `noindex`, and it isn't in search or the sitemap.
+Revisit if: they should be searchable or have a bare address; the nightly PlanetTerp job, which already reads every history name, can write the unjoined ones into the index.
+
+### Review dates: PlanetTerp's by the day, ours by the month
+2026-09-30 · agent · one feature
+The owner asked for "the date for reviews, not just month and year". PlanetTerp's reviews show their day ("Sep 14, 2024", `<time datetime>`), as PlanetTerp publishes it. Ours keep the month (V2 §7.5): a review of ours with its day beside it would help someone who saw it go up tell who wrote it, and every reader-facing number and file already rounds to the month for that reason.
+Revisit if: the owner wants days on ours too, knowing that trade.
+
+### Reviews sort, and rate in half stars
+2026-09-29 · owner · one feature
+"reviews should likely be sortable, both by rating highest/lowest and latest/oldest … on the same line as reviews, aligned to the right. the count of reviews can be next to the word reviews itself." `?sort=latest|oldest|highest|lowest` (absent is latest) is a page the server renders; a rating order breaks ties newest first, and PlanetTerp's pages come from D1 in the same order. "users should be able to rate professors by increments of half stars using an intuitive and accessible input method": ratings are 1 to 5 in halves (`ReviewRatingSchema`), set with a slider over five stars (a star's left half is its half; the arrow keys move by a half). D1's `rating INTEGER` keeps 4.5 as a REAL, so there's no migration. Stars show fractions ("so 4.6 actually shows 4.6 stars colored in") in a gold that reads on paper (`--star`, `--star-line`), not the old brown.
+Revisit if: people want to sort by course or by expected grade.
+
+### /reviews: grades and the most reviewed in the narrow column
+2026-09-29 · owner · one feature
+"the 'courses in your plans' section isn't needed. move the UMD global grades to the 1/3. department listing isn't necessary, remove. move the most rated thing to the 1/3, below grades." The wide column is the search, the counts, recent reviews and the most taken; the narrow one is yours, then grades across UMD, then the most reviewed. A department is still browsable from search (`?q=CMSC`). (changed 2026-09-30, by the owner: no sign-in line in the narrow column, "that will show up when they click the instructor they want to review", and "no more separator lines between items but keep visually distinct": each item is a soft band.)
+Revisit if: people miss browsing by department.
 
 ### Search markup never borrows PlanetTerp's ratings
 2026-09-26 · agent · one feature
@@ -460,9 +520,19 @@ Revisit if: an instructor's slug ever matches a course code, or `/reviews/<word>
 "reviews are more important to display than grades"; instructors and courses are equals. Reviews' pages use the kit's `display` sizes (bigger type, roomier sections), the product's purple as an accent, and a bar with no rule until the page scrolls.
 Revisit if: the other products want a public page too.
 
+### Reviews in two columns, with the search over the page
+2026-09-29 · owner · one feature
+"i like that 2/3 1/3 layout we have on the dashboard, and i think we can carry over some of that into this tab." An instructor's or a course's page puts the name, the rating box, the "review them yourself" box and the reviews in the wide column, and the filter (courses by instructor, instructors by course) and the grades in the narrow one; `/reviews` keeps the search and browsing wide and puts your instructors to review, your reviews and your classes narrow. One column below `lg`, the wide one first (a phone keeps an instructor's course switch under the name, since it filters the reviews). Home's grid is the kit's `SplitLayout`. The search's results open over the page as Base UI's Autocomplete, never in its place; "Every result" and a department's link are `/reviews?q=`, a page of its own for search engines. Past the front door the family bar has a smaller search, and a phone a magnifier that opens it in a sheet. The review box says what your plans know: the class you took and haven't reviewed, naming the term; your review, with Edit; or, signed out, the plain question and Sign in. A course's rating box rates the course from every PlanetTerp review of it (`reviews/page`'s `planetTerpCourse`) plus ours.
+Revisit if: the narrow column's filter is missed on phones, or people search from the bar more than from `/reviews`.
+
+### The family bar's other products can fold to their marks
+2026-09-29 · owner · one feature
+"when you're not hovering up there, we could condense it to only show the icons for the components you're not on", Reviews first: `AppBar`'s `collapseTabs`. At rest the product you're on keeps its name and the others show only their marks (with their tooltips and accessible names); hovering or tabbing into the tabs opens every name, and moving between a folded and an unfolded bar animates the change. Reduce Motion drops the movement.
+Revisit if: the owner wants it on every product, or people miss the names.
+
 ### Published review numbers carry a month, never a time or text
 2026-09-26 · agent · one feature
-R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. Summaries count our newest review by month for the same reason, and go stale when our published count changes.
+R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. `reviews/latest`, /reviews' "Recent reviews", orders ours by month, then id, for the same reason.
 Revisit if: readers need finer freshness than a month.
 
 ### We keep our own record of who taught what

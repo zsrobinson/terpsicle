@@ -8,11 +8,14 @@ import {
   AccountDeleteResultSchema,
   type ApiError,
   ApiErrorSchema,
+  LatestReviewsSchema,
   MeInputSchema,
   MeResultSchema,
   PageReviewsSchema,
   PlanetTerpReviewsInputSchema,
   PlanetTerpReviewsResultSchema,
+  PlanetTerpTotalsInputSchema,
+  PlanetTerpTotalsResultSchema,
   ReportCreateInputSchema,
   ReportCreateResultSchema,
   ReviewDeleteInputSchema,
@@ -21,13 +24,10 @@ import {
   ReviewListInputSchema,
   ReviewListResultSchema,
   ReviewSubmitInputSchema,
-  ReviewSummaryInputSchema,
-  ReviewSummaryResultSchema,
+  ReviewsLatestInputSchema,
   ReviewsMineInputSchema,
   ReviewsMineResultSchema,
   ReviewsPageInputSchema,
-  ReviewsRecentInputSchema,
-  ReviewsRecentResultSchema,
   ReviewWriteResultSchema,
   SeatUnwatchResultSchema,
   SeatWatchInputSchema,
@@ -164,18 +164,6 @@ export const api = {
         options,
       ),
   },
-  /** The instructor's review summary, or why there isn't one (hide it then). */
-  reviewSummary: (
-    input: z.input<typeof ReviewSummaryInputSchema>,
-    options?: ApiOptions,
-  ) =>
-    call(
-      "review-summary",
-      ReviewSummaryInputSchema,
-      ReviewSummaryResultSchema,
-      input,
-      options,
-    ),
   /** Seat watches (V2.md §6.5); signed in only. */
   alerts: {
     /** Idempotent: "watching" whether it was on already or not. */
@@ -262,6 +250,27 @@ export const api = {
         input,
         options,
       ),
+    /** What PlanetTerp's data holds in all, for /reviews' counts. */
+    totals: (options?: ApiOptions) =>
+      call(
+        "planetterp/totals",
+        PlanetTerpTotalsInputSchema,
+        PlanetTerpTotalsResultSchema,
+        {},
+        options,
+      ),
+    /** The newest reviews anywhere, ours and PlanetTerp's. */
+    latest: (
+      input: z.input<typeof ReviewsLatestInputSchema>,
+      options?: ApiOptions,
+    ) =>
+      call(
+        "reviews/latest",
+        ReviewsLatestInputSchema,
+        LatestReviewsSchema,
+        input,
+        options,
+      ),
     /** More of PlanetTerp's reviews, after `cursor`. */
     planetTerp: (
       input: z.input<typeof PlanetTerpReviewsInputSchema>,
@@ -271,18 +280,6 @@ export const api = {
         "planetterp/reviews",
         PlanetTerpReviewsInputSchema,
         PlanetTerpReviewsResultSchema,
-        input,
-        options,
-      ),
-    /** The newest reviewed courses and instructors, for /reviews. */
-    recent: (
-      input: z.input<typeof ReviewsRecentInputSchema>,
-      options?: ApiOptions,
-    ) =>
-      call(
-        "reviews/recent",
-        ReviewsRecentInputSchema,
-        ReviewsRecentResultSchema,
         input,
         options,
       ),

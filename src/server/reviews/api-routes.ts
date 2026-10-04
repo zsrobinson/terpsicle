@@ -2,15 +2,17 @@
 // src/server/api/router.ts. Anonymous to readers: see ./api.ts.
 import {
   PlanetTerpReviewsInputSchema,
+  PlanetTerpTotalsInputSchema,
   ReviewDeleteInputSchema,
   ReviewEditInputSchema,
   ReviewListInputSchema,
   ReviewSubmitInputSchema,
+  ReviewsLatestInputSchema,
   ReviewsMineInputSchema,
   ReviewsPageInputSchema,
-  ReviewsRecentInputSchema,
 } from "~/core/schema";
 import { route } from "../api/route";
+import { r2PublishedFiles } from "../pages/context";
 import {
   deleteReview,
   editReview,
@@ -18,7 +20,8 @@ import {
   myReviews,
   submitReview,
 } from "./api";
-import { listRecent, morePlanetTerpReviews, pageReviews } from "./public";
+import { latestReviews, morePlanetTerpReviews, pageReviews } from "./public";
+import { planetTerpStats } from "./stats";
 
 export const REVIEWS_ROUTES = {
   "reviews/list": route({
@@ -35,17 +38,24 @@ export const REVIEWS_ROUTES = {
     perIpPerHour: 1_200,
     handle: (env, input) => pageReviews(env, input),
   }),
+  // What PlanetTerp's data holds in all, for /reviews' counts.
+  "planetterp/totals": route({
+    input: PlanetTerpTotalsInputSchema,
+    perIpPerHour: 600,
+    handle: async (env) => ({
+      totals: await planetTerpStats(r2PublishedFiles(env.DATA)),
+    }),
+  }),
+  // The newest reviews anywhere, ours and PlanetTerp's, for /reviews.
+  "reviews/latest": route({
+    input: ReviewsLatestInputSchema,
+    perIpPerHour: 600,
+    handle: (env, input) => latestReviews(env, input),
+  }),
   "planetterp/reviews": route({
     input: PlanetTerpReviewsInputSchema,
     perIpPerHour: 1_200,
     handle: (env, input) => morePlanetTerpReviews(env, input),
-  }),
-  // Which courses and instructors were reviewed lately, for /reviews.
-  "reviews/recent": route({
-    input: ReviewsRecentInputSchema,
-    perIpPerHour: 600,
-    reviews: "read",
-    handle: (env, input) => listRecent(env, input),
   }),
   "reviews/submit": route({
     input: ReviewSubmitInputSchema,

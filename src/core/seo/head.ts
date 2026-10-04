@@ -1,6 +1,7 @@
 import { formatGpa, formatShare, gradeSummary } from "../grades/grades";
 import { combineRatings, formatStars } from "../reviews/combine";
 import type { CoursePageData, InstructorPageData } from "../reviews/pages";
+import type { TaughtOnlyPageData } from "../reviews/taught-only";
 import { countWords, listWords } from "../words";
 import {
   breadcrumbJsonLd,
@@ -247,6 +248,20 @@ export function instructorHead(data: InstructorPageData): PageHead {
       breadcrumbJsonLd(crumbs),
       ...(name ? [personJsonLd({ ...data, name })] : []),
     ],
+  });
+}
+
+/**
+ * An instructor only the history knows: a thin page (what they taught, no
+ * reviews), reached from a course's page and addressed through it, so it
+ * stays out of search results.
+ */
+export function taughtOnlyHead(data: TaughtOnlyPageData): PageHead {
+  return pageHead({
+    title: `${data.name}: courses taught at UMD${suffix}`,
+    description: `What ${data.name} has taught at the University of Maryland. No reviews yet.`,
+    path: `${instructorPath(data.slug)}?course=${data.course}`,
+    noindex: true,
   });
 }
 

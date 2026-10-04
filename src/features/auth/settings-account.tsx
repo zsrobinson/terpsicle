@@ -3,7 +3,6 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
-import { AiSettingsSection } from "~/features/ai/ai-settings-section";
 import { SitePage } from "~/features/site/site-page";
 import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
@@ -92,8 +91,6 @@ export function SettingsPage() {
             <SeatWatches />
           </Suspense>
         ) : null}
-        {/* Signed out too: it's this browser's until someone signs in. */}
-        <AiSettingsSection />
       </div>
     </SitePage>
   );

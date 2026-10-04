@@ -1,7 +1,7 @@
 // Mock PlanetTerp data: invented ratings, review counts and grade
 // distributions for the mock catalog's (invented) instructors. The one real
 // number set is CMSC351's course-wide grade totals, summed from the recon's
-// grades-CMSC351.json; it names nobody. Review summaries are marked mock.
+// grades-CMSC351.json; it names nobody.
 import {
   type CourseGrades,
   GRADE_KEYS,
@@ -11,11 +11,9 @@ import {
   type Instructor,
   instructorNameKey,
   type PlanetTerpDept,
-  type ReviewSummary,
 } from "~/core/schema";
 import {
   archivedFixtureTermId,
-  FIXTURE_NOW,
   fixtureTermId,
   gradeCountsFrom,
 } from "../builders";
@@ -218,77 +216,6 @@ export const mockInstructors: ReadonlyMap<string, Instructor> =
 /** Testudo name → slug; names absent here have no PlanetTerp match. */
 export const mockInstructorSlugs: ReadonlyMap<string, string> = built.slugs;
 
-const SUMMARIES: Readonly<
-  Record<string, { summary: string; themes: ReviewSummary["themes"] }>
-> = {
-  "Jada Abernathy": {
-    summary:
-      "Clear, well-paced lectures. Exams are hard but the curve is generous; students who go to office hours rave about it.",
-    themes: [
-      { label: "clear lectures", sentiment: "positive" },
-      { label: "hard exams", sentiment: "negative" },
-      { label: "generous curve", sentiment: "positive" },
-    ],
-  },
-  "Keiko Ashdown": {
-    summary:
-      "Knows the material deeply but moves fast. Projects are heavy; many say the discussion TAs carry the course.",
-    themes: [
-      { label: "fast pace", sentiment: "negative" },
-      { label: "heavy projects", sentiment: "negative" },
-      { label: "great TAs", sentiment: "positive" },
-    ],
-  },
-  "Grace Kowalczyk": {
-    summary:
-      "Engaging and funny. Homework is weekly and predictable, and exams mirror it closely.",
-    themes: [
-      { label: "engaging", sentiment: "positive" },
-      { label: "predictable exams", sentiment: "positive" },
-    ],
-  },
-  "Nils Zielinski": {
-    summary:
-      "Organized and fair. Lectures read from slides, but the notes are thorough enough to study from.",
-    themes: [
-      { label: "organized", sentiment: "positive" },
-      { label: "slide-heavy", sentiment: "neutral" },
-    ],
-  },
-  "Kemi Adeyemi": {
-    summary:
-      "Explains intuition before formulas. Quizzes every week keep you on track.",
-    themes: [
-      { label: "intuitive", sentiment: "positive" },
-      { label: "weekly quizzes", sentiment: "neutral" },
-    ],
-  },
-  "Rana Haddad": {
-    summary:
-      "Frequent complaints about unclear grading and late feedback. Material is interesting.",
-    themes: [
-      { label: "unclear grading", sentiment: "negative" },
-      { label: "late feedback", sentiment: "negative" },
-    ],
-  },
-  "Signe Lindqvist": {
-    summary:
-      "Students call it the best writing class they've taken. Lots of individual feedback on drafts.",
-    themes: [
-      { label: "great feedback", sentiment: "positive" },
-      { label: "light workload", sentiment: "positive" },
-    ],
-  },
-  "Daniel Novak": {
-    summary:
-      "Huge lecture, well run. Recorded lectures and a very active Piazza.",
-    themes: [
-      { label: "recorded", sentiment: "positive" },
-      { label: "huge lecture", sentiment: "neutral" },
-    ],
-  },
-};
-
 /** Openings, middles and closings for mock PlanetTerp reviews: invented, about nobody. */
 const REVIEW_PARTS = {
   open: [
@@ -379,24 +306,3 @@ export const mockPlanetTerpReviews: readonly {
     );
     return { slug: i.slug, name: i.name, reviews };
   });
-
-/** Mock review summaries (model "mock-fixture"), keyed by slug. Invented text about invented people. */
-export const mockReviewSummaries: readonly ReviewSummary[] = Object.entries(
-  SUMMARIES,
-).flatMap(([name, s]) => {
-  const slug = built.slugs.get(name);
-  const instructor = slug ? built.instructors.get(slug) : undefined;
-  if (!slug || !instructor || instructor.reviewCount === 0) return [];
-  return [
-    {
-      schemaVersion: 1,
-      slug,
-      summary: s.summary,
-      themes: s.themes,
-      basedOnReviewCount: instructor.reviewCount,
-      latestReviewAt: instructor.latestReviewAt,
-      generatedAt: FIXTURE_NOW,
-      model: "mock-fixture",
-    },
-  ];
-});

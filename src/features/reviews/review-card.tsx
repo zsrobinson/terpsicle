@@ -96,7 +96,10 @@ export function ReviewCard({
           ) : null}
           {context ? <span className="text-muted">{context}</span> : null}
           <span className="tnum ml-auto text-faint">
-            {formatMonthYear(review.createdMonth)}
+            {/* A month, never the day (§7.5): the day would help tell who wrote it. */}
+            <time dateTime={review.createdMonth}>
+              {formatMonthYear(review.createdMonth)}
+            </time>
             {review.edited ? " · Edited" : ""}
           </span>
         </div>

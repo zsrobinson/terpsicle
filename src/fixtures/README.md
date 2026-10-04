@@ -12,7 +12,7 @@ One-off objects for tests. Each returns a schema-valid value with defaults taken
 | Course index | `aCourseIndexEntry`, `aCourseIndexDept`, `aCourseSearchFile`, `aCourseIndexManifest` |
 | Plans | `aPlanCourse`, `aSavedCourse`, `aPlan`, `aBlock`, `aSharePayload` |
 | Plan sync | `aSettingsDoc`, `aPlanSyncDoc` and `aFourYearSyncDoc` (a tombstone with `body: null`), `aSettingsSyncDoc` |
-| PlanetTerp | `anInstructor`, `someGrades` (by letter), `gradeCountsFrom`, `aGradeRecord`, `someCourseGrades`, `aPlanetTerpDept`, `aReviewSummary` |
+| PlanetTerp | `anInstructor`, `someGrades` (by letter), `gradeCountsFrom`, `aGradeRecord`, `someCourseGrades`, `aPlanetTerpDept` |
 | Terpsicle reviews | `aReviewsDept`, `aReviewsManifest` |
 | Geo and travel | `aBuilding`, `aBuildingsFile`, `aRouteGeometry`, `aConnection` |
 | Calendar | `aPublishedCalendar`, `anUnpublishedCalendar` |

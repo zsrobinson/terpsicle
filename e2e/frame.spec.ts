@@ -116,14 +116,14 @@ test("a press shows at once, in the soft gray, where hovering can't", async ({
   page,
   isMobile,
 }) => {
-  await page.goto("/reviews");
+  await page.goto("/reviews/cmsc351");
   await hydrated(page);
-  await page.getByRole("searchbox").fill("cmsc");
-  // A result row: plain until it's hovered or pressed.
+  // A row of the course's instructors: plain until it's hovered or pressed.
   const row = page
     .locator('li[class~="hover:bg-hover"]')
-    .filter({ has: page.getByRole("link", { name: /^CMSC/ }) })
+    .filter({ has: page.getByRole("link", { name: "Keiko Ashdown" }) })
     .first();
+  await row.scrollIntoViewIfNeeded();
   await expect(row).toBeVisible();
   const background = () =>
     row.evaluate((el) => getComputedStyle(el).backgroundColor);

@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { type ReasonCode, ReasonCodeSchema } from "./moderation";
+import { PlanetTerpTotalsSchema } from "./planetterp";
 import {
   CourseCodeSchema,
   DeptCodeSchema,
   InstructorNameSchema,
   InstructorSlugSchema,
+  IsoDateSchema,
   IsoDateTimeSchema,
   ReviewGradeSchema,
   TermIdSchema,
@@ -18,7 +20,7 @@ import {
 /**
  * An instructor we mint when PlanetTerp doesn't know the name: `t~` and 10
  * base32 characters (V2 §7.2). `InstructorSlugSchema` accepts these too, so
- * summaries and links key on either kind.
+ * links key on either kind.
  */
 export const MintedInstructorIdSchema = z
   .string()
@@ -40,7 +42,23 @@ export const ReviewIdSchema = z
   .regex(/^[A-Za-z0-9_-]{22}$/, "Expected a 22-char review id");
 export type ReviewId = z.infer<typeof ReviewIdSchema>;
 
-export const ReviewRatingSchema = z.number().int().min(1).max(5);
+/**
+ * A rating: 1 to 5 in half stars (owner, 2026-09-29: "users should be able
+ * to rate professors by increments of half stars"). PlanetTerp's are whole.
+ * D1's `rating INTEGER` column keeps 4.5 as a REAL (SQLite's type affinity
+ * only converts a value that fits losslessly), and its CHECK is a range, so
+ * halves need no migration; `store.test.ts` checks the round trip.
+ */
+export const ReviewRatingSchema = z.number().min(1).max(5).multipleOf(0.5);
+
+/**
+ * How a page's reviews are ordered (owner, 2026-09-29: "sortable, both by
+ * rating highest/lowest and latest/oldest"). `latest` is the default; ties
+ * in rating go newest first.
+ */
+export const REVIEW_SORTS = ["latest", "oldest", "highest", "lowest"] as const;
+export const ReviewSortSchema = z.enum(REVIEW_SORTS);
+export type ReviewSort = z.infer<typeof ReviewSortSchema>;
 
 /**
  * The body as sent. The 40–2,000 character rule is stage 0's (`precheck`),
@@ -317,30 +335,6 @@ export const ReviewRowSchema = z.object({
 });
 export type ReviewRow = z.infer<typeof ReviewRowSchema>;
 
-/** How many pairs `reviews/recent` answers, at most. */
-export const REVIEWS_RECENT_MAX = 12;
-
-export const ReviewsRecentInputSchema = z.strictObject({
-  limit: z.number().int().min(1).max(REVIEWS_RECENT_MAX),
-});
-export type ReviewsRecentInput = z.infer<typeof ReviewsRecentInputSchema>;
-
-/**
- * The newest reviewed courses and instructors, for /reviews: which course
- * and instructor, and the month. No review id, text or author (V2 §7.5).
- */
-export const ReviewsRecentResultSchema = z.strictObject({
-  reviews: z.array(
-    z.strictObject({
-      course: CourseCodeSchema,
-      instructorId: InstructorIdSchema,
-      instructorName: InstructorNameSchema,
-      month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-    }),
-  ),
-});
-export type ReviewsRecentResult = z.infer<typeof ReviewsRecentResultSchema>;
-
 // ---------- a page's reviews: ours and PlanetTerp's (V2 §7.6) ----------
 
 const MonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
@@ -374,16 +368,21 @@ export const PlanetTerpReviewSchema = z.strictObject({
   expectedGrade: ReviewGradeSchema.nullable(),
   body: z.string(),
   createdMonth: MonthSchema,
+  /**
+   * The day, as PlanetTerp publishes it (owner, 2026-09-30: "include the
+   * date for reviews, not just month and year"). Ours keep only the month
+   * (§7.5): a day beside a review of ours would help tell who wrote it.
+   */
+  createdDate: IsoDateSchema,
 });
 export type PlanetTerpReview = z.infer<typeof PlanetTerpReviewSchema>;
 
 /** Where the next page of PlanetTerp reviews starts: `<created>|<id>`. */
-export const PlanetTerpCursorSchema = z
-  .string()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}T[\d:.]+Z\|[0-9a-f]{16}$/,
-    "Expected a PlanetTerp cursor",
-  );
+export const PlanetTerpCursorSchema = z.string().regex(
+  // `<rating>|` leads when the page is sorted by rating.
+  /^(?:[1-5]\|)?\d{4}-\d{2}-\d{2}T[\d:.]+Z\|[0-9a-f]{16}$/,
+  "Expected a PlanetTerp cursor",
+);
 export type PlanetTerpCursor = z.infer<typeof PlanetTerpCursorSchema>;
 
 /** PlanetTerp reviews per page. */
@@ -402,7 +401,17 @@ const hasTarget = (t: { instructorId: unknown; course: unknown }) =>
 
 /** `reviews/page`: the first of a page's reviews, from both sources. */
 export const ReviewsPageInputSchema = z
-  .strictObject(pageTarget)
+  .strictObject({
+    ...pageTarget,
+    /**
+     * PlanetTerp's name for the instructor, when the page knows it. If the
+     * nightly job hasn't stored their reviews yet, the server fetches them
+     * from PlanetTerp once by this name and stores them.
+     */
+    planetTerpName: z.string().min(1).max(120).optional(),
+    /** Absent reads as `latest`. */
+    sort: ReviewSortSchema.optional(),
+  })
   .refine(hasTarget, "Name an instructor or a course");
 export type ReviewsPageInput = z.infer<typeof ReviewsPageInputSchema>;
 
@@ -413,14 +422,57 @@ export const PageReviewsSchema = z.strictObject({
   planetTerp: z.array(PlanetTerpReviewSchema),
   /** Pass to `planetterp/reviews` for more; null when that's all. */
   next: PlanetTerpCursorSchema.nullable(),
+  /**
+   * A course's page only: the average and count of every PlanetTerp review
+   * of the course, for its rating box. Null when there are none; absent on
+   * an instructor's page, whose numbers are PlanetTerp's own.
+   */
+  planetTerpCourse: z
+    .strictObject({
+      rating: z.number().min(1).max(5),
+      reviewCount: z.number().int().min(1),
+    })
+    .nullable()
+    .optional(),
+  /**
+   * One instructor in one course: how many PlanetTerp reviews there are in
+   * all (the page loads them a page at a time), for "Reviews in CMSC351 42".
+   */
+  planetTerpCount: z.number().int().min(0).optional(),
 });
 export type PageReviews = z.infer<typeof PageReviewsSchema>;
+
+/** `planetterp/totals`: what PlanetTerp's data holds in all; takes nothing. */
+export const PlanetTerpTotalsInputSchema = z.strictObject({});
+
+/** `reviews/latest`: the newest reviews anywhere, for /reviews. */
+export const ReviewsLatestInputSchema = z.strictObject({
+  limit: z.number().int().min(1).max(PLANETTERP_PAGE_MAX),
+});
+export type ReviewsLatestInput = z.infer<typeof ReviewsLatestInputSchema>;
+
+/** The newest of each source's; merge them for one list, newest first. */
+export const LatestReviewsSchema = z.strictObject({
+  /** Ours; null while REVIEWS_ENABLED is off. */
+  terpsicle: z.array(PageReviewSchema).nullable(),
+  planetTerp: z.array(PlanetTerpReviewSchema),
+  /** Who ours are about, by id; PlanetTerp's index names theirs. */
+  instructors: z.record(InstructorIdSchema, InstructorNameSchema),
+});
+export type LatestReviews = z.infer<typeof LatestReviewsSchema>;
+
+/** `planetterp/totals`' answer. */
+export const PlanetTerpTotalsResultSchema = z.strictObject({
+  totals: PlanetTerpTotalsSchema.nullable(),
+});
 
 /** `planetterp/reviews`: the next page of PlanetTerp's. */
 export const PlanetTerpReviewsInputSchema = z
   .strictObject({
     ...pageTarget,
     cursor: PlanetTerpCursorSchema.nullable(),
+    /** The page's order; the cursor must come from the same one. */
+    sort: ReviewSortSchema.optional(),
     limit: z
       .number()
       .int()

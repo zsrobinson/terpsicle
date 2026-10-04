@@ -28,7 +28,8 @@ import { currentPath } from "./sign-in-panel";
 /**
  * The account entry at the right end of every page's bar (V2.md §1.1,
  * docs/COHESION.md): the avatar when signed in, a quiet "Sign in" when
- * not, and nothing while /api/me loads or where signing in is off. One menu
+ * not, a quiet placeholder while /api/me loads (or the state this browser
+ * last saw), and nothing where signing in is off. One menu
  * at every size, the kit's ActionMenu (a sheet on phones): the account (or
  * Sign in), then the theme and Install, then `items` (on phones, "Send
  * feedback"). Sign-in is invited, never required.
@@ -53,6 +54,30 @@ export function AccountButton({
   note?: string | null;
 }) {
   const shown = useAccountButtonShown();
+  const status = useAccount((s) => s.status);
+  const last = useAccount((s) => s.lastKnown);
+  const signIn = useAccount((s) => s.flags.signIn);
+  // While /api/me answers: a quiet circle where the avatar goes when this
+  // browser was last signed in (or nobody knows yet), never "Sign in" first;
+  // the signed-out menu when it was last signed out.
+  if (status === "loading") {
+    if (last === "signed-out")
+      return signIn ? (
+        <AccountMenu compact={compact} items={items} note={null} />
+      ) : (
+        fallback
+      );
+    return (
+      <span
+        aria-hidden="true"
+        data-testid="account-placeholder"
+        // The avatar button's box, so nothing moves when it arrives.
+        className="flex h-7 items-center px-1.5"
+      >
+        <span className="size-6 rounded-full bg-hover" />
+      </span>
+    );
+  }
   if (!shown) return fallback;
   return <AccountMenu compact={compact} items={items} note={note} />;
 }

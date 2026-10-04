@@ -11,20 +11,6 @@ import type { CourseCode, SyncedPrefs } from "../schema";
 export const PREFS_STORAGE_KEY = "terpsicle:prefs";
 
 /**
- * Whether AI features show (the review summary, anything with the sparkles):
- * on unless the person turned them off.
- */
-export function aiFeaturesOn(prefs: SyncedPrefs): boolean {
-  return prefs.ai?.features !== false;
-}
-
-/** The prefs with AI features turned on or off. */
-export function withAiFeatures(prefs: SyncedPrefs, on: boolean): SyncedPrefs {
-  if (prefs.ai?.features === on) return prefs;
-  return { ...prefs, ai: { features: on } };
-}
-
-/**
  * The most courses whose room rules are remembered: a few years of courses.
  * Past it, the oldest go, and their rules would show once more.
  */

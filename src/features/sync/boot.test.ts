@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { withAiFeatures } from "~/core/prefs";
+import { withCalloutDismissed } from "~/core/home";
 import type { Plan, SyncPullInput, SyncPushInput } from "~/core/schema";
 import { savePrefs } from "~/features/prefs/save";
 import { aBlock, aFourYear, aPlan, demoPlan, FakeSyncServer } from "~/fixtures";
@@ -187,10 +187,11 @@ describe("plan sync in the scheduler", { timeout: TEST_TIMEOUT }, () => {
       return doc?.kind === "settings" ? doc.body : null;
     };
 
-    // Reviews turns AI summaries off on this device, beside the scheduler.
-    await savePrefs((p) => withAiFeatures(p, false));
+    // Home's Plan callout is closed on this device, beside the scheduler.
+    await savePrefs((p) => withCalloutDismissed(p, "plan", true));
     await vi.waitFor(
-      () => expect(settings()?.prefs).toEqual({ ai: { features: false } }),
+      () =>
+        expect(settings()?.prefs).toEqual({ home: { dismissed: ["plan"] } }),
       WAIT,
     );
 
@@ -203,12 +204,12 @@ describe("plan sync in the scheduler", { timeout: TEST_TIMEOUT }, () => {
       () => expect(settings()?.blocks.map((b) => b.id)).toContain(run.id),
       WAIT,
     );
-    expect(settings()?.prefs).toEqual({ ai: { features: false } });
+    expect(settings()?.prefs).toEqual({ home: { dismissed: ["plan"] } });
 
     // Another device sees Chat's rules, and saves a pref this build doesn't know.
     const stored = fake.docs.get("settings:settings");
     const theirs = {
-      ai: { features: false },
+      home: { dismissed: ["plan"] },
       chatRules: { seen: ["CMSC351"] },
       later: { view: "week" },
     };

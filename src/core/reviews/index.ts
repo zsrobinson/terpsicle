@@ -28,6 +28,11 @@ export {
   weeklyLimitWait,
 } from "./rules";
 export * from "./slugs";
+export {
+  historyInstructorSlug,
+  type TaughtOnlyPageData,
+  taughtOnlyPageData,
+} from "./taught-only";
 export { hasTermStarted, reviewTermChoices } from "./terms";
 export {
   createdMonth,
@@ -38,9 +43,20 @@ export {
 export {
   type InstructorToReview,
   instructorsToReview,
+  isNamedInstructor,
   isReviewableTerm,
   reviewedKey,
 } from "./to-review";
+export {
+  type ClassTaken,
+  classesTaken,
+  classesToReview,
+  reviewedHere,
+  reviewsByRecency,
+  type TookHere,
+  tookHere,
+  type YourPlans,
+} from "./took";
 export {
   notPostedWords,
   REPORT_REASON_WORDS,

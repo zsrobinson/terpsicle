@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Search,
   Share2,
-  Sparkles,
   Star,
   Trash2,
 } from "lucide-react";
@@ -724,13 +723,8 @@ function ListParts() {
                 <span className="font-normal text-muted">· GPA 3.08</span>
               </h3>
               <p className="text-muted text-sm">
-                <Sparkles
-                  size={12}
-                  aria-hidden="true"
-                  className="mr-1 inline align-[-2px]"
-                />
-                Students call the lectures clear and the projects heavy. Office
-                hours fill up before deadlines.
+                Lectures were clear and the projects were heavy. Office hours
+                fill up before deadlines.
               </p>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="sm">

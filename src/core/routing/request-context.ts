@@ -1,5 +1,10 @@
 import type { ReviewsServerData } from "../reviews/pages";
-import type { PageReviews, ReviewsPageInput } from "../schema";
+import type {
+  LatestReviews,
+  PageReviews,
+  PlanetTerpTotals,
+  ReviewsPageInput,
+} from "../schema";
 
 // What the Worker hands TanStack Start for each page it renders
 // (`app.fetch(request, { context })`); route loaders read it as
@@ -21,4 +26,8 @@ export interface PageRequestContext {
    * always, ours while REVIEWS_ENABLED lets anyone read them.
    */
   pageReviews(input: ReviewsPageInput): Promise<PageReviews>;
+  /** The newest reviews anywhere, as `reviews/latest` answers. */
+  latestReviews(limit: number): Promise<LatestReviews>;
+  /** What PlanetTerp's data holds in all; null before it's published. */
+  planetTerpTotals(): Promise<PlanetTerpTotals | null>;
 }

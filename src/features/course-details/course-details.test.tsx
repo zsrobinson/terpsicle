@@ -10,13 +10,12 @@ import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { openCourse } from "~/features/courses/actions";
 import { openPlanNow, renderPlanTab } from "~/features/courses/testing";
 import { forgetReads } from "~/features/notifications/read-here";
-import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { openDrill } from "~/features/schedule/schedule-nav";
 import { renderShell, type ShellRoutes } from "~/features/schedule/test-utils";
 import { SearchPanel } from "~/features/search/search-panel";
 import {
   aMeUser,
-  aReviewSummary,
+  aPlanetTerpReview,
   aSeatWatch,
   mockDataSource,
 } from "~/fixtures";
@@ -33,7 +32,6 @@ import { connectPublished } from "~/state/query/published";
 import { TEST_TERM_ID } from "~/state/testing";
 import { useUi } from "~/state/ui-store";
 import { CourseDetails } from "./course-details";
-import { forgetReviewSummaries } from "./use-review-summary";
 
 const panels: ShellRoutes = { drills: { course: CourseDetails } };
 const searchPanels: ShellRoutes = { tabs: { search: SearchPanel } };
@@ -48,7 +46,7 @@ vi.mock("~/server/fns/api", async (importOriginal) => {
     ...actual,
     api: {
       ...actual.api,
-      reviewSummary: vi.fn(),
+      reviews: { ...actual.api.reviews, page: vi.fn() },
     },
   };
 });
@@ -108,15 +106,15 @@ describe("Course details", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(track).mockClear();
-    vi.mocked(api.reviewSummary).mockReset();
-    vi.mocked(api.reviewSummary).mockResolvedValue({
-      status: "unavailable",
-      reason: "failed",
+    vi.mocked(api.reviews.page).mockReset();
+    vi.mocked(api.reviews.page).mockResolvedValue({
+      terpsicle: null,
+      planetTerp: [],
+      next: null,
     });
     resetSeatWatches();
     seatAlertsAccount(aMeUser());
     fakeSeatWatchesClient();
-    forgetReviewSummaries();
     forgetReads();
     vi.mocked(notificationsApi.read).mockClear();
   });
@@ -611,52 +609,54 @@ describe("Course details", () => {
   });
 
   describe("reviews", () => {
-    it("open under the instructor's header, asked for only then, without repeating the rating", async () => {
-      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
-        status: "ok",
-        summary: aReviewSummary({ slug, basedOnReviewCount: 88 }),
-      }));
+    it("open a preview over the list, with Reviews' mark, asked for only then", async () => {
+      vi.mocked(api.reviews.page).mockResolvedValue({
+        terpsicle: null,
+        planetTerp: [
+          aPlanetTerpReview({
+            id: "0123456789abcdef",
+            instructorId: "ashdown_keiko",
+            body: "The problem sets were long, and the exams followed them closely.",
+            createdMonth: "2026-04",
+            rating: 4,
+          }),
+        ],
+        next: null,
+      });
       const { user } = await renderDetails();
-      expect(api.reviewSummary).not.toHaveBeenCalled();
+      expect(api.reviews.page).not.toHaveBeenCalled();
       const header = screen
         .getByRole("button", { name: /^Keiko Ashdown/ })
         .closest("div.sticky") as HTMLElement;
-      await user.click(within(header).getByRole("button", { name: "Reviews" }));
+      const button = within(header).getByRole("button", { name: "Reviews" });
+      // Reviews' mark, as every product's part inside another wears.
+      expect(button.querySelector('[data-mark="reviews"]')).not.toBeNull();
+      await user.click(button);
       const keiko = await findReviews("Keiko Ashdown");
       await waitFor(() =>
-        expect(keiko).toHaveTextContent("Clear, well-paced lectures"),
+        expect(keiko).toHaveTextContent(
+          "The problem sets were long, and the exams followed them closely.",
+        ),
       );
-      expect(api.reviewSummary).toHaveBeenCalledTimes(1);
-      expect(keiko).not.toHaveTextContent("3.1");
-      expect(keiko).not.toHaveTextContent("GPA");
-      expect(within(keiko).getByText("clear lectures")).toBeInTheDocument();
+      // Their name, so the server can fetch reviews its job hasn't stored.
+      expect(api.reviews.page).toHaveBeenCalledWith({
+        instructorId: "ashdown_keiko",
+        course: "CMSC351",
+        planetTerpName: "Keiko Ashdown",
+      });
+      expect(keiko).toHaveTextContent("3.1");
+      expect(keiko).toHaveTextContent(/In CMSC351, \d+% got an A or B/);
+      expect(
+        within(keiko).getByRole("img", { name: "4 out of 5 stars" }),
+      ).toBeVisible();
       expect(
         within(keiko).getByRole("link", { name: "Read them on PlanetTerp" }),
       ).toHaveAttribute("href", expect.stringContaining("planetterp.com"));
-      expect(track).toHaveBeenCalledWith("review_summary_viewed", {
-        state: "shown",
-      });
       expect(track).toHaveBeenCalledWith("course_details_tab", {
         tab: "instructors",
       });
-    });
-
-    it("say how many reviews from each source a summary read", async () => {
-      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
-        status: "ok",
-        summary: aReviewSummary({
-          slug,
-          basedOnReviewCount: 97,
-          sources: { planetterp: 88, terpsicle: 9 },
-        }),
-      }));
-      await renderDetails("CMSC351", "instructors");
-      const jada = await findReviews("Jada Abernathy");
-      await waitFor(() =>
-        expect(jada).toHaveTextContent(
-          "Summary of 97 reviews: 88 on PlanetTerp, 9 on Terpsicle",
-        ),
-      );
+      // Nothing students see is marked as a model's.
+      expect(document.querySelector(".lucide-sparkles")).toBeNull();
     });
 
     it("link to Terpsicle Reviews once it's open here", async () => {
@@ -687,68 +687,13 @@ describe("Course details", () => {
       }
     });
 
-    it("fall back to the review count when there's no summary", async () => {
+    it("say how many reviews PlanetTerp has when none are about the course", async () => {
       await renderDetails("CMSC351", "instructors");
-      // A deep link to "instructors" opens the first instructor's reviews.
+      // A link to "instructors" opens the first instructor's reviews.
       const jada = await findReviews("Jada Abernathy");
       await waitFor(() =>
         expect(jada).toHaveTextContent("88 reviews on PlanetTerp"),
       );
-      expect(jada).not.toHaveTextContent("Summary of");
-    });
-
-    it("ask for no summary while AI features are off, and show the review count", async () => {
-      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
-        status: "ok",
-        summary: aReviewSummary({ slug, basedOnReviewCount: 88 }),
-      }));
-      showSyncedPrefs({ ai: { features: false } });
-      try {
-        await renderDetails("CMSC351", "instructors");
-        const jada = await findReviews("Jada Abernathy");
-        await waitFor(() =>
-          expect(jada).toHaveTextContent("88 reviews on PlanetTerp"),
-        );
-        expect(api.reviewSummary).not.toHaveBeenCalled();
-        expect(
-          within(jada).queryByRole("img", { name: "AI summary" }),
-        ).toBeNull();
-        expect(
-          within(jada).queryByRole("button", { name: "AI summary options" }),
-        ).toBeNull();
-      } finally {
-        showSyncedPrefs({});
-      }
-    });
-
-    it("hide from the summary's ⋯ menu, with Undo", async () => {
-      vi.mocked(api.reviewSummary).mockImplementation(async ({ slug }) => ({
-        status: "ok",
-        summary: aReviewSummary({ slug, basedOnReviewCount: 88 }),
-      }));
-      try {
-        const { user } = await renderDetails("CMSC351", "instructors");
-        const jada = await findReviews("Jada Abernathy");
-        // The summary's own ⋯ menu: the one beside "Summarizing…" goes as
-        // the summary arrives.
-        await within(jada).findByRole("img", { name: "AI summary" });
-        await user.click(
-          within(jada).getByRole("button", { name: "AI summary options" }),
-        );
-        await user.click(
-          await screen.findByRole("menuitem", { name: /Hide AI summaries/ }),
-        );
-        expect(
-          within(jada).queryByRole("img", { name: "AI summary" }),
-        ).toBeNull();
-        expect(jada).toHaveTextContent("88 reviews on PlanetTerp");
-        expect(track).toHaveBeenCalledWith("ai_features_changed", {
-          on: false,
-          via: "box",
-        });
-      } finally {
-        showSyncedPrefs({});
-      }
     });
 
     it("say quietly when PlanetTerp has stopped updating", async () => {
