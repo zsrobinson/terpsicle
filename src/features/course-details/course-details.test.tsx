@@ -561,8 +561,8 @@ describe("Course details", () => {
 
     it("shows watching, and one click stops it, with Undo", async () => {
       const client = fakeSeatWatchesClient([aSeatWatch()]);
-      const { user } = await renderDetails();
-      act(() => watching(aMeUser(), aSeatWatch()));
+      const { user, queryClient } = await renderDetails();
+      act(() => watching(queryClient, aMeUser(), aSeatWatch()));
       const bell = within(row("0101")).getByRole("button", {
         name: /^Watching CMSC351 0101/,
       });

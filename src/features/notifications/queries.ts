@@ -7,8 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAccount } from "~/features/auth/account-store";
-import { retryApi } from "~/lib/query-client";
-import { ApiCallError } from "~/server/fns/api";
+import { ApiCallError, retryApi } from "~/server/fns/api";
 import { onReadInWorker, syncBadge } from "./badge";
 
 // The bell's server data as TanStack Query queries (docs/V2.md §6.7,

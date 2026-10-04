@@ -46,6 +46,8 @@ describe("Register tab", () => {
     writeText.mockReset().mockResolvedValue(undefined);
     toast.dismiss();
     resetSeatWatches();
+    // Signed in, the shell asks for the list: never the real API here.
+    fakeSeatWatchesClient();
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -270,8 +272,8 @@ describe("Register tab", () => {
 
     it("lists watches; Stop is immediate, with Undo", async () => {
       const client = fakeSeatWatchesClient([here, otherTerm]);
-      const { user } = await renderPlanTab([panels], "register");
-      act(() => watching(aMeUser(), here, otherTerm));
+      const { user, queryClient } = await renderPlanTab([panels], "register");
+      act(() => watching(queryClient, aMeUser(), here, otherTerm));
       const list = await screen.findByRole("region", {
         name: "Watching for a seat",
       });
@@ -303,8 +305,8 @@ describe("Register tab", () => {
     });
 
     it("hides the list with no watches, signed out, or while seat alerts are off", async () => {
-      await renderPlanTab([panels], "register");
-      act(() => watching(aMeUser()));
+      const { queryClient } = await renderPlanTab([panels], "register");
+      act(() => watching(queryClient, aMeUser()));
       expect(
         screen.queryByRole("region", { name: "Watching for a seat" }),
       ).toBeNull();
