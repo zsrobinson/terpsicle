@@ -220,7 +220,8 @@ export function Composer({
           aria-activedescendant={
             mentions.open ? optionId(mentions.active) : undefined
           }
-          className="min-h-8 flex-1 resize-none max-md:min-h-11"
+          // A phone's line sits in the middle of the 44px field, beside Send.
+          className="min-h-8 flex-1 resize-none max-md:min-h-11 max-md:py-[11px]"
         />
         <WithTooltip label="Send" shortcut="↵">
           <Button size="icon" aria-label="Send" disabled={!text} onClick={send}>
