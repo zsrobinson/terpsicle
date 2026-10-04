@@ -22,6 +22,7 @@ import { SCHEDULE_PATH } from "~/core/routing";
 import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
+import { useSidebarWidth } from "~/hooks/use-sidebar-width";
 import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
@@ -34,7 +35,6 @@ import type { ChatGo, ChatView } from "./nav";
 import { RoomList, useChatList } from "./room-list";
 import { RoomSkeleton, RoomView } from "./room-view";
 import { useCourseChat } from "./session";
-import { useChatSidebarWidth } from "./sidebar-width";
 import { ChatClosed, SignInMoment } from "./sign-in-moment";
 import { ChatTermLabel } from "./term-label";
 
@@ -236,7 +236,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   // On a phone the open room covers the list, which stays mounted (hidden)
   // so its scroll and loaded rooms are there when you come back.
   const listHidden = mobile && room !== null;
-  const [listWidth, setListWidth] = useChatSidebarWidth();
+  const [listWidth, setListWidth] = useSidebarWidth();
 
   return (
     <ProductPage width="full" className="flex-row">

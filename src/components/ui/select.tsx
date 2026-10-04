@@ -121,7 +121,8 @@ function SelectTrigger({
       className={cn(
         "flex w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-md border border-hairline-strong bg-bg text-fg transition-colors",
         "hover:bg-hover focus-visible:border-fg/40 data-[state=open]:bg-hover disabled:pointer-events-none disabled:opacity-50 data-placeholder:text-muted",
-        "data-[size=default]:h-7 data-[size=default]:px-2 data-[size=default]:text-sm data-[size=sm]:h-6 data-[size=sm]:px-1.5 data-[size=sm]:text-sm",
+        // The heights of the Input and Button beside it: 32px, and 28px small.
+        "data-[size=default]:h-8 data-[size=default]:px-2 data-[size=default]:text-sm data-[size=sm]:h-7 data-[size=sm]:px-1.5 data-[size=sm]:text-sm",
         // 44px on phones, like every control (Button). Scoped by size like the
         // heights above, so it outranks them.
         "max-md:data-[size=default]:h-11 max-md:data-[size=sm]:h-11",

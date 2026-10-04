@@ -191,9 +191,9 @@ export interface AnalyticsEvents {
   todo_disconnected: NoProperties;
   todo_item_checked: {
     done: boolean;
-    via: "list" | "week" | "month" | "home";
+    /** `week`: a card on a desktop's week; `list`: a phone's rows. */
+    via: "list" | "week" | "home";
   };
-  todo_view_changed: { view: "week" | "month" | "list" };
   todo_file_imported: { items: number; skipped: number };
   /** `typed`: the composer recognized a date, time or course in the words. */
   todo_task_added: {
@@ -202,7 +202,6 @@ export interface AnalyticsEvents {
     course: boolean;
     typed: boolean;
   };
-  todo_week_start_changed: { start: "monday" | "sunday" };
   // Terpsicle Plan (V3.md §6). Never a course code, grade, GPA or a
   // course's credits: which ways in and which controls get used.
   four_year_created: { source: "empty" | "template" | "import" | "copy" };

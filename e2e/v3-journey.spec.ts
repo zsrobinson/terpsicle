@@ -215,29 +215,31 @@ test("Plan to Schedule to Todo: import, placeholder, View schedule, sync, ELMS, 
       },
     });
     expect(await subscribed.json()).toEqual({ status: "ok" });
-    // The second device is a laptop-sized window: the paste is in Todo's
-    // courses and ELMS, which open from the bar.
+    // The second device is a laptop-sized window: the paste is in the bar's
+    // sync, by the bell.
     await phone.goto("/todo");
-    await phone
-      .getByRole("banner")
-      .getByRole("button", { name: "Courses and ELMS" })
-      .click();
-    await phone
+    const elms = phone.getByRole("banner");
+    await elms.getByRole("button", { name: "Sync" }).click();
+    const connect = phone.getByRole("dialog", { name: "Sync" });
+    await connect
       .getByLabel("ELMS calendar link")
       .fill(testFeedLink(TEST_FEED_TOKENS.calendar));
-    await phone.getByRole("button", { name: "Connect ELMS" }).click();
-    await expect(phone.getByText(/^6 open · ELMS feed checked/)).toBeVisible();
+    await connect.getByRole("button", { name: "Connect ELMS" }).click();
+    await expect(elms).toContainText("ELMS synced");
 
-    // 7. Project 2, due tomorrow, is done: it folds into "1 done" on the
-    // list, and it stays done after a reload, since done marks are the
-    // account's.
-    await phone.goto("/todo?view=list");
+    // 7. Project 2, due tomorrow, is done: the week's bar fills by one, and
+    // it stays done after a reload, since done marks are the account's.
+    const tomorrowsWeek = addDays(newYorkClock(Date.now()).date, 1);
+    await phone.goto(`/todo?date=${tomorrowsWeek}`);
+    const week = phone.getByRole("progressbar", { name: /, every course$/ });
+    await expect(week).toHaveAttribute("aria-valuenow", "0");
     await phone.getByRole("checkbox", { name: "Done: Project 2" }).click();
-    await expect(phone.getByText(/^5 open · ELMS feed checked/)).toBeVisible();
-    await expect(phone.getByRole("button", { name: "1 done" })).toBeVisible();
+    await expect(week).toHaveAttribute("aria-valuenow", "1");
     await phone.reload();
-    await expect(phone.getByText(/^5 open · ELMS feed checked/)).toBeVisible();
-    await expect(phone.getByRole("button", { name: "1 done" })).toBeVisible();
+    await expect(week).toHaveAttribute("aria-valuenow", "1");
+    await expect(
+      phone.getByRole("checkbox", { name: "Done: Project 2" }),
+    ).toBeChecked();
 
     // 8. The Todo cron at 6:03pm New York today: one push, for what's still
     // due tomorrow, and it opens tomorrow in Todo.
