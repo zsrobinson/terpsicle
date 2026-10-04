@@ -11,5 +11,6 @@ export * from "./list";
 export * from "./quick-add";
 export * from "./tasks";
 export * from "./test-feed";
+export * from "./week-list";
 export * from "./weeks";
 export * from "./zones";

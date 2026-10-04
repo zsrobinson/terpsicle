@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
 import { FileUp } from "lucide-react";
 import { type DragEvent, useId, useState } from "react";
@@ -8,7 +9,7 @@ import {
 } from "~/core/todo";
 import { track } from "~/lib/analytics";
 import { WithTooltip } from "~/ui/tooltip";
-import { useTodo } from "./todo-store";
+import { importTodoFile } from "./todo-mutations";
 
 // "Add a calendar file" (docs/V3.md §3.7): an .ics the student exported
 // themselves. It's read here, in the browser, with the same parser as the
@@ -28,7 +29,7 @@ export function importWords(added: number, skipped: number): string {
 }
 
 export function FileDrop() {
-  const importFile = useTodo((s) => s.importFile);
+  const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export function FileDrop() {
         setMessage(TODO_FILE_WORDS[read.status]);
         return;
       }
-      const result = await importFile(read.items);
+      const result = await importTodoFile(client, read.items);
       if (!result) {
         setMessage(
           "That didn't go through. Check your connection and try again.",
