@@ -1,5 +1,6 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { IntegrationLabel } from "~/components/brand/integration-label";
 import {
   channelOn,
@@ -24,10 +25,18 @@ import { ListRow } from "~/ui/list-row";
 import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
 import { Switch } from "~/ui/switch";
-import { dismissToast, noteToast, undoToast } from "~/ui/toast";
+import { dismissToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
-  currentEndpoint,
+  notificationSettingsQuery,
+  pushDevicesQuery,
+  type RemoveDecision,
+  removeDeviceMutation,
+  saveSettingsMutation,
+  settingsKeys,
+  useRemovingDevices,
+} from "./settings-queries";
+import {
   notificationPermission,
   type PushSupport,
   pushSupport,
@@ -41,7 +50,9 @@ import {
 // through them, message text on the lock screen), then this device and
 // the devices with notifications on. Each type's switches sit in two
 // columns, Notification and Email, as the Settings artboard lays them out.
-// Loaded only for someone signed in.
+// Loaded only for someone signed in. The settings and the devices are
+// queries, and saving and removing are mutations over them
+// (./settings-queries).
 
 type Product = Extract<MarkId, "schedule" | "chat" | "todo">;
 
@@ -139,57 +150,37 @@ const TRY_AGAIN =
 export function NotificationSettingsSection() {
   const pushOn = useAccount((s) => s.flags.push);
   const publicKey = useAccount((s) => s.pushPublicKey);
-  const [settings, setSettings] = useState<NotificationSettings | null>(null);
-  const [todoConnected, setTodoConnected] = useState(false);
-  const [devices, setDevices] = useState<PushDevice[] | null>(null);
+  const client = useQueryClient();
+  const settingsQuery = useQuery(notificationSettingsQuery());
+  const devicesQuery = useQuery(pushDevicesQuery());
   // Devices removed but still in Undo's window: hidden from every list,
   // whatever a refresh brings back, until the server hears or Undo.
-  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
-  const [failed, setFailed] = useState(false);
+  const removing = useRemovingDevices();
+  const answer = settingsQuery.data;
+  const devices = devicesQuery.data;
 
-  const refresh = useCallback(async () => {
-    try {
-      const endpoint = await currentEndpoint();
-      const [s, d] = await Promise.all([
-        notificationsApi.settings(),
-        notificationsApi.devices(endpoint ? { endpoint } : {}),
-      ]);
-      setSettings(s.settings);
-      setTodoConnected(s.todoConnected === true);
-      setDevices(d.devices);
-      setFailed(false);
-    } catch {
-      setFailed(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  if (failed && !settings)
+  const unloaded = [settingsQuery, devicesQuery].filter(
+    (query) => query.data === undefined && query.isError,
+  );
+  if (unloaded.length > 0)
     return (
       <InlineError
         message="Couldn't load your notification settings. Check your connection and try again."
-        onRetry={() => void refresh()}
+        retrying={unloaded.some((query) => query.isFetching)}
+        onRetry={() => {
+          for (const query of unloaded) void query.refetch();
+        }}
       />
     );
-  if (!settings || !devices)
+  if (!answer || !devices)
     return (
       <RowSkeleton rows={4} inset={false} label="Loading your notifications" />
     );
 
+  const { settings, todoConnected } = answer;
   const shown = devices.filter((d) => !removing.has(d.id));
-  const startRemove = (id: string) =>
-    setRemoving((ids) => new Set(ids).add(id));
-  const endRemove = (id: string, removed: boolean) => {
-    setRemoving((ids) => {
-      const next = new Set(ids);
-      next.delete(id);
-      return next;
-    });
-    if (removed) setDevices((list) => list?.filter((d) => d.id !== id) ?? null);
-  };
+  const refreshDevices = () =>
+    client.invalidateQueries({ queryKey: settingsKeys.devices });
 
   return (
     <>
@@ -199,14 +190,17 @@ export function NotificationSettingsSection() {
           product={product}
           columns={i === 0}
           settings={settings}
-          onChange={setSettings}
           pushOn={pushOn}
           todoConnected={todoConnected}
         />
       ))}
-      <WhenAndHow settings={settings} onChange={setSettings} pushOn={pushOn} />
+      <WhenAndHow settings={settings} pushOn={pushOn} />
       {pushOn && publicKey ? (
-        <ThisDevice publicKey={publicKey} devices={shown} onChanged={refresh} />
+        <ThisDevice
+          publicKey={publicKey}
+          devices={shown}
+          onChanged={refreshDevices}
+        />
       ) : (
         <PageSection title="This device">
           <p className="text-muted">
@@ -214,39 +208,22 @@ export function NotificationSettingsSection() {
           </p>
         </PageSection>
       )}
-      {pushOn ? (
-        <Devices
-          devices={shown}
-          onRemoveStart={startRemove}
-          onRemoveEnd={endRemove}
-        />
-      ) : null}
+      {pushOn ? <Devices devices={shown} /> : null}
     </>
   );
 }
 
 /**
- * Saves a change at once, and puts it back with a line saying so when the
- * server didn't take it. One per group of switches, so the line shows by
- * the switch that failed.
+ * Saves a change (`saveSettingsMutation`): it shows at once, and goes back
+ * with a line saying so when the server didn't take it. One per group of
+ * switches, so the line shows by the switch that failed.
  */
-function useSave(
-  settings: NotificationSettings,
-  onChange: (next: NotificationSettings) => void,
-) {
-  const [error, setError] = useState<string | null>(null);
-  const save = async (next: NotificationSettings) => {
-    const before = settings;
-    onChange(next);
-    setError(null);
-    try {
-      await notificationsApi.setSettings({ settings: next });
-    } catch {
-      onChange(before);
-      setError(TRY_AGAIN);
-    }
+function useSave() {
+  const mutation = useMutation(saveSettingsMutation());
+  return {
+    error: mutation.isError ? TRY_AGAIN : null,
+    save: (next: NotificationSettings) => mutation.mutate(next),
   };
-  return { error, save };
 }
 
 /** The two columns' width: a switch, or a short word, centered in each. */
@@ -316,7 +293,6 @@ function ProductRows({
   product,
   columns,
   settings,
-  onChange,
   pushOn,
   todoConnected,
 }: {
@@ -324,12 +300,11 @@ function ProductRows({
   /** The first group carries the columns' names. */
   columns: boolean;
   settings: NotificationSettings;
-  onChange: (next: NotificationSettings) => void;
   pushOn: boolean;
   /** "Due tomorrow" needs an ELMS feed in Todo (V3.md §4). */
   todoConnected: boolean;
 }) {
-  const { error, save } = useSave(settings, onChange);
+  const { error, save } = useSave();
   const rows = TYPE_ROWS.filter((row) => row.product === product.id);
   return (
     <PageSection
@@ -354,7 +329,7 @@ function ProductRows({
                   needsTodo ? "Connect ELMS in Todo first" : undefined
                 }
                 onToggle={(on) =>
-                  void save(withChannel(settings, row.type, channel, on))
+                  save(withChannel(settings, row.type, channel, on))
                 }
               />
             ) : (
@@ -410,14 +385,12 @@ function ProductRows({
  */
 function WhenAndHow({
   settings,
-  onChange,
   pushOn,
 }: {
   settings: NotificationSettings;
-  onChange: (next: NotificationSettings) => void;
   pushOn: boolean;
 }) {
-  const { error, save } = useSave(settings, onChange);
+  const { error, save } = useSave();
   const quiet = settings.quietHours.on;
   return (
     <PageSection title="When and how">
@@ -435,7 +408,7 @@ function WhenAndHow({
                   ? "Turn off quiet hours: notifications come any time"
                   : "Turn on quiet hours: notifications wait until 8am"
               }
-              onToggle={(on) => void save({ ...settings, quietHours: { on } })}
+              onToggle={(on) => save({ ...settings, quietHours: { on } })}
             />
           }
         />
@@ -455,9 +428,7 @@ function WhenAndHow({
                   ? "Hold seat openings until 8am too"
                   : "Let seat openings through quiet hours"
               }
-              onToggle={(on) =>
-                void save({ ...settings, seatThroughQuiet: on })
-              }
+              onToggle={(on) => save({ ...settings, seatThroughQuiet: on })}
             />
           }
         />
@@ -474,7 +445,7 @@ function WhenAndHow({
                   ? "Keep who and what off your lock screen"
                   : "Show who wrote and what they said"
               }
-              onToggle={(on) => void save({ ...settings, showText: on })}
+              onToggle={(on) => save({ ...settings, showText: on })}
             />
           }
         />
@@ -692,58 +663,32 @@ function ThisDevice({
   );
 }
 
-function Devices({
-  devices,
-  onRemoveStart,
-  onRemoveEnd,
-}: {
-  devices: readonly PushDevice[];
-  onRemoveStart: (id: string) => void;
-  /** `removed`: the server heard; otherwise Undo, or it failed. */
-  onRemoveEnd: (id: string, removed: boolean) => void;
-}) {
+function Devices({ devices }: { devices: readonly PushDevice[] }) {
+  const removeDevice = useMutation(removeDeviceMutation());
   if (devices.length === 0) return null;
   // No confirmation (DESIGN §5): the row goes at once, and the server hears
-  // once Undo's toast is gone, or as the page closes.
+  // once Undo's toast is gone, or as the page closes (`removeDeviceMutation`).
   const remove = (device: PushDevice) => {
-    const name = device.label ?? "a device";
-    let settled = false;
-    const commit = (keepalive = false) => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener("pagehide", onHide);
-      // A closing page still sends it.
-      const fetcher: typeof fetch = (input, init) =>
-        fetch(input, { ...init, keepalive });
-      notificationsApi.remove({ id: device.id }, { fetcher }).then(
-        () => onRemoveEnd(device.id, true),
-        () => {
-          if (keepalive) return;
-          onRemoveEnd(device.id, false);
-          noteToast(
-            `Couldn't remove ${name}. Check your connection and try again.`,
-          );
-        },
-      );
-    };
-    const onHide = () => commit(true);
-    const undo = () => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener("pagehide", onHide);
-      onRemoveEnd(device.id, false);
-      dismissToast(toastId);
-    };
     const toastId = `push-remove-${device.id}`;
-    onRemoveStart(device.id);
+    // The first word counts: Undo, the toast going, or the page closing.
+    let decide: (decision: RemoveDecision) => void = () => {};
+    const decided = new Promise<RemoveDecision>((resolve) => {
+      decide = resolve;
+    });
+    const onHide = () => decide("closing");
     window.addEventListener("pagehide", onHide);
+    void decided.then(() => window.removeEventListener("pagehide", onHide));
+    removeDevice.mutate({ device, decided });
     undoToast({
       id: toastId,
-      message: `Removed ${name}`,
+      message: `Removed ${device.label ?? "a device"}`,
       description: "It won't get notifications anymore.",
       tooltip: "Put it back",
-      onUndo: undo,
-      onDone: () => commit(),
+      onUndo: () => {
+        decide("undo");
+        dismissToast(toastId);
+      },
+      onDone: () => decide("remove"),
     });
   };
 
