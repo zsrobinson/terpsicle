@@ -1,8 +1,9 @@
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
-import { CalendarDays, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppBar } from "~/components/app-bar";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { Mark } from "~/components/brand/mark";
 import { PanelNote } from "~/components/panel";
 import { SidebarResizeHandle } from "~/components/workbench/sidebar-resize";
@@ -321,8 +322,7 @@ function NoClasses({
         onClick: onFind,
       }}
       secondary={{
-        label: "View schedule",
-        icon: <CalendarDays aria-hidden="true" />,
+        label: <IntegrationLabel product="schedule" />,
         hint: "Add classes to a plan",
         to: SCHEDULE_PATH,
       }}

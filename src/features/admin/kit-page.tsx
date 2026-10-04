@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { Mark } from "~/components/brand/mark";
 import { PanelBody } from "~/components/panel";
 import { ADMIN_KIT_PATH } from "~/core/routing";
@@ -304,7 +305,7 @@ function PageParts() {
                   href="/schedule"
                   className="font-medium text-fg underline decoration-hairline-strong underline-offset-2"
                 >
-                  View schedule
+                  <IntegrationLabel product="schedule" />
                 </a>
               </>
             }
@@ -449,7 +450,10 @@ function PageParts() {
                 icon: <Search aria-hidden="true" />,
                 to: "/chat",
               }}
-              secondary={{ label: "View schedule", to: "/schedule" }}
+              secondary={{
+                label: <IntegrationLabel product="schedule" />,
+                to: "/schedule",
+              }}
             />
           </Demo>
           <Demo
@@ -507,6 +511,58 @@ function PageParts() {
             line="When ELMS lists an assignment or exam for one of your classes, it shows up here."
             primary={{ label: "Connect ELMS", to: "/todo/connect" }}
           />
+        </Demo>
+      </PageSection>
+
+      <PageSection title="Integration icons" aside="IntegrationLabel">
+        <Demo
+          className="flex flex-wrap items-center gap-6 p-4"
+          caption="Wherever one product shows up in another, its mark comes first, at 20px, in any control. The host keeps its look. Without words it says the product's View words."
+        >
+          <WithTooltip label="A link into another product">
+            <a
+              href="/schedule"
+              className="font-medium text-fg underline underline-offset-2 hover:no-underline"
+            >
+              <IntegrationLabel product="schedule" />
+            </a>
+          </WithTooltip>
+          <WithTooltip label="A button into another product">
+            <Button variant="outline" size="sm">
+              <IntegrationLabel product="chat">
+                Join CMSC351 chat
+              </IntegrationLabel>
+            </Button>
+          </WithTooltip>
+          <WithTooltip label="A quiet control that opens a piece of another product">
+            <button
+              type="button"
+              className="flex h-6 items-center rounded-md px-1.5 text-muted text-xs hover:bg-hover hover:text-fg"
+            >
+              <IntegrationLabel product="reviews">Reviews</IntegrationLabel>
+            </button>
+          </WithTooltip>
+          <WithTooltip label="View chat: talk with the people in CMSC216">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="View chat for CMSC216"
+            >
+              <IntegrationLabel product="chat" iconOnly />
+            </Button>
+          </WithTooltip>
+          <p className="text-muted">
+            Import your transcript in{" "}
+            <WithTooltip label="A link in a sentence keeps the line's baseline">
+              <a
+                href="/plan"
+                className="text-fg underline decoration-hairline-strong underline-offset-2"
+              >
+                <IntegrationLabel product="plan">Plan</IntegrationLabel>
+              </a>
+            </WithTooltip>
+            , and your classes show up here.
+          </p>
         </Demo>
       </PageSection>
 

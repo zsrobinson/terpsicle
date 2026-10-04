@@ -29,6 +29,9 @@ This file is the plan, and the checklist agents work from until it's met. It sit
 8. **The platform is the navigation.**
    - Every view someone can land on is a route. Its state is the URL, via `validateSearch`.
    - Navigation uses `Link`, with preloading. Nothing hand-syncs the URL (CLAUDE.md, the `framework-first` skill).
+9. **A product inside another wears its mark.**
+   - Wherever one product links into another or shows a piece of it, the control or section shows that product's mark: 20px, before its words, through the shared `IntegrationLabel` (`src/components/brand`; the owner, 2026-09-29: "i'd like us to include the component icon for something if there's an integration there, just to make it obvious").
+   - It's what tells you which product you're reaching into, the way the family bar's tabs do. The list of places and the exceptions: DESIGN.md §7.9.
 
 ## 2. The audit (2026-09-27)
 

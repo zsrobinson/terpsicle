@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Check, Eye, EyeOff } from "lucide-react";
 import type { CSSProperties } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelBody, SectionHeader } from "~/components/panel";
 import { EVERYONE_SLUG } from "~/core/chat/room-paths";
 import { courseColorTokens } from "~/core/color";
@@ -180,7 +180,7 @@ function CourseLine({
                   />
                 }
               >
-                <Mark id="chat" size={16} className="size-4" />
+                <IntegrationLabel product="chat" iconOnly />
               </Button>
             </WithTooltip>
           ) : null}

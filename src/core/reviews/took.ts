@@ -24,12 +24,21 @@ import { isNamedInstructor, isReviewableTerm, reviewedKey } from "./to-review";
 // plan alone (owner, 2026-09-29). Only terms that are over, or in their last
 // six weeks, and that the review form offers.
 
+/**
+ * Which product says you took a class: Schedule (a main plan in a term
+ * that's over) or Plan (the four-year plan's past terms). Where Reviews
+ * says so, it wears that product's mark (docs/DESIGN.md §7.9).
+ */
+export type TookFrom = "schedule" | "plan";
+
 /** A class you took: a course in a term, and who taught your section. */
 export interface ClassTaken {
   termId: TermId;
   course: CourseCode;
   /** Testudo's names on your section; empty when only the four-year plan says so. */
   instructors: string[];
+  /** Schedule when a main plan has it (it knows more), else Plan. */
+  from: TookFrom;
 }
 
 /** The plans Reviews reads from this device. */
@@ -57,9 +66,11 @@ export function classesTaken(
     termId: TermId,
     course: CourseCode,
     names: readonly string[],
+    from: TookFrom,
   ) => {
     const key = `${termId}:${course}`;
-    const entry = found.get(key) ?? { termId, course, instructors: [] };
+    const entry = found.get(key) ?? { termId, course, instructors: [], from };
+    if (from === "schedule") entry.from = from;
     for (const name of names)
       if (
         isNamedInstructor(name) &&
@@ -76,7 +87,7 @@ export function classesTaken(
   for (const termId of terms) {
     const plan = mainPlanFor(termId, plans, mainPlans);
     for (const c of plan?.courses ?? [])
-      add(termId, c.courseCode, c.snapshot?.instructors ?? []);
+      add(termId, c.courseCode, c.snapshot?.instructors ?? [], "schedule");
   }
   for (const entry of fourYear?.entries ?? [])
     if (
@@ -84,7 +95,7 @@ export function classesTaken(
       entry.term !== "before" &&
       counts(entry.term)
     )
-      add(entry.term, entry.code, []);
+      add(entry.term, entry.code, [], "plan");
   return [...found.values()].sort(
     (a, b) =>
       b.termId.localeCompare(a.termId) || a.course.localeCompare(b.course),
@@ -97,6 +108,7 @@ export interface TookHere {
   course: CourseCode;
   /** Testudo's name for them; null when your plans don't say. */
   instructor: string | null;
+  from: TookFrom;
 }
 
 /**
@@ -138,13 +150,24 @@ export function tookHere(
         open(c.course, n),
     );
     const [name] = names;
-    if (name) return { termId: c.termId, course: c.course, instructor: name };
+    if (name)
+      return {
+        termId: c.termId,
+        course: c.course,
+        instructor: name,
+        from: c.from,
+      };
     if (
       c.instructors.length === 0 &&
       !courseReviewed(c.course) &&
       (nameKey === null || page.taught?.has(c.course))
     )
-      return { termId: c.termId, course: c.course, instructor: null };
+      return {
+        termId: c.termId,
+        course: c.course,
+        instructor: null,
+        from: c.from,
+      };
   }
   return null;
 }
@@ -162,12 +185,22 @@ export function classesToReview(
   for (const c of taken) {
     if (c.instructors.length === 0) {
       if (![...reviewed].some((key) => key.startsWith(`${c.course}:`)))
-        out.push({ termId: c.termId, course: c.course, instructor: null });
+        out.push({
+          termId: c.termId,
+          course: c.course,
+          instructor: null,
+          from: c.from,
+        });
       continue;
     }
     for (const name of c.instructors)
       if (!reviewed.has(reviewedKey(c.course, name)))
-        out.push({ termId: c.termId, course: c.course, instructor: name });
+        out.push({
+          termId: c.termId,
+          course: c.course,
+          instructor: name,
+          from: c.from,
+        });
   }
   return out;
 }

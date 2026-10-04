@@ -15,7 +15,7 @@ import {
   useEffect,
   useId,
 } from "react";
-import { Mark } from "~/components/brand/mark";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelBody, PanelFooter, PanelNote } from "~/components/panel";
 import {
   appendInboxPage,
@@ -137,10 +137,10 @@ export function useMarkRead() {
 /** A row's product mark; admin items wear the umbrella. */
 function ProductMark({ product }: { product: InboxProduct }) {
   return (
-    <Mark
-      id={product === "admin" ? "umbrella" : product}
-      size={20}
-      className="mt-px size-5"
+    <IntegrationLabel
+      product={product === "admin" ? "umbrella" : product}
+      iconOnly
+      className="mt-px"
     />
   );
 }

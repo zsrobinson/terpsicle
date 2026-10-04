@@ -7,11 +7,13 @@ import {
   useId,
   useState,
 } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { termLabel } from "~/core/catalog/terms";
 import {
   type ClassTaken,
   classesTaken,
   reviewStanding,
+  type TookFrom,
   type TookHere,
 } from "~/core/reviews";
 import type { MyReview, TermId } from "~/core/schema";
@@ -69,6 +71,24 @@ export function useMineSettled(): boolean {
   const signedIn = useSignedIn();
   const status = useReviews((s) => s.mine.status);
   return signedIn === false || status === "ready" || status === "error";
+}
+
+/**
+ * Where Reviews learned you took a class, with that product's mark
+ * (docs/DESIGN.md §7.9): "From your schedule", "From your four-year plan".
+ */
+export function TookSource({
+  from,
+  className,
+}: {
+  from: TookFrom;
+  className?: string;
+}) {
+  return (
+    <IntegrationLabel product={from} className={className}>
+      {from === "schedule" ? "From your schedule" : "From your four-year plan"}
+    </IntegrationLabel>
+  );
 }
 
 export type ReviewBoxState =
@@ -215,6 +235,12 @@ export function ReviewBox({
       )}
     >
       <div className="flex min-w-0 flex-col gap-1">
+        {shown.kind === "took" ? (
+          <TookSource
+            from={shown.took.from}
+            className="mb-1 text-muted text-sm"
+          />
+        ) : null}
         <h2 id={id} className="emph-heading text-balance text-xl">
           {title}
         </h2>

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { ExternalLink, Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { addDays } from "~/core/ics/dates";
 import type { IsoDate, TodoItem } from "~/core/schema";
 import {
@@ -474,7 +475,7 @@ export function ScheduleLink({
         onClick={onClick}
         className="text-muted underline-offset-2 hover:text-fg hover:underline max-md:py-3"
       >
-        View schedule
+        <IntegrationLabel product="schedule" />
       </Link>
     </WithTooltip>
   );

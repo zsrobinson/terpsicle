@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ViewWords } from "~/components/brand/view-words";
+import { IntegrationLabel } from "~/components/brand/integration-label";
 import { termLabel } from "~/core/catalog/terms";
 import {
   missingFromPlan,
@@ -66,7 +66,7 @@ export function FourYearLine({ plan }: { plan: Plan }) {
             onClick={() => crossLinkClicked("schedule", "plan")}
             className="inline-flex min-h-11 items-center gap-1 text-muted underline underline-offset-2 hover:text-fg md:min-h-0"
           >
-            <ViewWords to="plan" />
+            <IntegrationLabel product="plan" />
           </Link>
         </WithTooltip>
       </p>

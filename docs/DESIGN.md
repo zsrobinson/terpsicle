@@ -268,6 +268,26 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
   - Its end is the same on every phone bar: status, Share, then the avatar, with the bell and Feedback in the account menu.
 - **The check.** `src/components/design-tokens.test.ts` fails on an `<h2>`–`<h6>` or `<legend>` off the ladder, and on a bold-but-muted label.
 
+### 7.9 Integration icons (owner, 2026-09-29)
+
+> "really throughout terpsicle, i'd like us to include the component icon for something if there's an integration there, just to make it obvious. make that a key design decision along with our others, like the hierarchy."
+
+**Wherever one product shows up in another, its mark does too.** A link into another product, a control that opens a piece of it, or a section that shows its data wears that product's mark, so you always know which product you're reaching into. It's a principle like the hierarchy (§7.8): it holds on every page, in both design languages.
+- **One component.** `IntegrationLabel` (`src/components/brand/integration-label.tsx`) draws the mark and the words together, and nothing else draws a product's mark beside words. With no words given, it writes the product's "View …" words ("View schedule", "View four-year plan"), which are written nowhere else.
+- **One size, one place.** The mark is 20px, the family bar's tab size and the smallest size at which a mark stays crisp (§7.5). It comes first, 6px before the words, centered on them, in buttons, links, menu items and headings alike. An icon-only control (Todo's chat link per course) is the mark alone, at the same size, with its own accessible name.
+- **The host keeps its look.** The label doesn't change a link's color or underline, or a button's variant; it only adds the mark. A filled button with a mark drops its line icon: one picture per control.
+- **Where:**
+  - Schedule's course details: an instructor's Reviews preview and its "View reviews", and "Join CMSC351 chat".
+  - Schedule's Courses tab and Generate: "View four-year plan" and "Generate from four-year plan".
+  - Plan: each semester's "View schedule" and "View todos", and a course's "View reviews".
+  - Todo: "View schedule" and each course's chat link.
+  - Chat: "Rooms from Plan A, your main plan" (Schedule's), and "View schedule" on its empty pages.
+  - Reviews: a course's or an instructor's "View schedule", "You took it" and your classes (from Schedule, or from Plan's transcript), and "Import your transcript in Plan".
+  - Home: each section's title and each callout. Home's "View …" links are the exception: the title beside them already wears the mark.
+  - The bell's rows and Settings' notification groups.
+- **Not integrations:** the family bar, the product menu and the tab bar (they're the navigation), a product's own empty states and first visits (their 40px mark is its own), and the marketing page (§8).
+- **The check.** `src/components/brand/integration-label.test.tsx` fails on a label without its mark, on "View …" words written outside it, on a feature drawing a product's mark at any size but its 40px hero, and on a link that counts a cross-product click (`crossLinkClicked`) from a file that doesn't use the label.
+
 ## 8. The marketing page (owner, 2026-09-28)
 
 After four prototype rounds the owner picked round 4's version B, "Guide", with its copy, and asked for the real page: "i definitely like the mockups of the scrolling schedule getting more things on top of it. i don't like the atom idea even one bit. i think we can have the above the fold thing just showing the plain schedule, and the "schedule" section "advertisting" that component shows the problems tab. i think it'd be nice if these thinks were at least a little interactive." The atom and the older tangle are gone (docs/decisions.md).
