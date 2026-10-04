@@ -121,7 +121,6 @@ function ScheduleBarPlaceholder() {
   const bar = (compact: boolean) => (
     <AppBar
       current="schedule"
-      crowdedBelow2xl
       compact={compact}
       feedback="schedule"
       pathname={SCHEDULE_PATH}

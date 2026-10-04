@@ -46,7 +46,6 @@ export function ReviewsFrame({
       <div className="sticky top-0 z-20 bg-bg">
         <SiteHeader
           borderOnScroll
-          collapseTabs
           context={search && !phone ? <BarSearch /> : undefined}
           status={search ? <PhoneSearchButton /> : undefined}
         />

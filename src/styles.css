@@ -158,6 +158,8 @@
  *                  98% and fade (tooltips fade only), on --ease-pop
  *   --dur-control  switches, segment fills, a tab's press, toasts
  *   --dur-tab      the product switch's cross-fade
+ *   --dur-reveal   a family-bar tab's name opening and closing, on
+ *                  --ease-sheet
  *   --dur-push     a push in, and --dur-pop-back its way back
  *   --dur-sheet    sheets and the workbench drawer's snaps (`duration-450`),
  *                  on --ease-sheet
@@ -172,6 +174,7 @@
   --dur-pop: 100ms;
   --dur-control: 150ms;
   --dur-tab: 150ms;
+  --dur-reveal: 250ms;
   --dur-push: 350ms;
   --dur-pop-back: 300ms;
   --dur-sheet: 450ms;

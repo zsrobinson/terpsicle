@@ -45,7 +45,8 @@ export function openFeedbackSheet(): void {
 /**
  * The button, in the scheduler's top bar and every product's header (not
  * on `/` or `/privacy`: `feedbackProduct` says where). An icon and
- * "Feedback" on desktop, the icon alone on phones. No router here, so the
+ * "Feedback" from 1100px, where the family bar has its tabs (the account
+ * cluster, ~/components/account-cluster), the icon alone narrower. No router here, so the
  * lazy parts share nothing with it (keeps the router in one chunk).
  */
 export function FeedbackButton({
@@ -53,7 +54,6 @@ export function FeedbackButton({
   pathname,
   compact = false,
   showButton = true,
-  labelFrom2xl = false,
 }: {
   product: FeedbackProduct;
   /** Where the admin's pins are looked up. */
@@ -61,8 +61,6 @@ export function FeedbackButton({
   compact?: boolean;
   /** False where a menu opens it instead (`openFeedbackSheet`). */
   showButton?: boolean;
-  /** Just the icon below 1536px, where a bar with a context needs the room. */
-  labelFrom2xl?: boolean;
 }) {
   const admin = useAccount((s) => s.user?.isAdmin === true);
   const mobile = useIsMobile();
@@ -104,16 +102,15 @@ export function FeedbackButton({
             }}
             className={cn(
               "flex shrink-0 items-center justify-center gap-1.5 rounded-md text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
-              iconOnly ? "size-8 max-[380px]:size-7" : "h-7 px-2",
-              !iconOnly && labelFrom2xl && "max-2xl:size-8 max-2xl:px-0",
+              iconOnly ? "size-8 max-[380px]:size-7" : "h-8 px-2",
+              // A tablet's bar gives its context the room.
+              !iconOnly && "max-[1100px]:size-8 max-[1100px]:px-0",
             )}
           >
             <MessageSquareText size={iconOnly ? 16 : 14} aria-hidden="true" />
-            {iconOnly ? null : labelFrom2xl ? (
+            {iconOnly ? null : (
               // Its name stays "Feedback" at every width.
-              <span className="max-2xl:sr-only">Feedback</span>
-            ) : (
-              "Feedback"
+              <span className="max-[1100px]:sr-only">Feedback</span>
             )}
           </button>
         </WithTooltip>
