@@ -221,7 +221,7 @@ export function Composer({
             mentions.open ? optionId(mentions.active) : undefined
           }
           // A phone's line sits in the middle of the 44px field, beside Send.
-          className="min-h-8 flex-1 resize-none max-md:min-h-11 max-md:py-[11px]"
+          className="min-h-8 flex-1 resize-none max-md:min-h-11 max-md:py-2 max-md:leading-6"
         />
         <WithTooltip label="Send" shortcut="↵">
           <Button size="icon" aria-label="Send" disabled={!text} onClick={send}>
