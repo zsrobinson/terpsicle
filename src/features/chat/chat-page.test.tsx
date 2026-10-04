@@ -7,6 +7,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -30,6 +31,7 @@ import {
 } from "~/core/schema";
 import {
   aChatAuthor,
+  aChatMessage,
   aCourse,
   aCourseIndexManifest,
   aCourseSearchFile,
@@ -58,10 +60,16 @@ import { connectPublished } from "~/state/query/published";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { FLAGS_OFF, useAccount } from "../auth/account-store";
-import type { ChatApi } from "./chat-data";
-import { setChatHomeDeps, useChatHome } from "./chat-home";
+import type { ChatApi } from "./chat-client";
+import {
+  chatQueryClient,
+  listLive,
+  setChatHomeDeps,
+  useChatHome,
+} from "./chat-home";
 import { ChatPage } from "./chat-page";
 import type { ChatView } from "./nav";
+import { chatUnreadQuery } from "./queries";
 
 const USER: MeUser = {
   id: "tstudent",
@@ -175,11 +183,9 @@ beforeEach(() => {
     status: "idle",
     terms: [],
     termId: null,
-    synced: { plans: [], settings: null },
     courses: new Map(),
-    unread: [],
-    latest: {},
-    latestSeq: {},
+    live: {},
+    viewing: null,
     follows: {},
     mutes: {},
   });
@@ -704,5 +710,111 @@ describe("ChatPage", () => {
     );
     await user.click(await screen.findByRole("button", { name: "Undo" }));
     expect(client.chat.follow).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ChatPage, live", () => {
+  const everyone = courseRoomId(fixtureTermId, "CMSC351");
+  const alex = aChatAuthor({ directoryId: "alexk", name: "Alex Kim" });
+  const rows = (everyoneSeq: number): ChatUnreadRoom[] => [
+    {
+      room: section0101,
+      courseCode: "CMSC351",
+      lastSeq: 5,
+      unread: 0,
+      lastMessageAt: FIXTURE_NOW,
+      muted: false,
+    },
+    {
+      room: everyone,
+      courseCode: "CMSC351",
+      lastSeq: everyoneSeq,
+      unread: 0,
+      lastMessageAt: FIXTURE_NOW,
+      muted: false,
+    },
+  ];
+  const newest: ChatLatestMessage[] = [
+    {
+      id: "msg_latest_01",
+      room: everyone,
+      author: alex,
+      text: "anyone get 3b?",
+      deleted: false,
+      createdAt: FIXTURE_NOW,
+    },
+  ];
+  const row = (id: string) =>
+    document.querySelector(`[data-room-row="${id}"]`) as HTMLElement;
+
+  it("moves a room's line and unread mark as its socket hears a message, without asking the server", async () => {
+    quietSockets();
+    signedIn();
+    const client = fakeClient(rows(2), newest);
+    // Section 0101 is open; the course's room for everyone isn't.
+    await page({ course: "CMSC351", room: "0101" });
+    const list = await screen.findByRole("list", { name: "Your classes" });
+    expect(await within(list).findByText("Alex: anyone get 3b?")).toBeVisible();
+    expect(row(everyone).querySelector("[data-unread-mark]")).toBeNull();
+    const asked = {
+      unread: client.chat.unread.mock.calls.length,
+      latest: client.chat.latest.mock.calls.length,
+    };
+
+    act(() =>
+      listLive.message(
+        aChatMessage({
+          id: "msg_live_0001",
+          room: everyone,
+          author: alex,
+          text: "exam moved to Thursday",
+          createdAt: "2027-02-01T15:00:00.000Z",
+        }),
+        true,
+        USER.id,
+      ),
+    );
+    await waitFor(() =>
+      expect(row(everyone)).toHaveTextContent("Alex: exam moved to Thursday"),
+    );
+    expect(row(everyone).querySelector("[data-unread-mark]")).not.toBeNull();
+    // The tab's title counts it too.
+    expect(document.title).toBe("(1) Chat · Terpsicle");
+    expect(client.chat.unread).toHaveBeenCalledTimes(asked.unread);
+    expect(client.chat.latest).toHaveBeenCalledTimes(asked.latest);
+  });
+
+  it("asks for a room's newest message again only when the counts say it moved and no socket said so", async () => {
+    quietSockets();
+    signedIn();
+    const client = fakeClient(rows(2), newest);
+    await page();
+    const list = await screen.findByRole("list", { name: "Your classes" });
+    expect(await within(list).findByText("Alex: anyone get 3b?")).toBeVisible();
+    expect(client.chat.latest).toHaveBeenCalledTimes(1);
+    const queries = chatQueryClient();
+    if (!queries) throw new Error("Chat's page connects its query client");
+    const poll = () =>
+      act(() =>
+        queries.refetchQueries({
+          queryKey: chatUnreadQuery(fixtureTermId).queryKey,
+        }),
+      );
+
+    // The course's socket is open: it would have said, so nothing's asked.
+    act(() => listLive.status("CMSC351", true));
+    client.chat.unread.mockResolvedValue({ rooms: rows(3) });
+    await poll();
+    expect(client.chat.latest).toHaveBeenCalledTimes(1);
+
+    // Without it, the moved room's course is asked once.
+    client.chat.latest.mockResolvedValue({
+      latest: [{ ...newest[0], id: "msg_latest_02", text: "it's on ELMS" }],
+    } as { latest: ChatLatestMessage[] });
+    act(() => listLive.status("CMSC351", false));
+    await waitFor(() => expect(client.chat.latest).toHaveBeenCalledTimes(2));
+    expect(await within(list).findByText("Alex: it's on ELMS")).toBeVisible();
+    await poll();
+    expect(client.chat.latest).toHaveBeenCalledTimes(2);
   });
 });

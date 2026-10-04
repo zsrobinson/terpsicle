@@ -13,6 +13,7 @@ import type { CourseCode } from "~/core/schema";
 import { DAY_LONG_NAMES, formatShortDate } from "~/core/time/format";
 import { DEFAULT_WEEK_START } from "~/core/todo/weeks";
 import { useAccount } from "~/features/auth/account-store";
+import { chatUnreadQuery } from "~/features/chat/queries";
 import { SitePage } from "~/features/site/site-page";
 import { PageHeader } from "~/ui/page-header";
 import { SplitLayout } from "~/ui/split-layout";
@@ -20,7 +21,6 @@ import { HomeCallout, useDismissedCallouts } from "./callouts";
 import { ChatSection } from "./chat-section";
 import { ComingUpSection } from "./coming-up-section";
 import { PlanSection } from "./plan-section";
-import { chatRoomsQuery } from "./queries";
 import { ReviewsSection } from "./reviews-section";
 import { ScheduleSection } from "./schedule-section";
 import { TodaySection } from "./today-section";
@@ -65,7 +65,9 @@ export function HomePage() {
   const todo = useHomeTodo(clock.today, todoOn);
   const chatTerm = tags.now ?? tags.next;
   const chatOn = signedIn && flags.chat !== "off" && chatTerm !== null;
-  const rooms = useQuery({ ...chatRoomsQuery(chatTerm), enabled: chatOn });
+  // Chat's own copy of the counts, asked for every minute while Home is on
+  // screen; a Chat page earlier in this visit already has it.
+  const rooms = useQuery({ ...chatUnreadQuery(chatTerm), enabled: chatOn });
   const dismissed = useDismissedCallouts();
 
   const nowPlan =

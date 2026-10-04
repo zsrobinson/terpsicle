@@ -1,18 +1,45 @@
-import { render, screen } from "@testing-library/react";
+import {
+  type QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Room } from "~/core/chat";
 import {
   type ChatMembersResult,
+  type ChatUnreadRoom,
   courseRoomId,
   sectionRoomId,
 } from "~/core/schema";
-import { aChatAuthor, fixtureTermId } from "~/fixtures";
+import {
+  aChatAuthor,
+  aChatMessage,
+  FIXTURE_NOW,
+  fixtureTermId,
+} from "~/fixtures";
 import { chatApi } from "~/server/fns/chat-api";
 import { createTestQueryClient } from "~/state/query/testing";
 import { TooltipProvider } from "~/ui/tooltip";
+import { type ChatApi, setChatClient } from "./chat-client";
+import {
+  connectChatData,
+  listLive,
+  useChatHome,
+  useChatSynced,
+  useChatUnread,
+} from "./chat-home";
 import { Composer } from "./composer";
-import { MEMBERS_STALE_MS, mentionable, roomMembersQuery } from "./queries";
+import {
+  chatSyncedQuery,
+  chatUnreadQuery,
+  MEMBERS_STALE_MS,
+  mentionable,
+  roomMembersQuery,
+  UNREAD_EVERY_MS,
+} from "./queries";
 
 // Who's in a room, read through the page's query client: one copy per
 // room, kept for a few minutes, shared by "@" and course details' count.
@@ -47,6 +74,7 @@ function membersApi() {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
+  setChatClient(null);
 });
 
 describe("roomMembersQuery", () => {
@@ -132,5 +160,83 @@ describe("@ in a room's composer", () => {
     openRoom(client);
     await typeAt("Hannah Lee");
     expect(members).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("chatUnreadQuery", () => {
+  const unreadRow: ChatUnreadRoom = {
+    room: everyone.id,
+    courseCode: "CMSC351",
+    lastSeq: 3,
+    unread: 1,
+    lastMessageAt: FIXTURE_NOW,
+    muted: false,
+  };
+
+  function withClient(client: QueryClient) {
+    return ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+  }
+
+  it("is one copy for Home and Chat, asked once a minute however many read it, which a socket's message changes for both", async () => {
+    vi.useFakeTimers();
+    const unread = vi.fn(async () => ({ rooms: [unreadRow] }));
+    setChatClient({ chat: { unread } } as unknown as ChatApi);
+    const client = createTestQueryClient();
+    connectChatData(client);
+    useChatHome.setState({ termId: fixtureTermId, viewing: null, live: {} });
+    const wrapper = withClient(client);
+    // Home's page asks; Chat's list and title read the same copy.
+    const home = renderHook(() => useQuery(chatUnreadQuery(fixtureTermId)), {
+      wrapper,
+    });
+    const chat = renderHook(() => useChatUnread(), { wrapper });
+    const title = renderHook(() => useChatUnread(), { wrapper });
+    await vi.waitFor(() => expect(home.result.current.data).toHaveLength(1));
+    expect(chat.result.current).toBe(home.result.current.data);
+    expect(title.result.current).toBe(home.result.current.data);
+    expect(unread).toHaveBeenCalledOnce();
+
+    await act(() => vi.advanceTimersByTimeAsync(UNREAD_EVERY_MS));
+    expect(unread).toHaveBeenCalledTimes(2);
+
+    act(() =>
+      listLive.message(
+        aChatMessage({ room: everyone.id, author: HANNAH }),
+        true,
+        YOU.directoryId,
+      ),
+    );
+    await vi.waitFor(() =>
+      expect(home.result.current.data?.[0]?.unread).toBe(2),
+    );
+    expect(chat.result.current[0]?.unread).toBe(2);
+    expect(unread).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("chatSyncedQuery", () => {
+  it("asks each time Chat's page opens, and never for the places that read it", async () => {
+    const pull = vi.fn(async () => ({
+      status: "ok" as const,
+      cursor: 1,
+      more: false,
+      docs: [],
+    }));
+    setChatClient({ sync: { pull } } as unknown as ChatApi);
+    const client = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const page = renderHook(() => useQuery(chatSyncedQuery()), { wrapper });
+    await vi.waitFor(() => expect(page.result.current.isSuccess).toBe(true));
+    renderHook(() => useChatSynced(), { wrapper });
+    expect(pull).toHaveBeenCalledOnce();
+    page.unmount();
+    // Back to Chat a moment later: what it had shows, and it asks again.
+    const again = renderHook(() => useQuery(chatSyncedQuery()), { wrapper });
+    expect(again.result.current.data).toEqual({ plans: [], settings: null });
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(2));
   });
 });
