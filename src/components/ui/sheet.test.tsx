@@ -30,11 +30,7 @@ function Harness({
         >
           <PageHeader
             size="panel"
-            title={
-              <SheetTitle asChild>
-                <span>Notifications</span>
-              </SheetTitle>
-            }
+            title={<SheetTitle render={<span />}>Notifications</SheetTitle>}
           />
           <p>Nothing new.</p>
           <label>
@@ -60,9 +56,7 @@ describe("Sheet", () => {
   it("is named by a heading that has an id of its own", async () => {
     render(
       <Sheet open onOpenChange={() => undefined}>
-        <SheetTitle asChild>
-          <span id="plans-title">Plans</span>
-        </SheetTitle>
+        <SheetTitle render={<span id="plans-title" />}>Plans</SheetTitle>
       </Sheet>,
     );
     expect(

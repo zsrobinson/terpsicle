@@ -91,7 +91,6 @@ export function FeedbackButton({
             aria-label={iconOnly ? "Send feedback" : undefined}
             aria-haspopup="dialog"
             aria-expanded={open}
-            data-state={open ? "open" : "closed"}
             data-testid="feedback-button"
             onPointerEnter={prefetch}
             onFocus={prefetch}
@@ -101,7 +100,7 @@ export function FeedbackButton({
               onOpenChange(!open);
             }}
             className={cn(
-              "flex shrink-0 items-center justify-center gap-1.5 rounded-md text-base text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-md text-base text-muted transition-colors hover:bg-hover hover:text-fg aria-expanded:bg-hover aria-expanded:text-fg",
               iconOnly ? "size-8 max-[380px]:size-7" : "h-8 px-2",
               // A tablet's bar gives its context the room.
               !iconOnly && "max-[1100px]:size-8 max-[1100px]:px-0",

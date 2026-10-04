@@ -1,7 +1,7 @@
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
-import * as React from "react";
+import type * as React from "react";
 import { HapticTap } from "./haptic";
 
 // shadcn/ui button in the Ink brand (docs/DESIGN.md §7): square, with a hard
@@ -49,11 +49,6 @@ type ButtonProps = React.ComponentProps<"button"> &
      */
     render?: React.ReactElement<Record<string, unknown>>;
     /**
-     * Draws the only child as the button instead (the Radix way). Kept for
-     * one wave while features move to `render`.
-     */
-    asChild?: boolean;
-    /**
      * A tick on iPhone when a finger presses it (`./haptic`). Off by
      * default: turn it on for a commit that changes the plan ("Add 0101",
      * "Switch"), never on ghost or link buttons.
@@ -66,33 +61,22 @@ function Button({
   variant,
   size,
   render,
-  asChild = false,
   haptic = false,
   children,
   ref,
   ...props
 }: ButtonProps) {
-  // `asChild` is `render` with the child's own children.
-  const child =
-    asChild && React.isValidElement<{ children?: React.ReactNode }>(children)
-      ? children
-      : undefined;
-  const content = child ? child.props.children : children;
   const inner = haptic ? (
     <>
-      {content}
+      {children}
       <HapticTap />
     </>
   ) : (
-    content
+    children
   );
-  // The element's own children would win the merge, so they're swapped for
-  // the ones with the overlay.
-  const element =
-    child && haptic ? React.cloneElement(child, {}, inner) : child;
   return useRender({
     defaultTagName: "button",
-    render: element ?? render,
+    render,
     ref,
     props: {
       "data-slot": "button",

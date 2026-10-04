@@ -3,11 +3,6 @@ import { cn } from "cn";
 import * as React from "react";
 import { Kbd } from "./kbd";
 import { POPUP_LAYER, POSITIONER } from "./popup";
-import {
-  type AsChild,
-  asChildRender,
-  radixPositionerProps,
-} from "./radix-compat";
 import { TooltipProvider } from "./tooltip-provider";
 
 // The kit's tooltip, on Base UI, in Ink: an inverted fg/bg chip that fades
@@ -18,18 +13,8 @@ function Tooltip(props: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root {...props} />;
 }
 
-function TooltipTrigger({
-  asChild,
-  children,
-  ...props
-}: TooltipPrimitive.Trigger.Props & AsChild) {
-  return (
-    <TooltipPrimitive.Trigger
-      data-slot="tooltip-trigger"
-      {...props}
-      {...asChildRender(asChild, children)}
-    />
-  );
+function TooltipTrigger(props: TooltipPrimitive.Trigger.Props) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
 function TooltipContent({
@@ -54,12 +39,11 @@ function TooltipContent({
         collisionPadding={collisionPadding}
         {...POSITIONER}
         className={POPUP_LAYER}
-        {...radixPositionerProps}
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
-          // Base UI leaves a tooltip unnamed; Radix's was a `tooltip` that
-          // described its trigger (WithTooltip), and screen readers read it.
+          // Base UI leaves a tooltip without a role; ours is a `tooltip` that
+          // describes its trigger (WithTooltip), and screen readers read it.
           role="tooltip"
           className={cn(
             "flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
@@ -193,7 +177,7 @@ function WithTooltip({
       {/* `data-tooltip`: e2e/tooltips.spec.ts finds controls without one. */}
       <TooltipTrigger
         data-tooltip=""
-        // Its words describe the control while they show, as on Radix.
+        // Its words describe the control while they show.
         aria-describedby={open ? id : undefined}
         onKeyDown={(e) => {
           if (isTyping(e)) setOpen(false);

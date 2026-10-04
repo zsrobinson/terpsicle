@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Button } from "./button";
 
 // Button on Base UI's useRender: the same classes and element as before,
-// with `render` for another element and `asChild` kept for one wave.
+// with `render` for another element.
 
 describe("Button", () => {
   it("is a button with its variant's classes, and forwards its ref", async () => {
@@ -26,12 +26,14 @@ describe("Button", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("draws its only child as the button with asChild, keeping both classes", () => {
+  it("draws its render element as the button, keeping both classes", () => {
     render(
-      <Button asChild size="lg" className="w-fit">
-        <a href="/reviews" className="ident">
-          Search reviews
-        </a>
+      <Button
+        size="lg"
+        className="w-fit"
+        render={<a href="/reviews" className="ident" />}
+      >
+        Search reviews
       </Button>,
     );
     const link = screen.getByRole("link", { name: "Search reviews" });
@@ -51,14 +53,12 @@ describe("Button", () => {
     expect(link).toHaveClass("text-muted");
   });
 
-  it("runs both the button's and the child's click handlers", async () => {
+  it("runs both the button's and the render element's click handlers", async () => {
     const outer = vi.fn();
     const inner = vi.fn((event: React.MouseEvent) => event.preventDefault());
     render(
-      <Button asChild onClick={outer}>
-        <a href="/plan" onClick={inner}>
-          Open Plan
-        </a>
+      <Button onClick={outer} render={<a href="/plan" onClick={inner} />}>
+        Open Plan
       </Button>,
     );
     await userEvent

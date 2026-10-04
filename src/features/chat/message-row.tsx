@@ -490,10 +490,10 @@ function ReactionPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <WithTooltip label="React">
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="React">
-            <SmilePlus />
-          </Button>
+        <PopoverTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label="React" />}
+        >
+          <SmilePlus />
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent align="end" className="flex w-auto gap-1 p-1">

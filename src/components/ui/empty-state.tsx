@@ -168,20 +168,32 @@ function ActionButton({
   return withHint(
     action,
     "href" in action ? (
-      <Button size="lg" asChild className={className}>
-        <a href={action.href} onClick={action.onClick} {...tabProps(action)}>
-          {content}
-        </a>
+      <Button
+        size="lg"
+        className={className}
+        render={
+          <a
+            href={action.href}
+            onClick={action.onClick}
+            {...tabProps(action)}
+          />
+        }
+      >
+        {content}
       </Button>
     ) : "onClick" in action ? (
       <Button size="lg" onClick={action.onClick} className={className}>
         {content}
       </Button>
     ) : (
-      <Button size="lg" asChild className={className}>
-        <Link to={action.to} search={action.search} params={action.params}>
-          {content}
-        </Link>
+      <Button
+        size="lg"
+        className={className}
+        render={
+          <Link to={action.to} search={action.search} params={action.params} />
+        }
+      >
+        {content}
       </Button>
     ),
   );

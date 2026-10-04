@@ -497,11 +497,9 @@ function CoursePickMenu({
   return (
     <DropdownMenu>
       <WithTooltip label="Pick the course they taught you">
-        <DropdownMenuTrigger asChild>
-          <Button size="lg">
-            Write a review
-            <ChevronDown aria-hidden="true" />
-          </Button>
+        <DropdownMenuTrigger render={<Button size="lg" />}>
+          Write a review
+          <ChevronDown aria-hidden="true" />
         </DropdownMenuTrigger>
       </WithTooltip>
       <DropdownMenuContent align="end" className="max-h-80">
@@ -510,7 +508,7 @@ function CoursePickMenu({
           <DropdownMenuItem
             key={c}
             className="ident"
-            onSelect={() =>
+            onClick={() =>
               void navigate({
                 to: "/reviews/$slug",
                 params: { slug: instructorSlug(id) },

@@ -232,7 +232,7 @@ export function TodoSyncButton({
   return (
     <Popover open={open} onOpenChange={openElmsSettings}>
       <WithTooltip label={tooltip} side="bottom">
-        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+        <PopoverTrigger render={trigger} />
       </WithTooltip>
       <PopoverContent
         side="bottom"

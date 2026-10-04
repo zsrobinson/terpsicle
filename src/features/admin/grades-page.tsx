@@ -258,13 +258,16 @@ function RequestText({ subject, body }: { subject: string; body: string }) {
           </Button>
         </WithTooltip>
         <WithTooltip label={`A new email to ${PIA_EMAIL}, filled in`}>
-          <Button variant="outline" asChild>
-            <a
-              href={`mailto:${PIA_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
-            >
-              <Mail aria-hidden="true" />
-              Open in email
-            </a>
+          <Button
+            variant="outline"
+            render={
+              <a
+                href={`mailto:${PIA_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+              />
+            }
+          >
+            <Mail aria-hidden="true" />
+            Open in email
           </Button>
         </WithTooltip>
       </div>

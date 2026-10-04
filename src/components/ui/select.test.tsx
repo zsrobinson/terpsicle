@@ -48,7 +48,7 @@ describe("Select", () => {
   it("shows the chosen item's label, not its value", () => {
     render(<Term />);
     expect(trigger()).toHaveTextContent("Fall 2026");
-    expect(trigger()).toHaveAttribute("data-state", "closed");
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
   });
 
   it("opens a list under the trigger and picks from it", async () => {
@@ -56,7 +56,7 @@ describe("Select", () => {
     const user = userEvent.setup();
     await user.click(trigger());
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    expect(trigger()).toHaveAttribute("data-state", "open");
+    expect(trigger()).toHaveAttribute("aria-expanded", "true");
     await user.click(screen.getByRole("option", { name: "Spring 2027" }));
     await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
     expect(trigger()).toHaveTextContent("Spring 2027");

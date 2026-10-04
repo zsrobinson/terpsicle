@@ -7,6 +7,7 @@ import {
   PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
+  pressedOn,
 } from "./popover";
 import { TooltipProvider, WithTooltip } from "./tooltip";
 
@@ -52,17 +53,15 @@ describe("PopoverContent", () => {
             Notifications
           </button>
           <button type="button">Elsewhere</button>
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover
+            open={open}
+            onOpenChange={(next, details) => {
+              if (pressedOn(bell, details)) details.cancel();
+              else setOpen(next);
+            }}
+          >
             <PopoverAnchor virtualRef={bell} />
-            <PopoverContent
-              aria-label="Inbox"
-              onInteractOutside={(event) => {
-                if (bell.current?.contains(event.target as Node))
-                  event.preventDefault();
-              }}
-            >
-              Nothing new.
-            </PopoverContent>
+            <PopoverContent aria-label="Inbox">Nothing new.</PopoverContent>
           </Popover>
         </>
       );
@@ -88,24 +87,35 @@ describe("PopoverContent", () => {
     );
   });
 
-  it("puts focus where onOpenAutoFocus does, when it prevents the default", async () => {
-    render(
-      <Popover defaultOpen>
-        <PopoverTrigger>New block</PopoverTrigger>
-        <PopoverContent
-          aria-label="New block"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            event.currentTarget?.querySelector("input")?.focus();
-          }}
-        >
-          <button type="button">Lunch</button>
-          <input aria-label="Label" />
-        </PopoverContent>
-      </Popover>,
-    );
+  it("puts focus where initialFocus says, not on the first button", async () => {
+    function NewBlock() {
+      const field = useRef<HTMLInputElement>(null);
+      return (
+        <Popover defaultOpen>
+          <PopoverTrigger>New block</PopoverTrigger>
+          <PopoverContent aria-label="New block" initialFocus={field}>
+            <button type="button">Lunch</button>
+            <input ref={field} aria-label="Label" />
+          </PopoverContent>
+        </Popover>
+      );
+    }
+    render(<NewBlock />);
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Label" })).toHaveFocus(),
     );
+  });
+
+  it("draws its anchor as the element its render prop gives", async () => {
+    render(
+      <Popover defaultOpen>
+        <PopoverAnchor render={<span data-testid="outline" />} />
+        <PopoverContent aria-label="New block">Lunch</PopoverContent>
+      </Popover>,
+    );
+    expect(screen.getByTestId("outline").tagName).toBe("SPAN");
+    expect(
+      await screen.findByRole("dialog", { name: "New block" }),
+    ).toBeInTheDocument();
   });
 });

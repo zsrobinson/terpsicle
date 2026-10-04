@@ -50,8 +50,9 @@ export const chipClass = (active: boolean) =>
     "flex h-6 shrink-0 items-center gap-px rounded-md border px-1 text-xs transition-colors",
     active
       ? "border-fg bg-fg text-bg hover:bg-fg/85"
-      : // Open: a popover's trigger says `data-state`, a menu's `data-popup-open`.
-        "border-hairline text-muted hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
+      : // Open: a popover's or a menu's trigger says `aria-expanded`; a menu's
+        // says `data-popup-open` too.
+        "border-hairline text-muted hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg aria-expanded:bg-hover aria-expanded:text-fg",
   );
 
 function toggle<T>(list: readonly T[], value: T): T[] {
