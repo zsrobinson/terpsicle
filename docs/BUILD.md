@@ -36,7 +36,7 @@ Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
 │ fetch                                                                                │
 │   static assets (the SPA, built by Vite)                                             │
 │   /data/*         → R2 objects, Cache API + ETags (manifest 60s, hashed files immutable)│
-│   server fns      reviewSummary · alerts.subscribe/confirm/unsubscribe  (createServerFn)│
+│   server fns      alerts.subscribe/confirm/unsubscribe  (createServerFn)              │
 │ scheduled (Cron Triggers)                                                             │
 │   (every job reads terms.json and loops over active terms; nothing names a term)      │
 │   */5 * * * *     seats: sections for every dept → seats.<hash>.json + changes.json   │
@@ -279,7 +279,7 @@ Each milestone ends green and deployed. The orchestrator checks the acceptance c
 - Live data vs. fixtures is one config flag.
 
 **M7: Backend features**
-- On-demand review summaries with Workers AI: generated on the first open, stored in R2, concurrent first requests coalesced, a daily generation cap, hidden on failure, the sparkles icon.
+- On-demand review summaries with Workers AI: generated on the first open, stored in R2, concurrent first requests coalesced, a daily generation cap, hidden on failure, the sparkles icon. (Removed 2026-09-29 by the owner.)
 - Seat alerts: D1, subscribe/confirm/unsubscribe with confirmation, dedupe, cron emails. Flagged until tested end to end.
 
 **M8: Polish and launch**
@@ -327,7 +327,7 @@ Cloudflare resources (all in place since M0, declared in `wrangler.jsonc`):
 - R2 bucket `terpsicle-data` (production and previews);
 - D1 database `terpsicle` (production) and `terpsicle-preview` (previews);
 - the cron triggers in §2;
-- the `AI` binding (Workers AI) for review summaries;
+- the `AI` binding (Workers AI) for moderation;
 - the `EMAIL` binding (Cloudflare Email Service) for seat alerts.
 
 `bitcamp.terpsicle.com` keeps serving v1 and must not be modified.

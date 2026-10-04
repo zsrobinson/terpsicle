@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { ViewWords } from "~/components/brand/view-words";
 import { termLabel } from "~/core/catalog/terms";
 import {
   missingFromPlan,
@@ -7,7 +8,7 @@ import {
 } from "~/core/four-year/handoff";
 import type { Plan } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
-import { crossLinkClicked, viewWords } from "~/lib/cross-link";
+import { crossLinkClicked } from "~/lib/cross-link";
 import {
   fourYearLinkDb,
   readFourYearColumn,
@@ -63,9 +64,9 @@ export function FourYearLine({ plan }: { plan: Plan }) {
             to="/plan"
             search={{ semester: termId }}
             onClick={() => crossLinkClicked("schedule", "plan")}
-            className="inline-flex min-h-11 items-center text-muted underline underline-offset-2 hover:text-fg md:min-h-0"
+            className="inline-flex min-h-11 items-center gap-1 text-muted underline underline-offset-2 hover:text-fg md:min-h-0"
           >
-            {viewWords("plan")}
+            <ViewWords to="plan" />
           </Link>
         </WithTooltip>
       </p>

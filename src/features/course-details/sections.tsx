@@ -49,12 +49,8 @@ import { TEXT, TONE_TEXT } from "~/lib/emphasis";
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
-import {
-  hasReviews,
-  InstructorLine,
-  InstructorMeta,
-  InstructorReviews,
-} from "./reviews";
+import { hasReviews, InstructorLine, InstructorMeta } from "./reviews";
+import { ReviewsPreviewButton } from "./reviews-preview";
 import { SeatBell } from "./seat-bell";
 import { SeatsFreshness } from "./seats-freshness";
 import {
@@ -291,24 +287,13 @@ function InstructorGroupRows({
                 ? `${inGroup} of ${sections.length} fit`
                 : sections.length}
             </span>
-            {instructor && hasReviews(planetTerp, instructor) ? (
-              <ReviewsToggle
-                name={instructor}
-                open={reviewsOpen}
-                onToggle={() => props.onToggleReviews(instructor)}
-              />
+            {instructor &&
+            (reviewsOpen || hasReviews(planetTerp, instructor)) ? (
+              <ReviewsButton {...props} name={instructor} open={reviewsOpen} />
             ) : null}
           </>
         }
       />
-      {reviewsOpen && instructor ? (
-        <InstructorReviews
-          name={instructor}
-          course={course}
-          planetTerp={planetTerp}
-          loading={props.ptLoading}
-        />
-      ) : null}
       {closed ? null : rows(props, sections)}
     </div>
   );
@@ -325,80 +310,47 @@ function GroupNote({
   const one = group.instructors.length === 1 ? group.name : null;
   const open = one !== null && props.openReviews.has(one);
   return (
-    <>
-      <div className="flex items-center gap-2 border-hairline border-b px-4 py-1.5 text-sm text-muted">
-        {group.name ? (
-          <InstructorLine
-            name={group.name}
-            course={props.course}
-            planetTerp={props.planetTerp}
-          />
-        ) : (
-          "Testudo hasn't named a professor for these sections yet."
-        )}
-        {one && hasReviews(props.planetTerp, one) ? (
-          <span className="ml-auto">
-            <ReviewsToggle
-              name={one}
-              open={open}
-              onToggle={() => props.onToggleReviews(one)}
-            />
-          </span>
-        ) : null}
-      </div>
-      {open && one ? (
-        <div className="border-hairline border-b">
-          <InstructorReviews
-            name={one}
-            course={props.course}
-            planetTerp={props.planetTerp}
-            loading={props.ptLoading}
-          />
-        </div>
+    <div className="flex items-center gap-2 border-hairline border-b px-4 py-1.5 text-sm text-muted">
+      {group.name ? (
+        <InstructorLine
+          name={group.name}
+          course={props.course}
+          planetTerp={props.planetTerp}
+        />
+      ) : (
+        "Testudo hasn't named a professor for these sections yet."
+      )}
+      {one && (open || hasReviews(props.planetTerp, one)) ? (
+        <span className="ml-auto">
+          <ReviewsButton {...props} name={one} open={open} />
+        </span>
       ) : null}
-    </>
+    </div>
   );
 }
 
 /**
- * Opens what students say under the header, in place: a disclosure, whose
- * tooltip says so, not a link. The way to every review is the View link
- * inside (QA S3). No chevron: the header's own is for its sections, and the
- * room it'd take is the GPA's.
+ * "Reviews", with Reviews' mark: a preview of what students say, over the
+ * list (a sheet on a phone), and the way to all of it (./reviews-preview).
  */
-function ReviewsToggle({
+function ReviewsButton({
   name,
   open,
-  onToggle: toggle,
-}: {
-  name: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const onToggle = () => {
-    if (!open) track("course_details_tab", { tab: "instructors" });
-    toggle();
-  };
+  ...props
+}: SectionsProps & { name: string; open: boolean }) {
   return (
-    <WithTooltip
-      label={
-        open
-          ? `Hide what students say about ${name}`
-          : `Show what students say about ${name} here`
-      }
-    >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className={cn(
-          "h-6 shrink-0 rounded-md px-1.5 text-xs transition-colors",
-          open ? "bg-hover text-fg" : "text-muted hover:bg-hover hover:text-fg",
-        )}
-      >
-        Reviews
-      </button>
-    </WithTooltip>
+    <ReviewsPreviewButton
+      name={name}
+      course={props.course}
+      planetTerp={props.planetTerp}
+      loading={props.ptLoading}
+      open={open}
+      onOpenChange={(next) => {
+        if (next === open) return;
+        if (next) track("course_details_tab", { tab: "instructors" });
+        props.onToggleReviews(name);
+      }}
+    />
   );
 }
 

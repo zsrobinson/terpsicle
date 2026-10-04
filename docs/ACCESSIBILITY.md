@@ -10,7 +10,7 @@ Terpsicle targets **WCAG 2.2 AA** on desktop and phone, in both themes. This pag
 - **Lists:** courses, search results (a listbox), each group of sections in course details, problems, connections, generated plans and the registration checklist.
 - **Names that say which one.** In a list of 92 sections, each button says its section: "Add 0101", "Switch to 0205", "Get an email when a seat opens, ENGL101 0205". Each name starts with the words on screen, so voice control works (WCAG 2.5.3).
 - **States:** `aria-pressed` on the rail tabs, filter chips and day toggles; `aria-expanded` on groups and disclosures; `aria-current` on the open plan, the current section and the open drill-in's name beside Back; `aria-selected` on the highlighted search result.
-- **Decorative icons are hidden.** The one meaningful icon is the sparkles on an LLM review summary, named "AI summary".
+- **Decorative icons are hidden.** A product's mark on a control that opens that product's part (Reviews' on the scheduler's "Reviews" button) is decorative too: the control's words name it.
 - **The page title says where you are:** "Plan A · Spring 2027 · Terpsicle", or "CMSC351 · Terpsicle" while a drill-in is open (WCAG 2.4.2).
 - `lang="en"` on the page.
 

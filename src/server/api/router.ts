@@ -35,7 +35,6 @@ import { NOTIFICATIONS_ROUTES } from "../notifications/api-routes";
 import { EMAIL_OFF_ROUTE, handleEmailOff } from "../notifications/email-off";
 import { PUSH_ROUTES } from "../push/api-routes";
 import { REVIEWS_ROUTES } from "../reviews/api-routes";
-import { SUMMARY_ROUTES } from "../summaries/api-routes";
 import { SYNC_ROUTES } from "../sync/api-routes";
 import { TODO_ROUTES } from "../todo/api-routes";
 import {
@@ -71,7 +70,6 @@ export interface ApiOptions {
  * table quietly replace an earlier one's route.
  */
 export const ROUTE_TABLES = {
-  summaries: SUMMARY_ROUTES,
   alerts: ALERTS_ROUTES,
   auth: AUTH_ROUTES,
   sync: SYNC_ROUTES,
@@ -88,7 +86,6 @@ export const ROUTE_TABLES = {
 
 /** Every route, by the name after /api/. */
 export const ROUTES = {
-  ...SUMMARY_ROUTES,
   ...ALERTS_ROUTES,
   ...AUTH_ROUTES,
   ...SYNC_ROUTES,

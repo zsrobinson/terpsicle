@@ -5,7 +5,12 @@
 import type { PageRequestContext, PublishedFiles } from "~/core/routing";
 import { FeatureVarsSchema } from "~/core/schema";
 import { r2Json } from "../published";
-import { pageReviews, reviewsServerData } from "../reviews/public";
+import {
+  latestReviews,
+  pageReviews,
+  reviewsServerData,
+} from "../reviews/public";
+import { planetTerpStats } from "../reviews/stats";
 
 /**
  * Content-hashed files never change, so an isolate keeps the newest few,
@@ -46,9 +51,12 @@ export function pageContext(
   env: Pick<Env, "DATA" | "DB" | "REVIEWS_ENABLED">,
 ): PageRequestContext {
   const reviews = FeatureVarsSchema.parse(env).REVIEWS_ENABLED;
+  const published = r2PublishedFiles(env.DATA);
   return {
-    published: r2PublishedFiles(env.DATA),
+    published,
     reviews: reviews === "off" ? null : reviewsServerData(env.DB),
     pageReviews: (input) => pageReviews(env, input),
+    latestReviews: (limit) => latestReviews(env, { limit }),
+    planetTerpTotals: () => planetTerpStats(published),
   };
 }

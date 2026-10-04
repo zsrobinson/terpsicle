@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { aPageReview, aPlanetTerpReview } from "~/fixtures";
 import { mergeReviews } from "./merge";
 
-const ours = (id: string, createdMonth: string) =>
-  aPageReview({ id: `rv${id.padStart(20, "0")}`, createdMonth });
-const theirs = (id: string, createdMonth: string) =>
-  aPlanetTerpReview({ id: id.padStart(16, "0"), createdMonth });
+const ours = (id: string, createdMonth: string, rating = 4) =>
+  aPageReview({ id: `rv${id.padStart(20, "0")}`, createdMonth, rating });
+const theirs = (id: string, createdMonth: string, rating = 4) =>
+  aPlanetTerpReview({ id: id.padStart(16, "0"), createdMonth, rating });
 
 const order = (list: ReturnType<typeof mergeReviews>) =>
   list.map(
@@ -41,5 +41,34 @@ describe("mergeReviews", () => {
     expect(order(mergeReviews([ours("1", "2023-02")], [], false))).toEqual([
       "T2023-02",
     ]);
+  });
+
+  it("orders by rating, highest or lowest, newest first within a rating", () => {
+    const mine = [ours("1", "2026-09", 4.5), ours("2", "2025-01", 2)];
+    const pt = [
+      theirs("a", "2026-01", 5),
+      theirs("b", "2025-11", 2),
+      theirs("c", "2024-03", 1),
+    ];
+    const rated = (list: ReturnType<typeof mergeReviews>) =>
+      list.map((r) => `${r.review.rating}:${r.review.createdMonth}`);
+    expect(rated(mergeReviews(mine, pt, true, "highest"))).toEqual([
+      "5:2026-01",
+      "4.5:2026-09",
+      "2:2025-11",
+      "2:2025-01",
+      "1:2024-03",
+    ]);
+    expect(rated(mergeReviews(mine, pt, true, "lowest"))).toEqual([
+      "1:2024-03",
+      "2:2025-11",
+      "2:2025-01",
+      "4.5:2026-09",
+      "5:2026-01",
+    ]);
+    // Oldest first; ours after the last PlanetTerp page loaded wait.
+    expect(
+      order(mergeReviews(mine, pt.slice(0, 1).reverse(), false, "oldest")),
+    ).toEqual(["T2025-01", "P2026-01"]);
   });
 });

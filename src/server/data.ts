@@ -15,7 +15,7 @@ const CONTENT_TYPES: Record<string, string> = {
  *
  * - Which keys are served, and how long browsers and the edge keep them, is
  *   `dataCachePolicy` in `~/core/schema`: one source of truth. Everything
- *   else (`_jobs/`, `summaries/`) is a 404.
+ *   else (`_jobs/`, and `summaries/` from before Reviews dropped its AI) is a 404.
  * - Whole-file responses go through the Cache API (keyed on the path,
  *   ignoring the query string, so cache-busting params can't bypass it) and
  *   carry the R2 ETag, so clients revalidate with If-None-Match and get a

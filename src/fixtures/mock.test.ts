@@ -17,7 +17,6 @@ import {
   PlanetTerpIndexSchema,
   PlanetTerpManifestSchema,
   PlanSchema,
-  ReviewSummarySchema,
   ReviewsDeptSchema,
   ReviewsManifestSchema,
   ROUTES_HEADER_BYTES,
@@ -100,7 +99,6 @@ describe("the mock bucket", () => {
         PlanetTerpDeptSchema,
       ],
       [/^planetterp\/index\.[0-9a-f]{16}\.json$/, PlanetTerpIndexSchema],
-      [/^summaries\/.+\.json$/, ReviewSummarySchema],
       [/^geo\/manifest\.json$/, GeoManifestSchema],
       [/^geo\/buildings\.[0-9a-f]{16}\.json$/, BuildingsFileSchema],
       [

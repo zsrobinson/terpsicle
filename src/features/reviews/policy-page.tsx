@@ -11,11 +11,7 @@ export function ReviewsPolicyPage() {
   const policy = MODERATION_POLICY.review;
   return (
     <ReviewsFrame>
-      <PageHeader
-        back={{ label: "Reviews", to: "/reviews" }}
-        title={policy.title}
-        status={policy.intro}
-      />
+      <PageHeader title={policy.title} status={policy.intro} />
       {policy.sections.map((section) => (
         <PageSection key={section.heading} title={section.heading}>
           <ul className="list-disc space-y-1 pl-6 text-muted leading-relaxed">

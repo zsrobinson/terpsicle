@@ -53,6 +53,8 @@
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
+  --color-star: var(--star);
+  --color-star-line: var(--star-line);
   --color-error: var(--error);
   --color-error-soft: var(--error-soft);
   --color-shared: var(--shared);
@@ -279,6 +281,12 @@
   --ok-soft: #edeecf; /* green-50 */
   --warn: #664d01; /* yellow-800 */
   --warn-soft: #faeec6; /* yellow-50 */
+  /*
+   * Stars: a gold fill, with a line dark enough to hold the shape on paper
+   * (yellow-600 is 3.4:1 on bg, over 1.4.11's 3:1; the fill alone is 2.3:1).
+   */
+  --star: #d0a215; /* yellow-400 */
+  --star-line: #ad8301; /* yellow-600 */
   --error: #af3029; /* red-600 */
   --error-soft: #ffe1d5; /* red-50 */
   /* The shared-link pill: the owner asked for a light red there. */
@@ -375,6 +383,8 @@
   --ok-soft: #252d09; /* green-900 */
   --warn: #dfb431; /* yellow-300 */
   --warn-soft: #3a2d04; /* yellow-900 */
+  --star: #dfb431; /* yellow-300 */
+  --star-line: #dfb431; /* yellow-300 */
   --error: #e8705f; /* red-300 */
   --error-soft: #3e1715; /* red-900 */
   --shared: #e8705f; /* red-300 */

@@ -1,9 +1,9 @@
-import { Star } from "lucide-react";
 import {
   type CombinedRating,
   combinedRatingWords,
   formatStars,
 } from "~/core/reviews";
+import { StarMark } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 
 // Ratings on the Reviews pages. The combined number (V2 §7.6) always carries
@@ -21,7 +21,7 @@ export function CombinedRatingBadge({
   return (
     <WithTooltip label={words}>
       <span className="tnum inline-flex items-center gap-1 text-muted">
-        <Star size={11} aria-hidden="true" className="fill-current text-warn" />
+        <StarMark />
         <span className="sr-only">{words}</span>
         <span aria-hidden="true">
           <span className="text-fg">{formatStars(combined.rating)}</span> (
@@ -32,31 +32,5 @@ export function CombinedRatingBadge({
   );
 }
 
-/** Five stars, `rating` of them filled, for one review. */
-export function Stars({
-  rating,
-  size = 12,
-}: {
-  rating: number;
-  /** 12 in a row; 14 over a review's words; 22 beside the big number. */
-  size?: number;
-}) {
-  return (
-    <span
-      role="img"
-      aria-label={`${rating} of 5 stars`}
-      className="inline-flex items-center gap-0.5"
-    >
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star
-          key={n}
-          size={size}
-          aria-hidden="true"
-          className={
-            n <= rating ? "fill-current text-warn" : "text-hairline-strong"
-          }
-        />
-      ))}
-    </span>
-  );
-}
+/** Five stars, filled to the rating: the kit's, for one review or the big number. */
+export { Stars } from "~/ui/stars";

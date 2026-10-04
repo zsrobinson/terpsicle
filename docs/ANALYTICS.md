@@ -62,8 +62,6 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `search_result_opened` | `position` | Whether ranking works: most opens should be in the first few results. |
   | `course_details_tab` | `tab` | What people open on the course details page (one page, no tabs, since the UX review; the name stays for continuity): `instructors` for a group's Reviews, `grades` for "Grades ↓", `about` for "More about this course". |
   | `course_added` | `via`: `details` · `ghost` | Where courses get into plans: course details' list, or a ghost on the calendar. |
-  | `review_summary_viewed` | `state`: `shown` · `unavailable` | How often a review summary is there to show (it's hidden otherwise). |
-  | `ai_features_changed` | `on`, `via`: `box` · `settings` | How many people turn AI features off, and from where: an AI box's ⋯ menu (and its Undo) or Settings. Never who, or which summary. |
 
   | `signin_started` | `from`: `topbar` · `settings` · `signin-page` · `undo` · `reviews` · `chat` · `todo` · `seat-watch` · `home` | Where people decide to sign in (the front door's pull), and how often Undo after deleting an account is used. `reviews`: from writing or reporting a review. `chat`: from signed-out `/chat`. `todo`: from signed-out `/todo` or `/todo/connect`. `home`: from signed-out Home. |
   | `signin_completed` | `firstOnDevice` | Sign-ins that finished, and how many are a device's first (the future first-sign-in merge and install prompt). Sent after `?signed-in=1`. |
@@ -124,10 +122,6 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   |---|---|---|
   | `cron_job_finished` | `job`, `durationMs` (wall time), `counts` (what the run did: departments written, sections, changes, grade requests, …), `errorCount`, `firstError` | Jobs that run long, do nothing, or keep recovering from the same error. |
   | `cron_job_failed` | `job`, `durationMs`, `error`; when a source answered with data we won't publish (PlanetTerp's list came back empty or more than 10% short, DATA.md §4.1), also `firstError` (the specific reason) and `counts` (what this run saw against the last good run) | Runs that gave up (Cloudflare marks the cron failed too), and sources that are breaking while the last good data stays up. |
-  | `summary_generated` | `model`, `durationMs`, `reviews`, `attempts` | Workers AI cost and latency; how often the first answer fails validation. |
-  | `summary_cached` | `ageDays` | How often summaries come from R2, and how old they get. |
-  | `summary_failed` | `reason` (`model-output`, `model-error`, `planetterp`, `storage`; `unsafe` when Llama Guard flags the summary, `guard-error` when the check itself failed) | Which dependency fails. |
-  | `summary_capped` | `cap` | Whether the daily cap is too low. |
   | `alert_watched` | `termId` | New seat watches. |
   | `alert_sent` | `termId`, `count` | Alert volume per seats run. |
   | `alert_unwatched` | `termId`, `via` (`app`, `email`) | Whether alerts are wanted, and how often the email's one-click stop is used. |

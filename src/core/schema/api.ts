@@ -1,6 +1,4 @@
 import { z } from "zod";
-import { ReviewSummarySchema } from "./planetterp";
-import { CourseCodeSchema, InstructorSlugSchema } from "./primitives";
 
 // The JSON API under /api/* (inputs, results, errors). Inputs are strict:
 // they come from the network. Flow and SQL: docs/DATA.md §7.
@@ -31,37 +29,3 @@ export const ApiErrorSchema = z.object({
   retryAfterSeconds: z.number().int().min(1).optional(),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
-
-// ---------- POST /api/review-summary ----------
-
-export const ReviewSummaryInputSchema = z.strictObject({
-  slug: InstructorSlugSchema,
-  /**
-   * The course being viewed. Its department's PlanetTerp file holds the
-   * instructor's review count, which decides whether a cached summary is
-   * stale. The summary itself covers every course.
-   */
-  course: CourseCodeSchema,
-});
-export type ReviewSummaryInput = z.infer<typeof ReviewSummaryInputSchema>;
-
-/** On "unavailable" the UI hides the summary entirely (SPEC §4). */
-export const ReviewSummaryResultSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("ok"), summary: ReviewSummarySchema }),
-  z.object({
-    status: z.literal("unavailable"),
-    reason: z.enum([
-      /** The instructor has no reviews. */
-      "no-reviews",
-      /** Not in the department's PlanetTerp data (or it isn't published yet). */
-      "unknown-instructor",
-      /** Today's generation cap is spent. */
-      "daily-limit",
-      /** Another request is generating it; ask again in a few seconds. */
-      "busy",
-      /** The model or PlanetTerp failed, or the output didn't validate twice. */
-      "failed",
-    ]),
-  }),
-]);
-export type ReviewSummaryResult = z.infer<typeof ReviewSummaryResultSchema>;

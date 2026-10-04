@@ -141,6 +141,12 @@ export function formatShortDate(date: IsoDate): string {
   return `${MONTHS[(m ?? 1) - 1] ?? ""} ${d ?? ""}`;
 }
 
+/** "Sep 14, 2024": a day, in full. */
+export function formatFullDate(date: IsoDate): string {
+  const [y] = date.split("-");
+  return `${formatShortDate(date)}, ${y ?? ""}`;
+}
+
 /** "Apr 2026", from an ISO date or date-time (its UTC month: close enough for "since"). */
 export function formatMonthYear(iso: string): string {
   const [y, m] = iso.split("-").map(Number);

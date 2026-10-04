@@ -1,3 +1,4 @@
+import { courseOfferings } from "~/core/history";
 import {
   type CoursePageData,
   courseFromSlug,
@@ -10,8 +11,11 @@ import {
   instructorSlug,
   matchCourses,
   matchInstructors,
-  type RecentReview,
+  mergeReviews,
+  type ShownReview,
   type Suggestion,
+  type TaughtOnlyPageData,
+  taughtOnlyPageData,
 } from "~/core/reviews";
 import type { PageRequestContext } from "~/core/routing";
 import {
@@ -22,17 +26,22 @@ import {
   type InstructorId,
   InstructorIdSchema,
   instructorNameKey,
+  type LatestReviews,
   MintedInstructorIdSchema,
   type PageReviews,
   type PlanetTerpDept,
   type PlanetTerpIndex,
+  type PlanetTerpTotals,
+  type ReviewSort,
+  type TermId,
 } from "~/core/schema";
 import { suggestCourses, suggestInstructors } from "~/core/seo";
+import { clientConfig } from "~/lib/config";
 import {
   loadCourseEntry,
   loadCourseSearch,
   loadCurrentCourse,
-  loadCurrentTerm,
+  loadHistoryDept,
   loadOurNumbers,
   loadPlanetTerp,
   loadPlanetTerpIndex,
@@ -65,21 +74,25 @@ export async function loadCoursePage(
 ): Promise<CoursePageData | null> {
   const reader = await readerFor(serverContext);
   const dept = code.slice(0, 4);
-  const [entry, current, planetTerp, terpsicle] = await Promise.all([
+  const [entry, current, planetTerp, terpsicle, history] = await Promise.all([
     loadCourseEntry(reader, code),
     loadCurrentCourse(reader, code),
     loadPlanetTerp(reader, dept),
     reader.reviews?.courseNumbers(code) ?? null,
+    // Without it, "Who taught it" falls back to PlanetTerp's newest terms.
+    loadHistoryDept(reader, dept).catch(() => null),
   ]);
+  const offerings = courseOfferings(history, code);
   const ids = Object.keys(
     planetTerp.dept?.courses[code]?.byInstructor ?? {},
   ).concat(
-    (current?.course?.sections ?? []).flatMap((s) =>
-      s.instructors.flatMap((name) => {
-        const id = planetTerp.dept?.names[instructorNameKey(name)];
-        return id ? [id] : [];
-      }),
-    ),
+    [
+      ...(current?.course?.sections ?? []).flatMap((s) => s.instructors),
+      ...offerings.flatMap((o) => o.instructors),
+    ].flatMap((name) => {
+      const id = planetTerp.dept?.names[instructorNameKey(name)];
+      return id ? [id] : [];
+    }),
   );
   const ourNumbers = await loadOurNumbers(reader, [...new Set(ids)], [dept]);
   return coursePageData({
@@ -90,6 +103,7 @@ export async function loadCoursePage(
     gradesThrough: planetTerp.gradesThrough,
     source: planetTerp.source,
     terpsicle,
+    offerings,
     ourNumbers,
   });
 }
@@ -201,7 +215,9 @@ export type ReviewsPageData =
       kind: "instructor";
       instructor: InstructorPageData;
       reviews: PageReviews;
-    };
+    }
+  /** Someone only the history knows, reached from a course's page. */
+  | { kind: "taught"; taught: TaughtOnlyPageData };
 
 export type ReviewsPageLoad =
   | ReviewsPageData
@@ -218,6 +234,7 @@ export async function loadReviewsPage(
   slug: string,
   course: string | undefined,
   serverContext?: PageRequestContext,
+  sort: ReviewSort = "latest",
 ): Promise<ReviewsPageLoad> {
   const code = courseFromSlug(slug);
   if (code) {
@@ -226,7 +243,7 @@ export async function loadReviewsPage(
     const [data, reviews] = await Promise.all([
       loadCoursePage(code, serverContext),
       readerFor(serverContext).then((r) =>
-        r.pageReviews({ instructorId: null, course: code }),
+        r.pageReviews({ instructorId: null, course: code, sort }),
       ),
     ]);
     return data
@@ -238,15 +255,41 @@ export async function loadReviewsPage(
   if (instructorSlug(id) !== slug)
     return { kind: "moved", slug: instructorSlug(id) };
   const courseCode = course ? parseCourseParam(course) : null;
-  const [data, reviews] = await Promise.all([
+  const reader = await readerFor(serverContext);
+  const [data, first] = await Promise.all([
     loadInstructorPage(id, course, serverContext),
-    readerFor(serverContext).then((r) =>
-      r.pageReviews({ instructorId: id, course: courseCode }),
-    ),
+    reader.pageReviews({ instructorId: id, course: courseCode, sort }),
   ]);
-  return data
-    ? { kind: "instructor", instructor: data, reviews }
-    : { kind: "missing", what: "instructor" };
+  // PlanetTerp doesn't know them: someone the course's history names.
+  if ((!data || data.name === null) && courseCode) {
+    const history = await loadHistoryDept(reader, courseCode.slice(0, 4)).catch(
+      () => null,
+    );
+    const taught = taughtOnlyPageData(history, courseCode, slug);
+    if (taught) return { kind: "taught", taught };
+  }
+  if (!data) return { kind: "missing", what: "instructor" };
+  // PlanetTerp has reviews of them that the nightly job hasn't stored yet
+  // (it stores a share a night): ask again with their name, and the server
+  // fetches them from PlanetTerp once (owner, 2026-09-29: Magdalene
+  // Ngeve's page showed none).
+  // Fixtures' names aren't PlanetTerp's, and e2e stays offline.
+  const reviews =
+    clientConfig.dataSource === "live" &&
+    first.planetTerp.length === 0 &&
+    !courseCode &&
+    data.name &&
+    (data.planetTerp?.reviewCount ?? 0) > 0
+      ? await reader
+          .pageReviews({
+            instructorId: id,
+            course: null,
+            planetTerpName: data.name,
+            sort,
+          })
+          .catch(() => first)
+      : first;
+  return { kind: "instructor", instructor: data, reviews };
 }
 
 /** The instructor an address names; null when it can't be anyone. */
@@ -273,14 +316,16 @@ async function resolveInstructor(
 export const SEARCH_RESULTS = 8;
 
 export interface ReviewsHomeData {
-  /** The term the scheduler would open. */
-  term: { id: string; name: string } | null;
-  departments: { code: DeptCode; name: string; courseCount: number }[];
   /** [code, title, students], offered now. */
   mostTaken: [CourseCode, string, number][];
   /** [id, name, reviews, rating]: the professors most reviewed on PlanetTerp. */
   mostReviewed: PlanetTerpIndex["mostReviewed"];
-  recent: RecentReview[];
+  /** The newest reviews anywhere, ours and PlanetTerp's, newest first. */
+  latest: LatestReview[];
+  /** What PlanetTerp's data holds in all; null before it's published. */
+  totals: PlanetTerpTotals | null;
+  /** Newest semester in PlanetTerp's grades. */
+  gradesThrough: TermId | null;
   /** `?q=`'s matches, so the server's HTML lists them. */
   results: SearchResults;
 }
@@ -293,8 +338,15 @@ export interface SearchResults {
 
 export const NO_RESULTS: SearchResults = { instructors: [], courses: [] };
 
-/** Pairs the home page lists under "Recently reviewed". */
-const RECENT_SHOWN = 8;
+/** Reviews the home page lists under "Recent reviews". */
+export const LATEST_SHOWN = 6;
+
+/** One of "Recent reviews", with who it's about. */
+export interface LatestReview {
+  shown: ShownReview;
+  /** Null when neither the registry nor PlanetTerp's index names them. */
+  instructorName: string | null;
+}
 
 /** A department code on its own: browse all of it. */
 export function isDeptQuery(q: string): boolean {
@@ -312,10 +364,12 @@ export function searchResults(
     instructors:
       isDeptQuery(q) && found.length > 0
         ? []
-        : matchInstructors(index?.instructors ?? {}, q).slice(
-            0,
-            SEARCH_RESULTS,
-          ),
+        : matchInstructors(
+            index?.instructors ?? {},
+            q,
+            // An index from before it carried every count still has these.
+            new Map(index?.mostReviewed.map(([slug, , n]) => [slug, n])),
+          ).slice(0, SEARCH_RESULTS),
     courses: isDeptQuery(q) ? found : found.slice(0, SEARCH_RESULTS),
   };
 }
@@ -325,43 +379,65 @@ export async function loadReviewsHome(
   serverContext?: PageRequestContext,
 ): Promise<ReviewsHomeData> {
   const reader = await readerFor(serverContext);
-  const [current, index, recent, rows] = await Promise.all([
-    loadCurrentTerm(reader).catch(() => null),
+  const [index, latest, planetTerp, rows] = await Promise.all([
     loadPlanetTerpIndex(reader).catch(() => null),
-    loadRecent(reader, serverContext),
+    loadLatest(reader, serverContext),
+    loadPlanetTerp(reader, "").catch(() => null),
     q?.trim() ? loadCourseSearch(reader).catch(() => []) : [],
   ]);
+  // An index from before it counted them: the server counts the files.
+  const totals =
+    index?.totals ??
+    (await loadTotals(reader, serverContext).catch(() => null));
   return {
-    term: current ? { id: current.term.id, name: current.term.name } : null,
-    departments: (current?.manifest.departments ?? []).map((d) => ({
-      code: d.code,
-      name: d.name,
-      courseCount: d.courseCount,
-    })),
     mostTaken: index?.mostTaken ?? [],
     mostReviewed: index?.mostReviewed ?? [],
-    recent,
+    latest: mergeReviews(latest.terpsicle ?? [], latest.planetTerp, true)
+      .slice(0, LATEST_SHOWN)
+      .map((shown) => ({
+        shown,
+        instructorName:
+          (shown.source === "terpsicle"
+            ? latest.instructors[shown.review.instructorId]
+            : undefined) ??
+          index?.instructors[shown.review.instructorId]?.[0] ??
+          null,
+      })),
+    totals,
+    gradesThrough: planetTerp?.gradesThrough ?? null,
     results: q?.trim() ? searchResults(rows, index, q) : NO_RESULTS,
   };
 }
 
-async function loadRecent(
+const NO_LATEST: LatestReviews = {
+  terpsicle: null,
+  planetTerp: [],
+  instructors: {},
+};
+
+async function loadLatest(
   reader: Reader,
   serverContext: PageRequestContext | undefined,
-): Promise<RecentReview[]> {
-  if (serverContext) return (await reader.reviews?.recent(RECENT_SHOWN)) ?? [];
-  // In the browser, once a visit; Reviews being off (or offline) just
-  // means none to show.
-  return reader.memo("recent", async () => {
-    try {
-      const { reviews } = await reviewsClient().reviews.recent({
-        limit: RECENT_SHOWN,
-      });
-      return reviews;
-    } catch {
-      return [];
-    }
-  });
+): Promise<LatestReviews> {
+  // Offline, or D1 not answering, just means none to show.
+  if (serverContext)
+    return serverContext.latestReviews(LATEST_SHOWN).catch(() => NO_LATEST);
+  return reader.memo("latest", () =>
+    reviewsClient()
+      .reviews.latest({ limit: LATEST_SHOWN })
+      .catch(() => NO_LATEST),
+  );
+}
+
+function loadTotals(
+  reader: Reader,
+  serverContext: PageRequestContext | undefined,
+): Promise<PlanetTerpTotals | null> {
+  if (serverContext) return serverContext.planetTerpTotals();
+  return reader.memo(
+    "totals",
+    async () => (await reviewsClient().reviews.totals()).totals,
+  );
 }
 
 // ---------- not found ----------

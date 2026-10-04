@@ -1,33 +1,9 @@
 import { z } from "zod";
-import {
-  InstructorSlugSchema,
-  JOBS_PREFIX,
-  planetTerpReviewsKey,
-  type Review,
-  ReviewGradeSchema,
-  ReviewSchema,
-  StoredReviewsSchema,
-} from "~/core/schema";
-import type { BlobStore } from "../blob-store";
-import { contentHash, JSON_TYPE, toJsonBytes } from "../hash";
-import { mapLimit } from "../http";
-import { type Logger, readJsonOrNull, writeJson } from "../publish";
+import { type Review, ReviewGradeSchema, ReviewSchema } from "~/core/schema";
+import { contentHash, toJsonBytes } from "../hash";
 
-// The review text the nightly list pull already downloads, kept privately in
-// `_jobs/planetterp/reviews/<slug>.json` (DATA.md §2.6) so summaries can be
-// regenerated if PlanetTerp goes away. Never served or republished.
-
-export const REVIEWS_INDEX_KEY = `${JOBS_PREFIX}planetterp/reviews-index.json`;
-
-/**
- * Review files written per run. About 5,100 instructors have reviews, so the
- * first run would otherwise add that many R2 writes to ~1,000 other
- * subrequests; capping it stays well inside the Worker's 10,000 per
- * invocation, and the rest land on the next nights. Later runs only write
- * what changed.
- */
-export const MAX_REVIEW_WRITES = 3000;
-const WRITE_CONCURRENCY = 6;
+// The reviews the nightly list pull already downloads, normalized for
+// Reviews' pages (D1's `planetterp_reviews`, src/jobs/planetterp-reviews.ts).
 
 /** A review as the list endpoint gives it, tolerant of junk in free-text fields. */
 export const ReviewApiSchema = z.object({
@@ -38,13 +14,6 @@ export const ReviewApiSchema = z.object({
   created: z.string(),
 });
 export type ReviewApi = z.infer<typeof ReviewApiSchema>;
-
-const IndexSchema = z.object({
-  slugs: z.record(
-    z.string(),
-    z.object({ hash: z.string(), count: z.number().int().min(0) }),
-  ),
-});
 
 /** Reviews that fit `ReviewSchema`, oldest first, so unchanged reviews hash the same. */
 export function normalizeReviews(raw: readonly ReviewApi[]): Review[] {
@@ -129,56 +98,4 @@ export interface ReviewKeeper {
   ): Promise<void>;
   /** Saves the index; call once, even after a failure. */
   finish(): Promise<{ written: number; kept: number }>;
-}
-
-/**
- * Writes review files, never replacing stored reviews with fewer: an empty or
- * shortened list is PlanetTerp failing, not reviews vanishing, so the stored
- * text stays (a review PlanetTerp deletes stays too, until the file is).
- */
-export async function createReviewKeeper(
-  store: BlobStore,
-  log: Logger,
-): Promise<ReviewKeeper> {
-  const index = (await readJsonOrNull(
-    store,
-    REVIEWS_INDEX_KEY,
-    IndexSchema,
-    log,
-  )) ?? { slugs: {} };
-  let written = 0;
-  let kept = 0;
-  let changed = false;
-  return {
-    async keep(professors) {
-      await mapLimit(professors, WRITE_CONCURRENCY, async (p) => {
-        if (!InstructorSlugSchema.safeParse(p.slug).success) return;
-        const reviews = normalizeReviews(p.reviews);
-        const previous = index.slugs[p.slug];
-        if (reviews.length === 0 || reviews.length < (previous?.count ?? 0)) {
-          if (previous) kept++;
-          return;
-        }
-        const file = StoredReviewsSchema.safeParse({
-          slug: p.slug,
-          name: p.name,
-          reviews,
-        });
-        if (!file.success) return;
-        const bytes = toJsonBytes(file.data);
-        const hash = await contentHash(bytes);
-        if (previous?.hash === hash || written >= MAX_REVIEW_WRITES) return;
-        written++;
-        await store.put(planetTerpReviewsKey(p.slug), bytes, {
-          contentType: JSON_TYPE,
-        });
-        index.slugs[p.slug] = { hash, count: reviews.length };
-        changed = true;
-      });
-    },
-    async finish() {
-      if (changed) await writeJson(store, REVIEWS_INDEX_KEY, index);
-      return { written, kept };
-    },
-  };
 }

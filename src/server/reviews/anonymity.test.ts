@@ -248,7 +248,7 @@ describe("anonymity payloads (V2 §7.5)", () => {
       ...listInput,
       instructorId: "brandt",
     });
-    await record("recent", null, "reviews/recent", { limit: 12 });
+    await record("latest", null, "reviews/latest", { limit: 12 });
     // A page's reviews, as its server render and the browser read them.
     const page = (await record("page (instructor)", null, "reviews/page", {
       instructorId: "brandt",

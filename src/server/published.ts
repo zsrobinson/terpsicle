@@ -164,9 +164,8 @@ export async function currentOpenSeats(
 // ---------- PlanetTerp ----------
 
 /**
- * The department's current PlanetTerp file (DATA.md §4.1): review summaries
- * use an instructor's counts, and Reviews joins Testudo names to slugs with
- * its `names` map. Null when there's none.
+ * The department's current PlanetTerp file (DATA.md §4.1): Reviews joins
+ * Testudo names to slugs with its `names` map. Null when there's none.
  */
 export async function readPlanetTerpDept(
   from: Published,

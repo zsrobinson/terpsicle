@@ -53,7 +53,7 @@ export function SiteHeader({
   borderOnScroll?: boolean;
   /** A product's own context in the bar (Todo's views and week), for the path's. */
   context?: ReactNode;
-  /** Its controls at the bar's end, before the bell and Feedback. */
+  /** Its controls at the bar's end, before the account cluster. */
   status?: ReactNode;
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname });

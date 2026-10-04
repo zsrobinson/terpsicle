@@ -39,9 +39,12 @@ for (const path of ["/schedule?demo=1", "/reviews", "/todo"]) {
     await expect(page.locator('[data-slot="app-bar"]')).toBeVisible({
       timeout: 20_000,
     });
-    // The page's own heading: the account and the page have answered, so the
-    // bar holds what it will.
+    // The page's own heading, and the account's placeholder gone: the page and
+    // /api/me have answered, so the bar holds what it will.
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("account-placeholder")).toHaveCount(0, {
       timeout: 20_000,
     });
     await page.waitForLoadState("networkidle");
