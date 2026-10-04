@@ -55,11 +55,16 @@ export interface ChatListInput {
   courses: ReadonlyMap<CourseCode, Course>;
   /** The course whose room is open, listed last if it isn't yours. */
   viewing?: CourseCode | null;
+  /**
+   * Mutes set on this page, which win over `unread`'s: a room muted before
+   * the next unread refresh lists it (or with no messages) shows its bell.
+   */
+  mutes?: Readonly<Record<RoomId, boolean>>;
 }
 
 /** Every course the list needs from the catalog. */
 export function chatListCourseCodes(
-  input: Omit<ChatListInput, "courses" | "viewing">,
+  input: Omit<ChatListInput, "courses" | "viewing" | "mutes">,
 ): CourseCode[] {
   return [
     ...new Set([
@@ -97,7 +102,7 @@ export function chatList(input: ChatListInput): ChatListCourse[] {
       return {
         room,
         unread: row?.unread ?? 0,
-        muted: row?.muted ?? false,
+        muted: input.mutes?.[room.id] ?? row?.muted ?? false,
         lastMessageAt: row?.lastMessageAt ?? null,
       };
     });

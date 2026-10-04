@@ -38,6 +38,10 @@ export function JoinButton({ courseCode }: { courseCode: CourseCode }) {
       showNote(
         "You've joined 100 courses' chats this term. Leave one to join another.",
       );
+    else if (result === "other-term")
+      showNote(
+        `We couldn't join ${courseCode} chat: a new term's started. Reload to see its classes.`,
+      );
     else if (result === "failed")
       showNote(`We couldn't join ${courseCode} chat.`, join);
   };

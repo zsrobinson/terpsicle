@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import { Mark } from "~/components/brand/mark";
 import { peopleWords } from "~/core/chat";
-import {
-  type CourseCode,
-  chatHref,
-  courseRoomId,
-  type TermId,
-} from "~/core/schema";
+import { chatPath } from "~/core/chat/room-paths";
+import { type CourseCode, courseRoomId, type TermId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import { chatApi } from "~/server/fns/chat-api";
 import { buttonVariants } from "~/ui/button";
@@ -61,7 +57,7 @@ export function CourseChatEntry({
   return (
     <WithTooltip label={`Talk with the people in ${courseCode}`}>
       <a
-        href={chatHref({ term: termId, course: courseCode, join: 1 })}
+        href={chatPath({ course: courseCode, join: 1 })}
         className={buttonVariants({ variant: "outline", size: "sm" })}
       >
         <Mark id="chat" size={16} className="size-4" />

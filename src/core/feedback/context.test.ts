@@ -169,7 +169,7 @@ describe("buildFeedbackContext", () => {
             type: "request",
             at: at(900),
             method: "POST",
-            route: "/chat/202608/CMSC131/0101",
+            route: "/chat/CMSC131/0101",
             status: 500,
           },
         ],

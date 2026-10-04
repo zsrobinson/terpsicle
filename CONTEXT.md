@@ -172,7 +172,7 @@ _Avoid_: permission prompt, opt-in, enable push (in UI)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's.
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's. In Todo, the bar's sync cloud means Todo's sync: with ELMS, and with our own server for your tasks and checks.
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
@@ -351,33 +351,54 @@ _Avoid_: FOIA request (that's federal)
 
 ## Chat
 
+**Chat's term**:
+The one term Chat shows: of the terms Testudo lists, the one in session, or between terms the next one to start. It isn't picked, and another term's chats can't be joined (the owner, 2026-09-29). The bar names it with its term tag. Code says `chatTerm`.
+_Avoid_: current term, this semester (as a label); a term menu in Chat
+
 **Room**:
 A chat for part of a course, derived from the catalog. Nobody creates one, and nothing's stored for it until its first message.
 
 **Course room**:
-The room for everyone in a course ("CMSC131 · everyone"), open to anyone signed in.
+The room for everyone in a course, named **Everyone** under the course's code ("CMSC131 · Everyone" where no heading says the course), open to anyone signed in. Its link is `/chat/CMSC131/everyone`.
 
 **Professor room**:
-The room for one professor's sections, only when a course has more than one professor ("Sadeghian's sections").
+The room for one professor's sections, only when a course has more than one professor, named by their last name: **Sadeghian's Sections**. Its link is `/chat/CMSC131/pedram-sadeghian`.
 
 **Section room**:
-The room for one section, named by its meetings. Only courses with two or more sections have them.
-_Avoid_: lecture room
+The room for one section, named **Section 0303**; when and where it meets is under its name in the room's header. Only courses with two or more sections have them. Its link is `/chat/CMSC131/0303`.
+_Avoid_: lecture room; a section's meetings as its name
+
+**Room path**:
+A room's link, `/chat/<COURSE>/<room>` (`everyone`, a section code, or a professor's slug), with a thread in `?thread=`. No term: Chat is only on Chat's term. Every name and link for a room comes from one module, `src/core/chat/room-paths.ts`; older `/chat?term=…&room=…` links redirect.
+
+**Join line**:
+One small line in a room's timeline for everyone who joined between two messages on one day: "Alex, Sam and 3 others joined", as GroupMe shows it. It replaces the list of people room info had. Code says `joinGroups`, `joinWords`.
+
+**Tombstone**:
+What's left of a message its author deleted after the room saw it: "Message deleted by author", with its name and time and no text or reactions. One only its author saw (held, or still sending) goes entirely.
+_Avoid_: "This message was removed" (that's moderation's, and only its author sees it)
+
+**Options**:
+A room's one button in its header (icon and label): mute or unmute the room, leave a course you joined, and What's allowed. It replaced room info.
+_Avoid_: room info, settings
 
 **Your rooms**:
 The rooms the chat list shows: your main plan's (each section's course, professor and section rooms; a bookmarked course's course room) and the course rooms you've joined. Other sections' and professors' rooms aren't listed at all. A course whose room you opened without joining sits last until you join or leave it.
 _Avoid_: locked rooms, a course's room tree
+
+**Live list**:
+The chat list keeping every row current as messages land, not only the open room's: each course in it keeps its course's socket open for your rooms there. Its fallback, while a socket is down, is the minute-long poll. Code says `useLiveList`, `listLive`.
 
 **Rooms from**:
 The chat list's line naming the plan a term's rooms come from: its main plan ("Rooms from Plan A, your main plan ▾"; with one plan, "Rooms from Plan A, your Fall 2026 plan"). Picking another plan there makes it main everywhere, with Undo. Signed out, Chat says "the classes you add in Schedule", never "sync".
 _Avoid_: chat plan (it's the main plan, since 2026-09-28)
 
 **Join**:
-Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
+Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it, for a course in Chat's term only.
 _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 
 **Posting here**:
-The two plain lines over the composer the first time you open a course's chat (until "Got it" or your first post there), and in room info: your name is on everything you post, so posting answers to graded work is a bad idea; Report is in each message's menu. Neutral, never a lecture, and never "a bot checks your messages". Code calls them the room rules.
+The two plain lines over the composer the first time you open a course's chat (until "Got it" or your first post there): your name is on everything you post, so posting answers to graded work is a bad idea; Report is in each message's menu. Neutral, never a lecture, and never "a bot checks your messages". Code calls them the room rules.
 _Avoid_: rules, before you post (in UI)
 
 **Mention**:
@@ -482,12 +503,13 @@ _Avoid_: item (in the UI)
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
 
-**Calendar** (Todo's):
-Todo's main area: the **Week** (the default), the **Month** or the **List** of what's due by day, each a URL. Weeks start on Monday, so a Sunday-night deadline ends its week, unless the student sets **Weeks start on** Sunday.
-_Avoid_: agenda, planner, schedule (that's the scheduler)
+**Week** (Todo's):
+Todo's one view: Monday to Sunday, so a Sunday-night deadline ends its week, each week a URL. On a phone, the same days one under another.
+_Avoid_: calendar view, month, list, agenda, planner, schedule (that's the scheduler)
 
-**Side panel** (Todo's):
-The column beside Todo's calendar, where the scheduler and Plan keep their sidebars: Add a task, This week, ELMS and Weeks start on. On a phone it sits above the calendar, folded under "Courses and ELMS".
+**Sidebar** (Todo's):
+Todo's workbench sidebar, beside the week: Add a task, No date, and This week (a bar for the week and one per course). On a phone it's the drawer, whose strip is the week's bar.
+_Avoid_: side panel
 
 **Composer**:
 Todo's "Add a task…" field, which reads the date, time and course from the words ("PS3 due fri 11:59pm cmsc351"), marks them as you type, and shows them as chips before adding. In copy it's just "Add a task".

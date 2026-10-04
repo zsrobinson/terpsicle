@@ -482,6 +482,32 @@ Revisit if: rooms feel empty or noisy. (changed 2026-09-28: no pictures)
 "i don't think we need to display other sections or instructors in there as locked; if you wanted to see them you would've just added that other section to your schedule." And opening a room "felt like you opened up a whole new sidebar". So the chat list is Chat's one sidebar and only lists your rooms (plus the course whose room is open, last, until you join or leave). There's no course page of every room: a course on its own opens its course room, Join sits in that room's header, and a room opens beside the list (a desktop) or slides in over it (a phone), in its final shape from the first frame.
 Revisit if: people ask to browse a course's other sections' rooms.
 
+### Chat is for this term only
+2026-09-29 · owner · one feature
+"let's make chats completely a this-semester sort of thing. you shouldn't be able to join one for a future course, that's confusing. your chat tab should just pull from the current semseter." Chat shows one term, `chatTerm`: of the terms Testudo lists, the one in session, else between terms the next to start. There's no term menu, "Join … chat" in course details shows only for that term's courses, and the server refuses to join any other term's. Earlier follows in a term still to come are kept, hidden until that term is Chat's.
+Revisit if: people want a past term's chat while it's still readable, or a future class's before its first day.
+
+### Chat reads like a group chat: names, newest messages, joins and tombstones
+2026-09-29 · owner · one feature
+"let's refine the names of the chats, so they just display as "Everyone", "[last name]'s Sections", and "Section [section]". no more summary line under it, that should instead display the last message, and we should have some sort of unread message indicator (maybe using the same blue theme of this component). muted chats should have an extra icon showing that they're muted on the right side of the sidebar. we don't need the room info thing, just a button in that top bar (with icon and label). instead of search params, the room code can just be an extra path in the url, which also makes it a little prettier of a link. instead of showing a list of people, let's instead show a small status thing like groupme when someone joins the room, grouped up so it doesn't clog things up. and let's rework the language again on the "what's allowed thing". if someone deletes a message, it should say something like *message deleted by author* to keep that record." And: "make sure that we clean up all the paths that name the rooms." So a room is "Everyone", "Nelson's Sections" or "Section 0101" under its course, its list row shows its newest message and an unread mark in Chat's blue (a dot, or the count) or a muted bell, its header has one Options button (mute, leave, What's allowed) instead of room info, its link is `/chat/<COURSE>/<room>`, joins are grouped lines in its timeline, and a deleted message leaves a tombstone. Every room name and link goes through `src/core/chat/room-paths.ts`.
+Revisit if: never on its own.
+
+### A room's newest message comes from its object, not D1
+2026-09-29 · agent · one feature
+The list's second line needs each room's newest text, and D1 never holds chat text (V2 §6.8). So `chat/latest` asks the course's `CourseChat` object, only for rooms whose `lastSeq` moved since the list last asked, and the open room keeps its own row current from its socket. It wakes an object only when there's something new in it, which it just wrote anyway.
+Revisit if: objects wake too often for the list, or a list of many courses is slow to fill.
+(changed 2026-09-29: the owner wanted every row live, "in realtime for chats besides the one that's currently selected". Each course in the list keeps its course's socket open, and `chat/latest` is the fallback while a socket is down; see "The list listens per course".)
+
+### The list listens per course, on the rooms' own sockets
+2026-09-29 · agent · one feature
+Live rows need each room's new messages. The `CourseChat` object already sends a room's messages to every socket that reads it, and hibernates between them, so the list opens one socket per course in it (hello with your rooms there, no history) instead of a new per-user channel. A per-user object would need the course object to write to every member's object on every message (hundreds for a big course room), where this needs nothing new on the server and costs one connection per course, usually four to six.
+Revisit if: people follow so many courses that the sockets add up, or a phone's battery says otherwise.
+
+### Chat's list resizes like the workbench sidebars
+2026-09-29 · owner · one feature
+"the sidebar on the chat and todo pages should be adjustable just like those on the schedule and plan pages even though the sidebar doesn't have tabs." Chat's list takes the workbenches' `SidebarResizeHandle` and their one shared width (`UiPrefs.sidebarWidth`), so it's 360px by default, not its old fixed 320.
+Revisit if: never on its own.
+
 ### Anonymous chat is held off
 2026-09-28 · owner · one feature
 The owner asked classmates about anonymous chats, and they liked the idea, but "i was concerned about misuse still, so i think we'll hold off on that." Everything in Chat carries your real name; nothing is built toward anonymous posting.
@@ -541,7 +567,7 @@ Revisit if: Plan turns on in production; then list it always and add the shortcu
 
 ### Plan and Schedule share one sidebar width
 2026-09-27 · agent · one feature
-The two workbenches draw one sidebar, so they keep one width: Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
+The workbenches draw one sidebar, so they keep one width (Chat's list and Todo's too, since 2026-09-29: both use `useSidebarWidth`, `src/hooks/use-sidebar-width.ts`, which loads Dexie only after first paint, so neither page carries it up front): Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
 Revisit if: people want different widths in each product.
 
 ### Gradescope, honestly
@@ -559,15 +585,20 @@ Revisit if: Gradescope offers students an API or feed.
 Todo marks no item as an exam. The owner wasn't sure how exams were marked and asked to keep it only if it's plain from the ELMS feed and the calendar shows it clearly; the feed never says which items are exams (it was a keyword guess on the title that called "Final exam review session" an exam), so it goes.
 Revisit if: ELMS's feed starts saying what an item is beyond assignment or event.
 
-### Todo's controls are in its bar
+### Todo is one week
 2026-09-29 · owner · one feature
-Todo has no side panel: its views, Back, Today and Ahead, and the period's title are the family bar's context, and Add a task (+) and the courses and ELMS (This week, ELMS, Weeks start on) open from bar icons, as popovers on a desktop and sheets on a phone, so the calendar fills the page in every view. The owner: "the todo app has lots of things in the main content area that are more like controls and should really be at the top, and the calendar in its forms should be taking up that whole area." Weeks start on stays with the courses and ELMS rather than moving to Settings (the agent's call): it changes the calendar you're looking at. This changes "Todo is a calendar"'s side panel.
-Revisit if: people miss the composer or the courses' chart now that they're a click away.
+Todo is one view, the week, Monday to Sunday: the month, the list and "Weeks start on" are gone. The owner: "let's ONLY design around the week view. remove the other two views. let's just make this one excellent" and "starting things on monday makes too much sense to have a toggle for it". The week is edge to edge under the bar, "very similar to the schedule tab with its week": weekends one step of gray, today's day heading two, today's body not filled. (changed 2026-09-29, on the preview: "the tasks background for a day is a darker background than the background for the heading for the day itself"; so a day's heading is always at least a step darker than its body: weekdays one over none, the weekend two over one, today two over none, and hovering to add a task tints at most half a step. On a phone each day heads its rows with the sidebars' band.) An account that saved Sunday still loads: `SyncedPrefs` keeps the old `todo` key as an unknown one and nothing reads it. Old `?view=` links open the week.
+Revisit if: people ask to see further ahead than a week at a time.
+
+### Todo's sidebar holds its controls; the bar only moves the week
+2026-09-29 · owner · one feature
+Todo is a workbench with a sidebar, resizable like Schedule's and Plan's and sharing their width, with no rail. From the top: Add a task, No date (tasks without one), and the week on screen: a bar for the whole week and one per course in its color, "2 of 5 done", each with its chat link and hide toggle. The family bar holds Back, Today and Ahead as one group (the kit's segments, no offset shadow: "we actually don't have any other of those buttons with a box shadow in the topbar"; Today like its neighbors off this week, and on this week filled as the selected segment while disabled, the owner: "flip it around from now"), the week's short dates with "ELMS synced 3 minutes ago" under them, and the app's sync cloud as the bar's status, just before the account cluster, now meaning Todo's sync with both ELMS and our own server; its popover has each one's last sync, Sync now, and ELMS's link (changed 2026-09-29, on the preview: the sidebar's ELMS section moved there). On a phone the sidebar is the workbench drawer, whose strip is the week's bar. The owner: "things like adding a todo and showing the week completion by course should continue to be in that sidebar, they're pretty important"; "the stacked vertical bars within the data viz for each of the courses makes no sense ... i like the overall bar for the week, maybe we could also have one for each course. it feels rewarding to check things off that way." Tasks with no date move into the sidebar and the week's "View schedule" link to This week's band (the agent's calls: nothing but the week is on the canvas). This replaces "Todo's controls are in its bar" (2026-09-29).
+Revisit if: the sidebar grows past what one column holds.
 
 ### Todo is a calendar
 2026-09-28 · owner · one feature
-Todo's main view is a calendar: the week by default, then the month and a list, each a URL, with weeks starting Monday "since so many things are due sunday nights" and a synced pref for Sunday. It takes the workbench's shape with a side panel (adding a task in plain words, each course's weekly completion, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The side panel has no tabs (the agent's call): four short parts fit one column, and a rail would hide the composer.
-Revisit if: the side panel grows past what one column holds. Changed 2026-09-29: the side panel's parts open from the bar ("Todo's controls are in its bar").
+Todo's main view is a calendar, with weeks starting Monday "since so many things are due sunday nights". It takes the workbench's shape with a sidebar (adding a task in plain words, each course's week, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The sidebar has no tabs (the agent's call): its short parts fit one column, and a rail would hide the composer.
+Revisit if: the sidebar grows past what one column holds. Changed 2026-09-29: the week is the only view, and the sidebar is back ("Todo is one week", "Todo's sidebar holds its controls; the bar only moves the week").
 
 ### Todo reads tasks with its own grammar
 2026-09-28 · agent · one feature
@@ -628,6 +659,11 @@ Revisit if: the owner wants to review before merges.
 2026-09-27 · owner · app-wide
 The goal after the in-flight work is cohesion: every product in one frame, built from one shared kit, with the same first-visit, empty, loading, error and undo patterns (`docs/COHESION.md`). The orchestrator builds the frame and the kit itself, and at most two other sessions run at a time, on parts of the code that don't overlap.
 Revisit if: the checklist in COHESION.md is done and a full first-time round finds nothing worth fixing.
+
+### Test recordings stay out of Git
+2026-09-30 · owner · process
+The mobile lab's screenshots, recordings and logs go only to the workflow run's Actions artifacts (kept 14 days), not to a branch. The `mobile-runs` branch it used to publish to made the repo 445 MiB, 94% of it recordings, for every clone; it was deleted along with the merged branches. `pnpm lint` fails on tracked test output, recordings and files over 2 MiB (`scripts/check-tracked-files.ts`).
+Revisit if: runs need to outlive 14 days or be browsable without unzipping (then R2, never Git).
 
 ### "As built" goes in the PR body
 2026-09-27 · agent · process

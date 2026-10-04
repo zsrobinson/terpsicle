@@ -17,6 +17,7 @@ import {
   chatMessageId,
   chatModeration,
   chatPlaceWords,
+  chatPreview,
   chatRetention,
   isListedRoom,
   roomMemberCount,
@@ -27,6 +28,7 @@ import {
   type ChatClientFrame,
   ChatClientFrameSchema,
   type ChatErrorCode,
+  type ChatLatestMessage,
   type ChatMessage,
   ChatRequestIdSchema,
   type ChatServerFrame,
@@ -384,6 +386,7 @@ export class CourseChat extends DurableObject<Env> {
     let replyTo: string | null = null;
     if (frame.replyTo !== null) {
       const parent = this.#store.message(frame.replyTo);
+      // A thread goes on under a deleted message's tombstone.
       if (parent?.room_id !== room || !this.#canSee(parent, att.user))
         return this.#error(ws, req, "not-found");
       // Threads are one level deep: a reply to a reply joins its thread.
@@ -457,16 +460,27 @@ export class CourseChat extends DurableObject<Env> {
     const row = this.#ownMessage(ws, att, room, frame.id, req);
     if (!row || !(await this.#writeGate(ws, att, room, req, Date.now())))
       return;
-    this.#store.deleteMessage(row.id);
-    this.#sendFrame(ws, { type: "ack", req, message: null });
-    const deleted: ChatServerFrame = { type: "deleted", room, id: row.id };
-    if (row.status === "visible")
-      await this.#broadcast(room, () => deleted, { except: ws });
-    else
+    if (row.status !== "visible") {
+      // Only its author ever saw it: it goes entirely.
+      this.#store.deleteMessage(row.id);
+      this.#sendFrame(ws, { type: "ack", req, message: null });
+      const deleted: ChatServerFrame = { type: "deleted", room, id: row.id };
       for (const other of this.ctx.getWebSockets(att.user))
         if (other !== ws) this.#sendFrame(other, deleted);
-    if (row.status === "visible" && row.reply_to)
-      await this.#threadChanged(row.reply_to);
+      return;
+    }
+    // The room saw it: a tombstone keeps the record, without the text
+    // (the owner, 2026-09-29: "message deleted by author").
+    this.#store.tombstone(row.id, new Date().toISOString());
+    const gone = this.#store.message(row.id);
+    if (!gone) return;
+    const [message] = await this.#render([gone]);
+    this.#sendFrame(ws, { type: "ack", req, message: message ?? null });
+    if (message)
+      await this.#broadcast(room, () => ({ type: "message", message }), {
+        except: ws,
+      });
+    if (row.reply_to) await this.#threadChanged(row.reply_to);
   }
 
   async #react(
@@ -478,7 +492,7 @@ export class CourseChat extends DurableObject<Env> {
     const now = Date.now();
     if (!(await this.#writeGate(ws, att, room, req, now))) return;
     const row = this.#store.message(frame.id);
-    if (row?.room_id !== room || row.status !== "visible")
+    if (row?.room_id !== room || row.status !== "visible" || row.deleted_at)
       return this.#error(ws, req, "not-found");
     this.#store.setReaction(
       row.id,
@@ -905,7 +919,7 @@ export class CourseChat extends DurableObject<Env> {
       const rows = this.#store.exists
         ? ids.flatMap((id) => {
             const row = this.#store.message(id);
-            return row?.status === "visible" ? [row] : [];
+            return row?.status === "visible" && !row.deleted_at ? [row] : [];
           })
         : [];
       const sections =
@@ -935,6 +949,46 @@ export class CourseChat extends DurableObject<Env> {
       });
     }
     return out;
+  }
+
+  /**
+   * The newest message in each of `rooms` that the person can read, for the
+   * chat list's second line: a preview, or a tombstone's flag. Rooms with
+   * nothing shown yet are left out.
+   */
+  async latestFor(target: {
+    termId: string;
+    courseCode: string;
+    userId: string;
+    rooms: readonly RoomId[];
+  }): Promise<ChatLatestMessage[]> {
+    this.#bind(target.termId, target.courseCode);
+    if (!this.#store.exists) return [];
+    const course = await this.#course();
+    if (!course) return [];
+    const sections = await planSections(
+      this.env.DB,
+      target.userId,
+      target.termId,
+      target.courseCode,
+    );
+    const rows = target.rooms.flatMap((room) => {
+      if (!canReadRoom(course.tree, room, sections)) return [];
+      const row = this.#store.latestVisible(room);
+      return row ? [row] : [];
+    });
+    const profiles = await this.#profilesFor(rows.map((r) => r.author_id));
+    return rows.map((row) => ({
+      id: row.id,
+      room: row.room_id,
+      author: profiles.get(row.author_id)?.author ?? {
+        directoryId: row.author_id,
+        name: row.author_name,
+      },
+      text: row.deleted_at ? "" : chatPreview(row.body),
+      deleted: row.deleted_at !== null,
+      createdAt: row.created_at,
+    }));
   }
 
   /** A message classmates saw that's gone for now (edited, held or removed). */
@@ -1153,6 +1207,7 @@ export class CourseChat extends DurableObject<Env> {
       thread: row.reply_to === null ? (threads.get(row.id) ?? null) : null,
       reactions: reactions.get(row.id) ?? {},
       moderation: moderationOf(row),
+      deleted: row.deleted_at !== null,
     }));
   }
 
@@ -1173,7 +1228,11 @@ export class CourseChat extends DurableObject<Env> {
     req: string,
   ): MessageRow | null {
     const row = this.#store.message(id);
-    if (row?.room_id !== room || row.status === "removed") {
+    if (
+      row?.room_id !== room ||
+      row.status === "removed" ||
+      row.deleted_at !== null
+    ) {
       this.#error(ws, req, "not-found");
       return null;
     }

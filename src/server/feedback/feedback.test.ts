@@ -276,7 +276,7 @@ describe("feedback/send's limits and sessions", () => {
         ...bug.context,
         route: "/schedule?plan=eyJzIjpbXX0",
         actions: [
-          { type: "nav", at: 1, route: "/chat/202608/CMSC131/0101" },
+          { type: "nav", at: 1, route: "/chat/CMSC131/0101" },
           {
             type: "error",
             at: 2,
@@ -290,7 +290,7 @@ describe("feedback/send's limits and sessions", () => {
     });
     const stored = JSON.parse((await row(id))?.context ?? "{}");
     expect(stored.route).toBe("/schedule?plan=shared");
-    expect(stored.actions[0].route).toBe("/chat/:term/:course/:room");
+    expect(stored.actions[0].route).toBe("/chat/:course/:room");
     expect(stored.actions[1].message).toBe("fetch [link] failed");
   });
 });

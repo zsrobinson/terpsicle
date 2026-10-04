@@ -9,7 +9,7 @@ export const DIGEST_LINES_MAX = 20;
 export interface DigestLine {
   /** "Hannah Lee replied in CMSC131 · 0303: see you there". */
   text: string;
-  /** Where it opens: `/chat?…`, on our origin. */
+  /** Where it opens: a room's path (`/chat/CMSC351/0101?thread=…`), on our origin. */
   path: string;
 }
 

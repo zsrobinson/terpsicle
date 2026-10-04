@@ -2,6 +2,10 @@ import type { z } from "zod";
 import {
   ChatFollowInputSchema,
   ChatFollowResultSchema,
+  ChatJoinsInputSchema,
+  ChatJoinsResultSchema,
+  ChatLatestInputSchema,
+  ChatLatestResultSchema,
   ChatMembersInputSchema,
   ChatMembersResultSchema,
   ChatMuteInputSchema,
@@ -69,6 +73,27 @@ export const chatApi = {
       "chat/members",
       ChatMembersInputSchema,
       ChatMembersResultSchema,
+      input,
+      options,
+    ),
+  /** Each room's newest message, for the list. Wakes the course's object. */
+  latest: (
+    input: z.input<typeof ChatLatestInputSchema>,
+    options?: ApiOptions,
+  ) =>
+    call(
+      "chat/latest",
+      ChatLatestInputSchema,
+      ChatLatestResultSchema,
+      input,
+      options,
+    ),
+  /** Who joined a room, and when, for its timeline. */
+  joins: (input: z.input<typeof ChatJoinsInputSchema>, options?: ApiOptions) =>
+    call(
+      "chat/joins",
+      ChatJoinsInputSchema,
+      ChatJoinsResultSchema,
       input,
       options,
     ),

@@ -1,11 +1,7 @@
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  PREFS_STORAGE_KEY,
-  withAiFeatures,
-  withTodoWeekStart,
-} from "~/core/prefs";
+import { PREFS_STORAGE_KEY, withAiFeatures } from "~/core/prefs";
 import { SETTINGS_DOC_KEY } from "~/core/sync";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { aMeUser } from "~/fixtures";
@@ -123,19 +119,19 @@ describe("a change while the account's prefs are on their way", () => {
 
   it("keeps the change, and marks it for the account, once the join lands", async () => {
     signedIn();
-    await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
+    await saveSyncedPrefs((p) => withAiFeatures(p, true));
     await joinAccount({
-      todo: { weekStart: "sunday" },
       ai: { features: false },
+      chatRules: { seen: ["CMSC131"] },
     });
     await vi.waitFor(async () => {
       expect(syncedPrefs()).toEqual({
-        todo: { weekStart: "monday" },
-        ai: { features: false },
+        ai: { features: true },
+        chatRules: { seen: ["CMSC131"] },
       });
       expect((await db.settings.get("prefs"))?.value).toEqual({
-        todo: { weekStart: "monday" },
-        ai: { features: false },
+        ai: { features: true },
+        chatRules: { seen: ["CMSC131"] },
       });
       expect(await db.syncDocs.get(SETTINGS_DOC_KEY)).toMatchObject({
         dirty: true,
@@ -145,22 +141,22 @@ describe("a change while the account's prefs are on their way", () => {
 
   it("lets the account's win for a change made signed out", async () => {
     useAccount.setState({ status: "signed-out", user: null });
-    await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
+    await saveSyncedPrefs((p) => withAiFeatures(p, true));
     signedIn();
-    await joinAccount({ todo: { weekStart: "sunday" } });
+    await joinAccount({ ai: { features: false } });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(syncedPrefs()).toEqual({ todo: { weekStart: "sunday" } });
+    expect(syncedPrefs()).toEqual({ ai: { features: false } });
   });
 
   it("doesn't replay a change made after the join", async () => {
     signedIn();
-    await joinAccount({ todo: { weekStart: "sunday" } });
-    await saveSyncedPrefs((p) => withTodoWeekStart(p, "monday"));
-    await saveSyncedPrefs((p) => withTodoWeekStart(p, "sunday"));
-    showSyncedPrefs({ todo: { weekStart: "sunday" } });
+    await joinAccount({ ai: { features: false } });
+    await saveSyncedPrefs((p) => withAiFeatures(p, true));
+    await saveSyncedPrefs((p) => withAiFeatures(p, false));
+    showSyncedPrefs({ ai: { features: false } });
     settleAccountPrefs();
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(syncedPrefs()).toEqual({ todo: { weekStart: "sunday" } });
+    expect(syncedPrefs()).toEqual({ ai: { features: false } });
   });
 });
 

@@ -2,12 +2,15 @@ import { gradeSummary } from "../grades/grades";
 import {
   type CourseCode,
   type DeptCode,
+  GRADE_KEYS,
+  type GradeCounts,
   type Instructor,
   type InstructorSlug,
   MOST_REVIEWED_MAX,
   MOST_TAKEN_MAX,
   type PlanetTerpDept,
   type PlanetTerpIndex,
+  type PlanetTerpTotals,
   SCHEMA_VERSIONS,
 } from "../schema";
 
@@ -17,11 +20,12 @@ import {
 
 /**
  * The index of these department files. `titles` names the courses offered
- * now; only they can be most taken.
+ * now; only they can be most taken. `whole` adds `totals`.
  */
 export function buildPlanetTerpIndex(
   depts: readonly PlanetTerpDept[],
   titles: ReadonlyMap<CourseCode, string>,
+  whole?: PlanetTerpWhole,
 ): PlanetTerpIndex {
   const instructors = new Map<InstructorSlug, [string, DeptCode[]]>();
   const reviewed = new Map<InstructorSlug, Instructor>();
@@ -54,5 +58,45 @@ export function buildPlanetTerpIndex(
       )
       .slice(0, MOST_REVIEWED_MAX)
       .map((i) => [i.slug, i.name, i.reviewCount, i.rating]),
+    ...(whole ? { totals: planetTerpTotals(depts, whole) } : {}),
+  };
+}
+
+/** What only the whole of PlanetTerp's data can say, from the nightly job. */
+export interface PlanetTerpWhole {
+  /** Everyone its professor list names, professors and TAs. */
+  professors: number;
+  /** Their reviews, summed. */
+  reviews: number;
+  /** Its grade rows since Spring 2012, as our instructor history counts them. */
+  gradeRows: number;
+}
+
+/**
+ * What Reviews holds in all, counted the way PlanetTerp's front page counts
+ * (DATA.md §4.1, "Totals"): professors and reviews over its whole list,
+ * not only those our department files name, and grades as its rows. Courses
+ * are ours: every course a department file lists.
+ */
+export function planetTerpTotals(
+  depts: readonly PlanetTerpDept[],
+  whole: PlanetTerpWhole,
+): PlanetTerpTotals {
+  const courses = new Set<CourseCode>();
+  const counts = GRADE_KEYS.map(() => 0) as GradeCounts;
+  for (const file of depts)
+    for (const [code, grades] of Object.entries(file.courses)) {
+      if (courses.has(code)) continue;
+      courses.add(code);
+      grades.all?.counts.forEach((n, i) => {
+        counts[i] = (counts[i] ?? 0) + n;
+      });
+    }
+  return {
+    courses: courses.size,
+    professors: whole.professors,
+    reviews: whole.reviews,
+    grades: whole.gradeRows,
+    counts,
   };
 }

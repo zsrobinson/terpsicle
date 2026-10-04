@@ -62,9 +62,10 @@ export function screenOf(
   const product = segments[0] ?? "";
   const top = `/${product}`;
 
-  // Chat's room and thread are search params on one route (V2.md §8.6).
+  // Chat's room is a path, `/chat/<COURSE>/<room>`, and its thread a
+  // search param (V2.md §8.6, ~/core/chat/room-paths).
   if (product === "chat") {
-    const room = text(search.room);
+    const room = segments[1] ? segments.slice(1, 3).join("/") : null;
     const thread = room ? text(search.thread) : null;
     return {
       product,

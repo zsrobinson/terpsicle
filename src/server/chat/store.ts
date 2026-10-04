@@ -128,12 +128,15 @@ const DocRowSchema = z.object({
  * and its write only lands if no other save happened in between (the
  * user's `sync_heads.head` is unchanged): a later push rewrites the rows
  * itself, from newer docs, so a slow one can never overwrite them with
- * stale ones.
+ * stale ones. A row that stays keeps its `joined_at`; a new one (a course
+ * added, or its section changed) joined `now`, which a room's timeline
+ * shows ("Alex, Sam and 3 others joined").
  */
 export async function refreshChatMembers(
   db: D1Database,
   userId: string,
   saved: { planIds: readonly string[]; settings: boolean },
+  now: Date = new Date(),
 ): Promise<void> {
   if (saved.planIds.length === 0 && !saved.settings) return;
   const [planTerms, memberTerms, chosenTerms] = await db.batch([
@@ -192,22 +195,30 @@ export async function refreshChatMembers(
   const rows = [...terms].flatMap((t) => chatMembersFor(t, plans, mainPlans));
 
   // Both statements are skipped unless the head is still the one read.
+  // Rows that stay the same are left alone, so they keep when they joined.
   const unchanged = `(SELECT head FROM sync_heads WHERE user_id = ?1) = ?2`;
+  const wanted = JSON.stringify(rows);
   await db.batch([
     db
       .prepare(
         `DELETE FROM chat_members WHERE user_id = ?1 AND ${unchanged}
-           AND term_id IN (SELECT value FROM json_each(?3))`,
+           AND term_id IN (SELECT value FROM json_each(?3))
+           AND NOT EXISTS (
+             SELECT 1 FROM json_each(?4) AS j
+             WHERE json_extract(j.value, '$.termId') = chat_members.term_id
+               AND json_extract(j.value, '$.courseCode') = chat_members.course_code
+               AND json_extract(j.value, '$.sectionCode') = chat_members.section_code)`,
       )
-      .bind(userId, at, termList),
+      .bind(userId, at, termList, wanted),
     db
       .prepare(
-        `INSERT INTO chat_members (user_id, term_id, course_code, section_code)
+        `INSERT INTO chat_members (user_id, term_id, course_code, section_code, joined_at)
          SELECT ?1, json_extract(j.value, '$.termId'), json_extract(j.value, '$.courseCode'),
-                json_extract(j.value, '$.sectionCode')
-         FROM json_each(?3) AS j WHERE ${unchanged}`,
+                json_extract(j.value, '$.sectionCode'), ?4
+         FROM json_each(?3) AS j WHERE ${unchanged}
+         ON CONFLICT (user_id, term_id, course_code) DO NOTHING`,
       )
-      .bind(userId, at, JSON.stringify(rows)),
+      .bind(userId, at, wanted, now.toISOString()),
   ]);
 }
 
@@ -270,6 +281,45 @@ export async function roomMembers(
     ),
     total: z.object({ n: z.number().int() }).parse(count?.results[0]).n,
   };
+}
+
+const JoinRowSchema = ProfileRowSchema.extend({ at: z.string() });
+
+/**
+ * Who joined a room and when, oldest first: for the course room, everyone
+ * whose main plan has the course or who joined it; otherwise those whose
+ * main plan places one of `sections`. The newest `limit`, from people who
+ * still have an account; a row from before joins were kept has none.
+ */
+export async function roomJoins(
+  db: D1Database,
+  termId: TermId,
+  courseCode: CourseCode,
+  sections: readonly SectionCode[] | null,
+  limit: number,
+): Promise<{ author: ChatAuthor; at: string }[]> {
+  const codes = sections === null ? null : JSON.stringify(sections);
+  const { results } = await db
+    .prepare(
+      `SELECT u.id, u.name, u.status, u.chat_blocked_until, MIN(j.at) AS at FROM (
+         SELECT user_id, joined_at AS at FROM chat_members
+         WHERE term_id = ?1 AND course_code = ?2 AND joined_at IS NOT NULL
+           AND (?3 IS NULL OR section_code IN (SELECT value FROM json_each(?3)))
+         UNION ALL
+         SELECT user_id, created_at AS at FROM chat_follows
+         WHERE ?3 IS NULL AND term_id = ?1 AND course_code = ?2
+       ) AS j JOIN users u ON u.id = j.user_id
+       WHERE u.status = 'active'
+       GROUP BY u.id ORDER BY at DESC, u.id LIMIT ?4`,
+    )
+    .bind(termId, courseCode, codes, limit)
+    .all();
+  return results
+    .map((r) => {
+      const row = JoinRowSchema.parse(r);
+      return { author: toProfile(row).author, at: row.at };
+    })
+    .reverse();
 }
 
 // ---------- the room index and read markers (V2.md §8.3) ----------

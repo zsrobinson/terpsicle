@@ -15,5 +15,7 @@ test-results
 # Local ingest output (pnpm tsx scripts/ingest.ts … --target fs)
 .data
 
-# Mobile lab runs (scripts/mobile-lab); CI publishes them to the mobile-runs branch
+# Mobile lab runs (scripts/mobile-lab); CI uploads them as Actions artifacts
+# and they never go in Git (scripts/check-tracked-files.ts)
+runs/
 mobile-lab-results

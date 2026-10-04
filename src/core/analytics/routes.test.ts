@@ -28,7 +28,7 @@ describe("noAutocaptureUrlPatterns", () => {
 
   it.each([
     "https://terpsicle.com/chat",
-    "https://terpsicle.com/chat/202608/CMSC131/s-0101",
+    "https://terpsicle.com/chat/CMSC131/0101",
     "https://terpsicle.com/settings?x=1",
     "https://terpsicle.com/settings/notifications",
     "https://terpsicle.com/admin",

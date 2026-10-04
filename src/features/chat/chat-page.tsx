@@ -1,73 +1,61 @@
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
-import { CalendarDays, Search, X } from "lucide-react";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { CalendarDays, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppBar } from "~/components/app-bar";
 import { Mark } from "~/components/brand/mark";
 import { PanelNote } from "~/components/panel";
+import { SidebarResizeHandle } from "~/components/workbench/sidebar-resize";
 import {
   type ChatListCourse,
   canReadRoom,
   chatListUnread,
-  type Room,
+  chatPath,
+  roomIdFromSlug,
+  roomSlug,
   roomsForCourse,
   sectionsInPlans,
   unreadWords,
 } from "~/core/chat";
 import { feedbackProduct } from "~/core/feedback/path";
 import { SCHEDULE_PATH } from "~/core/routing";
-import {
-  type CourseCode,
-  chatHref,
-  courseRoomId,
-  parseRoomId,
-  type RoomId,
-} from "~/core/schema";
+import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
-import { Button } from "~/ui/button";
+import { useSidebarWidth } from "~/hooks/use-sidebar-width";
 import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
 import { RowSkeleton } from "~/ui/skeleton";
-import { WithTooltip } from "~/ui/tooltip";
-import { chatListOf, useChatHome } from "./chat-home";
+import { chatListOf, listLive, useChatHome } from "./chat-home";
 import { CourseFinder } from "./course-finder";
 import { JoinButton } from "./join-button";
+import { useLiveList } from "./live-list";
 import type { ChatGo, ChatView } from "./nav";
-import { RoomInfo } from "./room-info";
 import { RoomList, useChatList } from "./room-list";
 import { RoomSkeleton, RoomView } from "./room-view";
 import { useCourseChat } from "./session";
 import { ChatClosed, SignInMoment } from "./sign-in-moment";
-import { ChatTermMenu } from "./term-menu";
+import { ChatTermLabel } from "./term-label";
 
 // Terpsicle Chat (`/chat`, V2.md §8.6), the kit's "full" page: a tool with
 // panes under the family bar. Signed out, it's the front door; signed in,
 // the list of your classes and their rooms beside the room you're in, with
-// the term in the bar. The list is the one sidebar and stays put: opening a
+// the term in the bar. Chat has one term, the one in session (or between
+// terms the next to start): no switching, and no joining another term's
+// chat (owner, 2026-09-29). The list is the one sidebar and stays put: opening a
 // room fills the pane beside it (the owner, 2026-09-28: it mustn't feel like
 // a new sidebar). On a phone (SPEC §2) one thing at a time: the room pushes
 // in over the list (the router's view transition), which stays mounted
-// underneath, so Back pops to it where you left it; room info is the kit's
-// sheet. Everything is plain text and
-// tokens; there are no sparkles anywhere in Chat.
+// underneath, so Back pops to it where you left it. A room is a path,
+// `/chat/<COURSE>/<room>` (~/core/chat/room-paths). Everything is plain
+// text and tokens; there are no sparkles anywhere in Chat.
+
+/** The list's id: the resize handle controls it. */
+const CHAT_LIST_ID = "chat-list";
 
 /** How often the list's unread counts refresh while /chat is open. */
 const UNREAD_EVERY_MS = 60_000;
-
-/** Room info's phone sheet, in its own chunk: phones only (./room-info-sheet). */
-const RoomInfoSheet = lazy(() =>
-  import("./room-info-sheet").then((m) => ({ default: m.RoomInfoSheet })),
-);
 
 export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const status = useAccount((s) => s.status);
@@ -90,18 +78,18 @@ export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
         current="chat"
         feedback={feedbackProduct(path)}
         pathname={path}
-        context={app ? <ChatTermMenu /> : null}
+        context={app ? <ChatTermLabel /> : null}
       />
       {status === "loading" ? (
         <ProductPage width="full" className="md:flex-row">
-          <div className="md:w-80 md:shrink-0 md:border-hairline md:border-r">
+          <div className="md:w-sidebar md:shrink-0 md:border-hairline md:border-r">
             <RowSkeleton label="Loading Chat" />
           </div>
         </ProductPage>
       ) : chat === "off" ? (
         <ChatClosed />
       ) : status === "signed-out" ? (
-        <SignInMoment returnTo={chatHref(view)} course={view.course} />
+        <SignInMoment returnTo={chatPath(view)} course={view.course} />
       ) : (
         <ChatApp view={view} go={go} />
       )}
@@ -113,20 +101,49 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   const mobile = useIsMobile();
   const termId = useChatHome((s) => s.termId);
   const homeStatus = useChatHome((s) => s.status);
-  const [infoOpen, setInfoOpen] = useState(false);
   // Each "Find a course" focuses the finder (and, on a phone, shows it).
   const [finding, setFinding] = useState(0);
   // Try again on a room whose socket gave up opens a new one.
   const [attempt, setAttempt] = useState(0);
 
-  // Load once, for the term in the link (or the usual pick).
-  const loadedFor = useRef<string | null>(null);
+  // Load once: Chat's term is today's, whatever the link says.
+  const loaded = useRef(false);
   useEffect(() => {
-    const key = view.term ?? "";
-    if (loadedFor.current === key) return;
-    loadedFor.current = key;
-    void useChatHome.getState().load(view.term ?? null);
-  }, [view.term]);
+    if (loaded.current) return;
+    loaded.current = true;
+    void useChatHome.getState().load();
+  }, []);
+
+  // A link to another term's chat (an older one, or for a term that's over
+  // or still to come) opens the list: nothing joins or opens there.
+  const otherTerm =
+    view.term !== undefined && termId !== null && view.term !== termId;
+  // One naming Chat's own term needn't say so: the link drops it.
+  const sameTerm = view.term !== undefined && view.term === termId;
+  const viewCourse = view.course;
+  const viewRoom = view.room;
+  const viewThread = view.thread;
+  const viewJoin = view.join;
+  useEffect(() => {
+    if (otherTerm) go({}, { replace: true });
+    else if (sameTerm && termId && viewCourse && !viewJoin) {
+      const id = roomIdFromSlug(termId, viewCourse, viewRoom ?? "everyone");
+      if (id)
+        go(
+          { room: id, ...(viewThread ? { thread: viewThread } : {}) },
+          { replace: true },
+        );
+    }
+  }, [
+    otherTerm,
+    sameTerm,
+    termId,
+    viewCourse,
+    viewRoom,
+    viewThread,
+    viewJoin,
+    go,
+  ]);
 
   // Counts stay fresh without waking any room (V2 §8.3: one D1 query).
   useEffect(() => {
@@ -146,56 +163,39 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   const joined = useRef(false);
   useEffect(() => {
     if (!view.join || !view.course || homeStatus !== "ready" || !termId) return;
-    if (joined.current) return;
+    if (otherTerm || joined.current) return;
     joined.current = true;
     const course = view.course;
     void (async () => {
       const home = useChatHome.getState();
       const inList = chatListOf(home).some((c) => c.courseCode === course);
       if (!inList) await home.follow(course);
-      go(
-        { term: termId, course, room: `${termId}:${course}` },
-        { replace: true },
-      );
+      go({ room: `${termId}:${course}` }, { replace: true });
     })();
-  }, [view.join, view.course, homeStatus, termId, go]);
+  }, [view.join, view.course, homeStatus, termId, otherTerm, go]);
 
+  // The room the path names in Chat's term.
   const room =
-    view.room && termId && parseRoomId(view.room)?.termId === termId
-      ? view.room
+    view.course && termId && !otherTerm && !view.join
+      ? roomIdFromSlug(termId, view.course, view.room ?? "everyone")
       : null;
   const course: CourseCode | null = room
     ? (parseRoomId(room)?.courseCode ?? null)
     : null;
 
-  // A course on its own (an older link) opens its course room: every room
-  // of yours is already in the list, so there's no course page between.
-  useEffect(() => {
-    if (view.room || !view.course || view.join || !termId) return;
-    go(
-      {
-        term: view.term,
-        course: view.course,
-        room: courseRoomId(termId, view.course),
-      },
-      { replace: true },
-    );
-  }, [view, termId, go]);
-
-  // Esc walks back out: room info, thread, room, list.
+  // Esc walks back out: thread, room, list.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, [role=menu], [role=dialog]"))
         return;
-      if (infoOpen) setInfoOpen(false);
-      else if (view.thread) go({ ...view, thread: undefined });
-      else if (view.room) go({ term: view.term });
+      if (room && view.thread) go({ room });
+      else if (room) go({});
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, go, infoOpen]);
+  }, [room, view.thread, go]);
 
   // The tab's title counts unread messages.
   const unread = useChatHome((s) => chatListUnread(chatListOf(s)));
@@ -204,13 +204,15 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       unread > 0 ? `(${unread}) Chat · Terpsicle` : "Chat · Terpsicle";
   }, [unread]);
 
-  const goScoped: ChatGo = useCallback(
-    (next, options) => go({ term: view.term, ...next }, options),
-    [go, view.term],
-  );
-
   const list = useChatList();
   const noClasses = homeStatus === "ready" && list.length === 0;
+  // Every other course's rows update live too; the open one's socket is the room's.
+  useLiveList(termId, list, course);
+  // A message in the room on screen is read as it lands.
+  useEffect(() => {
+    useChatHome.getState().setViewing(room);
+    return () => useChatHome.getState().setViewing(null);
+  }, [room]);
   const findCourse = () => setFinding((n) => n + 1);
 
   // No classes yet: on a desktop the list holds the finder and the room's
@@ -218,7 +220,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   // says it there, and "Find a course" swaps the finder in.
   const empty = mobile ? (
     finding > 0 ? (
-      <CourseFinder go={goScoped} focus={finding} />
+      <CourseFinder go={go} focus={finding} />
     ) : (
       <NoClasses onFind={findCourse} className="px-4 py-4" />
     )
@@ -227,32 +229,43 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
       <PanelNote className="pb-0">
         Rooms for the classes in your Schedule plans show up here.
       </PanelNote>
-      <CourseFinder go={goScoped} focus={finding} />
+      <CourseFinder go={go} focus={finding} />
     </>
   );
 
   // On a phone the open room covers the list, which stays mounted (hidden)
   // so its scroll and loaded rooms are there when you come back.
   const listHidden = mobile && room !== null;
+  const [listWidth, setListWidth] = useSidebarWidth();
 
   return (
     <ProductPage width="full" className="flex-row">
       {/* The page's one h1: the panes' headers say where you are. */}
       <PageHeader title="Chat" className="sr-only" />
       <nav
+        id={CHAT_LIST_ID}
         aria-label="Rooms"
         hidden={listHidden}
         // Its fade back in is for browsers without typed view transitions;
         // elsewhere the pop draws it (src/styles/transitions.css).
         data-vt-fallback={mobile ? "" : undefined}
         className={cn(
-          "flex min-h-0 flex-col",
+          // min-w-0: a long newest message truncates, never widens the list.
+          "flex min-h-0 min-w-0 flex-col",
           mobile
             ? "flex-1 animate-in fade-in-0 duration-150 motion-reduce:animate-none"
-            : "w-80 shrink-0 border-hairline border-r",
+            : "relative w-sidebar shrink-0 border-hairline border-r",
         )}
       >
-        <RoomList view={view} go={goScoped} empty={empty} />
+        <RoomList currentRoom={room} go={go} empty={empty} />
+        {/* Resized like Schedule's and Plan's sidebars, to the same width. */}
+        {mobile || listWidth === null ? null : (
+          <SidebarResizeHandle
+            controls={CHAT_LIST_ID}
+            width={listWidth}
+            onWidth={setListWidth}
+          />
+        )}
       </nav>
       {room && course && termId ? (
         <CourseRoom
@@ -261,10 +274,8 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
           courseCode={course}
           roomId={room}
           view={view}
-          go={goScoped}
+          go={go}
           mobile={mobile}
-          infoOpen={infoOpen}
-          setInfoOpen={setInfoOpen}
           onReconnect={() => setAttempt((n) => n + 1)}
         />
       ) : mobile ? null : (
@@ -276,7 +287,7 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
             {homeStatus !== "ready" ? null : noClasses ? (
               <NoClasses onFind={findCourse} />
             ) : (
-              <PickARoom list={list} go={goScoped} />
+              <PickARoom list={list} go={go} />
             )}
           </div>
         </div>
@@ -346,24 +357,18 @@ function PickARoom({
       title="Pick a room to start talking"
       line="Each of your classes has a room for the course, one for your professor's sections and one for your section."
       primary={{
-        label: `Open ${roomName(target.courseCode, target.room)}`,
+        label: `Open ${target.room.label}`,
         hint:
           target.unread > 0 && !target.muted
             ? unreadWords(target.unread)
             : target.room.description,
-        onClick: () => go({ course: target.courseCode, room: target.room.id }),
+        onClick: () => go({ room: target.room.id }),
       }}
     />
   );
 }
 
-/** "CMSC351", "CMSC351 0101", "CMSC351 Brandt's sections". */
-function roomName(courseCode: CourseCode, room: Room): string {
-  if (room.kind === "course") return courseCode;
-  return `${courseCode} ${room.code ?? room.words}`;
-}
-
-/** A room with its course's socket; room info beside it (desktop) or in a drawer (phone). */
+/** A room with its course's socket. */
 function CourseRoom({
   termId,
   courseCode,
@@ -371,8 +376,6 @@ function CourseRoom({
   view,
   go,
   mobile,
-  infoOpen,
-  setInfoOpen,
   onReconnect,
 }: {
   termId: string;
@@ -381,8 +384,6 @@ function CourseRoom({
   view: ChatView;
   go: ChatGo;
   mobile: boolean;
-  infoOpen: boolean;
-  setInfoOpen: (open: boolean) => void;
   onReconnect: () => void;
 }) {
   const course = useChatHome((s) => s.courses.get(courseCode) ?? null);
@@ -414,6 +415,9 @@ function CourseRoom({
     termId,
     courseCode,
     readable.length ? readable : [tree?.course.id ?? `${termId}:${courseCode}`],
+    undefined,
+    // The list's rows for this course's other rooms stay live on this socket.
+    listLive,
   );
   const room = tree?.byId.get(roomId) ?? null;
 
@@ -424,8 +428,8 @@ function CourseRoom({
   }, [session, roomId]);
 
   const openThread = useCallback(
-    (id: string) => go({ course: courseCode, room: roomId, thread: id }),
-    [go, courseCode, roomId],
+    (id: string) => go({ room: roomId, thread: id }),
+    [go, roomId],
   );
 
   // A phone pushes the room in over the list and pops it back off, with the
@@ -440,11 +444,7 @@ function CourseRoom({
       "animate-in slide-in-from-right-8 fade-in-0 duration-200 motion-reduce:animate-none",
   );
   const fallback = mobile ? "" : undefined;
-  const backToList: BackTo = {
-    label: "Your classes",
-    to: "/chat",
-    search: { term: view.term },
-  };
+  const backToList: BackTo = { label: "Your classes", to: "/chat" };
 
   if (!tree || !room)
     return (
@@ -474,78 +474,35 @@ function CourseRoom({
     );
 
   const roomState = snapshot?.conversation.rooms[roomId];
-  const info = (
-    <RoomInfo
-      termId={termId}
-      courseCode={courseCode}
-      room={room}
-      members={roomState?.members ?? null}
-    />
-  );
-  const closeInfo = (
-    <WithTooltip label="Close room info" shortcut={mobile ? undefined : "Esc"}>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Close room info"
-        onClick={() => setInfoOpen(false)}
-      >
-        <X />
-      </Button>
-    </WithTooltip>
-  );
 
   return (
-    <>
-      <section
-        data-hides-tab-bar=""
-        className={pane}
-        data-vt-fallback={fallback}
-        aria-label={room.label}
-      >
-        <RoomView
-          courseCode={courseCode}
-          room={room}
-          thread={view.thread ?? null}
-          session={session}
-          snapshot={snapshot}
-          roomState={roomState}
-          compact={mobile}
-          back={{
-            room: {
-              label: roomName(courseCode, room),
-              to: "/chat",
-              search: { term: view.term, course: courseCode, room: roomId },
-            },
-            list: backToList,
-          }}
-          join={<JoinButton courseCode={courseCode} />}
-          onOpenThread={openThread}
-          onInfo={() => setInfoOpen(!infoOpen)}
-          onSeen={onSeen}
-          onReconnect={onReconnect}
-        />
-      </section>
-      {infoOpen && !mobile ? (
-        <aside
-          aria-label="Room info"
-          className="scroll-thin w-72 shrink-0 overflow-y-auto border-hairline border-l"
-        >
-          <PageHeader size="panel" title="Room info" actions={closeInfo} />
-          {info}
-        </aside>
-      ) : null}
-      {mobile ? (
-        <Suspense fallback={null}>
-          <RoomInfoSheet
-            open={infoOpen}
-            onOpenChange={setInfoOpen}
-            actions={closeInfo}
-          >
-            {info}
-          </RoomInfoSheet>
-        </Suspense>
-      ) : null}
-    </>
+    <section
+      data-hides-tab-bar=""
+      className={pane}
+      data-vt-fallback={fallback}
+      aria-label={room.label}
+    >
+      <RoomView
+        courseCode={courseCode}
+        room={room}
+        thread={view.thread ?? null}
+        session={session}
+        snapshot={snapshot}
+        roomState={roomState}
+        compact={mobile}
+        back={{
+          room: {
+            label: room.label,
+            to: "/chat/$course/$room",
+            params: { course: courseCode, room: roomSlug(roomId) },
+          },
+          list: backToList,
+        }}
+        join={<JoinButton courseCode={courseCode} />}
+        onOpenThread={openThread}
+        onSeen={onSeen}
+        onReconnect={onReconnect}
+      />
+    </section>
   );
 }

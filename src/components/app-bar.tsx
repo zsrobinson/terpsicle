@@ -59,7 +59,7 @@ export function AppBar({
   context?: ReactNode;
   /**
    * Before Share: the page's status (saved or syncing, then counts: credits,
-   * problems, "Offline"), then its tools (Reviews' search, Todo's buttons).
+   * problems, "Offline"; Todo's sync), then its tools (Reviews' search).
    */
   status?: ReactNode;
   /** A workbench's Share, an icon before the account cluster (`ShareButton`). */
