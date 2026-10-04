@@ -8,18 +8,14 @@ import type {
   Term,
   TermId,
 } from "~/core/schema";
-import type { api } from "~/server/fns/api";
-import type { chatApi } from "~/server/fns/chat-api";
+import type { ChatApi } from "./chat-client";
 
 // What the chat list reads, without the scheduler's stores (so /chat stays
 // light): the terms and the courses it shows, from published data through
 // the page's query client (./chat-reads, loaded on first use), and your
-// synced plans and settings from sync/pull. Rooms come from synced plans
-// because that's what the server checks (V2.md §8.2).
-
-export type ChatApi = Pick<typeof api, "sync" | "reports"> & {
-  chat: typeof chatApi;
-};
+// synced plans and settings from sync/pull (read through `chatSyncedQuery`,
+// ./queries). Rooms come from synced plans because that's what the server
+// checks (V2.md §8.2).
 
 export interface Synced {
   /** Live plans, every term. */

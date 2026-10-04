@@ -26,8 +26,9 @@ import {
 // "Chat" (docs/V3.md §1.5): your rooms with unread messages, a course at a
 // time, from `chat/unread` (one D1 query that wakes no room). Muted rooms
 // don't count. Each row opens the course's room with the newest message.
-// The page asks (`chatRoomsQuery`), since whether any room has a message
-// also decides Chat's callout.
+// The page asks (`chatUnreadQuery`, the same copy Chat's list reads and
+// its sockets keep current), since whether any room has a message also
+// decides Chat's callout.
 
 /** At most this many courses. */
 const SHOWN = 4;

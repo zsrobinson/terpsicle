@@ -4,7 +4,12 @@ import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelBody, PanelNote } from "~/components/panel";
 import { termLabel } from "~/core/catalog/terms";
 import type { ChatListCourse } from "~/core/chat";
-import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
+import {
+  type CourseCode,
+  parseRoomId,
+  type RoomId,
+  type TermId,
+} from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import {
   ActionMenu,
@@ -17,7 +22,15 @@ import { InlineError } from "~/ui/inline-error";
 import { GroupHeader } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
-import { chatListOf, termPlans, useChatHome, useMainPlan } from "./chat-home";
+import {
+  chatListOf,
+  termPlans,
+  useChatHome,
+  useChatSynced,
+  useChatUnread,
+  useCourseLatest,
+  useMainPlan,
+} from "./chat-home";
 import type { ChatGo } from "./nav";
 import { RoomContextMenu } from "./room-menu";
 import { RoomRow } from "./room-row";
@@ -41,8 +54,8 @@ export function useChatList(
   viewing: CourseCode | null = null,
 ): ChatListCourse[] {
   const termId = useChatHome((s) => s.termId);
-  const synced = useChatHome((s) => s.synced);
-  const unread = useChatHome((s) => s.unread);
+  const synced = useChatSynced();
+  const unread = useChatUnread();
   const courses = useChatHome((s) => s.courses);
   const follows = useChatHome((s) => s.follows);
   const mutes = useChatHome((s) => s.mutes);
@@ -65,6 +78,7 @@ export function RoomList({
   empty: ReactNode;
 }) {
   const status = useChatHome((s) => s.status);
+  const termId = useChatHome((s) => s.termId);
   const viewing = currentRoom
     ? (parseRoomId(currentRoom)?.courseCode ?? null)
     : null;
@@ -83,13 +97,14 @@ export function RoomList({
             onRetry={() => void useChatHome.getState().load()}
             retryTooltip="Load your classes again"
           />
-        ) : list.length === 0 ? (
+        ) : list.length === 0 || termId === null ? (
           empty
         ) : (
           <ul aria-label="Your classes">
             {list.map((c) => (
               <CourseGroup
                 key={c.courseCode}
+                termId={termId}
                 entry={c}
                 currentRoom={currentRoom}
                 go={go}
@@ -103,16 +118,24 @@ export function RoomList({
 }
 
 function CourseGroup({
+  termId,
   entry,
   currentRoom,
   go,
 }: {
+  termId: TermId;
   entry: ChatListCourse;
   currentRoom: RoomId | null;
   go: ChatGo;
 }) {
   const { courseCode, course, rooms } = entry;
-  const latest = useChatHome((s) => s.latest);
+  // Each room's newest message, the row's second line.
+  const unread = useChatUnread();
+  const rows = useMemo(
+    () => unread.filter((r) => r.courseCode === courseCode),
+    [unread, courseCode],
+  );
+  const latest = useCourseLatest(termId, courseCode, rows);
   const you = useAccount((s) => s.user?.id ?? null);
   const now = new Date(useNow()).toISOString();
   // Just a heading: its rooms are right under it, so there's nowhere else
@@ -172,7 +195,7 @@ function CourseGroup({
 function RoomsFrom() {
   const termId = useChatHome((s) => s.termId);
   const terms = useChatHome((s) => s.terms);
-  const synced = useChatHome((s) => s.synced);
+  const synced = useChatSynced();
   const plans = useMemo(
     () => termPlans(synced.plans, termId),
     [synced, termId],
