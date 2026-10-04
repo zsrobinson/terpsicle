@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus } from "lucide-react";
 import {
   Fragment,
@@ -31,7 +31,6 @@ import {
 } from "~/core/chat";
 import { chatRulesSeen, withChatRulesSeen } from "~/core/prefs";
 import {
-  type ChatAuthor,
   type ChatMessageId,
   type ChatRoomState,
   ChatRulesSeenStoreSchema,
@@ -45,7 +44,6 @@ import {
   useSyncedPrefs,
 } from "~/features/prefs/synced-prefs";
 import { api } from "~/server/fns/api";
-import { chatApi } from "~/server/fns/chat-api";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
 import { type BackTo, PageHeader } from "~/ui/page-header";
@@ -56,7 +54,7 @@ import { useChatHome } from "./chat-home";
 import { Composer } from "./composer";
 import type { MessageActions, ReportOutcome } from "./message-row";
 import { MessageRow } from "./message-row";
-import { roomJoinsQuery } from "./queries";
+import { mentionable, roomJoinsQuery } from "./queries";
 import { ROOM_RULES, RoomMenu } from "./room-menu";
 import type { CourseChatSession, SessionSnapshot } from "./session";
 import { showNote, showUndo, useNow } from "./undo";
@@ -110,21 +108,6 @@ function useRulesSeen(courseCode: CourseCode): {
     markSeen: () =>
       void saveSyncedPrefs((p) => withChatRulesSeen(p, [courseCode])),
   };
-}
-
-/** Who can be @-mentioned here: the room's members (at most 200), you aside. */
-async function roomMembers(
-  room: Room,
-  you: string | undefined,
-): Promise<ChatAuthor[]> {
-  const result = await chatApi.members({
-    termId: room.termId,
-    courseCode: room.courseCode,
-    roomId: room.id,
-  });
-  // Thrown, so the next "@" asks again.
-  if (result.status !== "ok") throw new Error(result.status);
-  return result.members.filter((m) => m.directoryId !== you);
 }
 
 export function RoomView({
@@ -196,6 +179,7 @@ export function RoomView({
   const [allowedOpen, setAllowedOpen] = useState(false);
   // Who joined, as grouped lines between the messages (the owner, 2026-09-29).
   const joins = useQuery({ ...roomJoinsQuery(room), enabled: readable });
+  const queryClient = useQueryClient();
 
   // The list's second line follows the room while it's open.
   const newest = useMemo(() => {
@@ -330,7 +314,7 @@ export function RoomView({
             allowedOpen={allowedOpen}
             onAllowedOpenChange={setAllowedOpen}
             loadMembers={() =>
-              roomMembers(room, conversation?.you?.directoryId)
+              mentionable(queryClient, room, conversation?.you?.directoryId)
             }
             onSend={(text) => {
               void session?.send(room.id, text, thread).then((result) => {
