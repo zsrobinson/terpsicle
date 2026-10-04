@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SettingsDocSchema, SyncedPrefsSchema } from "../schema";
-import {
-  CHAT_RULES_SEEN_MAX,
-  chatRulesSeen,
-  todoWeekStart,
-  withChatRulesSeen,
-  withTodoWeekStart,
-} from "./prefs";
+import { CHAT_RULES_SEEN_MAX, chatRulesSeen, withChatRulesSeen } from "./prefs";
 
 describe("chat room rules seen", () => {
   it("are remembered per course", () => {
@@ -34,24 +28,23 @@ describe("chat room rules seen", () => {
   });
 });
 
-describe("Todo's week start", () => {
-  it("is Monday until someone picks Sunday", () => {
-    expect(todoWeekStart({})).toBe("monday");
-    expect(todoWeekStart({ todo: { weekStart: "sunday" } })).toBe("sunday");
-  });
-
-  it("changes, keeping the other prefs, and changes nothing when it's already that", () => {
-    const prefs = { ai: { features: false } };
-    const sunday = withTodoWeekStart(prefs, "sunday");
-    expect(sunday).toEqual({ ...prefs, todo: { weekStart: "sunday" } });
-    expect(withTodoWeekStart(sunday, "sunday")).toBe(sunday);
-    expect(todoWeekStart(withTodoWeekStart(sunday, "monday"))).toBe("monday");
-  });
-
-  it("refuses a day that isn't Monday or Sunday", () => {
-    expect(
-      SyncedPrefsSchema.safeParse({ todo: { weekStart: "friday" } }).success,
-    ).toBe(false);
+describe("prefs no build reads any more", () => {
+  it("still read, whatever they say, and changes to other prefs keep them", () => {
+    // Todo's weeks are Monday's alone now (docs/decisions.md, "Todo is one
+    // week"), and Reviews has no AI features to turn off ("Reviews without
+    // AI"); an account saved with either setting must still load.
+    for (const old of [
+      { todo: { weekStart: "sunday" } },
+      { todo: { weekStart: "friday" } },
+      { ai: { features: false } },
+    ]) {
+      const prefs = SyncedPrefsSchema.parse(old);
+      expect(prefs).toEqual(old);
+      expect(withChatRulesSeen(prefs, ["CMSC351"])).toEqual({
+        ...old,
+        chatRules: { seen: ["CMSC351"] },
+      });
+    }
   });
 });
 

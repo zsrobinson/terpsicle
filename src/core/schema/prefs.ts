@@ -12,12 +12,6 @@ export const ChatRulesPrefsSchema = z.object({
 });
 export type ChatRulesPrefs = z.infer<typeof ChatRulesPrefsSchema>;
 
-/** Todo's calendar: the day its weeks start on. Missing means Monday. */
-export const TodoPrefsSchema = z.object({
-  weekStart: z.enum(["monday", "sunday"]),
-});
-export type TodoPrefs = z.infer<typeof TodoPrefsSchema>;
-
 /**
  * Home's setup callouts you've closed (`CalloutId`s in ~/core/home). Plain
  * strings, so a callout a newer build adds survives an older one.
@@ -30,10 +24,14 @@ export type HomePrefs = z.infer<typeof HomePrefsSchema>;
 /**
  * Loose on purpose: a key this build doesn't know (a newer build's, another
  * product's) passes through untouched, so no build drops what it can't read.
+ * That includes `todo`, where Todo's "Weeks start on" was kept until its
+ * weeks became Monday's alone (docs/decisions.md, "Todo is one week"): an
+ * account that has it still reads, and it's never read back. The same goes
+ * for `ai`, Settings' "Show AI summaries" until Reviews dropped its AI
+ * features.
  */
 export const SyncedPrefsSchema = z.looseObject({
   chatRules: ChatRulesPrefsSchema.optional(),
-  todo: TodoPrefsSchema.optional(),
   home: HomePrefsSchema.optional(),
 });
 export type SyncedPrefs = z.infer<typeof SyncedPrefsSchema>;

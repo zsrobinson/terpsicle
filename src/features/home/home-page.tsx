@@ -9,11 +9,10 @@ import {
 } from "~/core/home";
 import { weekdayOf } from "~/core/ics/dates";
 import { mainPlanFor } from "~/core/plans/main-plan";
-import { todoWeekStart } from "~/core/prefs";
 import type { CourseCode } from "~/core/schema";
 import { DAY_LONG_NAMES, formatShortDate } from "~/core/time/format";
+import { DEFAULT_WEEK_START } from "~/core/todo/weeks";
 import { useAccount } from "~/features/auth/account-store";
-import { useSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { SitePage } from "~/features/site/site-page";
 import { PageHeader } from "~/ui/page-header";
 import { SplitLayout } from "~/ui/split-layout";
@@ -59,8 +58,8 @@ export function HomePage() {
   const account = useAccount((s) => s.status);
   const flags = useAccount((s) => s.flags);
   const signedIn = account === "signed-in";
-  const prefs = useSyncedPrefs();
-  const weekStart = todoWeekStart(prefs ?? {});
+  // Todo's weeks, Monday to Sunday (docs/decisions.md, "Todo is one week").
+  const weekStart = DEFAULT_WEEK_START;
 
   const todoOn = signedIn && flags.todo;
   const todo = useHomeTodo(clock.today, todoOn);

@@ -236,7 +236,7 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 
 **More important is darker and bolder, and a heading is never lighter than what it heads.** In dark mode "darker" means more contrast, which is brighter. How a page shows that depends on which of the two languages it speaks.
 
-**Workbench pages (Schedule, Chat, Plan, Todo): bands and borders carry the hierarchy.** Every sidebar section, and every section of a panel that opens from the bar (Todo's Courses and ELMS), uses one pattern. Chat's room list is the reference.
+**Workbench pages (Schedule, Chat, Plan, Todo): bands and borders carry the hierarchy.** Every sidebar section uses one pattern. Chat's room list is the reference.
 - **A section** is `SectionHeader`, or `GroupHeader` where the group is the section (Chat's courses, Plan's GenEd groups). It gets the kit's band (`SECTION_BAND` in `src/components/ui/list-row.tsx`):
   - a `bg-band` strip with a hairline above and below, on every section, the first one too;
   - `px-4`, 30px tall (44px on phones, `--band-height`);

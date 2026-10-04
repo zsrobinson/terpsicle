@@ -2,34 +2,31 @@ import { describe, expect, it } from "vitest";
 import { anOwnTask, aTodoItem } from "~/fixtures";
 import { courseKey, itemCourse } from "./list";
 import {
-  addMonths,
-  courseWeeks,
-  isCurrentPeriod,
+  courseWeek,
+  isThisWeek,
+  isWeekend,
   mergeRange,
-  monthTitle,
-  monthWeeks,
   rangeLoaded,
   rangeToLoad,
-  shiftAnchor,
+  shiftWeek,
   shortDayLabel,
   totalOf,
-  viewSpan,
   weekDates,
-  weekdayNames,
+  weekdayShort,
+  weekSpan,
   weekStartOf,
   weekTitle,
 } from "./weeks";
 
-// Todo's calendar. 2026-09-29 is a Tuesday; October 2026 starts on a
-// Thursday and ends on a Saturday.
+// Todo's week. 2026-09-29 is a Tuesday.
 const TODAY = "2026-09-29";
 
 describe("weeks", () => {
   it("start on Monday, so Sunday night ends the week", () => {
-    expect(weekStartOf(TODAY, "monday")).toBe("2026-09-28");
-    expect(weekStartOf("2026-10-04", "monday")).toBe("2026-09-28"); // Sunday
-    expect(weekStartOf("2026-09-28", "monday")).toBe("2026-09-28");
-    expect(weekdayNames("monday")).toEqual([
+    expect(weekStartOf(TODAY)).toBe("2026-09-28");
+    expect(weekStartOf("2026-10-04")).toBe("2026-09-28"); // Sunday
+    expect(weekStartOf("2026-09-28")).toBe("2026-09-28");
+    expect(weekDates("2026-09-28").map(weekdayShort)).toEqual([
       "Mon",
       "Tue",
       "Wed",
@@ -40,10 +37,8 @@ describe("weeks", () => {
     ]);
   });
 
-  it("start on Sunday when the person sets it", () => {
+  it("start on Sunday only where a caller asks (Home's week)", () => {
     expect(weekStartOf(TODAY, "sunday")).toBe("2026-09-27");
-    expect(weekStartOf("2026-10-04", "sunday")).toBe("2026-10-04");
-    expect(weekdayNames("sunday")[0]).toBe("Sun");
   });
 
   it("list their seven dates across a month's end", () => {
@@ -57,63 +52,38 @@ describe("weeks", () => {
       "2026-10-04",
     ]);
   });
-});
 
-describe("months", () => {
-  it("step across years", () => {
-    expect(addMonths("2026-12-15", 1)).toBe("2027-01-01");
-    expect(addMonths("2026-01-31", -1)).toBe("2025-12-01");
-    expect(addMonths("2026-10-01", 0)).toBe("2026-10-01");
+  it("know their weekend", () => {
+    expect(weekDates("2026-09-28").map(isWeekend)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+    ]);
   });
 
-  it("run whole weeks from the 1st's to the last day's", () => {
-    const monday = monthWeeks("2026-10-14", "monday");
-    expect(monday).toHaveLength(5);
-    expect(monday[0]?.[0]).toBe("2026-09-28");
-    expect(monday.at(-1)?.[6]).toBe("2026-11-01");
-    const sunday = monthWeeks("2026-10-14", "sunday");
-    expect(sunday[0]?.[0]).toBe("2026-09-27");
-    expect(sunday.at(-1)?.[6]).toBe("2026-10-31");
-    // A month that needs six rows: August 2026 starts on a Saturday.
-    expect(monthWeeks("2026-08-10", "monday")).toHaveLength(6);
-  });
-});
-
-describe("views", () => {
-  it("span a week or the month's grid", () => {
-    expect(viewSpan("week", TODAY, "monday")).toEqual({
-      from: "2026-09-28",
-      to: "2026-10-04",
-    });
-    expect(viewSpan("month", "2026-10-20", "monday")).toEqual({
-      from: "2026-09-28",
-      to: "2026-11-01",
-    });
-  });
-
-  it("move a week or a month at a time", () => {
-    expect(shiftAnchor("week", TODAY, 1, "monday")).toBe("2026-10-05");
-    expect(shiftAnchor("week", TODAY, -1, "sunday")).toBe("2026-09-20");
-    expect(shiftAnchor("month", TODAY, 1, "monday")).toBe("2026-10-01");
-    expect(shiftAnchor("month", "2026-01-15", -1, "monday")).toBe("2025-12-01");
+  it("span Monday to Sunday, and move a week at a time", () => {
+    expect(weekSpan(TODAY)).toEqual({ from: "2026-09-28", to: "2026-10-04" });
+    expect(shiftWeek(TODAY, 1)).toBe("2026-10-05");
+    expect(shiftWeek("2026-10-04", -1)).toBe("2026-09-21");
   });
 
   it("know when they already show today", () => {
-    expect(isCurrentPeriod("week", "2026-10-04", TODAY, "monday")).toBe(true);
-    expect(isCurrentPeriod("week", "2026-10-04", TODAY, "sunday")).toBe(false);
-    expect(isCurrentPeriod("month", "2026-09-01", TODAY, "monday")).toBe(true);
-    expect(isCurrentPeriod("month", "2026-10-01", TODAY, "monday")).toBe(false);
+    expect(isThisWeek("2026-10-04", TODAY)).toBe(true);
+    expect(isThisWeek("2026-10-05", TODAY)).toBe(false);
   });
 
   it("are titled by their dates", () => {
     expect(weekTitle("2026-09-28", TODAY)).toBe("Sep 28 – Oct 4");
     expect(weekTitle("2026-12-28", TODAY)).toBe("Dec 28 – Jan 3, 2027");
-    expect(monthTitle("2026-10-14")).toBe("October 2026");
     expect(shortDayLabel("2026-10-02")).toBe("Fri, Oct 2");
   });
 });
 
-describe("courseWeeks", () => {
+describe("courseWeek", () => {
   const planCourses = new Set<string>();
   const course = (item: Parameters<typeof itemCourse>[0]) => ({
     key: courseKey(item, planCourses),
@@ -127,41 +97,30 @@ describe("courseWeeks", () => {
     courseCode: "MATH240",
   };
 
-  it("tallies each course's done and due, week by week, ending with the week shown", () => {
+  it("tallies each course's done and due in the week, Monday to Sunday night", () => {
     const items = [
-      due("old", "2026-09-06"), // before the four weeks
-      due("w1", "2026-09-14"),
-      due("w3-done", "2026-09-27"), // Sunday night ends week 3
-      due("w4-done", "2026-09-28"),
-      due("w4", "2026-10-04"),
+      due("before", "2026-09-27"), // the Sunday before
+      due("mon-done", "2026-09-28"),
+      due("sun", "2026-10-04"), // Sunday night ends the week
       due("next", "2026-10-05"), // after
-      due("math-w4", "2026-10-01", math),
+      due("math", "2026-10-01", math),
       anOwnTask({ uid: "own-nodate-00000", courseCode: "MATH240" }),
     ];
-    const rows = courseWeeks(
+    const rows = courseWeek(
       items,
-      new Set(["w3-done", "w4-done", "old"]),
+      new Set(["mon-done", "before"]),
       "2026-09-28",
-      4,
       course,
     );
-    expect(rows.map((r) => r.key)).toEqual(["CMSC216", "MATH240"]);
-    expect(rows[0]?.weeks).toEqual([
-      { week: "2026-09-07", done: 0, total: 0 },
-      { week: "2026-09-14", done: 0, total: 1 },
-      { week: "2026-09-21", done: 1, total: 1 },
-      { week: "2026-09-28", done: 1, total: 2 },
+    expect(rows).toEqual([
+      expect.objectContaining({ key: "CMSC216", done: 1, total: 2 }),
+      expect.objectContaining({ key: "MATH240", done: 0, total: 1 }),
     ]);
-    expect(rows[1]?.weeks.at(-1)).toEqual({
-      week: "2026-09-28",
-      done: 0,
-      total: 1,
-    });
-    expect(totalOf(rows, 3)).toEqual({ done: 1, total: 3 });
+    expect(totalOf(rows)).toEqual({ done: 1, total: 3 });
   });
 
   it("puts courses before ELMS names, and no course last", () => {
-    const rows = courseWeeks(
+    const rows = courseWeek(
       [
         due("none", TODAY, { courseLabel: null, courseCode: null }),
         due("club", TODAY, { courseLabel: "Robotics Club", courseCode: null }),
@@ -169,7 +128,6 @@ describe("courseWeeks", () => {
       ],
       new Set(),
       "2026-09-28",
-      1,
       course,
     );
     expect(rows.map((r) => r.key)).toEqual([

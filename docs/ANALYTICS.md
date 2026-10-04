@@ -83,11 +83,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `report_created` | `surface`, `reason` | How often readers report, and why. Never what they reported. |
   | `todo_connect_result` | `outcome` (`connected`, `invalid-link`, `unreachable`, `not-a-calendar`), and with `unreachable` and `not-a-calendar` a `reason`: a fixed code, `timeout`, `network`, `bad-redirect`, `too-large`, `http-<status>` (`http-404`) or `not-recognized` (ELMS answered, but not with a calendar) | Where connecting ELMS fails, and why, so a failure can be traced without asking the student. The reason is a code from that list and nothing else: never the link, a message or the body. Calls to our own server that fail (signed out, offline) aren't sent. |
   | `todo_disconnected` | | Churn: sent once Disconnect's Undo is gone. |
-  | `todo_item_checked` | `done`, `via` (`list`, `week`, `month`, `home`) | Whether checking things off is the habit, and in which view (`home`: Home's "This week" and "Coming up"). |
-  | `todo_view_changed` | `view` (`week`, `month`, `list`) | Which of the calendar's views earn their place. |
+  | `todo_item_checked` | `done`, `via` (`week`, `list`, `home`) | Whether checking things off is the habit, and where (`week`: a card on a desktop's week; `list`: a phone's day-by-day rows; `home`: Home's "This week" and "Coming up"). |
   | `todo_file_imported` | `items`, `skipped` (counts) | Whether calendar files (a dropped `.ics`) are used. |
   | `todo_task_added` | `date`, `time`, `course` (booleans: whether the task got one), `typed` (boolean: the composer recognized a date, time or course in the words) | Whether "Add a task…" earns its place, whether people date their tasks, and whether they type the date rather than pick it. Never the task's words, date or course. |
-  | `todo_week_start_changed` | `start` (`monday`, `sunday`) | Whether Monday is the right default for Todo's weeks. |
 
   Todo's events never carry an item's or a task's title, course, date or link, nor anything from the feed. `/todo` is on the no-autocapture list, and titles and course names are `data-private`.
 

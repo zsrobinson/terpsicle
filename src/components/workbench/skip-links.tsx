@@ -18,7 +18,7 @@ export function SkipLinks({
   canvasId: string;
   /** "calendar", "semesters". */
   canvasName: string;
-  /** The open panel's element, the link's target (none on Todo, which has no sidebar). */
+  /** The open panel's element, the link's target. */
   sidebarId?: string;
   /** Opens a collapsed sidebar or resting drawer, then focuses the panel. */
   onSidebar?: () => void;
