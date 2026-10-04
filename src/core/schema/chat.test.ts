@@ -138,6 +138,17 @@ describe("ChatMessageSchema", () => {
     ])
       expect(ChatMessageSchema.safeParse(bad).success).toBe(false);
   });
+
+  it("takes a tombstone: deleted, with no text", () => {
+    expect(
+      ChatMessageSchema.safeParse(aChatMessage({ text: "", deleted: true }))
+        .success,
+    ).toBe(true);
+    expect(
+      ChatMessageSchema.safeParse(aChatMessage({ text: "", deleted: false }))
+        .success,
+    ).toBe(false);
+  });
 });
 
 describe("the WebSocket protocol", () => {

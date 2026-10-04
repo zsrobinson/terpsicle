@@ -124,7 +124,8 @@ export type AdminSamplesResult = z.infer<typeof AdminSamplesResultSchema>;
  * ResolveResultSchema; `not-found` when the message isn't there.
  */
 export const AdminChatRemoveInputSchema = z.strictObject({
-  termId: TermIdSchema,
+  /** Left out for a Chat link, which names no term: Chat's term, then. */
+  termId: TermIdSchema.optional(),
   courseCode: CourseCodeSchema,
   messageId: ChatMessageIdSchema,
   reason: AdminReasonSchema,

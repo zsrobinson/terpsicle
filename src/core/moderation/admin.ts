@@ -2,13 +2,14 @@
 // against its target, filling in quiet days, the decision log's cursor,
 // marking the words a rule matched, the removal reason to offer first, and
 // how long something has waited.
+
+import { parseChatPath } from "../chat/room-paths";
 import {
   type AdminReason,
   ChatMessageIdSchema,
   CourseCodeSchema,
   type ModerationKind,
   type ModerationReason,
-  parseRoomId,
   type ReasonCode,
   type ReportReason,
   TermIdSchema,
@@ -199,7 +200,8 @@ export function authorStopUntil(kind: ModerationKind, now: Date): string {
 }
 
 export interface ChatMessageRef {
-  termId: string;
+  /** Null for a Chat link, which names no term: the server takes Chat's term. */
+  termId: string | null;
   courseCode: string;
   messageId: string;
 }
@@ -208,24 +210,24 @@ export interface ChatMessageRef {
  * The message a pasted link or id points at, for the owner's "Remove a chat
  * message" (V2 §10): a moderation ref (`<term>:CMSC351:<id>`, as the
  * decision log shows it) or a Chat link to the message's thread
- * (`/chat?term=<term>&course=CMSC351&…&thread=<id>`, where the term may be
- * left to the room). Null otherwise.
+ * (`/chat/CMSC351/0101?thread=<id>`, or an older
+ * `/chat?term=<term>&course=CMSC351&…&thread=<id>`), read by
+ * ~/core/chat/room-paths. Null otherwise.
  */
 export function parseChatMessageRef(pasted: string): ChatMessageRef | null {
   const text = pasted.trim();
-  const valid = (termId: unknown, courseCode: unknown, messageId: unknown) =>
-    TermIdSchema.safeParse(termId).success &&
-    CourseCodeSchema.safeParse(courseCode).success &&
-    ChatMessageIdSchema.safeParse(messageId).success
-      ? {
-          termId: String(termId),
-          courseCode: String(courseCode),
-          messageId: String(messageId),
-        }
-      : null;
   const parts = text.split(":");
-  const ref = parts.length === 3 ? valid(parts[0], parts[1], parts[2]) : null;
-  if (ref) return ref;
+  if (
+    parts.length === 3 &&
+    TermIdSchema.safeParse(parts[0]).success &&
+    CourseCodeSchema.safeParse(parts[1]).success &&
+    ChatMessageIdSchema.safeParse(parts[2]).success
+  )
+    return {
+      termId: parts[0] ?? null,
+      courseCode: parts[1] ?? "",
+      messageId: parts[2] ?? "",
+    };
   // Any host: previews and localhost have their own.
   let url: URL;
   try {
@@ -233,13 +235,11 @@ export function parseChatMessageRef(pasted: string): ChatMessageRef | null {
   } catch {
     return null;
   }
-  if (url.pathname !== "/chat") return null;
-  const q = url.searchParams;
-  // Chat leaves out `term` for the current one; the room names it too.
-  const room = parseRoomId(q.get("room") ?? "");
-  return valid(
-    q.get("term") ?? room?.termId,
-    q.get("course") ?? room?.courseCode,
-    q.get("thread"),
-  );
+  const at = parseChatPath(url.pathname, url.searchParams);
+  if (!at?.course || !at.thread) return null;
+  return {
+    termId: at.term ?? null,
+    courseCode: at.course,
+    messageId: at.thread,
+  };
 }

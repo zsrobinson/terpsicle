@@ -8,6 +8,7 @@ import {
   type SectionRef,
 } from "~/core/catalog";
 import {
+  chatTerm,
   type TermTags,
   termTagCandidates,
   termTags,
@@ -112,18 +113,39 @@ function newYorkToday(): IsoDate {
 }
 
 /**
- * Now and Next (term tags) today, from the academic calendars of the terms
- * that can be either, loaded here when Testudo lists them.
+ * Today, and the academic calendars of the terms that can be Now or Next,
+ * loaded here when Testudo lists them.
  */
-export function useTermTags(): TermTags {
+function useTagCalendars() {
   const terms = useCatalog((s) => s.terms);
   const today = newYorkToday();
   const wanted = termTagCandidates(today)
     .filter((id) => terms?.some((t) => t.id === id))
     .join(",");
   const ids = useMemo(() => (wanted ? wanted.split(",") : []), [wanted]);
-  const calendars = useAcademicCalendars(ids);
+  return { terms, today, calendars: useAcademicCalendars(ids) };
+}
+
+/** Now and Next (term tags) today. */
+export function useTermTags(): TermTags {
+  const { today, calendars } = useTagCalendars();
   return useMemo(() => termTags(today, calendars), [today, calendars]);
+}
+
+/** Chat's term today (`chatTerm`): the only term whose chats you can join. */
+export function useChatTerm(): TermId | null {
+  const { terms, today, calendars } = useTagCalendars();
+  return useMemo(
+    () =>
+      terms
+        ? chatTerm(
+            today,
+            terms.map((t) => t.id),
+            calendars,
+          )
+        : null,
+    [terms, today, calendars],
+  );
 }
 
 /** The id of the person's open plan in a term. */

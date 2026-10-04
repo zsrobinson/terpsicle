@@ -58,39 +58,39 @@ export const MODERATION_POLICY: Readonly<
   // Chat is lighter than reviews (the owner, 2026-09-27): only real abuse
   // is stopped, and nothing here says a bot reads every message. Neutral,
   // not a lecture (2026-09-28): your name is on what you post, and that
-  // says what needs saying about answers.
+  // says what needs saying about answers. Reworked shorter and plainer
+  // (2026-09-29: "let's rework the language again on the 'what's allowed'
+  // thing").
   chat: {
     title: "What's allowed",
     intro:
-      "Class chats are for the people taking the course. Your name is on everything you post.",
+      "Everyone in the course can read what you post, with your name on it.",
     sections: [
       {
-        heading: "Fine here",
+        heading: "Go ahead",
         items: [
-          "Questions about concepts, deadlines, office hours or anything you're stuck on.",
-          "Your number, email or a room, to set up a study group.",
-          "Links to notes, videos and anything else useful.",
-          "Code, to ask about a bug. Venting about the class.",
+          "Questions about the class, deadlines and office hours.",
+          "Setting up a study group: your number, email or a place to meet.",
+          "Notes, links and code you're stuck on.",
+          "Venting about the class.",
         ],
       },
       {
-        heading: "A bad idea",
-        items: [
-          "Answers to graded work. Your name is on them, and everyone in the course can read them.",
-        ],
+        heading: "Think twice",
+        items: ["Answers to graded work. Your name is on them."],
       },
       {
         heading: "Not allowed",
         items: [
-          "Slurs, threats, harassment, or attacks on anyone's identity.",
+          "Slurs, threats and harassment.",
           "Sexual content.",
           "Someone else's private details.",
-          "Spam and scams, or one message posted across many courses.",
+          "Spam, scams, or one message posted in lots of courses.",
         ],
       },
     ],
     process:
-      "Messages that break these are held or taken down. Report is in each message's menu (…), and a person reads every report.",
+      "Messages that break these come down. To report one, use its … menu: a person reads every report, and nobody sees who sent it.",
   },
 };
 

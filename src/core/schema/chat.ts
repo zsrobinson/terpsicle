@@ -184,21 +184,32 @@ export const ThreadSummarySchema = z.object({
 });
 export type ThreadSummary = z.infer<typeof ThreadSummarySchema>;
 
-export const ChatMessageSchema = z.object({
-  id: ChatMessageIdSchema,
-  room: RoomIdSchema,
-  author: ChatAuthorSchema,
-  text: ChatTextSchema,
-  createdAt: IsoDateTimeSchema,
-  /** null until the author edits it. */
-  editedAt: IsoDateTimeSchema.nullable(),
-  /** The message whose thread this reply is in; null for a top-level message. Threads are one level deep. */
-  replyTo: ChatMessageIdSchema.nullable(),
-  /** Replies so far; null when nobody has replied (and always on a reply). */
-  thread: ThreadSummarySchema.nullable(),
-  reactions: ReactionsSchema,
-  moderation: ModerationSchema,
-});
+export const ChatMessageSchema = z
+  .object({
+    id: ChatMessageIdSchema,
+    room: RoomIdSchema,
+    author: ChatAuthorSchema,
+    /** Empty for a tombstone (`deleted`), whose text is gone; never otherwise. */
+    text: z.string().trim().max(CHAT_TEXT_MAX),
+    createdAt: IsoDateTimeSchema,
+    /** null until the author edits it. */
+    editedAt: IsoDateTimeSchema.nullable(),
+    /** The message whose thread this reply is in; null for a top-level message. Threads are one level deep. */
+    replyTo: ChatMessageIdSchema.nullable(),
+    /** Replies so far; null when nobody has replied (and always on a reply). */
+    thread: ThreadSummarySchema.nullable(),
+    reactions: ReactionsSchema,
+    moderation: ModerationSchema,
+    /**
+     * Its author deleted it after the room saw it: a tombstone, "Message
+     * deleted by author", with no text or reactions (the owner, 2026-09-29).
+     */
+    deleted: z.boolean(),
+  })
+  .refine((m) => m.deleted || m.text.length > 0, {
+    message: "Only a deleted message has no text",
+    path: ["text"],
+  });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 // ---------- the WebSocket protocol ----------
@@ -207,8 +218,11 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
  * Bumped on any breaking change to the frames below. A client whose `hello`
  * carries an older version gets `error {code: "old-client"}` and reloads.
  * 2: authors lost `picture` (no profile pictures, 2026-09-28).
+ * 3: a deleted message stays as a tombstone (`deleted`, empty `text`), sent
+ *    as a `message` frame; `deleted` frames are for messages that are gone
+ *    entirely (an account's purge).
  */
-export const CHAT_PROTOCOL_VERSION = 2;
+export const CHAT_PROTOCOL_VERSION = 3;
 
 /** Frames per history page, at most. */
 export const CHAT_PAGE_MAX = 100;

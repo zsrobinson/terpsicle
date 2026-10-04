@@ -9,8 +9,8 @@ describe("feedbackPath", () => {
         "bug",
       ),
     ).toBe("/schedule?plan=shared&tab=generate");
-    expect(feedbackPath("/chat/202608/CMSC131/0101", "idea")).toBe(
-      "/chat/:term/:course/:room",
+    expect(feedbackPath("/chat/CMSC131/0101", "idea")).toBe(
+      "/chat/:course/:room",
     );
   });
 
@@ -32,7 +32,7 @@ describe("feedbackProduct", () => {
   it("names the product a page belongs to", () => {
     expect(feedbackProduct("/schedule")).toBe("schedule");
     expect(feedbackProduct("/reviews/courses/CMSC131")).toBe("reviews");
-    expect(feedbackProduct("/chat/202608/CMSC131/0101")).toBe("chat");
+    expect(feedbackProduct("/chat/CMSC131/0101")).toBe("chat");
     expect(feedbackProduct("/settings/notifications")).toBe("settings");
     expect(feedbackProduct("/home")).toBe("site");
     expect(feedbackProduct("/todo/connect")).toBe("todo");

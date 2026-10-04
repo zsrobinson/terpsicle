@@ -38,7 +38,7 @@ export type PushType = z.infer<typeof PushTypeSchema>;
 export const PushPayloadSchema = z.object({
   v: z.literal(1),
   type: PushTypeSchema,
-  /** "Hannah Lee replied in CMSC131 · 0303". */
+  /** "Hannah Lee replied in CMSC131 · Section 0303". */
   title: z.string().trim().min(1).max(120),
   /** One or two plain sentences. */
   body: z.string().max(400),

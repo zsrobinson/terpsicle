@@ -25,6 +25,7 @@ import {
   type AcademicCalendar,
   CHAT_PROTOCOL_VERSION,
   type ChatClientFrame,
+  ChatJoinsResultSchema,
   type ChatMembersResult,
   ChatMembersResultSchema,
   type ChatServerFrame,
@@ -230,7 +231,12 @@ class Person {
     readonly cookie: string,
   ) {}
 
-  api(path: string, body: unknown, level: "on" | "off" = "on") {
+  api(
+    path: string,
+    body: unknown,
+    level: "on" | "off" = "on",
+    now: Date = new Date(),
+  ) {
     return handleApi(
       new Request(`${ORIGIN}/api/${path}`, {
         method: "POST",
@@ -244,6 +250,7 @@ class Person {
       }),
       { ...env, CHAT_ENABLED: level } as unknown as ApiEnv,
       { waitUntil: () => {} },
+      now,
     );
   }
 
@@ -312,11 +319,11 @@ class Person {
   }
 }
 
-async function signIn(userId: string): Promise<Person> {
+async function signIn(userId: string, at = new Date()): Promise<Person> {
   const user = findTestUser(userId);
   if (!user) throw new Error(`no test user ${userId}`);
-  await upsertUser(env.DB, user.identity, new Date());
-  const setCookie = await startSession(env.DB, userId, new Date());
+  await upsertUser(env.DB, user.identity, at);
+  const setCookie = await startSession(env.DB, userId, at);
   return new Person(userId, setCookie.split(";")[0] ?? "");
 }
 
@@ -1130,26 +1137,108 @@ describe("a conversation", () => {
     expect((await b.client.error(theirs)).code).toBe("not-yours");
   });
 
-  it("deletes at once, for everyone", async () => {
+  it("fans a room's messages out to every list socket that names it, with counts at hello", async () => {
+    const { student, classmate } = await twoPeople();
+    const a = await student.join([courseRoom, brandtRoom, room0101]);
+    // The classmate's list listens to their rooms without opening any.
+    const b = await classmate.join([courseRoom, mossRoom, room0201]);
+    const other = await classmate.join([courseRoom, mossRoom, room0201]);
+    const id = await published(a.client, courseRoom, "exam moved to Friday");
+    for (const socket of [b.client, other.client])
+      expect(
+        (await socket.next("message", (f) => f.message.id === id)).message,
+      ).toMatchObject({ room: courseRoom, text: "exam moved to Friday" });
+    // A section room they don't read never reaches them.
+    const mine = await published(a.client, room0101, "0101 only");
+    await b.client.flush();
+    expect(
+      b.client
+        .pending("message")
+        .some((f) => f.type === "message" && f.message.id === mine),
+    ).toBe(false);
+    // A list that opens later starts from each room's unread count.
+    const later = await classmate.join([courseRoom, room0201]);
+    expect(later.welcome.rooms.find((r) => r.room === courseRoom)?.unread).toBe(
+      1,
+    );
+  });
+
+  it("leaves a tombstone for everyone when its author deletes a message", async () => {
     const { student, classmate } = await twoPeople();
     const a = await student.join([courseRoom]);
     const b = await classmate.join([courseRoom]);
     const id = await published(a.client, courseRoom, "oops");
     await b.client.next("message", (f) => f.message.id === id);
+    const react = b.client.req();
+    b.client.send({
+      type: "react",
+      req: react,
+      room: courseRoom,
+      id,
+      reaction: "eyes",
+      on: true,
+    });
+    await b.client.next("ack", (f) => f.req === react);
+    const req = a.client.req();
+    a.client.send({ type: "delete", req, room: courseRoom, id });
+    // The text and reactions go; the record that something was there stays.
+    const tombstone = {
+      id,
+      text: "",
+      deleted: true,
+      reactions: {},
+      author: { directoryId: "tstudent", name: "Test Student" },
+    };
+    expect(
+      (await a.client.next("ack", (f) => f.req === req)).message,
+    ).toMatchObject(tombstone);
+    expect(
+      (
+        await b.client.next(
+          "message",
+          (f) => f.message.id === id && f.message.deleted,
+        )
+      ).message,
+    ).toMatchObject(tombstone);
+    expect((await b.client.history(courseRoom)).messages).toMatchObject([
+      tombstone,
+    ]);
+    // It can't be edited, reacted to or deleted again.
+    const again = a.client.req();
+    a.client.send({ type: "delete", req: again, room: courseRoom, id });
+    expect((await a.client.error(again)).code).toBe("not-found");
+    const edit = a.client.req();
+    a.client.send({
+      type: "edit",
+      req: edit,
+      room: courseRoom,
+      id,
+      text: "back",
+    });
+    expect((await a.client.error(edit)).code).toBe("not-found");
+    // The list's second line says so too.
+    const latest = await classmate.api("chat/latest", {
+      termId: TERM,
+      courseCode: COURSE,
+      rooms: [courseRoom],
+    });
+    expect(await latest.json()).toMatchObject({
+      latest: [{ room: courseRoom, text: "", deleted: true }],
+    });
+  });
+
+  it("deletes a message only its author saw entirely, with no tombstone", async () => {
+    const { student } = await twoPeople();
+    const a = await student.join([courseRoom]);
+    const ack = await a.client.sendText(courseRoom, "here you go [hold]");
+    const id = ack.message?.id ?? "";
+    await a.client.next("moderation", (f) => f.id === id);
     const req = a.client.req();
     a.client.send({ type: "delete", req, room: courseRoom, id });
     expect(
       (await a.client.next("ack", (f) => f.req === req)).message,
     ).toBeNull();
-    expect(await b.client.next("deleted")).toEqual({
-      type: "deleted",
-      room: courseRoom,
-      id,
-    });
-    expect((await b.client.history(courseRoom)).messages).toEqual([]);
-    const again = a.client.req();
-    a.client.send({ type: "delete", req: again, room: courseRoom, id });
-    expect((await a.client.error(again)).code).toBe("not-found");
+    expect((await a.client.history(courseRoom)).messages).toEqual([]);
   });
 
   it("reacts and takes a reaction back", async () => {
@@ -2113,6 +2202,91 @@ describe("chat routes", () => {
     expect(bad.status).toBe(400);
   });
 
+  it("joins only Chat's term: not one that's over or still to come", async () => {
+    // Spring 2027 in session; Testudo lists Summer 2026 and Fall 2027 too.
+    const at = new Date("2027-03-01T15:00:00Z");
+    await Promise.all([
+      env.DATA.put(
+        TERMS_KEY,
+        JSON.stringify(
+          aTermsFile({
+            terms: [
+              aTerm(),
+              aTerm({ id: "202708", name: "Fall 2027", season: "fall" }),
+              aTerm({
+                id: "202605",
+                name: "Summer 2026",
+                season: "summer",
+                year: 2026,
+                status: "archived",
+              }),
+            ],
+          }),
+        ),
+      ),
+      env.DATA.put(
+        calendarKey(TERM),
+        JSON.stringify(aPublishedCalendar({ termId: TERM })),
+      ),
+    ]);
+    const admin = await signIn("tadmin", at);
+    const follow = async (termId: string) =>
+      (
+        await admin.api("chat/follow", { termId, courseCode: COURSE }, "on", at)
+      ).json();
+    expect(await follow("202708")).toEqual({ status: "other-term" });
+    expect(await follow("202605")).toEqual({ status: "other-term" });
+    // Nothing was saved for either.
+    const saved = await env.DB.prepare(
+      "SELECT term_id FROM chat_follows WHERE user_id = ?1",
+    )
+      .bind("tadmin")
+      .all();
+    expect(saved.results).toEqual([]);
+    expect(await follow(TERM)).toEqual({ status: "ok" });
+  });
+
+  it("lists who joined a room and when, and a push that keeps the section keeps the time", async () => {
+    const { student } = await twoPeople();
+    const joins = async (roomId: string) =>
+      ChatJoinsResultSchema.parse(
+        await (
+          await student.api("chat/joins", {
+            termId: TERM,
+            courseCode: COURSE,
+            roomId,
+          })
+        ).json(),
+      );
+    const everyone = await joins(courseRoom);
+    expect(
+      everyone.status === "ok" && everyone.joins.map((j) => j.author.name),
+    ).toEqual(["Test Student", "Test Classmate"]);
+    const section = await joins(room0101);
+    expect(section).toMatchObject({
+      status: "ok",
+      joins: [{ author: { directoryId: "tstudent" } }],
+    });
+    // Another section's room isn't yours.
+    expect(await joins(room0201)).toEqual({ status: "not-a-member" });
+
+    // Saved again with the same section: the join stays when it was.
+    const before = section.status === "ok" ? section.joins[0]?.at : null;
+    await student.push(
+      [
+        aPlan({
+          id: "plan_student_1",
+          name: "Renamed",
+          courses: [aPlanCourse({ courseCode: COURSE, sectionCode: "0101" })],
+        }),
+      ],
+      undefined,
+      [1],
+    );
+    const again = await joins(room0101);
+    expect(again.status === "ok" && again.joins[0]?.at).toBe(before);
+  });
+
   it("lists members of rooms you can read", async () => {
     const { student } = await twoPeople();
     const list = async (roomId: string): Promise<ChatMembersResult> =>
@@ -2237,10 +2411,10 @@ describe("mentions and replies", () => {
           event: {
             type: "chat-mention",
             actor: "Test Student",
-            place: "CMSC351",
+            place: "CMSC351 · Everyone",
             text: "@Test Classmate did you start the homework? @Test Admin @Test Student",
           },
-          url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}`,
+          url: `/chat/${COURSE}/everyone`,
         },
       },
     ]);
@@ -2290,10 +2464,10 @@ describe("mentions and replies", () => {
         event: {
           type: "chat-reply",
           actor: "Test Student",
-          place: "CMSC351",
+          place: "CMSC351 · Everyone",
           text: "yes, here",
         },
-        url: `/chat?term=${TERM}&course=${COURSE}&room=${encodeURIComponent(courseRoom)}&thread=${root}`,
+        url: `/chat/${COURSE}/everyone?thread=${root}`,
       },
     });
     // Both replies are one group: the thread's.
@@ -2453,7 +2627,6 @@ describe("mentions and replies", () => {
       NotificationsInboxResultSchema.parse(
         await (await classmate.api("notifications/inbox", {})).json(),
       );
-    const room = encodeURIComponent(courseRoom);
     const { items, unread } = await inbox();
     expect(unread).toBe(2);
     expect(
@@ -2472,16 +2645,16 @@ describe("mentions and replies", () => {
         product: "chat",
         title: "Test Student replied to your question",
         body: "yes, here",
-        url: `/chat?term=${TERM}&course=${COURSE}&room=${room}&thread=${root}`,
+        url: `/chat/${COURSE}/everyone?thread=${root}`,
         count: 1,
         readAt: null,
       },
       {
         type: "chat-mention",
         product: "chat",
-        title: "2 mentions in CMSC351",
+        title: "2 mentions in CMSC351 · Everyone",
         body: "Test Student: @Test Classmate also bring the notes",
-        url: `/chat?term=${TERM}&course=${COURSE}&room=${room}`,
+        url: `/chat/${COURSE}/everyone`,
         count: 2,
         readAt: null,
       },
@@ -2599,11 +2772,13 @@ describe("the chat digest", () => {
     expect(m?.to).toBe("tclassmate@terpmail.umd.edu");
     expect(m?.subject).toBe("2 unread in your class chats");
     expect(m?.text).toContain(
-      "Test Student mentioned you in CMSC351: @Test Classmate bring the slides",
+      "Test Student mentioned you in CMSC351 · Everyone: @Test Classmate bring the slides",
     );
-    expect(m?.text).toContain("Test Student replied in CMSC351: me!");
+    expect(m?.text).toContain(
+      "Test Student replied in CMSC351 · Everyone: me!",
+    );
     expect(m?.text).not.toContain("[oops]");
-    expect(m?.text).toContain(`&thread=${root}`);
+    expect(m?.text).toContain(`/chat/CMSC351/everyone?thread=${root}`);
     expect(m?.headers["List-Unsubscribe"]).toMatch(
       /^<https:\/\/terpsicle\.com\/api\/notifications\/email-off\?u=tclassmate&t=chat-digest&k=[0-9a-f]+>$/,
     );

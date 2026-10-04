@@ -25,10 +25,10 @@ describe("the activity log", () => {
 
   it("keeps a route's pattern, never a share link's plan or a room", () => {
     logNavigation("/schedule?plan=eyJzZWN0aW9ucyI6W119&tab=search&q=calc");
-    logNavigation("/chat/202608/CMSC131/0101");
+    logNavigation("/chat/CMSC131/pedram-sadeghian");
     expect(recentActivity()).toMatchObject([
       { type: "nav", route: "/schedule?plan=shared&tab=search" },
-      { type: "nav", route: "/chat/:term/:course/:room" },
+      { type: "nav", route: "/chat/:course/:room" },
     ]);
   });
 

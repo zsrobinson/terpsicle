@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -45,6 +46,8 @@ import { Route as ScheduleTravelRouteImport } from './routes/schedule.travel'
 import { Route as SettingsNotificationsRouteImport } from './routes/settings_.notifications'
 import { Route as TodoIndexRouteImport } from './routes/todo.index'
 import { Route as TodoConnectRouteImport } from './routes/todo.connect'
+import { Route as ChatCourseIndexRouteImport } from './routes/chat.$course.index'
+import { Route as ChatCourseRoomRouteImport } from './routes/chat.$course.$room'
 import { Route as ReviewsCoursesCodeRouteImport } from './routes/reviews.courses.$code'
 import { Route as ReviewsInstructorsIdRouteImport } from './routes/reviews.instructors.$id'
 import { Route as ScheduleConnectionConnectionIdRouteImport } from './routes/schedule.connection.$connectionId'
@@ -54,6 +57,11 @@ import { Route as ScheduleResultResultIdRouteImport } from './routes/schedule.re
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HomeRoute = HomeRouteImport.update({
@@ -117,9 +125,9 @@ const AuthTestRoute = AuthTestRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
-  id: '/chat/',
-  path: '/chat/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => ChatRoute,
 } as any)
 const PlanIndexRoute = PlanIndexRouteImport.update({
   id: '/',
@@ -231,6 +239,16 @@ const TodoConnectRoute = TodoConnectRouteImport.update({
   path: '/todo/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatCourseIndexRoute = ChatCourseIndexRouteImport.update({
+  id: '/$course/',
+  path: '/$course/',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatCourseRoomRoute = ChatCourseRoomRouteImport.update({
+  id: '/$course/$room',
+  path: '/$course/$room',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ReviewsCoursesCodeRoute = ReviewsCoursesCodeRouteImport.update({
   id: '/reviews/courses/$code',
   path: '/reviews/courses/$code',
@@ -260,6 +278,7 @@ const ScheduleResultResultIdRoute = ScheduleResultResultIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chat': typeof ChatRouteWithChildren
   '/home': typeof HomeRoute
   '/plan': typeof PlanRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -295,11 +314,13 @@ export interface FileRoutesByFullPath {
   '/reviews/': typeof ReviewsIndexRoute
   '/schedule/': typeof ScheduleIndexRoute
   '/todo/': typeof TodoIndexRoute
+  '/chat/$course/$room': typeof ChatCourseRoomRoute
   '/reviews/courses/$code': typeof ReviewsCoursesCodeRoute
   '/reviews/instructors/$id': typeof ReviewsInstructorsIdRoute
   '/schedule/connection/$connectionId': typeof ScheduleConnectionConnectionIdRoute
   '/schedule/course/$code': typeof ScheduleCourseCodeRoute
   '/schedule/result/$resultId': typeof ScheduleResultResultIdRoute
+  '/chat/$course/': typeof ChatCourseIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -336,15 +357,18 @@ export interface FileRoutesByTo {
   '/reviews': typeof ReviewsIndexRoute
   '/schedule': typeof ScheduleIndexRoute
   '/todo': typeof TodoIndexRoute
+  '/chat/$course/$room': typeof ChatCourseRoomRoute
   '/reviews/courses/$code': typeof ReviewsCoursesCodeRoute
   '/reviews/instructors/$id': typeof ReviewsInstructorsIdRoute
   '/schedule/connection/$connectionId': typeof ScheduleConnectionConnectionIdRoute
   '/schedule/course/$code': typeof ScheduleCourseCodeRoute
   '/schedule/result/$resultId': typeof ScheduleResultResultIdRoute
+  '/chat/$course': typeof ChatCourseIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/chat': typeof ChatRouteWithChildren
   '/home': typeof HomeRoute
   '/plan': typeof PlanRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -380,16 +404,19 @@ export interface FileRoutesById {
   '/reviews/': typeof ReviewsIndexRoute
   '/schedule/': typeof ScheduleIndexRoute
   '/todo/': typeof TodoIndexRoute
+  '/chat/$course/$room': typeof ChatCourseRoomRoute
   '/reviews/courses/$code': typeof ReviewsCoursesCodeRoute
   '/reviews/instructors/$id': typeof ReviewsInstructorsIdRoute
   '/schedule/connection/$connectionId': typeof ScheduleConnectionConnectionIdRoute
   '/schedule/course/$code': typeof ScheduleCourseCodeRoute
   '/schedule/result/$resultId': typeof ScheduleResultResultIdRoute
+  '/chat/$course/': typeof ChatCourseIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/chat'
     | '/home'
     | '/plan'
     | '/privacy'
@@ -425,11 +452,13 @@ export interface FileRouteTypes {
     | '/reviews/'
     | '/schedule/'
     | '/todo/'
+    | '/chat/$course/$room'
     | '/reviews/courses/$code'
     | '/reviews/instructors/$id'
     | '/schedule/connection/$connectionId'
     | '/schedule/course/$code'
     | '/schedule/result/$resultId'
+    | '/chat/$course/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -466,14 +495,17 @@ export interface FileRouteTypes {
     | '/reviews'
     | '/schedule'
     | '/todo'
+    | '/chat/$course/$room'
     | '/reviews/courses/$code'
     | '/reviews/instructors/$id'
     | '/schedule/connection/$connectionId'
     | '/schedule/course/$code'
     | '/schedule/result/$resultId'
+    | '/chat/$course'
   id:
     | '__root__'
     | '/'
+    | '/chat'
     | '/home'
     | '/plan'
     | '/privacy'
@@ -509,15 +541,18 @@ export interface FileRouteTypes {
     | '/reviews/'
     | '/schedule/'
     | '/todo/'
+    | '/chat/$course/$room'
     | '/reviews/courses/$code'
     | '/reviews/instructors/$id'
     | '/schedule/connection/$connectionId'
     | '/schedule/course/$code'
     | '/schedule/result/$resultId'
+    | '/chat/$course/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChatRoute: typeof ChatRouteWithChildren
   HomeRoute: typeof HomeRoute
   PlanRoute: typeof PlanRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
@@ -536,7 +571,6 @@ export interface RootRouteChildren {
   SettingsNotificationsRoute: typeof SettingsNotificationsRoute
   TodoConnectRoute: typeof TodoConnectRoute
   AdminIndexRoute: typeof AdminIndexRoute
-  ChatIndexRoute: typeof ChatIndexRoute
   ReviewsIndexRoute: typeof ReviewsIndexRoute
   TodoIndexRoute: typeof TodoIndexRoute
   ReviewsCoursesCodeRoute: typeof ReviewsCoursesCodeRoute
@@ -550,6 +584,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/home': {
@@ -638,10 +679,10 @@ declare module '@tanstack/react-router' {
     }
     '/chat/': {
       id: '/chat/'
-      path: '/chat'
+      path: '/'
       fullPath: '/chat/'
       preLoaderRoute: typeof ChatIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ChatRoute
     }
     '/plan/': {
       id: '/plan/'
@@ -797,6 +838,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TodoConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat/$course/': {
+      id: '/chat/$course/'
+      path: '/$course'
+      fullPath: '/chat/$course/'
+      preLoaderRoute: typeof ChatCourseIndexRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/chat/$course/$room': {
+      id: '/chat/$course/$room'
+      path: '/$course/$room'
+      fullPath: '/chat/$course/$room'
+      preLoaderRoute: typeof ChatCourseRoomRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/reviews/courses/$code': {
       id: '/reviews/courses/$code'
       path: '/reviews/courses/$code'
@@ -834,6 +889,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ChatRouteChildren {
+  ChatIndexRoute: typeof ChatIndexRoute
+  ChatCourseRoomRoute: typeof ChatCourseRoomRoute
+  ChatCourseIndexRoute: typeof ChatCourseIndexRoute
+}
+
+const ChatRouteChildren: ChatRouteChildren = {
+  ChatIndexRoute: ChatIndexRoute,
+  ChatCourseRoomRoute: ChatCourseRoomRoute,
+  ChatCourseIndexRoute: ChatCourseIndexRoute,
+}
+
+const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 interface PlanRouteChildren {
   PlanImportRoute: typeof PlanImportRoute
@@ -889,6 +958,7 @@ const ScheduleRouteWithChildren = ScheduleRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChatRoute: ChatRouteWithChildren,
   HomeRoute: HomeRoute,
   PlanRoute: PlanRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
@@ -907,7 +977,6 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsNotificationsRoute: SettingsNotificationsRoute,
   TodoConnectRoute: TodoConnectRoute,
   AdminIndexRoute: AdminIndexRoute,
-  ChatIndexRoute: ChatIndexRoute,
   ReviewsIndexRoute: ReviewsIndexRoute,
   TodoIndexRoute: TodoIndexRoute,
   ReviewsCoursesCodeRoute: ReviewsCoursesCodeRoute,

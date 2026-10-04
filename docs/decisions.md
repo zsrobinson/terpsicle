@@ -482,6 +482,32 @@ Revisit if: rooms feel empty or noisy. (changed 2026-09-28: no pictures)
 "i don't think we need to display other sections or instructors in there as locked; if you wanted to see them you would've just added that other section to your schedule." And opening a room "felt like you opened up a whole new sidebar". So the chat list is Chat's one sidebar and only lists your rooms (plus the course whose room is open, last, until you join or leave). There's no course page of every room: a course on its own opens its course room, Join sits in that room's header, and a room opens beside the list (a desktop) or slides in over it (a phone), in its final shape from the first frame.
 Revisit if: people ask to browse a course's other sections' rooms.
 
+### Chat is for this term only
+2026-09-29 · owner · one feature
+"let's make chats completely a this-semester sort of thing. you shouldn't be able to join one for a future course, that's confusing. your chat tab should just pull from the current semseter." Chat shows one term, `chatTerm`: of the terms Testudo lists, the one in session, else between terms the next to start. There's no term menu, "Join … chat" in course details shows only for that term's courses, and the server refuses to join any other term's. Earlier follows in a term still to come are kept, hidden until that term is Chat's.
+Revisit if: people want a past term's chat while it's still readable, or a future class's before its first day.
+
+### Chat reads like a group chat: names, newest messages, joins and tombstones
+2026-09-29 · owner · one feature
+"let's refine the names of the chats, so they just display as "Everyone", "[last name]'s Sections", and "Section [section]". no more summary line under it, that should instead display the last message, and we should have some sort of unread message indicator (maybe using the same blue theme of this component). muted chats should have an extra icon showing that they're muted on the right side of the sidebar. we don't need the room info thing, just a button in that top bar (with icon and label). instead of search params, the room code can just be an extra path in the url, which also makes it a little prettier of a link. instead of showing a list of people, let's instead show a small status thing like groupme when someone joins the room, grouped up so it doesn't clog things up. and let's rework the language again on the "what's allowed thing". if someone deletes a message, it should say something like *message deleted by author* to keep that record." And: "make sure that we clean up all the paths that name the rooms." So a room is "Everyone", "Nelson's Sections" or "Section 0101" under its course, its list row shows its newest message and an unread mark in Chat's blue (a dot, or the count) or a muted bell, its header has one Options button (mute, leave, What's allowed) instead of room info, its link is `/chat/<COURSE>/<room>`, joins are grouped lines in its timeline, and a deleted message leaves a tombstone. Every room name and link goes through `src/core/chat/room-paths.ts`.
+Revisit if: never on its own.
+
+### A room's newest message comes from its object, not D1
+2026-09-29 · agent · one feature
+The list's second line needs each room's newest text, and D1 never holds chat text (V2 §6.8). So `chat/latest` asks the course's `CourseChat` object, only for rooms whose `lastSeq` moved since the list last asked, and the open room keeps its own row current from its socket. It wakes an object only when there's something new in it, which it just wrote anyway.
+Revisit if: objects wake too often for the list, or a list of many courses is slow to fill.
+(changed 2026-09-29: the owner wanted every row live, "in realtime for chats besides the one that's currently selected". Each course in the list keeps its course's socket open, and `chat/latest` is the fallback while a socket is down; see "The list listens per course".)
+
+### The list listens per course, on the rooms' own sockets
+2026-09-29 · agent · one feature
+Live rows need each room's new messages. The `CourseChat` object already sends a room's messages to every socket that reads it, and hibernates between them, so the list opens one socket per course in it (hello with your rooms there, no history) instead of a new per-user channel. A per-user object would need the course object to write to every member's object on every message (hundreds for a big course room), where this needs nothing new on the server and costs one connection per course, usually four to six.
+Revisit if: people follow so many courses that the sockets add up, or a phone's battery says otherwise.
+
+### Chat's list resizes like the workbench sidebars
+2026-09-29 · owner · one feature
+"the sidebar on the chat and todo pages should be adjustable just like those on the schedule and plan pages even though the sidebar doesn't have tabs." Chat's list takes the workbenches' `SidebarResizeHandle` and their one shared width (`UiPrefs.sidebarWidth`), so it's 360px by default, not its old fixed 320.
+Revisit if: never on its own.
+
 ### Anonymous chat is held off
 2026-09-28 · owner · one feature
 The owner asked classmates about anonymous chats, and they liked the idea, but "i was concerned about misuse still, so i think we'll hold off on that." Everything in Chat carries your real name; nothing is built toward anonymous posting.

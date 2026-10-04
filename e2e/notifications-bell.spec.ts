@@ -93,7 +93,8 @@ async function courseItems(page: Page, course: string): Promise<Item[]> {
   });
   expect(response.status()).toBe(200);
   const { items } = (await response.json()) as { items: Item[] };
-  return items.filter((i) => i.url.includes(`course=${course}`));
+  // Its link is the room's path, `/chat/<COURSE>/<room>`.
+  return items.filter((i) => i.url.startsWith(`/chat/${course}/`));
 }
 
 /** The unread count the bar shows: the bell's, or the avatar's on a crowded phone. */
@@ -180,7 +181,7 @@ test("a mention lights the bell, and its row opens the room and reads it", async
     }
     const list = theirs.getByRole("dialog", { name: "Notifications" });
     const row = list.getByRole("link", {
-      name: new RegExp(`^Test Student in ${course} ?, unread$`),
+      name: new RegExp(`^Test Student in ${course} · Everyone ?, unread$`),
     });
     await expect(row).toBeVisible();
     await expect(list.getByText(tag)).toBeVisible();
@@ -190,12 +191,15 @@ test("a mention lights the bell, and its row opens the room and reads it", async
     await scan(theirs, "notifications, dark");
     await theirs.emulateMedia({ colorScheme: "light" });
 
+    // The row's link is the room's path, and opens that room.
     await row.click();
     await theirs.waitForURL(
-      (url) =>
-        url.pathname === "/chat" && url.searchParams.get("room") === room,
+      (url) => url.pathname === `/chat/${course}/everyone`,
     );
     await expect(theirs.getByRole("log", { name: "Messages" })).toBeVisible();
+    await expect(
+      theirs.getByRole("region", { name: `${course} · Everyone` }),
+    ).toBeVisible();
     await expect(list).toBeHidden();
     // Read, here and on the server: the count drops.
     await expect

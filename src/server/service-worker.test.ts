@@ -501,7 +501,7 @@ describe("service worker: push", () => {
       v: 1,
       type: "chat-mention",
       tag: "chat-mention:202701:CMSC351",
-      url: "/chat?term=202701&course=CMSC351&room=202701%3ACMSC351",
+      url: "/chat/CMSC351/everyone",
     };
     await sw.push({
       ...mention,
@@ -558,7 +558,7 @@ describe("service worker: push", () => {
       v: 1,
       type: "chat-mention",
       tag: "chat-mention:202701:CMSC351",
-      url: "/chat?term=202701&course=CMSC351&room=202701%3ACMSC351",
+      url: "/chat/CMSC351/everyone",
     } as const;
     await sw.push(
       pushMessage(
