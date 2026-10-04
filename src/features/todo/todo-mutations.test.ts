@@ -141,6 +141,29 @@ describe("checking items off", () => {
     );
     unwatch();
   });
+
+  it("asks for them once when two changes settle in the same tick", async () => {
+    const client = fakeClient();
+    await twoWeeks();
+    const asked = client.list.mock.calls.length;
+    const unwatch = new QueryObserver(queries, todoWeekQuery(MON)).subscribe(
+      () => {},
+    );
+    const answer = deferred<{ status: "ok" }>();
+    client.done.mockReturnValue(answer.promise);
+    const both = Promise.all([
+      setTodoDone(queries, "project", true),
+      setTodoDone(queries, "quiz", true),
+    ]);
+    answer.resolve({ status: "ok" });
+    expect(await both).toEqual([true, true]);
+    await vi.waitFor(() =>
+      expect(client.list).toHaveBeenCalledTimes(asked + 1),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(client.list).toHaveBeenCalledTimes(asked + 1);
+    unwatch();
+  });
 });
 
 describe("hiding a course", () => {

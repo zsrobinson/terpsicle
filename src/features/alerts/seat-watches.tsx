@@ -31,6 +31,7 @@ import {
   withoutSeatWatch,
   withSeatWatch,
 } from "~/state/query/seat-watches";
+import { refetchWhenRunSettles } from "~/state/query/settle-run";
 import { noteToast, undoToast } from "~/ui/toast";
 import { sectionLabel } from "./labels";
 
@@ -162,8 +163,9 @@ async function holdList(client: QueryClient): Promise<void> {
  * over a later one still on its way, so it waits for the last.
  */
 function settleList(client: QueryClient): void {
-  if (client.isMutating({ mutationKey: seatWatchesKey }) <= 1)
+  refetchWhenRunSettles(client, seatWatchesKey, () => {
     void client.invalidateQueries({ queryKey: seatWatchesKey });
+  });
 }
 
 interface WatchVariables {

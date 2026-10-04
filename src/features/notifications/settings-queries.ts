@@ -13,6 +13,7 @@ import type {
 import { useAccount } from "~/features/auth/account-store";
 import { retryApi } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
+import { refetchWhenRunSettles } from "~/state/query/settle-run";
 import { noteToast } from "~/ui/toast";
 import { currentEndpoint } from "./this-device";
 
@@ -125,10 +126,10 @@ export function saveSettingsMutation() {
       )
         client.setQueryData(settingsKeys.settings, context.before);
     },
-    onSettled: (_data, _error, _next, _context, { client }) => {
-      if (client.isMutating({ mutationKey: settingsKeys.settings }) <= 1)
+    onSettled: (_data, _error, _next, _context, { client }) =>
+      refetchWhenRunSettles(client, settingsKeys.settings, () => {
         void client.invalidateQueries({ queryKey: settingsKeys.settings });
-    },
+      }),
   });
 }
 

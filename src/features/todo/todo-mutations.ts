@@ -23,6 +23,7 @@ import {
 } from "~/core/todo";
 import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
+import { refetchWhenRunSettles } from "~/state/query/settle-run";
 import {
   cachedFeed,
   cachedWeeks,
@@ -54,23 +55,11 @@ function holdWeeks(client: QueryClient): void {
   });
 }
 
-/** Clients with a settled change waiting to be counted. */
-const settling = new WeakSet<QueryClient>();
-
-/**
- * Once the last change of a run has settled, the server's weeks. Counted
- * on the next task, once this change's own end is recorded: two changes
- * that end in the same tick would each still count the other as pending
- * (`isMutating` in `onSettled`), and neither would ask.
- */
+/** Once the last change of a run has settled, the server's weeks. */
 function settleWeeks(client: QueryClient): void {
-  if (settling.has(client)) return;
-  settling.add(client);
-  setTimeout(() => {
-    settling.delete(client);
-    if (client.isMutating({ mutationKey: todoKeys.edit }) === 0)
-      void client.invalidateQueries({ queryKey: todoKeys.weeks });
-  }, 0);
+  refetchWhenRunSettles(client, todoKeys.edit, () => {
+    void client.invalidateQueries({ queryKey: todoKeys.weeks });
+  });
 }
 
 /** Whether the weeks on hand have `uid` marked done. */
