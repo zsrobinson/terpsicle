@@ -62,9 +62,9 @@ function focusIsVisible(page: Page) {
 test.describe("desktop", () => {
   test.skip(({ isMobile }) => isMobile, "keyboard on desktop");
 
-  test("the calendar is one Tab stop, with arrows between days and times", async ({
-    page,
-  }) => {
+  test("the calendar is one Tab stop, with arrows between days and times", {
+    tag: "@critical",
+  }, async ({ page }) => {
     await open(page);
     // Skip to the calendar; the next Tab lands on the week's first class
     // (Share is in the family bar).
@@ -345,7 +345,9 @@ test.describe("reflow", () => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     );
 
-  test("at 320px wide, nothing scrolls sideways", async ({ page }) => {
+  test("at 320px wide, nothing scrolls sideways", { tag: "@phone" }, async ({
+    page,
+  }) => {
     await open(page);
     expect(await noSidewaysScroll(page)).toBe(true);
     await page.keyboard.press("/");

@@ -23,7 +23,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 
 ## Commands
 - `pnpm i`; `pnpm dev:mock` (fixtures, no network); `pnpm dev` (live data).
-- `pnpm check`: typecheck, lint (with import boundaries), every Vitest project. `pnpm test:e2e`: Playwright against the mock app.
+- `pnpm check`: typecheck, lint and correctness Vitest projects. `pnpm test:e2e:ci`: focused browser gate; `pnpm test:e2e`: full diagnostic suite. Selection and on-demand phone renders: `docs/TESTING.md`.
 - `pnpm tsx scripts/<name>.ts`: data pipeline scripts (ingest locally, build routes, record fixtures).
 
 **Load rule for local runs:** machines are shared, so never run the full `pnpm check` or `pnpm test:e2e` locally. Run `tsc` once, biome on changed files, the relevant Vitest files with `--maxWorkers=1`, and at most the relevant e2e specs with `--workers=1`. Stop dev servers you started. CI is the verdict.

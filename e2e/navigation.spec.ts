@@ -195,9 +195,9 @@ test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout");
   test.beforeEach(({ page }) => open(page));
 
-  test("course to course in the drawer, with its Back and the browser's", async ({
-    page,
-  }) => {
+  test("course to course in the drawer, with its Back and the browser's", {
+    tag: "@phone",
+  }, async ({ page }) => {
     const drawer = page.locator("[data-snap]");
     await page.getByRole("button", { name: "Raise the panel" }).click();
     await expect(drawer).toHaveAttribute("data-snap", "half");

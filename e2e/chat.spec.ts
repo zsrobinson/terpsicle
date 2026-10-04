@@ -7,9 +7,10 @@ import {
   type TestInfo,
   test,
 } from "@playwright/test";
+import { signInNewUser } from "./test-user";
 
-// Terpsicle Chat end to end (V2.md §8): two test-mode people, tstudent and
-// tclassmate, in the same section, against `pnpm dev:mock`'s Worker (the
+// Terpsicle Chat end to end (V2.md §8): two fresh test-mode people
+// in the same section, against `pnpm dev:mock`'s Worker (the
 // real socket, CourseChat object and moderation service, with offline
 // stand-ins for the models). Plans reach the server through sync/push, as
 // they will from the sync engine.
@@ -33,14 +34,6 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => {
   expect(errors).toEqual([]);
 });
-
-async function signIn(page: Page, name: string, path: string) {
-  await page.goto(`/auth/test?return=${encodeURIComponent(path)}`);
-  await page.getByRole("button", { name: `Sign in as ${name}` }).click();
-  await page.waitForURL((url) =>
-    url.pathname.startsWith(path.split("?")[0] ?? path),
-  );
-}
 
 /**
  * Saves a plan with both e2e courses through sync/push (the sync engine's
@@ -201,156 +194,163 @@ test("with no classes yet, find any course and open its room", async ({
   ).toBeVisible();
 });
 
-test("two classmates talk in their section's room", async ({
-  page,
-  browser,
-  isMobile,
-}, info) => {
-  // Two people, a live socket and moderation: longer than most specs.
-  test.slow();
-  const { course, section } = courseFor(info);
-  const tag = `${info.project.name}-${Date.now().toString(36)}`;
-  await signIn(page, "Test Student", "/chat");
-  await syncPlan(page, "tstudent");
-  const classmate = await newPerson(browser, info);
-  await signIn(classmate.page, "Test Classmate", "/chat");
-  await syncPlan(classmate.page, "tclassmate");
+test(
+  "two classmates talk in their section's room",
+  {
+    tag: "@critical",
+  },
+  async ({ page, browser, isMobile }, info) => {
+    // Two people, a live socket and moderation: longer than most specs.
+    test.slow();
+    const { course, section } = courseFor(info);
+    const tag = `${info.project.name}-${Date.now().toString(36)}`;
+    await signInNewUser(page, "/chat");
+    await syncPlan(page, "tstudent");
+    const classmate = await newPerson(browser, info);
+    await signInNewUser(classmate.page, "/chat");
+    await syncPlan(classmate.page, "tclassmate");
 
-  // The list: your classes, grouped by course, with your rooms. A fresh
-  // account's first list is several round trips in a row (the session, the
-  // synced plans, unread counts, the term's manifest, then the course's
-  // department file), which
-  // on a busy CI dev server can take longer than one expect's 5 seconds.
-  await page.goto("/chat");
-  const rooms = page.getByRole("navigation", { name: "Rooms" });
-  await expect(
-    rooms.getByRole("listitem").filter({ hasText: course }),
-  ).toBeVisible({ timeout: 15_000 });
-  await rooms
-    .getByRole("listitem")
-    .filter({ hasText: course })
-    .getByRole("button", { name: `Section ${section}` })
-    .click();
-  // A room is a path now, a prettier link.
-  await expect(page).toHaveURL(new RegExp(`/chat/${course}/${section}$`));
-  await dismissRules(page);
-  // Who's here shows as joins in the room, grouped on one quiet line.
-  await expect(
-    page.getByRole("log").locator("[data-join-line]").first(),
-  ).toContainText("joined");
-
-  // tstudent writes; it shows at once, then for everyone once it's checked.
-  const first = `Anyone want to study for the midterm? ${tag}`;
-  await send(page, first);
-  await expect(message(page, first)).toBeVisible();
-  // Nothing says it's being checked: it just looks sent.
-  await expect(message(page, first).getByTestId("held-note")).toHaveCount(0);
-  await expect(message(page, first).getByText(/checking/i)).toHaveCount(0);
-  // The list's second line is the room's newest message, not a summary.
-  if (!isMobile)
+    // The list: your classes, grouped by course, with your rooms. A fresh
+    // account's first list is several round trips in a row (the session, the
+    // synced plans, unread counts, the term's manifest, then the course's
+    // department file), which
+    // on a busy CI dev server can take longer than one expect's 5 seconds.
+    await page.goto("/chat");
+    const rooms = page.getByRole("navigation", { name: "Rooms" });
     await expect(
-      page
-        .getByRole("navigation", { name: "Rooms" })
-        .locator(`[data-room-row="${TERM}:${course}:${section}"]`),
-    ).toContainText(`You: ${first}`);
-
-  await classmate.page.goto(roomUrl(course, section));
-  await dismissRules(classmate.page);
-  await expect(message(classmate.page, first)).toBeVisible();
-
-  // Typing shows on the other side, then a reaction arrives live.
-  await classmate.page
-    .getByRole("textbox", { name: /^Message/ })
-    .pressSequentially("me", { delay: 50 });
-  await expect(page.getByText("Test is typing…")).toBeVisible();
-  await classmate.page.getByRole("textbox", { name: /^Message/ }).fill("");
-
-  const theirs = message(classmate.page, first);
-  await messageAction(theirs, "React", isMobile);
-  await classmate.page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Thumbs up", exact: true })
-    .click();
-  await expect(
-    message(page, first).getByRole("button", { name: "Thumbs up: 1 person" }),
-  ).toBeVisible();
-
-  // A one-level thread: the reply count shows under the first message.
-  await messageAction(theirs, "Reply in a thread", isMobile);
-  await expect(
-    classmate.page.getByRole("heading", { name: "Thread" }),
-  ).toBeVisible();
-  await send(classmate.page, `Me! Library at 6? ${tag}`);
-  await expect(
-    message(page, first).getByRole("button", { name: /^1 reply · last/ }),
-  ).toBeVisible();
-  // A thread's one way out is Back to its room (no second ×).
-  await expect(
-    classmate.page.getByRole("button", { name: "Close the thread" }),
-  ).toHaveCount(0);
-  await classmate.page
-    .getByRole("link", { name: `${course} · Section ${section}`, exact: true })
-    .click();
-  await expect(
-    classmate.page.getByRole("heading", { name: "Thread" }),
-  ).toHaveCount(0);
-
-  // Edit with undo, then delete with undo.
-  const mine = message(page, first);
-  await messageAction(mine, "More", isMobile);
-  await page.getByRole("menuitem", { name: "Edit" }).click();
-  const edited = `Anyone want to study for the final? ${tag}`;
-  await page.getByRole("textbox", { name: "Edit your message" }).fill(edited);
-  await page.getByRole("textbox", { name: "Edit your message" }).press("Enter");
-  await expect(message(page, edited).getByText("(edited)")).toBeVisible();
-  await expect(message(classmate.page, edited)).toBeVisible();
-
-  const again = message(page, edited);
-  await messageAction(again, "More", isMobile);
-  await page.getByRole("menuitem", { name: "Delete" }).click();
-  await expect(message(page, edited)).toHaveCount(0);
-  await page.getByRole("button", { name: "Undo" }).click();
-  await expect(message(page, edited)).toBeVisible();
-
-  // Deleted for real, it leaves a tombstone for everyone: the record stays,
-  // the words don't.
-  const id = await message(page, edited).getAttribute("data-message-id");
-  await messageAction(message(page, edited), "More", isMobile);
-  await page.getByRole("menuitem", { name: "Delete" }).click();
-  // The same message, by its id: sent once Undo runs out.
-  const tombstone = (p: Page) =>
-    p.getByRole("log").locator(`[data-message-id="${id}"]`);
-  await expect(tombstone(classmate.page)).toContainText(
-    "Message deleted by author",
-    { timeout: 20_000 },
-  );
-  await expect(message(classmate.page, edited)).toHaveCount(0);
-  await expect(tombstone(page)).toContainText("Message deleted by author");
-
-  // The room's one button, Options: muting flips it (local runs may find
-  // it muted already), with no dialogs anywhere.
-  const options = page.getByRole("button", { name: /^(Options|Muted)$/ });
-  const wasMuted = (await options.textContent())?.includes("Muted") ?? false;
-  await options.click();
-  await page
-    .getByRole("menuitem", {
-      name: wasMuted ? "Unmute this room" : "Mute this room",
-    })
-    .click();
-  await expect(
-    page.getByRole("button", { name: wasMuted ? "Options" : "Muted" }),
-  ).toBeVisible();
-  // And the list marks a muted room with its bell.
-  if (!isMobile)
+      rooms.getByRole("listitem").filter({ hasText: course }),
+    ).toBeVisible({ timeout: 15_000 });
+    await rooms
+      .getByRole("listitem")
+      .filter({ hasText: course })
+      .getByRole("button", { name: `Section ${section}` })
+      .click();
+    // A room is a path now, a prettier link.
+    await expect(page).toHaveURL(new RegExp(`/chat/${course}/${section}$`));
+    await dismissRules(page);
+    // Who's here shows as joins in the room, grouped on one quiet line.
     await expect(
-      page
-        .getByRole("navigation", { name: "Rooms" })
-        .locator(`[data-room-row="${TERM}:${course}:${section}"]`)
-        .getByLabel("Muted"),
-    ).toHaveCount(wasMuted ? 0 : 1);
+      page.getByRole("log").locator("[data-join-line]").first(),
+    ).toContainText("joined");
 
-  await classmate.context.close();
-});
+    // tstudent writes; it shows at once, then for everyone once it's checked.
+    const first = `Anyone want to study for the midterm? ${tag}`;
+    await send(page, first);
+    await expect(message(page, first)).toBeVisible();
+    // Nothing says it's being checked: it just looks sent.
+    await expect(message(page, first).getByTestId("held-note")).toHaveCount(0);
+    await expect(message(page, first).getByText(/checking/i)).toHaveCount(0);
+    // The list's second line is the room's newest message, not a summary.
+    if (!isMobile)
+      await expect(
+        page
+          .getByRole("navigation", { name: "Rooms" })
+          .locator(`[data-room-row="${TERM}:${course}:${section}"]`),
+      ).toContainText(`You: ${first}`);
+
+    await classmate.page.goto(roomUrl(course, section));
+    await dismissRules(classmate.page);
+    await expect(message(classmate.page, first)).toBeVisible();
+
+    // Typing shows on the other side, then a reaction arrives live.
+    await classmate.page
+      .getByRole("textbox", { name: /^Message/ })
+      .pressSequentially("me", { delay: 50 });
+    await expect(page.getByText("E2E is typing…")).toBeVisible();
+    await classmate.page.getByRole("textbox", { name: /^Message/ }).fill("");
+
+    const theirs = message(classmate.page, first);
+    await messageAction(theirs, "React", isMobile);
+    await classmate.page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Thumbs up", exact: true })
+      .click();
+    await expect(
+      message(page, first).getByRole("button", { name: "Thumbs up: 1 person" }),
+    ).toBeVisible();
+
+    // A one-level thread: the reply count shows under the first message.
+    await messageAction(theirs, "Reply in a thread", isMobile);
+    await expect(
+      classmate.page.getByRole("heading", { name: "Thread" }),
+    ).toBeVisible();
+    await send(classmate.page, `Me! Library at 6? ${tag}`);
+    await expect(
+      message(page, first).getByRole("button", { name: /^1 reply · last/ }),
+    ).toBeVisible();
+    // A thread's one way out is Back to its room (no second ×).
+    await expect(
+      classmate.page.getByRole("button", { name: "Close the thread" }),
+    ).toHaveCount(0);
+    await classmate.page
+      .getByRole("link", {
+        name: `${course} · Section ${section}`,
+        exact: true,
+      })
+      .click();
+    await expect(
+      classmate.page.getByRole("heading", { name: "Thread" }),
+    ).toHaveCount(0);
+
+    // Edit with undo, then delete with undo.
+    const mine = message(page, first);
+    await messageAction(mine, "More", isMobile);
+    await page.getByRole("menuitem", { name: "Edit" }).click();
+    const edited = `Anyone want to study for the final? ${tag}`;
+    await page.getByRole("textbox", { name: "Edit your message" }).fill(edited);
+    await page
+      .getByRole("textbox", { name: "Edit your message" })
+      .press("Enter");
+    await expect(message(page, edited).getByText("(edited)")).toBeVisible();
+    await expect(message(classmate.page, edited)).toBeVisible();
+
+    const again = message(page, edited);
+    await messageAction(again, "More", isMobile);
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await expect(message(page, edited)).toHaveCount(0);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(message(page, edited)).toBeVisible();
+
+    // Deleted for real, it leaves a tombstone for everyone: the record stays,
+    // the words don't.
+    const id = await message(page, edited).getAttribute("data-message-id");
+    await messageAction(message(page, edited), "More", isMobile);
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    // The same message, by its id: sent once Undo runs out.
+    const tombstone = (p: Page) =>
+      p.getByRole("log").locator(`[data-message-id="${id}"]`);
+    await expect(tombstone(classmate.page)).toContainText(
+      "Message deleted by author",
+      { timeout: 20_000 },
+    );
+    await expect(message(classmate.page, edited)).toHaveCount(0);
+    await expect(tombstone(page)).toContainText("Message deleted by author");
+
+    // The room's one button, Options: muting flips it (local runs may find
+    // it muted already), with no dialogs anywhere.
+    const options = page.getByRole("button", { name: /^(Options|Muted)$/ });
+    const wasMuted = (await options.textContent())?.includes("Muted") ?? false;
+    await options.click();
+    await page
+      .getByRole("menuitem", {
+        name: wasMuted ? "Unmute this room" : "Mute this room",
+      })
+      .click();
+    await expect(
+      page.getByRole("button", { name: wasMuted ? "Options" : "Muted" }),
+    ).toBeVisible();
+    // And the list marks a muted room with its bell.
+    if (!isMobile)
+      await expect(
+        page
+          .getByRole("navigation", { name: "Rooms" })
+          .locator(`[data-room-row="${TERM}:${course}:${section}"]`)
+          .getByLabel("Muted"),
+      ).toHaveCount(wasMuted ? 0 : 1);
+
+    await classmate.context.close();
+  },
+);
 
 test("answers get a nudge, held messages stay with their author, and abuse reports reach a person", async ({
   page,
@@ -361,10 +361,10 @@ test("answers get a nudge, held messages stay with their author, and abuse repor
   test.slow();
   const { course, section } = courseFor(info);
   const tag = `${info.project.name}-${Date.now().toString(36)}`;
-  await signIn(page, "Test Student", roomUrl(course, section));
+  await signInNewUser(page, roomUrl(course, section));
   await syncPlan(page, "tstudent");
   const classmate = await newPerson(browser, info);
-  await signIn(classmate.page, "Test Classmate", roomUrl(course, section));
+  await signInNewUser(classmate.page, roomUrl(course, section));
   await syncPlan(classmate.page, "tclassmate");
   await page.reload();
   await classmate.page.reload();
@@ -441,7 +441,7 @@ test("course details in the scheduler lead to the course's chat", async ({
   // The scheduler, then Chat: two cold page loads in dev.
   test.slow();
   const { course } = courseFor(info);
-  await signIn(page, "Test Student", "/schedule");
+  await signInNewUser(page, "/schedule");
   await page.goto(`/schedule?term=${TERM}&course=${course}`);
   const join = page.getByRole("link", {
     name: new RegExp(`^Join ${course} chat`),
@@ -463,10 +463,10 @@ test("the list updates live for rooms other than the open one, in this course an
   const { course, section } = courseFor(info);
   const other = course === "CMSC351" ? "CMSC330" : "CMSC351";
   const tag = `${info.project.name}-live-${Date.now().toString(36)}`;
-  await signIn(page, "Test Student", "/chat");
+  await signInNewUser(page, "/chat");
   await syncPlan(page, "tstudent");
   const classmate = await newPerson(browser, info);
-  await signIn(classmate.page, "Test Classmate", "/chat");
+  await signInNewUser(classmate.page, "/chat");
   await syncPlan(classmate.page, "tclassmate");
 
   // Room A open: the student's section room.
@@ -496,7 +496,7 @@ test("the list updates live for rooms other than the open one, in this course an
     [`${TERM}:${course}`, inCourse],
     [`${TERM}:${other}`, elsewhere],
   ] as const) {
-    await expect(row(room)).toContainText(`Test: ${text}`, {
+    await expect(row(room)).toContainText(`E2E: ${text}`, {
       timeout: 15_000,
     });
     await expect(row(room).locator("[data-unread-mark]")).toBeVisible();
@@ -508,7 +508,7 @@ test("an older link, with the room in its search params, goes to the room's path
   page,
 }, info) => {
   const { course, section } = courseFor(info);
-  await signIn(page, "Test Student", "/chat");
+  await signInNewUser(page, "/chat");
   await page.goto(
     `/chat?term=${TERM}&course=${course}&room=${TERM}:${course}:${section}`,
   );
@@ -529,7 +529,7 @@ test("a course from a term that isn't Chat's has no Join, and the server won't j
   // On 2026-07-01 Summer 2026 is in session, so it's Chat's term and the
   // mock's Spring 2027 is still to come.
   await page.clock.setFixedTime(new Date("2026-07-01T16:00:00Z"));
-  await signIn(page, "Test Student", "/schedule");
+  await signInNewUser(page, "/schedule");
   await page.goto(`/schedule?term=${TERM}&course=${course}`);
   await expect(
     page.getByRole("button", { name: "More about this course" }),
@@ -554,7 +554,7 @@ test("the list resizes like the other workbenches' sidebars, and keeps its width
   isMobile,
 }) => {
   test.skip(isMobile, "phones have no sidebar to resize");
-  await signIn(page, "Test Student", "/chat");
+  await signInNewUser(page, "/chat");
   const list = page.getByRole("navigation", { name: "Rooms" });
   const handle = page.getByRole("separator", { name: "Sidebar width" });
   const widthOf = async () =>
