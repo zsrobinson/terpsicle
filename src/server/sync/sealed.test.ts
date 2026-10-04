@@ -25,7 +25,9 @@ import {
   sealForAccount,
   TEST_USER_DATA_KEY,
   type UserDataEnv,
+  UserDataKeyMissing,
   userData,
+  userDataForJob,
 } from "../security/user-keys";
 import { testBindings } from "../test-bindings";
 import { livePlans, pullDocs, pushDocs } from "./store";
@@ -34,6 +36,7 @@ import { openedBodyFor } from "./testing";
 const ORIGIN = "https://terpsicle.com";
 /** Where test mode can be on (V2.md §4.6). */
 const LOCALHOST = "http://localhost:3000";
+const PREVIEW = "https://pr-249-terpsicle.zsrobinson.workers.dev";
 const DAY = 86_400_000;
 const now = () => new Date("2026-10-01T15:00:00.000Z");
 
@@ -409,7 +412,7 @@ describe("sealed sync bodies", () => {
       "master_key_id",
     );
 
-  it("uses the fixed test key only in test mode, on a preview or localhost, without the secret", async () => {
+  it("uses the fixed test key in test mode, on localhost", async () => {
     const testMode = () => withKeys({ AUTH_TEST_MODE: "true" });
     const local = await signIn("tstudent", testMode, LOCALHOST);
     expect((await local.push(savePlan())).results[0]?.status).toBe("ok");
@@ -417,20 +420,52 @@ describe("sealed sync bodies", () => {
     expect(await local.pull(0)).toMatchObject({ docs: [{ body: plan }] });
   });
 
-  it("never uses the test key when USER_DATA_KEY is set, even in test mode", async () => {
-    const both = () =>
-      withKeys({
-        USER_DATA_KEY: K1,
-        USER_DATA_KEY_ID: "k1",
-        AUTH_TEST_MODE: "true",
-      });
-    const local = await signIn("tstudent", both, LOCALHOST);
-    expect((await local.push(savePlan())).results[0]?.status).toBe("ok");
+  const both = () =>
+    withKeys({
+      USER_DATA_KEY: K1,
+      USER_DATA_KEY_ID: "k1",
+      AUTH_TEST_MODE: "true",
+    });
+
+  it("uses the test key in test mode even with USER_DATA_KEY set: a preview never touches the secret", async () => {
+    const preview = await signIn("tstudent", both, PREVIEW);
+    expect((await preview.push(savePlan())).results[0]?.status).toBe("ok");
+    expect(await masterKeyId()).toBe(TEST_USER_DATA_KEY.id);
+    expect(await preview.pull(0)).toMatchObject({ docs: [{ body: plan }] });
+    // The secret doesn't open what the test key wrapped.
+    await expect(keyed(k1Env()).accountKey("tstudent")).rejects.toThrow(
+      SealedDataError,
+    );
+  });
+
+  it("uses the secret on terpsicle.com whatever the test flag says", async () => {
+    const production = await signIn("tstudent", both);
+    expect((await production.push(savePlan())).results[0]?.status).toBe("ok");
     expect(await masterKeyId()).toBe("k1");
-    // The same account opens with the secret alone.
     expect(await (await signIn("tstudent")).pull(0)).toMatchObject({
       docs: [{ body: plan }],
     });
+  });
+
+  it("gives a cron or the chat object the test key only with the flag and no secret", async () => {
+    await signIn("tstudent");
+    const made = async (vars: Record<string, string>) => {
+      await env.DB.prepare("DELETE FROM user_keys").run();
+      await userDataForJob(withKeys(vars)).accountKey("tstudent", {
+        create: true,
+      });
+      return masterKeyId();
+    };
+    // With no host to check, a secret that's set means production.
+    expect(
+      await made({
+        USER_DATA_KEY: K1,
+        USER_DATA_KEY_ID: "k1",
+        AUTH_TEST_MODE: "true",
+      }),
+    ).toBe("k1");
+    expect(await made({ AUTH_TEST_MODE: "true" })).toBe(TEST_USER_DATA_KEY.id);
+    await expect(made({})).rejects.toThrow(UserDataKeyMissing);
   });
 
   it("fails closed on terpsicle.com with the test flag and no secret", async () => {

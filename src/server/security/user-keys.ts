@@ -30,9 +30,11 @@ export interface UserDataEnv extends UserDataKeyVars {
 
 /**
  * Test mode's fixed key (previews, `pnpm dev:mock`, e2e): public, and its id
- * `test` never names a production row. It's used only in test mode (V2.md
- * §4.6) and only while USER_DATA_KEY isn't set, so production, which sets
- * the secret, never falls back to it whatever its vars say.
+ * `test` never names a production row. Like Todo's test feed key, it's what
+ * test mode always uses, so previews (unreviewed code, test sign-ins, their
+ * own D1) never touch USER_DATA_KEY even if they could read it. Test mode
+ * on a request needs a preview or localhost host (V2.md §4.6), so
+ * terpsicle.com never gets it whatever its vars say.
  */
 export const TEST_USER_DATA_KEY: SealSecrets = {
   key: "dGVycHNpY2xlLXN5bmNlZC1kYXRhLXRlc3Qta2V5ISE",
@@ -65,24 +67,27 @@ function warnOnce(which: keyof typeof warned, message: string): void {
 }
 
 /**
- * The keys that wrap every account's key: the fixed test key only in test
- * mode with no USER_DATA_KEY set; otherwise the secret, or nothing at all.
+ * The keys that wrap every account's key: in test mode always the fixed
+ * test key, so a preview never wraps anything with the secret even if it
+ * has one; otherwise the secret, or nothing at all.
  */
 export async function userDataKeys(
   env: UserDataKeyVars,
   testMode: boolean,
 ): Promise<SealKeys> {
+  if (testMode) {
+    const keys = await loadSealKeys(TEST_USER_DATA_KEY);
+    // The fixed key always loads; null would mean the constant was edited.
+    if (!keys) throw new UserDataKeyMissing();
+    return keys;
+  }
   const vars = UserDataKeyVarsSchema.parse(env);
-  const keys = await loadSealKeys(
-    testMode && vars.USER_DATA_KEY === undefined
-      ? TEST_USER_DATA_KEY
-      : {
-          key: vars.USER_DATA_KEY,
-          id: vars.USER_DATA_KEY_ID,
-          previousKey: vars.USER_DATA_KEY_PREVIOUS,
-          previousId: vars.USER_DATA_KEY_PREVIOUS_ID,
-        },
-  );
+  const keys = await loadSealKeys({
+    key: vars.USER_DATA_KEY,
+    id: vars.USER_DATA_KEY_ID,
+    previousKey: vars.USER_DATA_KEY_PREVIOUS,
+    previousId: vars.USER_DATA_KEY_PREVIOUS_ID,
+  });
   if (!keys) {
     warnOnce(
       "missing",
@@ -218,12 +223,22 @@ export function userDataForRequest(
 }
 
 /**
- * For a cron or a Durable Object, which have no host: test mode is the flag
- * alone, as Todo's cron reads it. Production never sets it
- * (src/server/auth/auth.test.ts), and its USER_DATA_KEY wins anyway.
+ * For a cron or the Chat Durable Object, which have no host to check: test
+ * mode is the flag, as Todo's cron reads it, and also no USER_DATA_KEY.
+ * Crons never run on previews and production never sets the flag
+ * (src/server/auth/auth.test.ts); the guard is for a production Worker
+ * with the flag set by mistake, which has the secret (the deploy checks)
+ * and so keeps using it. `pnpm dev:mock` has the flag and no secret.
  */
 export function userDataForJob(env: UserDataEnv): UserData {
-  return userData(env, { testMode: env.AUTH_TEST_MODE === "true" });
+  return userData(env, { testMode: jobTestMode(env) });
+}
+
+function jobTestMode(env: UserDataEnv): boolean {
+  return (
+    env.AUTH_TEST_MODE === "true" &&
+    UserDataKeyVarsSchema.parse(env).USER_DATA_KEY === undefined
+  );
 }
 
 /**
@@ -277,7 +292,7 @@ export async function rewrapAccountKeys(
   env: UserDataEnv,
   limit = 1_000,
 ): Promise<RewrapResult> {
-  const master = await userDataKeys(env, env.AUTH_TEST_MODE === "true");
+  const master = await userDataKeys(env, jobTestMode(env));
   const count = async (where: string, ...ids: (string | null)[]) =>
     CountSchema.parse(
       await env.DB.prepare(`SELECT count(*) AS n FROM user_keys WHERE ${where}`)

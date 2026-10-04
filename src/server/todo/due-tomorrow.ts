@@ -17,7 +17,7 @@ import {
 } from "~/core/todo";
 import { type NotifyEnv, notify } from "../notifications/notify";
 import { readSettings, writeSettings } from "../notifications/store";
-import { userData } from "../security/user-keys";
+import { userDataForJob } from "../security/user-keys";
 import {
   doneAmong,
   hiddenCourses,
@@ -124,10 +124,8 @@ export async function sendDueTomorrow(
     tomorrow,
     options.batch ?? TODO_DUE_BATCH,
   );
-  // Crons have no host: test mode is the caller's, or the var alone.
-  const data = userData(env, {
-    testMode: options.testMode ?? env.AUTH_TEST_MODE === "true",
-  });
+  // A cron has no host to check: the keys follow userDataForJob's guard.
+  const data = userDataForJob(env);
   const one = async (userId: string) => {
     const day = { from: tomorrow, to: tomorrow };
     const items = [
