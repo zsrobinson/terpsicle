@@ -15,12 +15,20 @@ type FocusFn = Extract<NonNullable<FocusTarget>, (...args: never[]) => unknown>;
 type InteractionType = Parameters<FocusFn>[0];
 type Resolved = ReturnType<FocusFn>;
 
-/** What Base UI would make of `target`; nothing given is its default. */
+/**
+ * What Base UI would make of `target`; nothing given is its default. An
+ * element the caller names takes focus here and now, as Base UI asks: Base
+ * UI would focus it a frame later, and the kit's popups have always moved
+ * focus as they open (a dialog's main action is focused by the time the
+ * dialog shows).
+ */
 function resolve(target: FocusTarget, type: InteractionType): Resolved {
   if (target === undefined) return true;
   if (typeof target === "boolean") return target;
-  if (typeof target === "function") return target(type);
-  return target.current;
+  const element = typeof target === "function" ? target(type) : target.current;
+  if (!(element instanceof HTMLElement)) return element;
+  element.focus();
+  return false;
 }
 
 /** `target`, quieting tooltips first. */

@@ -27,12 +27,20 @@ function setUp() {
 
 describe("focusQuietly", () => {
   it("quiets tooltips, then answers as Base UI would for the target", () => {
-    const { next } = setUp();
+    setUp();
     expect(focusQuietly(undefined)("mouse")).toBe(true);
     expect(focusQuietly(false)("mouse")).toBe(false);
-    expect(focusQuietly({ current: next })("keyboard")).toBe(next);
     expect(focusQuietly((type) => type === "touch")("touch")).toBe(true);
+    expect(focusQuietly({ current: null })("mouse")).toBeNull();
     expect(quiet).toHaveBeenCalledTimes(4);
+  });
+
+  it("focuses an element it's given right away, rather than a frame later", () => {
+    const { next, item } = setUp();
+    expect(focusQuietly({ current: next })("keyboard")).toBe(false);
+    expect(next).toHaveFocus();
+    expect(focusQuietly(() => item)("mouse")).toBe(false);
+    expect(item).toHaveFocus();
   });
 });
 
@@ -61,7 +69,9 @@ describe("focusBackQuietly", () => {
   it("sends focus where the caller's target says", () => {
     const { item, next, popup } = setUp();
     item.focus();
-    expect(focusBackQuietly({ current: next }, popup)("keyboard")).toBe(next);
     expect(focusBackQuietly(() => false, popup)("keyboard")).toBe(false);
+    expect(item).toHaveFocus();
+    expect(focusBackQuietly({ current: next }, popup)("keyboard")).toBe(false);
+    expect(next).toHaveFocus();
   });
 });
