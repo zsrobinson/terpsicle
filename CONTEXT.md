@@ -49,7 +49,11 @@ _Avoid_: component icon (that's the product's mark), cross-link (in copy)
 _Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
 
 **Family bar**:
-The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens, and into the tab bar on phones, where the bar keeps only the product's context), the product's context, then a workbench's Share, the bell (signed in), the coffee button, Feedback and the account. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. On phones, and on the scheduler's and Plan's bars below 1536px, the coffee button is "Buy me a coffee" in the account menu, and on a phone where the bar carries context (the scheduler, Chat's term), the bell and Feedback move there too. Code says `AppBar`.
+The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens, and into the tab bar on phones, where the bar keeps only the product's context), the product's context, then the page's own controls (its status, its tools, Share) and the account cluster. The product you're on shows its mark and name, the others just their marks (Home and Settings show only marks), and hovering or tabbing to a tab opens that one tab's name. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. Code says `AppBar` and `ProductTabs`.
+
+**Account cluster**:
+The end of the family bar, the same on every page: Feedback (its icon and "Feedback" from 1100px), the bell (signed in), Support (the coffee button) and the account. Pages add their controls to its left, never inside it. On phones the bell, Feedback and Support are items in the account menu. Code says `AccountCluster`.
+_Avoid_: toolbar, actions (for this group)
 
 **Mark**:
 One of the six pixel drawings on a 9×9 tile: the umbrella (Terpsicle itself, black) and one per product, in its color. The app icons and favicon are the umbrella's tile alone. Code says `Mark`, drawn from `src/lib/brand/marks.ts`.
@@ -60,7 +64,7 @@ The small chip beside the wordmark saying Terpsicle's still in active developmen
 _Avoid_: beta, preview
 
 **Coffee button**:
-The cup-with-a-heart button beside Feedback. It opens a short note and a "Buy me a coffee" link to the developer's Buy Me a Coffee page. Nothing opens it but a click.
+The cup-with-a-heart button in the account cluster, "Support Terpsicle". It opens a short note and a "Buy Terpsicle a coffee" link to Terpsicle's Buy Me a Coffee page; its words are about supporting Terpsicle, never "me" or "the developer". Nothing opens it but a click.
 _Avoid_: donate, tip
 
 **Sheet**:
@@ -359,7 +363,7 @@ In Schedule's course details, the popover (a sheet on phones) an instructor's "R
 _Avoid_: reviews tab, summary
 
 **Folded tabs**:
-The family bar's product tabs at rest on Reviews: the product you're on with its name, the others only their marks, every name opening when you hover or tab into them. Code says `collapseTabs`.
+The family bar's product tabs at rest, on every page: the product you're on with its name, the others only their marks (on Home and Settings, every tab a mark). Hovering or tabbing to a tab opens that one tab's name. Code says `ProductTabs`.
 
 **Most taken**:
 The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.

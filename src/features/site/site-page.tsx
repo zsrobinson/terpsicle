@@ -47,17 +47,14 @@ export function SiteHeader({
   borderOnScroll = false,
   context,
   status,
-  collapseTabs = false,
 }: {
   notFound?: boolean;
   /** Reviews' public pages: the bar's rule shows once the page scrolls. */
   borderOnScroll?: boolean;
   /** A product's own context in the bar (Todo's views and week), for the path's. */
   context?: ReactNode;
-  /** Its controls at the bar's end, before the bell and Feedback. */
+  /** Its controls at the bar's end, before the account cluster. */
   status?: ReactNode;
-  /** Reviews: the other products' tabs fold to their marks at rest. */
-  collapseTabs?: boolean;
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   // The Worker renders a 404 at its own path (NOT_FOUND_PATH) and the page
@@ -74,7 +71,6 @@ export function SiteHeader({
       context={notFound ? null : (context ?? pageContext(path))}
       status={status}
       borderOnScroll={borderOnScroll}
-      collapseTabs={collapseTabs}
       phoneTitle={notFound ? undefined : phoneTitle(path)}
     />
   );
