@@ -10,7 +10,9 @@ import {
   aFourYearEntry,
   aFourYearWildcardEntry,
 } from "~/fixtures";
+import { offeringSummary } from "../history/offering-pattern";
 import { fourYearCourses } from "./course-lookup";
+import type { FourYearOfferings } from "./offerings";
 import {
   firstSemesterMeetingPrereqs,
   meetsGroup,
@@ -532,5 +534,142 @@ describe("detectFourYearProblems", () => {
         label: "Remove",
       }).entries,
     ).toHaveLength(1);
+  });
+});
+
+describe("courses in a term they usually aren't offered", () => {
+  const spring = (years: number[]) => years.map((y) => `${y}01`);
+  const fall = (years: number[]) => years.map((y) => `${y}08`);
+  // Every fall and spring from Fall 2018 to Spring 2027 is on record but
+  // Fall 2025 and Spring 2026, the history's gap.
+  const recorded = new Set([
+    ...fall([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2026]),
+    ...spring([2019, 2020, 2021, 2022, 2023, 2024, 2025, 2027]),
+  ]);
+  const listed = new Set(["202608", "202701"]);
+  const ran = (terms: string[]) => {
+    const offered = new Set(terms);
+    return {
+      summary: offeringSummary({ offered, recorded, now: "202701" }),
+      offered,
+    };
+  };
+  const offerings: FourYearOfferings = {
+    listed,
+    recorded,
+    now: "202701",
+    courses: new Map([
+      // Spring only; it missed Spring 2023.
+      ["CMSC452", ran(spring([2019, 2020, 2021, 2022, 2024, 2025, 2027]))],
+      ["CMSC473", ran(fall([2021, 2022, 2023, 2024, 2026]))],
+      ["CCJS453", ran(fall([2018, 2020, 2022, 2024, 2026]))],
+      ["CMSC454", ran([...spring([2020, 2022, 2024, 2025, 2027]), "202208"])],
+    ]),
+  };
+  const entries = (code: string, term: string) => [
+    course("offered", code, term),
+    // Full semesters around it, so a move makes no light semester.
+    ...["202708", "202801", "202808"].flatMap((t) => [
+      course(`a${t}`, "MATH140", t),
+      course(`b${t}`, "MATH141", t),
+      course(`c${t}`, "CMSC250", t),
+    ]),
+  ];
+  const withOfferings = fourYearCourses([
+    ...lookup.courses.values(),
+    ...["CMSC452", "CMSC473", "CMSC454"].map((code) =>
+      aCourseIndexEntry({ code, ...none }),
+    ),
+    aCourseIndexEntry({ code: "CCJS453", ...none }),
+  ]);
+  const about = (code: string, term: string) =>
+    detectFourYearProblems(
+      input(entries(code, term), { lookup: withOfferings, offerings }),
+    ).filter((p) => p.kind === "unlikely-term");
+
+  it("says a spring-only course in a fall is usually spring only, and moves it", () => {
+    const [p, ...rest] = about("CMSC452", "202708");
+    expect(rest).toEqual([]);
+    expect(FourYearProblemSchema.parse(p)).toEqual(p);
+    expect(p).toMatchObject({
+      id: "unlikely-term:entry_offered",
+      severity: "info",
+      title: [
+        { kind: "course", courseCode: "CMSC452" },
+        { kind: "text", text: " is usually spring only" },
+      ],
+      detail: [
+        {
+          kind: "text",
+          text: "Offered in 7 of the 8 springs on record since 2019, and in no fall. Last offered Spring 2027.",
+        },
+      ],
+      fix: {
+        kind: "move",
+        entryId: "entry_offered",
+        term: "202801",
+        label: "Move CMSC452 to Spring 2028",
+      },
+    });
+  });
+
+  it("says an alternate-year course in its off year runs every other year", () => {
+    const [p] = about("CCJS453", "202708");
+    expect(p?.title).toEqual([
+      { kind: "course", courseCode: "CCJS453" },
+      { kind: "text", text: " runs every other fall" },
+    ]);
+    expect(p?.detail).toEqual([
+      {
+        kind: "text",
+        text: "Last offered Fall 2026. Fall 2028 is likely; Fall 2027 isn't.",
+      },
+    ]);
+    expect(p?.fix).toMatchObject({ term: "202808" });
+  });
+
+  it("says a term Testudo lists doesn't have it, whatever the pattern", () => {
+    const [p] = about("CMSC473", "202701");
+    expect(p?.title).toEqual([
+      { kind: "course", courseCode: "CMSC473" },
+      { kind: "text", text: " isn't offered in Spring 2027" },
+    ]);
+    expect(p?.detail).toEqual([
+      {
+        kind: "text",
+        text: "Testudo lists Spring 2027 without it. It's usually fall only.",
+      },
+    ]);
+    expect(p?.fix).toMatchObject({ term: "202708" });
+    // CMSC454 is in Spring 2027: nothing to say.
+    expect(about("CMSC454", "202701")).toEqual([]);
+  });
+
+  it("says nothing in a term it's likely in, or with no season to go by", () => {
+    expect(about("CMSC452", "202801")).toEqual([]);
+    expect(about("CMSC473", "202708")).toEqual([]);
+    // Mostly spring: the record isn't sure enough to warn about a fall.
+    expect(about("CMSC454", "202708")).toEqual([]);
+  });
+
+  it("says nothing about a semester that's done or in progress", () => {
+    expect(about("CMSC452", "202608")).toEqual([]);
+  });
+
+  it("says nothing without the history", () => {
+    expect(
+      detectFourYearProblems(
+        input(entries("CMSC452", "202708"), {
+          lookup: withOfferings,
+          offerings: null,
+        }),
+      ).filter((p) => p.kind === "unlikely-term"),
+    ).toEqual([]);
+  });
+
+  it("offers no move that would leave the plan", () => {
+    // Spring 2030 is the plan's last semester; Spring 2031 isn't in it.
+    const [p] = about("CMSC452", "203008");
+    expect(p?.fix).toBeNull();
   });
 });

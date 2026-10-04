@@ -111,6 +111,7 @@ Nobody should have to touch the app when a new semester appears.
 
 ### 3.4 Course details (drill-in)
 - **Header:** code, credits, gen-eds, title; **Bookmark** (bookmark icon) for a course not in the plan, "Bookmarked" once it is, and Remove from plan / Bookmark instead for a placed one.
+- **Usually offered** (`v3/offering-patterns`, the report's variant A): when the course keeps to a season, one line under the title, "Usually offered: Spring only · Next likely: Spring 2028" ("Next: Spring 2027" when a later term Testudo lists has it), and its offering strip with the other facts ("Offered", "Fall 2018 to Spring 2027 · in 7 of the 16 terms on record"). Its tooltip counts the record and says it's a pattern, not a promise. A course that runs every fall and spring, and one with no season to tell (rare, special topics, too little history), shows neither. From the instructor history (`useCourseOffering`, CONTEXT.md "Offering pattern").
 - **One section list for every course,** whether it has one section or ninety: a one-section course shows the same row as any other (owner, 2026-09-26).
 - **One level of grouping, by professor,** and only when there's more than one (TBA sections next to a named professor are a group too). Section codes already say which sections share a lecture, so there's no lecture layer.
   - The group header shows the instructor, rating (review count) and average GPA in this course. Groups can be collapsed.

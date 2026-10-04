@@ -1,4 +1,11 @@
 import {
+  nextLikelyTerm,
+  type OfferingPattern,
+  offeredLikelihood,
+  offeringRecord,
+  offeringWords,
+} from "../history/offering-pattern";
+import {
   type CourseCode,
   type Message,
   SEVERITY_ORDER,
@@ -25,6 +32,7 @@ import {
 } from "./course-lookup";
 import { columnSummary, earnedNothing, FULL_TIME_CREDITS } from "./credits";
 import { displayTitle } from "./display-title";
+import type { CourseOffering, FourYearOfferings } from "./offerings";
 import { firstSemesterMeetingPrereqs, unmetPrereqGroups } from "./prereqs";
 import { moveEntry, removeEntry, setEntryDetails } from "./reducer";
 import type { StatusOf } from "./status";
@@ -33,6 +41,7 @@ import {
   fourYearColumns,
   fourYearTermLabel,
   isSemester,
+  nextSemester,
   previousSemester,
 } from "./terms";
 
@@ -45,6 +54,8 @@ export type FourYearProblemsInput = {
   readonly statusOf: StatusOf;
   /** The newest term Testudo lists, for `not-offered-lately`; null skips that check. */
   readonly latestTermId: TermId | null;
+  /** Each course's offering pattern, for `unlikely-term`; null (or left out) skips it. */
+  readonly offerings?: FourYearOfferings | null;
 };
 
 /** How many recent fall and spring semesters `not-offered-lately` looks back. */
@@ -322,6 +333,118 @@ function notOfferedProblem(
   ];
 }
 
+/** " It's usually fall only.": the pattern as a sentence, or "" when it has no season. */
+function patternSentence(pattern: OfferingPattern): string {
+  const words = offeringWords(pattern)?.toLowerCase();
+  if (!words) return "";
+  if (pattern.kind === "once-a-year") return ` It's usually ${words}.`;
+  if (pattern.kind === "alternate-years" || pattern.kind === "leans")
+    return ` It runs ${words}.`;
+  if (pattern.kind === "irregular" && pattern.lean)
+    return ` It's mostly offered in the ${pattern.lean}.`;
+  return "";
+}
+
+/**
+ * The nearest later semester of the plan it's offered or likely in, while
+ * that's still to come: where `unlikely-term`'s Move puts it.
+ */
+function likelySemester(
+  { doc, statusOf, offerings }: FourYearProblemsInput,
+  offering: CourseOffering,
+  after: TermId,
+): TermId | null {
+  if (!offerings) return null;
+  const columns = new Set(fourYearColumns(doc));
+  for (
+    let term = nextSemester(after);
+    columns.has(term);
+    term = nextSemester(term)
+  ) {
+    if (statusOf(term) !== "planned") continue;
+    const answer = offeredLikelihood(
+      offering.summary,
+      term,
+      offerings.listed,
+      offering.offered,
+    );
+    if (answer === "yes" || answer === "likely") return term;
+  }
+  return null;
+}
+
+/**
+ * A planned course in a semester it's unlikely to run in: a term Testudo
+ * lists without it, or, for a term it doesn't list yet, a once-a-year or
+ * alternate-year course out of its season or year. Information: a pattern
+ * isn't a promise.
+ */
+function unlikelyTermProblem(
+  input: FourYearProblemsInput,
+  entry: FourYearCourseEntry,
+): FourYearProblem[] {
+  const { offerings, statusOf } = input;
+  const term = entry.term;
+  if (!offerings || !isSemester(term) || statusOf(term) !== "planned")
+    return [];
+  const offering = offerings.courses.get(entry.code);
+  if (!offering) return [];
+  const { summary } = offering;
+  const answer = offeredLikelihood(
+    summary,
+    term,
+    offerings.listed,
+    offering.offered,
+  );
+  if (answer !== "no" && answer !== "unlikely") return [];
+  const target = likelySemester(input, offering, term);
+  const fix: FourYearFix | null = target
+    ? {
+        kind: "move",
+        entryId: entry.id,
+        term: target,
+        label: `Move ${entry.code} to ${fourYearTermLabel(target)}`,
+      }
+    : null;
+  const subject: [FourYearSubject] = [{ kind: "entry", entryId: entry.id }];
+  const termName = fourYearTermLabel(term);
+  const say = (title: string, detail: string) => [
+    problem(
+      "unlikely-term",
+      subject,
+      [course(entry.code), text(title)],
+      [text(detail)],
+      fix,
+    ),
+  ];
+  if (answer === "no")
+    return say(
+      ` isn't offered in ${termName}`,
+      `Testudo lists ${termName} without it.${patternSentence(summary.pattern)}`,
+    );
+  const { pattern } = summary;
+  const last = summary.lastOffered
+    ? `Last offered ${fourYearTermLabel(summary.lastOffered)}.`
+    : "";
+  if (pattern.kind === "once-a-year")
+    return say(
+      ` is usually ${pattern.season} only`,
+      `${offeringRecord(summary) ?? ""} ${last}`.trim(),
+    );
+  if (pattern.kind === "alternate-years") {
+    const next = nextLikelyTerm(summary, term);
+    const inSeason = term.endsWith(pattern.season === "fall" ? "08" : "01");
+    const likely = next
+      ? ` ${fourYearTermLabel(next)} is likely${inSeason ? `; ${termName} isn't` : ""}.`
+      : "";
+    return say(
+      ` runs every other ${pattern.season}`,
+      `${last}${likely}`.trim(),
+    );
+  }
+  return [];
+}
+
 /** Every problem, before fixes are checked. */
 function rawProblems(input: FourYearProblemsInput): FourYearProblem[] {
   const out: FourYearProblem[] = [];
@@ -333,9 +456,12 @@ function rawProblems(input: FourYearProblemsInput): FourYearProblem[] {
       if (!entry.details) out.push(unknownProblem(input.lookup, entry));
       continue;
     }
+    const lately = notOfferedProblem(input, entry);
     out.push(
       ...prereqProblems(input, entry),
-      ...notOfferedProblem(input, entry),
+      ...lately,
+      // Not offered lately says more than a season would.
+      ...(lately.length > 0 ? [] : unlikelyTermProblem(input, entry)),
     );
   }
   out.push(...repeatedProblems(input), ...lightSemesterProblems(input));

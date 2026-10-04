@@ -47,14 +47,17 @@ import { useFourYear } from "./store";
 // "not offered lately". Opened once per page, for the page's life.
 
 type CatalogFacts = {
-  /** The newest term Testudo lists, for `not-offered-lately`. */
+  /** The newest term Testudo lists, for `not-offered-lately` and offering patterns. */
   latestTermId: TermId | null;
+  /** The terms Testudo lists now: what they have is a fact, not a pattern. */
+  listedTermIds: ReadonlySet<TermId>;
   /** Published calendars; a term without one uses its season's months. */
   calendars: readonly AcademicCalendar[];
 };
 
 export const useFourYearFacts = create<CatalogFacts>()(() => ({
   latestTermId: null,
+  listedTermIds: new Set(),
   calendars: [],
 }));
 
@@ -84,7 +87,12 @@ async function loadFacts(reader: ReturnType<typeof createDataReader>) {
     (latest, t) => (latest === null || t.id > latest ? t.id : latest),
     null,
   );
-  useFourYearFacts.setState({ latestTermId });
+  useFourYearFacts.setState({
+    latestTermId,
+    listedTermIds: new Set(
+      terms.filter((t) => t.status === "active").map((t) => t.id),
+    ),
+  });
   const calendars = await Promise.all(
     terms.map((t) => reader.calendar(t.id).catch(() => null)),
   );

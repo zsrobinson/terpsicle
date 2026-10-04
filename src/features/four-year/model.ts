@@ -9,6 +9,11 @@ import {
 } from "~/core/four-year/credits";
 import { allocateGenEds, type GenEdAllocation } from "~/core/four-year/gen-ed";
 import { handoffTerm } from "~/core/four-year/handoff";
+import {
+  type FourYearOfferings,
+  fourYearOfferings,
+  offeringDepts,
+} from "~/core/four-year/offerings";
 import { detectFourYearProblems } from "~/core/four-year/problems";
 import { type StatusOf, statusResolver } from "~/core/four-year/status";
 import { defaultTargetTerm, fourYearColumns } from "~/core/four-year/terms";
@@ -26,6 +31,7 @@ import type {
   FourYearProblem,
   FourYearTerm,
 } from "~/core/schema/four-year";
+import { useOfferingHistory } from "~/state/offerings";
 import { useDocDepts, useFourYearFacts } from "./data";
 
 // Everything the page shows about the open doc, worked out once per change
@@ -46,6 +52,8 @@ export type PlanModel = {
   readonly totals: CreditTotals;
   readonly genEds: GenEdAllocation;
   readonly problems: readonly FourYearProblem[];
+  /** When the doc's courses usually run, once the history is in; null before. */
+  readonly offerings: FourYearOfferings | null;
   /** Problems by the entries they're about, for the blocks' quiet inset. */
   readonly problemsByEntry: ReadonlyMap<LocalId, readonly FourYearProblem[]>;
   /** Where Add puts a course: the picked semester, else the one in progress or next. */
@@ -69,14 +77,30 @@ export function usePlanModel(
   } = useDocDepts(doc);
   const calendars = useFourYearFacts((s) => s.calendars);
   const latestTermId = useFourYearFacts((s) => s.latestTermId);
+  const listed = useFourYearFacts((s) => s.listedTermIds);
+  const history = useOfferingHistory(
+    useMemo(() => offeringDepts(doc, lookup), [doc, lookup]),
+  );
   return useMemo(() => {
     const statusOf = statusResolver(today, calendars);
     const columns = fourYearColumns(doc);
+    const offerings =
+      history && latestTermId
+        ? fourYearOfferings({
+            doc,
+            lookup,
+            history: history.depts,
+            recorded: history.recorded,
+            listed,
+            now: latestTermId,
+          })
+        : null;
     const problems = detectFourYearProblems({
       doc,
       lookup,
       statusOf,
       latestTermId,
+      offerings,
     });
     const problemsByEntry = new Map<LocalId, FourYearProblem[]>();
     for (const p of problems)
@@ -100,6 +124,7 @@ export function usePlanModel(
       totals: creditTotals(doc, lookup, statusOf),
       genEds: allocateGenEds(doc, lookup, statusOf),
       problems,
+      offerings,
       problemsByEntry,
       handoffTerm: handoffTerm(columns, statusOf),
       tags: termTags(today, calendars),
@@ -116,6 +141,8 @@ export function usePlanModel(
     deptsFailed,
     calendars,
     latestTermId,
+    listed,
+    history,
     picked,
   ]);
 }

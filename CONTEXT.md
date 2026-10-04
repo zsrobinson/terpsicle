@@ -111,6 +111,12 @@ Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "in
 **Instructor history**:
 Our own record of who taught each course in each term, kept after Testudo stops listing the term (DATA.md §3.5). Older terms come from PlanetTerp's grades and are marked as theirs. Say "taught", as in "Taught CMSC351 in Fall 2026".
 
+**Offering pattern**:
+When a course usually runs, read from the instructor history: every fall and spring, once a year in a fixed season ("Spring only"), every other year ("Every other fall"), mostly one season, or no fixed season. Copy says "Usually offered: Spring only" and "Next likely: Spring 2028"; a course that runs every semester says nothing. A term the history has no record of is unknown, never "not offered". Never call it a schedule or a promise.
+
+**Offering strip**:
+A course's falls and springs over the last eight years in a row of small cells, a school year to a pair: filled where it ran, hollow where it didn't, dashed where the history has no record. In Schedule's course details ("Offered") and Plan's problem rows.
+
 **GenEd**:
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".
 

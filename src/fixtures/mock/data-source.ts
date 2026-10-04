@@ -60,6 +60,7 @@ import {
   mockRouteGeometries,
   mockRoutesIndex,
 } from "./geo";
+import { mockHistoryBackfill } from "./history";
 import {
   MOCK_GRADES_THROUGH,
   MOCK_LATEST_REVIEW_AT,
@@ -205,26 +206,31 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
   // The instructor history, built by the same code the history job runs.
   const historyTerms: HistoryManifest["terms"] = [];
   const historyDepts = new Map<string, HistoryDept | null>();
-  for (const termId of Object.keys(mockCatalog).sort()) {
+  // Older terms (./history.ts) give offering patterns years to read.
+  const backfill = mockHistoryBackfill();
+  const historyTermIds = [
+    ...new Set([...Object.keys(mockCatalog), ...backfill.keys()]),
+  ].sort();
+  for (const termId of historyTermIds) {
     const chunks = mockCatalog[termId] ?? [];
-    const term = mergeHistoryTerm(
-      null,
-      termId,
-      chunks.flatMap((chunk) => historyCoursesFromChunk(chunk.courses)),
-    );
+    const term = mergeHistoryTerm(null, termId, [
+      ...chunks.flatMap((chunk) => historyCoursesFromChunk(chunk.courses)),
+      ...(backfill.get(termId) ?? []),
+    ]);
     historyTerms.unshift({
       termId,
       hash: await putHashed((h) => historyTermKey(termId, h), term),
       courses: historySourceCounts(term),
     });
-    for (const chunk of chunks)
+    const depts = new Set(term.courses.map((c) => c.code.slice(0, 4)));
+    for (const dept of depts)
       historyDepts.set(
-        chunk.dept,
+        dept,
         patchHistoryDept(
-          historyDepts.get(chunk.dept) ?? null,
-          chunk.dept,
+          historyDepts.get(dept) ?? null,
+          dept,
           termId,
-          term.courses,
+          term.courses.filter((c) => c.code.startsWith(dept)),
         ),
       );
   }
