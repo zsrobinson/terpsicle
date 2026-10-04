@@ -5,7 +5,6 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
-import { create } from "zustand";
 import {
   type FourYearCourses,
   fourYearCourses,
@@ -20,15 +19,10 @@ import type {
   TermId,
 } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
-import { clientConfig } from "~/lib/config";
-import {
-  createDataReader,
-  createDataSource,
-  DataError,
-  type DataSource,
-  SchemaVersionError,
-} from "~/state/data-source";
+import { pageSource } from "~/lib/published-source";
+import { DataError, SchemaVersionError } from "~/state/data-source";
 import { TerpsicleDb } from "~/state/db";
+import { calendarQuery, termsQuery } from "~/state/query/catalog";
 import {
   courseIndexDeptQuery,
   courseIndexManifestQuery,
@@ -37,26 +31,60 @@ import {
   ensureIndexDepts,
   manifestDept,
 } from "~/state/query/course-index";
-import { connectPublished, usePublishedSource } from "~/state/query/published";
+import { usePublishedSource } from "~/state/query/published";
 import { useFourYear } from "./store";
 
-// Where Plan's data comes from: the four-year docs in Dexie (./store), the
-// course index (every course, any term: TanStack Query queries over the
-// published files, `src/state/query/course-index.ts`, saved to the query
-// cache) and the term list and academic calendars, for term status and
-// "not offered lately". Opened once per page, for the page's life.
+// Where Plan's data comes from: the four-year docs in Dexie (./store), and
+// published files through their TanStack Query queries in the page's one
+// client (~/state/query), the ones Schedule, Home and Chat read too: the
+// course index (every course, any term, `src/state/query/course-index.ts`)
+// and the term list and academic calendars, for term status and "not
+// offered lately". The docs are opened once per page, for the page's life.
 
-type CatalogFacts = {
+/** What the term list and the calendars say. */
+export interface FourYearFacts {
   /** The newest term Testudo lists, for `not-offered-lately`. */
   latestTermId: TermId | null;
   /** Published calendars; a term without one uses its season's months. */
   calendars: readonly AcademicCalendar[];
-};
+}
 
-export const useFourYearFacts = create<CatalogFacts>()(() => ({
-  latestTermId: null,
-  calendars: [],
-}));
+/**
+ * Something from the term list and its terms' academic calendars, read
+ * through the published queries (`termsQuery`, `calendarQuery`): the page
+ * reads each file once, shares Schedule's, Home's and Chat's copies, and
+ * shows what this device saved at once and offline. Until they're in, or
+ * when they can't load, there's no newest term and no calendars: they only
+ * sharpen status and one problem kind, so failing is fine.
+ */
+export function useFourYearFacts<T>(select: (facts: FourYearFacts) => T): T {
+  const source = usePublishedSource((s) => s.source);
+  const terms = useQuery(termsQuery(source)).data?.terms;
+  const latestTermId = useMemo(
+    () =>
+      (terms ?? []).reduce<TermId | null>(
+        (latest, t) => (latest === null || t.id > latest ? t.id : latest),
+        null,
+      ),
+    [terms],
+  );
+  const calendars = useQueries({
+    queries: (terms ?? []).map((t) => calendarQuery(source, t.id)),
+    combine: publishedCalendars,
+  });
+  const facts = useMemo(
+    () => ({ latestTermId, calendars }),
+    [latestTermId, calendars],
+  );
+  return select(facts);
+}
+
+/** The calendars that loaded; a term without one (yet) is left out. */
+function publishedCalendars(
+  results: UseQueryResult<AcademicCalendar>[],
+): readonly AcademicCalendar[] {
+  return results.flatMap((r) => (r.data ? [r.data] : []));
+}
 
 let started: Promise<void> | null = null;
 /** The page's database, once open; null before, or when the browser refuses it. */
@@ -78,31 +106,16 @@ async function openDb(): Promise<TerpsicleDb | null> {
   }
 }
 
-async function loadFacts(reader: ReturnType<typeof createDataReader>) {
-  const { terms } = await reader.terms();
-  const latestTermId = terms.reduce<TermId | null>(
-    (latest, t) => (latest === null || t.id > latest ? t.id : latest),
-    null,
-  );
-  useFourYearFacts.setState({ latestTermId });
-  const calendars = await Promise.all(
-    terms.map((t) => reader.calendar(t.id).catch(() => null)),
-  );
-  useFourYearFacts.setState({
-    calendars: calendars.filter((c): c is AcademicCalendar => c !== null),
-  });
-}
-
 /**
- * Opens the docs and the course index, once per page. Tests pass the
- * fixtures' bucket as `source`; the app reads the configured one. Coming
- * back to Plan later in the same page reads the docs again, since the
- * scheduler's sync may have changed them in IndexedDB meanwhile.
+ * Opens the docs, once per page, and connects the page's published data
+ * (the source Schedule, Home or Chat connected first, else one of its own)
+ * for the course index, the terms and the calendars. Tests connect the
+ * fixtures' bucket first. Coming back to Plan later in the same page reads
+ * the docs again, since the scheduler's sync may have changed them in
+ * IndexedDB meanwhile.
  */
-export function startFourYear(
-  options: { source?: DataSource } = {},
-): Promise<void> {
-  // Read again even if the first start failed partway (the course index),
+export function startFourYear(): Promise<void> {
+  // Read again even if the first start failed partway (the data source),
   // or sync would start over a stale store.
   if (started)
     return started.catch(() => {}).then(() => useFourYear.getState().refresh());
@@ -110,12 +123,7 @@ export function startFourYear(
     const db = await openDb();
     pageDb = db;
     const docs = useFourYear.getState().start(db);
-    const source = options.source ?? (await createDataSource(clientConfig));
-    connectPublished(source);
-    // Facts only sharpen status and one problem kind: failing is fine.
-    void loadFacts(createDataReader(source)).catch((error: unknown) =>
-      console.warn("Plan: no term list", error),
-    );
+    await pageSource();
     await docs;
   })();
   return started;
