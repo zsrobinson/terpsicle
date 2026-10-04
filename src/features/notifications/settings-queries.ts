@@ -11,6 +11,7 @@ import type {
   PushDevice,
 } from "~/core/schema/notifications";
 import { useAccount } from "~/features/auth/account-store";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { retryApi } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
 import { noteToast } from "~/ui/toast";
@@ -125,10 +126,10 @@ export function saveSettingsMutation() {
       )
         client.setQueryData(settingsKeys.settings, context.before);
     },
-    onSettled: (_data, _error, _next, _context, { client }) => {
-      if (client.isMutating({ mutationKey: settingsKeys.settings }) <= 1)
+    onSettled: (_data, _error, _next, _context, { client }) =>
+      refetchWhenRunSettles(client, settingsKeys.settings, () => {
         void client.invalidateQueries({ queryKey: settingsKeys.settings });
-    },
+      }),
   });
 }
 

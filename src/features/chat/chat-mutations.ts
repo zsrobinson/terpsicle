@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { mainPlanFor } from "~/core/plans/main-plan";
 import type { ChatUnreadRoom, CourseCode, RoomId, TermId } from "~/core/schema";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { chatClient } from "./chat-client";
 import {
   cachedSynced,
@@ -43,10 +44,11 @@ function settleUnread(
   termId: TermId,
   mutationKey: readonly string[],
 ): void {
-  if (client.isMutating({ mutationKey }) <= 1)
+  refetchWhenRunSettles(client, mutationKey, () => {
     void client.invalidateQueries({
       queryKey: chatUnreadQuery(termId).queryKey,
     });
+  });
 }
 
 const followsIn = (termId: TermId): readonly CourseCode[] =>

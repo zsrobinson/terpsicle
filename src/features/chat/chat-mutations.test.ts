@@ -1,4 +1,4 @@
-import type { QueryClient } from "@tanstack/react-query";
+import { type QueryClient, QueryObserver } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type ChatUnreadRoom,
@@ -81,8 +81,11 @@ describe("muteRoom", () => {
     expect(await muting).toBe(false);
     expect(useChatHome.getState().mutes).toEqual({});
     expect(rows().map((r) => r.muted)).toEqual([false, false]);
-    // And the counts are the server's again once it settles.
-    expect(client.getQueryState(unreadKey)?.isInvalidated).toBe(true);
+    // And the counts are the server's again once it settles (counted on
+    // the next task, once its end is recorded).
+    await vi.waitFor(() =>
+      expect(client.getQueryState(unreadKey)?.isInvalidated).toBe(true),
+    );
   });
 
   it("keeps a mute for a room with no messages yet, which the counts don't list", async () => {
@@ -123,5 +126,32 @@ describe("followCourse and unfollowCourse", () => {
     expect(await leaving).toBe(false);
     expect(useChatHome.getState().follows[fixtureTermId]).toEqual(["CMSC330"]);
     expect(rows().map((r) => r.room)).toEqual([everyone, section]);
+  });
+});
+
+describe("a run of changes", () => {
+  it("asks for the counts once when two joins settle in the same tick", async () => {
+    // Something on screen reads the counts.
+    const unsubscribe = new QueryObserver(
+      client,
+      chatUnreadQuery(fixtureTermId),
+    ).subscribe(() => {});
+    const answer = held<void>();
+    chat.follow.mockImplementation(async () => {
+      await answer.promise;
+      return { status: "ok" };
+    });
+    chat.unread.mockResolvedValue({ rooms: [row(everyone), row(section)] });
+
+    const both = Promise.all([
+      followCourse("CMSC351"),
+      followCourse("CMSC216"),
+    ]);
+    answer.resolve();
+    expect(await both).toEqual(["ok", "ok"]);
+    await vi.waitFor(() => expect(chat.unread).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(chat.unread).toHaveBeenCalledOnce();
+    unsubscribe();
   });
 });
