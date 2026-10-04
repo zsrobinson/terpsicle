@@ -28,7 +28,7 @@ export function ComingUpSection({
     () => comingUp(todo.items, todo.done, weekOf(clock.today, weekStart).to),
     [todo, clock.today, weekStart],
   );
-  const check = useCheckOff();
+  const check = useCheckOff(todo.done);
   if (todo.phase !== "ready" || items.length === 0) return null;
   return (
     <HomeSection

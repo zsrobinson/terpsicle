@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
 import { type ReactNode, useCallback, useEffect, useMemo } from "react";
@@ -20,7 +21,6 @@ import {
   itemCourse,
   NO_COURSE_KEY,
   shiftWeek,
-  weekSpan,
   weekStartOf,
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
@@ -55,7 +55,20 @@ import {
 import { TASK_TOAST_ID } from "./task-form";
 import { TODO_PATH, TodoBarContext, useNow } from "./todo-bar";
 import type { CheckedVia, ViewProps } from "./todo-lists";
-import { useTodo } from "./todo-store";
+import {
+  deleteTodoTask,
+  hideTodoCourse,
+  restoreTodoTask,
+  setTodoDone,
+} from "./todo-mutations";
+import { todoWeekQuery } from "./todo-queries";
+import {
+  useAskElms,
+  useElmsSync,
+  useForgetTodoOnSignOut,
+  useTodoList,
+  weekPhase,
+} from "./use-todo";
 import {
   openElmsSettings,
   useTodoWorkbench,
@@ -170,31 +183,23 @@ function toSidebar() {
  */
 function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
   const { now, today } = useNow();
-  const phase = useTodo((s) => s.phase);
-  const load = useTodo((s) => s.load);
-  const ensureRange = useTodo((s) => s.ensureRange);
-  const feed = useTodo((s) => s.feed);
-  const items = useTodo((s) => s.items);
-  const done = useTodo((s) => s.done);
-  const setDone = useTodo((s) => s.setDone);
-  const hidden = useTodo((s) => s.hidden);
-  const hideCourse = useTodo((s) => s.hideCourse);
-  const deleteTask = useTodo((s) => s.deleteTask);
-  const restoreTask = useTodo((s) => s.restoreTask);
+  const client = useQueryClient();
+  const week = useQuery({ ...todoWeekQuery(anchor), enabled: on });
+  const phase = weekPhase(on, week);
+  const { items, done, hidden } = useTodoList();
+  const { feed } = useElmsSync();
   const scheduler = useSchedulerCourses();
   const chatOn = useAccount((s) => s.flags.chat !== "off");
   const weekFirst = weekStartOf(anchor);
+  useAskElms(on);
+  useForgetTodoOnSignOut();
 
-  // Once per page, and again when the date turns over.
+  // Back and Ahead show at once: the weeks beside this one, asked for now.
   useEffect(() => {
-    if (on) void load(today, Date.now());
-  }, [on, load, today]);
-
-  // A week away from today: its dates, and the weeks before it.
-  useEffect(() => {
-    if (phase !== "ready") return;
-    void ensureRange(weekSpan(anchor));
-  }, [phase, anchor, ensureRange]);
+    if (!on) return;
+    for (const by of [-1, 1] as const)
+      void client.prefetchQuery(todoWeekQuery(shiftWeek(anchor, by)));
+  }, [on, anchor, client]);
 
   useEffect(() => {
     if (phase !== "ready" || !day) return;
@@ -265,7 +270,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
     (row: CourseRow, hide: boolean) => {
       const name = row.code ?? row.key;
       const send = (value: boolean) =>
-        void hideCourse(row.key, value).then((ok) => {
+        void hideTodoCourse(client, row.key, value).then((ok) => {
           if (!ok)
             noteToast(
               value ? `${name} didn't hide` : `${name} didn't come back`,
@@ -288,7 +293,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
           onUndo: () => send(false),
         });
     },
-    [hideCourse],
+    [client],
   );
 
   const onToggle = useCallback(
@@ -297,7 +302,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
       track("todo_item_checked", { done: next, via });
       const mark = (value: boolean) => {
         const save = () =>
-          void setDone(item.uid, value).then((ok) => {
+          void setTodoDone(client, item.uid, value).then((ok) => {
             // Takes Undo's place: the check is back as it was.
             if (!ok)
               noteToast("That didn't save", {
@@ -316,14 +321,14 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
         onUndo: () => mark(!next),
       });
     },
-    [done, setDone],
+    [done, client],
   );
 
   const onDeleteTask = useCallback(
     (item: TodoItem) => {
       const wasDone = done.has(item.uid);
       const remove = () => {
-        const deleting = deleteTask(item.uid).then((ok) => {
+        const deleting = deleteTodoTask(client, item.uid).then((ok) => {
           if (!ok)
             noteToast("That didn't delete", {
               id: TASK_TOAST_ID,
@@ -340,7 +345,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
           onUndo: () =>
             void deleting.then(async (deleted) => {
               if (!deleted) return;
-              if (!(await restoreTask(item, wasDone)))
+              if (!(await restoreTodoTask(client, item, wasDone)))
                 noteToast("That didn't go back on the list", {
                   id: TASK_TOAST_ID,
                   description: "Check your connection and add it again.",
@@ -350,7 +355,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
       };
       remove();
     },
-    [done, deleteTask, restoreTask],
+    [done, client],
   );
 
   const props: ViewProps = {
@@ -377,7 +382,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
 
   return {
     phase,
-    reload: () => void load(today, Date.now()),
+    reload: () => void week.refetch(),
     firstVisit: phase === "ready" && !feed && items.length === 0,
     props,
     sidebar: {
@@ -517,7 +522,12 @@ function TodoWorkbench({
             signedIn ? (
               <TodoBarContext
                 anchor={anchor}
-                status={<SyncLine now={week.props.now} />}
+                status={
+                  <SyncLine
+                    now={week.props.now}
+                    ready={week.phase === "ready"}
+                  />
+                }
               />
             ) : undefined
           }
@@ -526,6 +536,7 @@ function TodoWorkbench({
               <TodoSyncButton
                 hasFileItems={week.hasFileItems}
                 now={week.props.now}
+                ready={week.phase === "ready"}
               />
             ) : undefined
           }

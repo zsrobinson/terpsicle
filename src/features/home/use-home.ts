@@ -1,7 +1,12 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { type TermTags, termTags } from "~/core/catalog/term-tag";
 import type { ItemCourse } from "~/core/home";
+import { addDays } from "~/core/ics/dates";
 import type {
   AcademicCalendar,
   CourseCode,
@@ -22,7 +27,18 @@ import {
   todoCourseColors,
   useSchedulerCourses,
 } from "~/features/todo/course-colors";
-import { type TodoPhase, useTodo } from "~/features/todo/todo-store";
+import {
+  type TodoPhase,
+  todoKeys,
+  todoWeekQuery,
+} from "~/features/todo/todo-queries";
+import {
+  useAskElms,
+  useElmsSync,
+  useForgetTodoOnSignOut,
+  useTodoList,
+  weekPhase,
+} from "~/features/todo/use-todo";
 import { type HomeLocal, readHomeLocal } from "./local";
 import { homeCalendarsQuery, homeCampusQuery } from "./queries";
 
@@ -105,7 +121,7 @@ export function useHomeCampus(wanted: boolean): CampusMap | null {
   return useQuery({ ...homeCampusQuery(), enabled: wanted }).data ?? null;
 }
 
-/** Todo's list as Home reads it: Todo's own store, in memory only. */
+/** Todo's list as Home reads it: Todo's own week queries. */
 export interface HomeTodo {
   phase: TodoPhase;
   /** The list, less the courses you've hidden in Todo. */
@@ -120,20 +136,36 @@ export interface HomeTodo {
 }
 
 /**
- * Todo's list, loaded when `on` (signed in, with Todo on): the same store
- * and the same call as /todo, so a check here is a check there.
+ * Todo's weeks, asked for when `on` (signed in, with Todo on): the same
+ * queries as /todo, so a check here is a check there, and a week either
+ * page has read shows on the other at once.
  */
 export function useHomeTodo(today: IsoDate, on: boolean): HomeTodo {
-  const phase = useTodo((s) => s.phase);
-  const load = useTodo((s) => s.load);
-  const all = useTodo((s) => s.items);
-  const done = useTodo((s) => s.done);
-  const hidden = useTodo((s) => s.hidden);
-  const feed = useTodo((s) => s.feed);
+  // This week, and the three after it for Coming up's 21 days. Four
+  // `useQuery`s rather than `useQueries`, which Home would load for this alone.
+  const thisWeek = useQuery({ ...todoWeekQuery(today), enabled: on });
+  const after = [
+    useQuery({ ...todoWeekQuery(addDays(today, 7)), enabled: on }),
+    useQuery({ ...todoWeekQuery(addDays(today, 14)), enabled: on }),
+    useQuery({ ...todoWeekQuery(addDays(today, 21)), enabled: on }),
+  ];
+  // This week decides; the weeks after it fill in Coming up when they can.
+  const shown = weekPhase(on, thisWeek);
+  const phase =
+    shown === "ready" && after.some((w) => w.data === undefined && !w.isError)
+      ? "loading"
+      : shown;
+  const { items: all, done, hidden } = useTodoList();
+  const { feed } = useElmsSync();
+  useAskElms(on);
+  useForgetTodoOnSignOut();
   const scheduler = useSchedulerCourses();
-  useEffect(() => {
-    if (on) void load(today, Date.now());
-  }, [on, load, today]);
+  const client = useQueryClient();
+  const retry = useCallback(
+    () =>
+      void client.refetchQueries({ queryKey: todoKeys.weeks, type: "active" }),
+    [client],
+  );
   return useMemo(() => {
     const plan = scheduler.planCourses;
     return {
@@ -147,9 +179,9 @@ export function useHomeTodo(today: IsoDate, on: boolean): HomeTodo {
         label: item.courseLabel,
       }),
       scheduler,
-      retry: () => void load(today, Date.now()),
+      retry,
     };
-  }, [phase, all, done, hidden, feed, scheduler, load, today]);
+  }, [phase, all, done, hidden, feed, scheduler, retry]);
 }
 
 /**

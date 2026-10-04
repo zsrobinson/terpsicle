@@ -34,7 +34,7 @@ import {
 } from "~/ui/select";
 import { WithTooltip } from "~/ui/tooltip";
 import { newTaskUid, saveFailedNote } from "./task-form";
-import { useTodo } from "./todo-store";
+import { useSaveTask } from "./use-todo";
 
 // The composer (docs/V3.md §3.10): type a task the way you'd say it, "PS3
 // due fri 11:59pm cmsc351", and the date, time and course it recognizes are
@@ -125,7 +125,7 @@ export function Composer({
   onAdded?: () => void;
   className?: string;
 }) {
-  const saveTask = useTodo((s) => s.saveTask);
+  const saveTask = useSaveTask();
   const [text, setText] = useState("");
   const [ignore, setIgnore] = useState<ReadonlySet<QuickAddKind>>(new Set());
   const [choice, setChoice] = useState<QuickAddChoice>({});
