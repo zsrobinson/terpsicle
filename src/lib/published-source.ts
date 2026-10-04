@@ -3,7 +3,7 @@ import { connectPublished, usePublishedSource } from "~/state/query/published";
 import { clientConfig } from "./config";
 
 // The published data a page's queries read (~/state/query), for products
-// that don't boot the scheduler's stores: Home and Chat. The scheduler
+// that don't boot the scheduler's stores: Home, Chat and Plan. The scheduler
 // connects its own source when it boots; a page that opened somewhere else
 // connects one here, once, for the rest of the page. Imported only by
 // modules loaded on first use, since it brings the data layer
