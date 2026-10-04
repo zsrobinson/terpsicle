@@ -3,6 +3,9 @@ name: Browser diagnostics
 # Explicit investigations retain the complete regression suite and renders
 # without adding jobs to every pull request.
 on:
+  # Probe only: the dispatch trigger registers once this file is on main.
+  push:
+    branches: [ci/diagnostics-probe]
   workflow_dispatch:
     inputs:
       suite:
@@ -23,7 +26,7 @@ concurrency:
 
 jobs:
   regression:
-    if: inputs.suite == 'regression'
+    if: inputs.suite == 'regression' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
