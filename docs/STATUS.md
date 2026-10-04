@@ -32,7 +32,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
 | V6: Admin and launch hardening | `v2/admin-shell`, `v2/install-triggers`, `v2/account-delete`, `v2/csp-enforce`, `v2/e2e` | `v2/admin-shell` in review |
 
 **v2 decisions** (details in `docs/V2.md`):
-- **Plan sync is plain server-side storage**, encrypted at rest by Cloudflare, not end-to-end encrypted. The orchestrator's call, flagged for the owner: it lets Chat derive rooms from plans and keeps recovery simple.
+- **Synced data is encrypted on the server with a key per account** (owner, 2026-10-04; resolves the flagged "plain server-side storage" call). Sync is on whenever you're signed in, grades included, and we never call it end-to-end: the server can still decrypt, which is what lets Chat derive rooms from plans. Built in `v2/sync-encryption` ("Privacy", below; `docs/decisions.md`).
 - **Plan sync is not a sync engine:** one doc per plan plus one settings doc, saved whole with per-doc rev compare-and-swap. A conflicting plan is never merged; the person gets both, the local one as "<name> (copy)". The core (`src/core/sync`) is in `v2/sync-merge`; the D1 tables and `sync/push`, `sync/pull` in `v2/sync-api` (`DATA.md` §7.7); the device side (Dexie v2, the engine, the status, both sign-outs) in `v2/sync-engine` (`V2.md` §5.3), loaded only once someone is signed in.
 - **PR previews sign in with a fixed test mode** (`AUTH_TEST_MODE`, fixture identities), not a production broker: previews run unreviewed code and have their own D1, and CI needs a deterministic sign-in anyway. Cloudflare's version preview URLs, which share the Worker's secrets, were ruled out too: they also share its bindings, so a preview would use production D1 (`docs/AUTH.md`).
 - **Identity** (`v2/identity`, `docs/AUTH.md`): Google sign-in with `hd=*`, `prompt=select_account` and a `login_hint` from a `__Host-hint` cookie; users keyed on the directory ID with both addresses in `user_identities`; name and picture refreshed from Google at every sign-in, pictures cached in R2 `USER_CONTENT` (so `v2/avatars` folded in); sessions refresh daily with a new token; account deletion with a week's grace and the daily purge (finished in `v2/account-delete`: chat messages in every course object, reviews and reports kept with no author, every other row deleted, resumable, with `PURGE_LEDGER` naming each table); admins from `config/admins.txt`. The route table's `auth` field (with the origin check) landed here too, since every later route builds on it.
@@ -62,7 +62,7 @@ Three products on one origin: Terpsicle at `/schedule`, Terpsicle Reviews at `/r
   - each wildcard offers the search at most 40 section groups (pruned, then best first a course at a time), and the results say when that left courses out;
   - a gen-ed wildcard loads the whole term; PlanetTerp files for its departments are fetched only when ranking by ratings or GPA.
 
-**Owner actions** (`docs/V2.md` §14): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, confirming the sync decision, and emailing PlanetTerp about review text.
+**Owner actions** (`docs/V2.md` §14; the sync decision was settled on 2026-10-04): the Google OAuth client is done (External, published, scopes `openid email profile`, redirect `https://terpsicle.com/api/auth/google/callback` plus localhost; `GOOGLE_CLIENT_ID` in vars, `GOOGLE_CLIENT_SECRET` set on the Worker). `AUTH_SECRET` and `VAPID_*` are set and the `terpsicle-user-content` buckets exist. Admins are the git-tracked `config/admins.txt` (first entry `robinson`, the owner), bundled at build time, so they need no owner action. Later: brand verification once `/privacy` is live, a sign-in trial with a TERPmail and a UMD Gmail account, and emailing PlanetTerp about review text.
 
 ## v3: Terpsicle Plan and Terpsicle Todo (owner decisions, 2026-09-26, evening)
 
@@ -89,7 +89,18 @@ Two more products, built after v2's core lands: **Terpsicle Plan** (`/plan`, gre
 - **One new notification type, `todo-due`**, the owner's approved exception to "no more types": push only, 6pm New York the day before, at most one a day, off until ELMS is connected.
 - **Copy uses contractions** everywhere (SPEC §3.13).
 
-**v3 owner actions** (`docs/V3.md` §10): a fresh, privately shared unofficial-transcript paste; a real ELMS feed recorded with `scripts/record-ics-fixture.ts` (and confirming the Calendar Feed link and its host at UMD); confirming that grades sync with the four-year plan. The orchestrator sets `TODO_FEED_KEY`.
+**v3 owner actions** (`docs/V3.md` §10): a fresh, privately shared unofficial-transcript paste; a real ELMS feed recorded with `scripts/record-ics-fixture.ts` (and confirming the Calendar Feed link and its host at UMD). Grades sync with the four-year plan (owner, 2026-10-04). The orchestrator sets `TODO_FEED_KEY`.
+
+## Privacy (owner direction, 2026-10-04)
+
+Terpsicle stays free with no billing; sync is on whenever you're signed in, grades included; synced data is encrypted on the server with a key per account, and never called end-to-end; `/privacy` and `/terms` are plain words, and open source is how people check them (`docs/decisions.md`, App-wide).
+
+| PR | What | State |
+|---|---|---|
+| `docs/privacy-direction` | The owner's direction in `docs/decisions.md` and CLAUDE.md | In review |
+| `v2/sync-encryption` | `src/server/security/seal.ts` from Todo's crypto; per-account keys in `user_keys`, wrapped by `USER_DATA_KEY`; `sync_docs.body` and Todo's task text sealed and bound to their rows; deleting an account destroys its key first; existing synced data cleared and re-uploaded | Planned |
+| Reviews' anonymity | Waits on the owner's call on moving Reviews to PlanetTerp | On hold |
+| `v2/privacy-and-terms` | `/privacy` rewritten from what was built, and a new `/terms`, linked from the footer, the account menu and sign-in | Planned, last |
 
 ## UX redesign (owner request, 2026-09-25)
 

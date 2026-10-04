@@ -164,6 +164,11 @@ Revisit if: the owner redraws a mark; change its rows in `src/lib/brand/marks.ts
 An "Early access" chip sits beside the wordmark ("Terpsicle's still in active development, so things may change."). A coffee button beside Feedback opens a short note and links to https://buymeacoffee.com/zsrobinson ("figured it couldn't help"). It never opens by itself and never asks twice. (changed 2026-09-30, owner: "let's also rework the text of the support thing to be a little less focused on 'the developer' and more about just supporting terpsicle, remove 'me'." It's "Support Terpsicle", its note reads "Does Terpsicle help you out? A coffee helps keep it running and growing." and its link "Buy Terpsicle a coffee".)
 Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 
+### Free, with no billing
+2026-10-04 · owner · app-wide
+Terpsicle is free: no paid plans, no billing and nothing held back for paying. The coffee link ("Early access, and a coffee link") is the only money it asks for.
+Revisit if: hosting costs outgrow what tips cover.
+
 ### Crowded bars give their context the room below 1536px
 2026-09-28 · agent · one feature
 On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The Early access chip hides below 1536px on every bar, not only these two (changed 2026-09-28, QA round 4, the orchestrator): hidden on two bars alone, it moved the five product tabs about 78px whenever you went between Schedule or Plan and another product. From 1536px it sits beside the wordmark on every bar, as the owner placed it; narrower, the product menu and `/`'s header say it (e2e/brand-bar.spec.ts checks the tabs don't move).
@@ -179,6 +184,21 @@ Revisit if: UMD changes its Google domains. (changed 2026-09-28: no pictures)
 2026-09-28 · owner · app-wide
 "it doesn't seem like profile pictures sync from google at all, but i actually think that's a good thing and we actually shouldn't do that. because of that, we can just remove any need to support or store them at all." Terpsicle doesn't fetch, store or show Google's picture; everyone is an ink monogram of their initials. Migration 0021_no_pictures nulls `users.picture_url` and `picture_key`, and 0022_drop_unused_columns drops them once no older build reads them, and the daily job empties R2's `avatars/`. `CHAT_PROTOCOL_VERSION` went to 2, since message authors lost `picture`.
 Revisit if: never on its own.
+
+### Sync is on whenever you're signed in, grades included
+2026-10-04 · owner · app-wide
+Signed in, everything you make syncs to your account: plans, settings, four-year plans with their grades, and Todo's tasks. There's no switch to sync less. Signed out, it all stays in the browser ("Schedule works signed out"). This closes the flagged "plain server-side storage" call (V2.md §5.1) and V3.md §2.5's "Confirm grades sync"; how it's stored is the next entry.
+Revisit if: never on its own.
+
+### Synced data is encrypted on the server, with a key per account
+2026-10-04 · owner · app-wide
+Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so its data can't be read even from D1's 30-day backups. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
+Revisit if: a feature needs the server to read synced data in bulk, or the owner wants end-to-end encryption and gives up server-side reads.
+
+### Privacy and terms in plain words; open source is the proof
+2026-10-04 · owner · app-wide
+`/privacy` says what we collect, why, where it lives, who else touches it, how long we keep it and how to delete it; `/terms` gives the rules for using Terpsicle and its protections (we can remove posts and pause accounts, course data may be wrong, no guarantees, not affiliated with UMD). Both are short and in plain words, and "it's open source" is how people check what they claim: they point at the code rather than asking for trust. They're written last in the privacy work, so they describe what was built.
+Revisit if: a lawyer or UMD's Student Legal Aid Office asks for different wording.
 
 ### Schedule works signed out
 2026-09-26 · owner · app-wide
@@ -425,7 +445,7 @@ Revisit if: links get too long for email or chat, or the server needs to read a 
 
 ### Plan sync saves whole docs
 2026-09-26 · agent · one feature
-Plain server-side storage, one JSON doc per plan with a rev and compare-and-swap. A conflict never merges: the server's copy stays and the local one becomes "<name> (copy)".
+One JSON doc per plan with a rev and compare-and-swap. A conflict never merges: the server's copy stays and the local one becomes "<name> (copy)". (changed 2026-10-04: it said "plain server-side storage"; the owner chose encryption with a key per account, "Synced data is encrypted on the server, with a key per account".)
 Revisit if: people hit conflicts often.
 
 ### Four-year plans sync through the scheduler's engine
