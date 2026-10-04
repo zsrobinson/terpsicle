@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BellRing } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import {
   type OpenWatch,
   openWatches,
+  planDepts,
   planLine,
   seatsOpenWords,
 } from "~/core/home";
@@ -24,9 +25,9 @@ import { ListRow } from "~/ui/list-row";
 import { Skeleton } from "~/ui/skeleton";
 import { TermTag } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
-import { loadPlanCatalog, type PlanCatalog } from "./data";
+import type { PlanCatalog } from "./data";
 import type { HomeLocal } from "./local";
-import { seatWatchesQuery } from "./queries";
+import { planCatalogQuery } from "./queries";
 import {
   HomeNote,
   HomeSection,
@@ -39,6 +40,11 @@ import {
 // main plan in a line, its problems as the scheduler counts them, and your
 // seat watches there that have a seat open now. The plan shows at once;
 // the count fills in once the plan's departments and the seats load.
+
+// Signed in, your watches: the app's one list, loaded on first use.
+const WithSeatWatches = lazy(() =>
+  import("./seat-watches").then((m) => ({ default: m.WithSeatWatches })),
+);
 
 export function ScheduleSection({
   local,
@@ -79,17 +85,36 @@ export function ScheduleSection({
   );
 }
 
-function PlanRows({
-  plan,
-  local,
-  campus,
-}: {
+interface PlanRowsProps {
   plan: Plan;
   local: HomeLocal;
   campus: CampusMap | null;
-}) {
+}
+
+/**
+ * The plan's rows, with your seat watches there while you're signed in
+ * with seat alerts on; without them otherwise, and until they load.
+ */
+function PlanRows(props: PlanRowsProps) {
+  const on = useAccount((s) => s.status === "signed-in" && s.flags.seatAlerts);
+  const rows = (watches: readonly SeatWatch[] | null) => (
+    <PlanList {...props} watches={watches} />
+  );
+  if (!on) return rows(null);
+  return (
+    <Suspense fallback={rows(null)}>
+      <WithSeatWatches termId={props.plan.termId}>{rows}</WithSeatWatches>
+    </Suspense>
+  );
+}
+
+function PlanList({
+  plan,
+  local,
+  campus,
+  watches,
+}: PlanRowsProps & { watches: readonly SeatWatch[] | null }) {
   const catalog = usePlanCatalog(plan);
-  const watches = useSeatWatches(plan.termId);
   const words = useMemo(() => {
     if (!catalog) return null;
     const problems = planProblems({
@@ -173,34 +198,14 @@ function OpenWatchRow({ w }: { w: OpenWatch }) {
   );
 }
 
-/** undefined while loading, null when it can't be read. */
-function usePlanCatalog(plan: Plan): PlanCatalog | null | undefined {
-  const [catalog, setCatalog] = useState<PlanCatalog | null | undefined>();
-  const depts = [...new Set(plan.courses.map((c) => c.courseCode))]
-    .sort()
-    .join(",");
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the plan's courses (`depts`) and term decide what loads, not the object
-  useEffect(() => {
-    let live = true;
-    void loadPlanCatalog(plan.termId, plan)
-      .catch(() => null)
-      .then((next) => {
-        if (live) setCatalog(next);
-      });
-    return () => {
-      live = false;
-    };
-  }, [plan.termId, depts]);
-  return catalog;
-}
-
 /**
- * Your seat watches in a term, signed in and while seat alerts are on;
- * null otherwise, and while they load. Offline, the plan's line stands
- * without them.
+ * undefined while loading, null when it can't be read. Another plan, or
+ * another department in it, keeps what's shown until its own load.
  */
-function useSeatWatches(termId: TermId): readonly SeatWatch[] | null {
-  const on = useAccount((s) => s.status === "signed-in" && s.flags.seatAlerts);
-  const { data } = useQuery({ ...seatWatchesQuery(termId), enabled: on });
-  return on ? (data ?? null) : null;
+function usePlanCatalog(plan: Plan): PlanCatalog | null | undefined {
+  const query = useQuery({
+    ...planCatalogQuery(plan.termId, planDepts(plan)),
+    placeholderData: keepPreviousData,
+  });
+  return query.isError ? null : query.data;
 }

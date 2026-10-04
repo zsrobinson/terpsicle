@@ -1,9 +1,17 @@
-import { useEffect, useMemo } from "react";
+import {
+  MutationObserver,
+  mutationOptions,
+  type QueryClient,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { COURSE_PATH } from "~/core/routing";
 import {
   IsoDateTimeSchema,
   type SeatWatch,
+  type SeatWatchResult,
   type SectionKey,
   SectionKeySchema,
   type TermId,
@@ -12,8 +20,17 @@ import {
 import { useAccount } from "~/features/auth/account-store";
 import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { track } from "~/lib/analytics";
-import { ApiCallError, api } from "~/server/fns/api";
-import { findSeatWatch, useSeatWatches } from "~/state/seat-watches";
+import { ApiCallError } from "~/server/fns/api";
+import {
+  cachedSeatWatches,
+  findSeatWatch,
+  seatWatchesApi,
+  seatWatchesKey,
+  seatWatchesQuery,
+  useSeatWatchList,
+  withoutSeatWatch,
+  withSeatWatch,
+} from "~/state/query/seat-watches";
 import { noteToast, undoToast } from "~/ui/toast";
 import { sectionLabel } from "./labels";
 
@@ -22,6 +39,11 @@ import { sectionLabel } from "./labels";
 // click starts or stops a watch, with Undo in the toast (no confirmations,
 // DESIGN §5). Signed out, the bell offers sign-in and the watch starts as
 // the person comes back.
+//
+// The list is one query (~/state/query/seat-watches), and starting or
+// stopping a watch is a mutation over it: shown at once on every bell, the
+// calendar, Problems, the Watching lists and Home, put back if the server
+// says no, and asked for again once the last change has settled.
 
 export type SeatWatchState =
   /** Seat alerts are off here, or /api/me hasn't answered: no bell at all. */
@@ -48,25 +70,27 @@ export function useSeatWatch(
 ): SeatWatchState {
   const status = useAccount((s) => s.status);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
-  const watch = useSeatWatches((s) =>
-    findSeatWatch(s.watches, termId, sectionKey),
-  );
+  const watch = findSeatWatch(useSeatWatchList(), termId, sectionKey);
   return useMemo(
     () => seatWatchState({ status, seatAlerts }, watch),
     [status, seatAlerts, watch],
   );
 }
 
-export type SeatWatchesClient = Pick<
-  typeof api.alerts,
-  "watch" | "unwatch" | "list"
->;
+/** Whether there's a list to ask for: signed in, with seat alerts on. */
+function useSeatWatchesOn(): boolean {
+  return useAccount(
+    (s) => s.status === "signed-in" && s.flags.seatAlerts && s.user?.id != null,
+  );
+}
 
-let client: SeatWatchesClient = api.alerts;
-
-/** Test hook: a fake API client. */
-export function setSeatWatchesClient(next: SeatWatchesClient): void {
-  client = next;
+/**
+ * The list, asked for while someone is signed in with seat alerts on: for
+ * the places that say it's loading or didn't load (Settings) and Home.
+ * Everything else reads it with `useSeatWatchList`.
+ */
+export function useSeatWatches() {
+  return useQuery({ ...seatWatchesQuery(), enabled: useSeatWatchesOn() });
 }
 
 /** Plain words for what went wrong (SPEC §3.13). */
@@ -84,57 +108,224 @@ function failure(error: unknown): string {
   }
 }
 
+/** The server answered, but didn't start the watch. */
+class WatchRefused extends Error {
+  constructor(
+    readonly result: Exclude<SeatWatchResult, { status: "watching" }>,
+  ) {
+    super(result.status);
+  }
+}
+
+/** Why a watch didn't start, in plain words. */
+function refusal(error: unknown, label: string): string {
+  if (!(error instanceof WatchRefused)) return failure(error);
+  switch (error.result.status) {
+    case "too-many":
+      return `You're watching ${error.result.max} sections, the most at once. Stop one to watch ${label}.`;
+    case "unknown-section":
+      return `Testudo doesn't list ${label} anymore, so there's nothing to watch.`;
+    case "unavailable":
+      return "Watching for seats is turned off right now.";
+  }
+}
+
 const TOAST_ID = "seat-watch";
 
 /**
- * Starts watching. Shows "Watching …" (or why not) in a toast, whose Undo
- * stops it again.
+ * Changes the cached list, while signed in only: an answer that lands
+ * after signing out can't put a list back.
  */
-export async function watchSeat(
+function updateList(
+  client: QueryClient,
+  update: (
+    watches: readonly SeatWatch[] | undefined,
+  ) => readonly SeatWatch[] | undefined,
+): void {
+  if (useAccount.getState().status !== "signed-in") return;
+  client.setQueryData(seatWatchesKey, update);
+}
+
+/**
+ * Before a change shows: a list on its way would land over it. One still
+ * loading for the first time is stopped too, and the change starts a list
+ * (as a click before the list loads always has); the list is asked for
+ * again once the change settles.
+ */
+async function holdList(client: QueryClient): Promise<void> {
+  await client.cancelQueries({ queryKey: seatWatchesKey });
+}
+
+/**
+ * Once the last of a run of changes has settled, the server's list, over
+ * whatever came back on the way. An earlier change's refresh would land
+ * over a later one still on its way, so it waits for the last.
+ */
+function settleList(client: QueryClient): void {
+  if (client.isMutating({ mutationKey: seatWatchesKey }) <= 1)
+    void client.invalidateQueries({ queryKey: seatWatchesKey });
+}
+
+interface WatchVariables {
+  termId: TermId;
+  sectionKey: SectionKey;
+  /** Started as the person came back from signing in (analytics). */
+  signedInFirst?: boolean;
+}
+
+/**
+ * Starting a watch: the bell shows Watching at once, the server's watch
+ * takes its place, and "Watching …" in a toast, whose Undo stops it again.
+ * A refusal (too many, gone, turned off) or a failure puts the list back
+ * and says why.
+ */
+export function watchSeatMutation() {
+  return mutationOptions({
+    mutationKey: seatWatchesKey,
+    mutationFn: async ({ termId, sectionKey }: WatchVariables) => {
+      const result = await seatWatchesApi().watch({ termId, sectionKey });
+      if (result.status !== "watching") throw new WatchRefused(result);
+      return result.watch;
+    },
+    onMutate: async ({ termId, sectionKey }, { client }) => {
+      await holdList(client);
+      const had = findSeatWatch(cachedSeatWatches(client), termId, sectionKey);
+      if (!had)
+        updateList(client, (watches) =>
+          withSeatWatch(watches, {
+            termId,
+            sectionKey,
+            createdAt: new Date().toISOString(),
+            lastNotifiedAt: null,
+          }),
+        );
+      return { had };
+    },
+    onSuccess: (
+      watch,
+      { termId, sectionKey, signedInFirst },
+      _,
+      { client },
+    ) => {
+      updateList(client, (watches) => withSeatWatch(watches, watch));
+      track("seat_watch_started", { signedInFirst: signedInFirst ?? false });
+      // A seat alert just turned on: the moment to ask for notifications
+      // here (V2 §6.7), or else to offer the app (§3.4). One ask, not two.
+      void askAtWatch(signedInFirst ?? false);
+      undoToast({
+        id: TOAST_ID,
+        message: `Watching ${sectionLabel(sectionKey)}`,
+        description: "We'll let you know when a seat opens.",
+        onUndo: () =>
+          void stopWatching(client, termId, sectionKey, { undo: true }),
+      });
+    },
+    onError: (error, { termId, sectionKey }, before, { client }) => {
+      // Only the watch this put up comes down: one that was on already
+      // stays on.
+      if (before && !before.had)
+        updateList(client, (watches) =>
+          withoutSeatWatch(watches, termId, sectionKey),
+        );
+      noteToast(refusal(error, sectionLabel(sectionKey)), { id: TOAST_ID });
+    },
+    onSettled: (_data, _error, _variables, _before, { client }) =>
+      settleList(client),
+  });
+}
+
+interface StopVariables {
+  termId: TermId;
+  sectionKey: SectionKey;
+  /** The Undo of a watch just started: the toast just says so. */
+  undo?: boolean;
+}
+
+/**
+ * Stopping a watch: gone from every list at once, with Undo in the toast
+ * (a note instead when it undoes a watch just started). A failure puts it
+ * back and says why.
+ */
+export function stopWatchingMutation() {
+  return mutationOptions({
+    mutationKey: seatWatchesKey,
+    mutationFn: ({ termId, sectionKey }: StopVariables) =>
+      seatWatchesApi().unwatch({ termId, sectionKey }),
+    onMutate: async ({ termId, sectionKey }, { client }) => {
+      await holdList(client);
+      const before = findSeatWatch(
+        cachedSeatWatches(client),
+        termId,
+        sectionKey,
+      );
+      updateList(client, (watches) =>
+        withoutSeatWatch(watches, termId, sectionKey),
+      );
+      return { before };
+    },
+    onSuccess: (_result, { termId, sectionKey, undo }, _, { client }) => {
+      track("seat_watch_stopped", {});
+      const label = sectionLabel(sectionKey);
+      if (undo) noteToast(`Not watching ${label}`, { id: TOAST_ID });
+      else
+        undoToast({
+          id: TOAST_ID,
+          message: `Stopped watching ${label}`,
+          description: "No more notifications about it.",
+          onUndo: () => void watchSeat(client, termId, sectionKey),
+        });
+    },
+    onError: (error, _variables, context, { client }) => {
+      const before = context?.before;
+      if (before)
+        updateList(client, (watches) => withSeatWatch(watches, before));
+      noteToast(failure(error), { id: TOAST_ID });
+    },
+    onSettled: (_data, _error, _variables, _before, { client }) =>
+      settleList(client),
+  });
+}
+
+/**
+ * Runs a mutation outside a component: the toast's Undo outlives the bell
+ * that started it, and a watch asked for before signing in has no bell.
+ * True once the server has done it.
+ */
+function run<TData, TVariables, TContext>(
+  client: QueryClient,
+  options: ReturnType<
+    typeof mutationOptions<TData, Error, TVariables, TContext>
+  >,
+  variables: TVariables,
+): Promise<boolean> {
+  return new MutationObserver(client, options).mutate(variables).then(
+    () => true,
+    () => false,
+  );
+}
+
+/** Starts watching (see `watchSeatMutation`). */
+export function watchSeat(
+  client: QueryClient,
   termId: TermId,
   sectionKey: SectionKey,
   { signedInFirst = false }: { signedInFirst?: boolean } = {},
 ): Promise<boolean> {
-  const label = sectionLabel(sectionKey);
-  let result: Awaited<ReturnType<SeatWatchesClient["watch"]>>;
-  try {
-    result = await client.watch({ termId, sectionKey });
-  } catch (error) {
-    noteToast(failure(error), { id: TOAST_ID });
-    return false;
-  }
-  switch (result.status) {
-    case "watching":
-      useSeatWatches.getState().put(result.watch);
-      track("seat_watch_started", { signedInFirst });
-      // A seat alert just turned on: the moment to ask for notifications
-      // here (V2 §6.7), or else to offer the app (§3.4). One ask, not two.
-      void askAtWatch(signedInFirst);
-      undoToast({
-        id: TOAST_ID,
-        message: `Watching ${label}`,
-        description: "We'll let you know when a seat opens.",
-        onUndo: () => void stopWatching(termId, sectionKey, { undo: true }),
-      });
-      return true;
-    case "too-many":
-      noteToast(
-        `You're watching ${result.max} sections, the most at once. Stop one to watch ${label}.`,
-        { id: TOAST_ID },
-      );
-      return false;
-    case "unknown-section":
-      noteToast(
-        `Testudo doesn't list ${label} anymore, so there's nothing to watch.`,
-        { id: TOAST_ID },
-      );
-      return false;
-    case "unavailable":
-      noteToast("Watching for seats is turned off right now.", {
-        id: TOAST_ID,
-      });
-      return false;
-  }
+  return run(client, watchSeatMutation(), {
+    termId,
+    sectionKey,
+    signedInFirst,
+  });
+}
+
+/** Stops watching (see `stopWatchingMutation`). */
+export function stopWatching(
+  client: QueryClient,
+  termId: TermId,
+  sectionKey: SectionKey,
+  { undo = false }: { undo?: boolean } = {},
+): Promise<boolean> {
+  return run(client, stopWatchingMutation(), { termId, sectionKey, undo });
 }
 
 /**
@@ -157,60 +348,6 @@ async function askAtWatch(signedInFirst: boolean): Promise<void> {
     () => null,
   );
   if (asked === null) requestInstallPrompt("alert-on");
-}
-
-/**
- * Stops watching, at once, with Undo in the toast. `undo`: this is the Undo
- * of a watch just started, so the toast just says so.
- */
-export async function stopWatching(
-  termId: TermId,
-  sectionKey: SectionKey,
-  { undo = false }: { undo?: boolean } = {},
-): Promise<boolean> {
-  const label = sectionLabel(sectionKey);
-  const store = useSeatWatches.getState();
-  const before = findSeatWatch(store.watches, termId, sectionKey);
-  store.remove(termId, sectionKey);
-  try {
-    await client.unwatch({ termId, sectionKey });
-  } catch (error) {
-    if (before) useSeatWatches.getState().put(before);
-    noteToast(failure(error), { id: TOAST_ID });
-    return false;
-  }
-  track("seat_watch_stopped", {});
-  if (undo) noteToast(`Not watching ${label}`, { id: TOAST_ID });
-  else
-    undoToast({
-      id: TOAST_ID,
-      message: `Stopped watching ${label}`,
-      description: "No more notifications about it.",
-      onUndo: () => void watchSeat(termId, sectionKey),
-    });
-  return true;
-}
-
-let loading: Promise<void> | null = null;
-
-/** Loads the signed-in person's watches (once at a time). */
-export function loadSeatWatches(): Promise<void> {
-  loading ??= (async () => {
-    try {
-      const result = await client.list({});
-      useSeatWatches
-        .getState()
-        .setAll(result.status === "ok" ? result.watches : []);
-    } catch {
-      // Offline or signed out meanwhile: bells show "Watch for a seat",
-      // and a click still works (watching is idempotent). The Watching
-      // list says it didn't load, with Try again.
-      useSeatWatches.getState().setLoadFailed(true);
-    } finally {
-      loading = null;
-    }
-  })();
-  return loading;
 }
 
 // ---------- a watch asked for while signed out ----------
@@ -265,32 +402,48 @@ export function takePendingWatch(
 }
 
 /**
- * Keeps the list in step with the account: loads it once someone is signed
- * in (then starts a watch they asked for before signing in), and forgets it
- * on sign-out.
+ * Keeps the list in step with the account: asks for it once someone is
+ * signed in (then starts a watch they asked for before signing in), and
+ * forgets it on sign-out or when someone else signs in.
  */
 export function useSeatWatchesSync(): void {
+  const client = useQueryClient();
   const status = useAccount((s) => s.status);
-  const seatAlerts = useAccount((s) => s.flags.seatAlerts);
   const userId = useAccount((s) => s.user?.id ?? null);
+  const on = useSeatWatchesOn();
+  // The one observer that's always on while signed in in the shell: what
+  // asks again on focus and after each change.
+  useSeatWatches();
+  const listedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (status !== "signed-in" || !seatAlerts || userId === null) {
-      if (status === "signed-out") useSeatWatches.getState().setAll(null);
+    const forget = () => {
+      // A list on its way would land after the reset.
+      void client
+        .cancelQueries({ queryKey: seatWatchesKey })
+        .then(() => client.resetQueries({ queryKey: seatWatchesKey }));
+    };
+    if (!on || userId === null) {
+      if (status === "signed-out") {
+        listedFor.current = null;
+        if (cachedSeatWatches(client) !== undefined) forget();
+      }
       return;
     }
+    if (listedFor.current !== null && listedFor.current !== userId) forget();
+    listedFor.current = userId;
     void (async () => {
-      await loadSeatWatches();
+      // Offline or signed out meanwhile: bells show "Watch for a seat", and
+      // a click still works (watching is idempotent). Settings says the
+      // list didn't load, with Try again.
+      const watches = await client
+        .ensureQueryData(seatWatchesQuery())
+        .catch(() => undefined);
       const pending = takePendingWatch();
       if (!pending) return;
-      const on = findSeatWatch(
-        useSeatWatches.getState().watches,
-        pending.termId,
-        pending.sectionKey,
-      );
-      if (!on)
-        await watchSeat(pending.termId, pending.sectionKey, {
+      if (!findSeatWatch(watches, pending.termId, pending.sectionKey))
+        await watchSeat(client, pending.termId, pending.sectionKey, {
           signedInFirst: true,
         });
     })();
-  }, [status, seatAlerts, userId]);
+  }, [on, status, userId, client]);
 }

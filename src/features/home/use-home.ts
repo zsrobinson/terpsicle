@@ -1,3 +1,4 @@
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { type TermTags, termTags } from "~/core/catalog/term-tag";
 import type { ItemCourse } from "~/core/home";
@@ -22,12 +23,12 @@ import {
   useSchedulerCourses,
 } from "~/features/todo/course-colors";
 import { type TodoPhase, useTodo } from "~/features/todo/todo-store";
-import { loadCalendars, loadCampus } from "./data";
 import { type HomeLocal, readHomeLocal } from "./local";
+import { homeCalendarsQuery, homeCampusQuery } from "./queries";
 
 // Home's shared state: the clock, what's on the device, and the published
-// files every part reads. Local first: the device's plans show at once,
-// the calendars and campus map fill in after.
+// files every part reads (./queries.ts). Local first: the device's plans
+// show at once, the calendars and campus map fill in after.
 
 export interface HomeClock {
   now: number;
@@ -84,49 +85,24 @@ export interface HomeTerms {
 
 /** Now and Next today, and the calendars they came from. */
 export function useHomeTerms(today: IsoDate): HomeTerms {
-  const [calendars, setCalendars] = useState<{
-    today: IsoDate;
-    list: readonly AcademicCalendar[];
-  } | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadCalendars(today)
-      .catch(() => [])
-      .then((list) => {
-        if (live) setCalendars({ today, list });
-      });
-    return () => {
-      live = false;
-    };
-  }, [today]);
-  const list = calendars?.list ?? NO_CALENDARS;
+  // A new day keeps the day before's calendars on screen until its own load.
+  const query = useQuery({
+    ...homeCalendarsQuery(today),
+    placeholderData: keepPreviousData,
+  });
+  const list = query.data ?? NO_CALENDARS;
+  // Asked for today: loaded, or failed to (not the day before's, shown meanwhile).
+  const settled = query.isFetched && !query.isPlaceholderData;
   return useMemo(
-    () => ({
-      tags: termTags(today, list),
-      calendars: list,
-      settled: calendars?.today === today,
-    }),
-    [today, list, calendars],
+    () => ({ tags: termTags(today, list), calendars: list, settled }),
+    [today, list, settled],
   );
 }
 const NO_CALENDARS: readonly AcademicCalendar[] = [];
 
-/** Walking distances; null until they load (or when they can't). */
+/** Walking distances; null until they load (or when they can't). Kept once loaded. */
 export function useHomeCampus(wanted: boolean): CampusMap | null {
-  const [campus, setCampus] = useState<CampusMap | null>(null);
-  useEffect(() => {
-    if (!wanted) return;
-    let live = true;
-    void loadCampus()
-      .catch(() => null)
-      .then((map) => {
-        if (live) setCampus(map);
-      });
-    return () => {
-      live = false;
-    };
-  }, [wanted]);
-  return campus;
+  return useQuery({ ...homeCampusQuery(), enabled: wanted }).data ?? null;
 }
 
 /** Todo's list as Home reads it: Todo's own store, in memory only. */

@@ -382,8 +382,8 @@ export const ROUTE_BUDGETS: readonly {
     budget: TODO_BUDGET,
     never: [...LANDING_NEVER_EAGER, ADMIN_NEVER_EAGER, PLAN_NEVER_EAGER],
   })),
-  // Home reads this device's plans raw (no Dexie, no scheduler stores) and
-  // published files through Reviews' reader.
+  // Home reads this device's plans raw (no Dexie, no scheduler stores), and
+  // published files through their queries, which load on first use.
   {
     route: "/home",
     budget: HOME_BUDGET,

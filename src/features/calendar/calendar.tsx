@@ -29,7 +29,7 @@ import { useIsMobile } from "~/hooks/use-media-query";
 import { PEEK_HEIGHT, snapHeights, tabBarHeight } from "~/lib/drawer-heights";
 import { useShortcut } from "~/lib/shortcuts";
 import { useTravel } from "~/state/hooks";
-import { useWatchedSections } from "~/state/seat-watches";
+import { useWatchedSections } from "~/state/query/seat-watches";
 import { useUi } from "~/state/ui-store";
 import { Kbd } from "~/ui/kbd";
 import { quietTooltips } from "~/ui/tooltip";
