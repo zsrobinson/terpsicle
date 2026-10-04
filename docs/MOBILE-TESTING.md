@@ -103,7 +103,7 @@ In order (`scripts/mobile-lab/scenarios.ts`). Each starts with a fresh load.
 | `long-course` | Search "engl101", open ENGL101 (90+ sections), raise the drawer and scroll to the bottom; the list's end must be on screen. |
 | `open-results` | Six times: back in the search box, scroll the results, put the keyboard away, tap a result. Each must open on the first tap. |
 | `add-sections` | Open CMSC131, tap Add on a section, then Switch three times. Each tap must take effect the first time. |
-| `swipe-back` | Open CMSC131, then go Back: on `ios` Safari's own swipe in from the screen's left edge, elsewhere `history.back()`. The page must move once: Safari's animation (`hasUAVisualTransition`) or our pop view transition, never both (`moved-once-not-twice`, fail; `moved-once`, warn). |
+| `swipe-back` | Open CMSC131, then go Back: on `ios` Safari's own swipe in from the screen's left edge, elsewhere `history.back()`. The swipe is W3C touch actions that move from the instant they land: sent as XCUITest's drag (a press, then the move), Safari took it as Back in 1 of 4 runs and handed it to the page in the rest. The page must move once: Safari's animation (`hasUAVisualTransition`) or our pop view transition, never both (`moved-once-not-twice`, fail; `moved-once`, warn). |
 
 To add one, append to `SCENARIOS`: use `lab.tap`, `lab.swipe`, `lab.type`, `lab.hideKeyboard` and `lab.rotate` on `Target`s (a selector, optionally a label), and `lab.step(name, { expect })` after each action.
 
@@ -143,5 +143,5 @@ Since 2026-09-27 it has also hit `scroll-list-back` (scrolling the drawer's Sear
 - The Android image's Chrome is the one it shipped with, which may trail the Play Store's.
 - iOS in the Simulator is close to a phone but not the same: no real finger pressure or velocity, and Safari's toolbar-collapse heuristics can differ.
 - Gestures are straight lines at a fixed speed; a real flick varies.
-- On `android` and `ios` one browser profile serves every scenario, so only the first scenario of a run is a true first visit; the rest start from what the app restored (the open tab, a course left open). On `webkit` and `chromium` every scenario is a first visit.
+- On `android` and `ios` one browser profile serves every scenario, so only the first scenario of a run is a true first visit; the rest start from what the app restored (the open tab, a course left open; a scenario that searches goes Back to Search's list first). On `webkit` and `chromium` every scenario is a first visit.
 - The Android emulator's Chrome can be slow enough on a CI runner to answer input late; the device turns off Android's "isn't responding" box so it can't eat taps.

@@ -17,6 +17,7 @@ import {
   type Device,
   type Point,
   type ScreenMapping,
+  type SwipeIntent,
   toScreen,
 } from "../device";
 import { ARM_CALIBRATION, READ_CALIBRATION } from "../page-scripts";
@@ -324,12 +325,50 @@ class SimulatorSafari implements Device {
     await this.press(await this.screenPoint(at));
   }
 
-  async swipe(from: Point, to: Point, ms: number): Promise<void> {
-    await this.drag(
-      await this.screenPoint(from),
-      await this.screenPoint(to),
-      ms,
-    );
+  /**
+   * A touch that moves from the instant it lands, as W3C pointer actions
+   * (WebDriverAgent replays them as one XCTest event path), for Safari's
+   * Back: a screen-edge pan. Sent as a drag (a press, then the move), Safari
+   * took it as Back in 1 of 4 runs (2026-09-29 to 10-03) and handed it to
+   * the page in the rest.
+   */
+  private async flick(from: Point, to: Point, ms: number): Promise<void> {
+    await this.use("native");
+    const steps = 6;
+    const moves = Array.from({ length: steps }, (_, i) => ({
+      type: "pointerMove",
+      duration: Math.round(ms / steps),
+      x: Math.round(from.x + ((to.x - from.x) * (i + 1)) / steps),
+      y: Math.round(from.y + ((to.y - from.y) * (i + 1)) / steps),
+    }));
+    await this.driver.send("POST", "/actions", {
+      actions: [
+        {
+          type: "pointer",
+          id: "finger",
+          parameters: { pointerType: "touch" },
+          actions: [
+            { type: "pointerMove", duration: 0, x: from.x, y: from.y },
+            { type: "pointerDown", button: 0 },
+            ...moves,
+            { type: "pointerUp", button: 0 },
+          ],
+        },
+      ],
+    });
+    await this.driver.send("DELETE", "/actions");
+  }
+
+  async swipe(
+    from: Point,
+    to: Point,
+    ms: number,
+    intent: SwipeIntent,
+  ): Promise<void> {
+    const a = await this.screenPoint(from);
+    const b = await this.screenPoint(to);
+    if (intent === "edge") await this.flick(a, b, ms);
+    else await this.drag(a, b, ms);
   }
 
   /** The id of an element found by `using`/`value`, or null. */
@@ -350,21 +389,44 @@ class SimulatorSafari implements Device {
     await this.driver.send("POST", `/element/${id}/click`, {});
   }
 
+  /**
+   * Polls for an element: on a busy runner the Simulator can be seconds
+   * behind (its screenshots lag the page), so the keyboard, or a plane it
+   * switched to, may not be in the accessibility tree yet.
+   */
+  private async awaitElement(
+    using: string,
+    value: string,
+    ms: number,
+  ): Promise<string | null> {
+    const until = Date.now() + ms;
+    for (;;) {
+      const id = await this.element(using, value);
+      if (id || Date.now() >= until) return id;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+
   async type(text: string): Promise<void> {
     await this.use("native");
+    if (
+      !(await this.awaitElement("class name", "XCUIElementTypeKeyboard", 5000))
+    )
+      throw new Error(
+        `the keyboard didn't come up to type "${text}" (nothing took focus?)`,
+      );
     for (const char of text) {
       // A tap on the software keyboard's key, switching between its letters
       // and numbers planes (the "123"/"ABC" key) when the key isn't showing.
-      let key = await this.element("accessibility id", char);
-      if (!key) {
+      let key = await this.awaitElement("accessibility id", char, 1000);
+      for (let i = 0; !key && i < 2; i++) {
         const plane = await this.element(
           "-ios predicate string",
           'type == "XCUIElementTypeKey" AND (name == "more" OR name CONTAINS[c] "numbers" OR name CONTAINS[c] "letters")',
         );
-        if (plane) {
-          await this.click(plane);
-          key = await this.element("accessibility id", char);
-        }
+        if (!plane) break;
+        await this.click(plane);
+        key = await this.awaitElement("accessibility id", char, 3000);
       }
       if (!key) throw new Error(`no "${char}" key on the keyboard`);
       await this.click(key);
