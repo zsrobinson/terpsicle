@@ -200,6 +200,12 @@ describe("who's looking", () => {
         name: "Your deadlines, on a calendar",
       }),
     ).toBeVisible();
+    expect(screen.getByRole("main")).toContainElement(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Your deadlines, on a calendar",
+      }),
+    );
     expect(document.querySelector('[data-mark="todo"]')).not.toBeNull();
     expect(screen.getByText(/Connect ELMS and your assignments/)).toBeVisible();
     expect(

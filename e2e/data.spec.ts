@@ -94,10 +94,9 @@ test("the catalog is saved on this device, in the query cache", async ({
   expect(await page.evaluate(readOldCacheTables)).toEqual([]);
 });
 
-test("a reload with /data out of reach starts from what's saved", async ({
-  page,
-  isMobile,
-}) => {
+test("a reload with /data out of reach starts from what's saved", {
+  tag: "@critical",
+}, async ({ page, isMobile }) => {
   // This one searches with the "/" shortcut and the sidebar's search box,
   // which the phone layout doesn't have (search opens in the drawer there,
   // and search.spec.ts covers that). What it reads is saved the same way

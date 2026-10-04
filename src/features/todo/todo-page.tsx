@@ -107,6 +107,7 @@ const WHAT_TODO_DOES =
 function FrontDoor({ returnTo }: { returnTo: string }) {
   const signIn = useSignInAction(returnTo, "todo");
   return (
+    // Inside the workbench's canvas, which is the page's main landmark.
     <div className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div
         className={cn(

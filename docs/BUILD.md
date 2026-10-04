@@ -18,7 +18,7 @@ Every subagent brief links the sections of these documents that apply to its tas
 
 ## 1. Ground rules
 
-- **`main` is trunk.** CI runs against it and every merge deploys it to terpsicle.com.
+- **`main` is trunk.** CI runs against it and the validated main commit deploys to terpsicle.com.
 - Work happens on short-lived branches named `<milestone>/<slug>` (e.g. `m1/fit`), each opened as a PR into `main`. **The orchestrator squash-merges** once CI is green and a review pass finds nothing blocking.
 - **Pure logic lives in `src/core`** and is exhaustively tested. UI stays thin: read state, call core, render.
 - **Mock data is first-class.** The app runs fully offline against `src/fixtures` (`pnpm dev:mock`). Every UI feature is built and tested against fixtures before real data is wired in.
@@ -111,7 +111,7 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 ├── env/                        Vite client env files (.env, .env.mock, .env.development)
 ├── migrations/                 D1 migrations
 ├── vite.config.ts · vitest.config.ts · playwright.config.ts · biome.jsonc · tsconfig*.json
-└── .github/workflows/          ci.yml (PRs), deploy.yml (push to main), routes.yml, mobile-lab.yml, preview-cleanup.yml
+└── .github/workflows/          ci.yml (PRs/main), deploy.yml (validated main), routes.yml, mobile-lab.yml, preview-cleanup.yml
 ```
 
 **Import boundaries** (Biome `noRestrictedImports` overrides per folder, plus `scripts/check-imports.ts` for relative paths, the clock in core and the sealed feed link; checked in CI):
@@ -155,7 +155,7 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 | LLM | **Workers AI** through the `AI` binding (`env.AI.run(...)`); no external keys. Pick a current instruction-tuned text model from the Workers AI catalog, and cap daily generations in code. Tests mock the binding. |
 | Lint/format | Biome |
 | Tests | Vitest projects: `core` (node), `ingest` (node), `ui` (happy-dom + Testing Library), `worker` (`@cloudflare/vitest-plugin`, formerly vitest-pool-workers, with real R2/D1 bindings via Miniflare), plus `scripts` for the repo's lint scripts. `fast-check` for properties. Playwright for e2e. |
-| CI/deploy | GitHub Actions: `ci.yml` on PRs (typecheck, lint, all Vitest projects, Playwright, build); `deploy.yml` on push to `main` (`wrangler deploy`) |
+| CI/deploy | GitHub Actions: `ci.yml` on PRs/main (typecheck, lint, correctness Vitest projects, focused Playwright, build); reusable `deploy.yml` after the main gate |
 
 ---
 
@@ -168,8 +168,8 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 | Parsers | SOC, PlanetTerp and provost calendar against **saved real pages** in `src/ingest/__fixtures__/` (`scripts/record-fixtures.ts` refreshes them) | goldens change only deliberately |
 | Jobs and server (workers pool) | cron handlers against in-memory fetch mocks, writing to a local R2; seat-alert subscribe, dedupe, confirm, unsubscribe-with-confirmation, emails via a mock sender | seat alerts are e2e-tested before the feature flag turns on |
 | Components | calendar layout (overlaps, ghost grouping and cap, Saturday column, async strip), section rows, filter chips, drawer | critical states covered |
-| e2e (Playwright on `dev:mock`) | first visit → search → hover ghosts → open course → switch via ghost → fix a problem → export codes; generate → save 2 plans; share link → save a copy; drag a block; travel pace change updates pills; undo; mobile drawer at 390px | all green in CI |
-| Performance | generator (7 courses × 20 sections) < 200 ms; search keystroke < 16 ms; first load < 1.5 MB compressed; each cron within its CPU limit on a recorded full term | regressions fail CI |
+| e2e (Playwright on `dev:mock`) | first visit → search → hover ghosts → open course → switch via ghost → fix a problem → export codes; generate → save 2 plans; share link → save a copy; drag a block; travel pace change updates pills; undo; mobile drawer at 390px | selected critical desktop and phone journeys in CI; full suite on demand (docs/TESTING.md) |
+| Performance | generator (7 courses × 20 sections) < 200 ms; search keystroke < 16 ms; first load < 1.5 MB compressed; each cron within its CPU limit on a recorded full term | timing benchmarks on demand; bundle totals advisory, never-eager rules required |
 
 **Bundle budgets.** `pnpm check:bundle` (`scripts/check-bundle.ts`, after `pnpm build`) totals each entry route's eager JS and CSS, gzip -9, and prints it against a guide size. It fails only when a module that must load on demand is eager; a total over its guide is a note, not a failure (the owner, 2026-09-26: page size shouldn't hold up merges). The guides:
 
@@ -305,7 +305,7 @@ Each milestone ends green and deployed. The orchestrator checks the acceptance c
    - what not to touch.
 
    Then spawn a subagent in an isolated worktree on a `<milestone>/…` branch.
-3. When a subagent returns, run `pnpm check` and e2e, read the diff, and do a code-review pass. For UI work, also take a Playwright screenshot and compare it with the reference. Fix or bounce back, open or update the PR, and squash-merge when green.
+3. When a subagent returns, follow CLAUDE.md's local load rule, read the diff, and do a code-review pass. CI runs the correctness gate; dispatch broader diagnostics when warranted (docs/TESTING.md). For UI work, also take a Playwright screenshot and compare it with the reference. Fix or bounce back, open or update the PR, and squash-merge when green.
 4. The orchestrator changes shared contracts (schema, store shapes, public core APIs) first, then fans the work out.
 5. After each merge, CI deploys. Smoke-check terpsicle.com.
 6. Never skip, disable or weaken a failing test to get to green.

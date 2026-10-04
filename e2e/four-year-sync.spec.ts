@@ -188,10 +188,9 @@ test("a second device opens the account's four-year plan, and keeps its own as a
   await expect(spring(phone).getByText("MATH240")).toHaveCount(0);
 });
 
-test("the same four-year plan changed on two devices, one offline, keeps both", async ({
-  browser,
-  baseURL,
-}) => {
+test("the same four-year plan changed on two devices, one offline, keeps both", {
+  tag: "@critical",
+}, async ({ browser, baseURL }) => {
   const user = newUser();
   const a = await device(browser, baseURL);
   await signedInWithPlan(a, user);
@@ -251,7 +250,7 @@ test("signing out and removing plans clears four-year plans too, and the account
   await page.goto("/schedule");
   await page
     .getByRole("banner")
-    .getByRole("button", { name: "Account: E2E Tester" })
+    .getByRole("button", { name: `Account: E2E ${user.slice(3)}` })
     .click();
   await page
     .getByRole("menuitem", {

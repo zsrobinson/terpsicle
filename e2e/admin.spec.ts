@@ -52,10 +52,9 @@ test("a signed-out visit goes through sign-in and back to the panel", async ({
   ).toBeVisible();
 });
 
-test("anyone else signed in gets the plain 404, and the API refuses them", async ({
-  page,
-  baseURL,
-}) => {
+test("anyone else signed in gets the plain 404, and the API refuses them", {
+  tag: "@critical",
+}, async ({ page, baseURL }) => {
   await signInAs(page, "Test Student", "/privacy");
   await expect(page).toHaveURL(/\/privacy$/);
   for (const path of ["/admin", "/admin/decisions", "/admin/kit"]) {
@@ -73,10 +72,9 @@ test("anyone else signed in gets the plain 404, and the API refuses them", async
   expect(api.status()).toBe(403);
 });
 
-test("the admin publishes, undoes, removes with a reason, then reads the log", async ({
-  page,
-  isMobile,
-}) => {
+test("the admin publishes, undoes, removes with a reason, then reads the log", {
+  tag: "@critical",
+}, async ({ page, isMobile }) => {
   await signInAs(page, "Test Admin", "/admin");
   await expect(page).toHaveURL(/\/admin$/);
   // Its own page, outside the scheduler's shell, under the family bar.

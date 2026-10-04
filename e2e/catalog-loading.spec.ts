@@ -71,9 +71,9 @@ test("a course link shows its details before the rest of the catalog loads", asy
 // a way out. Forced by holding the terms file back.
 const TERMS_FILE = /\/data\/catalog\/terms\.json(\?.*)?$/;
 
-test("a catalog that didn't load says so in place, and Try again loads it", async ({
-  page,
-}) => {
+test("a catalog that didn't load says so in place, and Try again loads it", {
+  tag: "@critical",
+}, async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem("terpsicle:mock-data", "http"),
   );
