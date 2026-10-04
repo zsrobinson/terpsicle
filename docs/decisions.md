@@ -192,7 +192,7 @@ Revisit if: never on its own.
 
 ### Synced data is encrypted on the server, with a key per account
 2026-10-04 · owner · app-wide
-Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so its data can't be read even from D1's 30-day backups. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
+Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so nothing it sealed can be opened afterward; D1's Time Travel can still restore the whole database, key included, for 30 days. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
 Revisit if: a feature needs the server to read synced data in bulk, or the owner wants end-to-end encryption and gives up server-side reads.
 
 ### Privacy and terms in plain words; open source is the proof
