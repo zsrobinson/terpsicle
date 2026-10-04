@@ -13,11 +13,7 @@ import Dexie from "dexie";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_DB_NAME } from "~/core/schema";
 import { encodeFourYearShare } from "~/core/share/four-year-share";
-import {
-  resetFourYearStart,
-  startFourYear,
-  useFourYearFacts,
-} from "~/features/four-year/data";
+import { resetFourYearStart, startFourYear } from "~/features/four-year/data";
 import {
   INITIAL_FOUR_YEAR_STORE,
   useFourYear,
@@ -56,7 +52,8 @@ const SHARED = aFourYear({
 });
 
 function renderShared(param: string) {
-  void startFourYear({ source: createBucketDataSource(mockDataSource) });
+  connectPublished(createBucketDataSource(mockDataSource));
+  void startFourYear();
   const root = createRootRoute();
   const shared = Route.update({
     id: "/plan/shared",
@@ -94,7 +91,6 @@ beforeEach(async () => {
   vi.mocked(track).mockClear();
   useFourYear.setState(INITIAL_FOUR_YEAR_STORE);
   connectPublished(null);
-  useFourYearFacts.setState({ latestTermId: null, calendars: [] });
   resetFourYearStart();
   await Dexie.delete(LOCAL_DB_NAME);
 });
