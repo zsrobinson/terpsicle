@@ -84,12 +84,15 @@ export function ProductPage(props: ProductPageProps) {
   );
 }
 
-/** A 40px muted line: Privacy and About Terpsicle. Feedback is in the bar. */
+/**
+ * A 40px muted line (44px on a phone): Privacy and About Terpsicle, each a
+ * tap target the line's height. Feedback is in the bar.
+ */
 export function PageFooter({ className }: { className?: string }) {
   return (
     <footer
       className={cn(
-        "mx-auto flex h-10 w-full shrink-0 items-center gap-4 px-4 text-muted text-sm",
+        "mx-auto flex h-10 w-full shrink-0 items-stretch gap-4 px-4 text-muted text-sm max-md:h-11 *:flex *:items-center",
         className,
       )}
     >
