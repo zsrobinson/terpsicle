@@ -2,12 +2,14 @@
 // Messages go over the socket, /api/chat/socket.
 import {
   ChatFollowInputSchema,
+  ChatJoinsInputSchema,
+  ChatLatestInputSchema,
   ChatMembersInputSchema,
   ChatMuteInputSchema,
   ChatUnreadInputSchema,
 } from "~/core/schema";
 import { route } from "../api/route";
-import { follow, members, mute, unfollow, unread } from "./api";
+import { follow, joins, latest, members, mute, unfollow, unread } from "./api";
 
 export const CHAT_ROUTES = {
   "chat/unread": route({
@@ -39,5 +41,17 @@ export const CHAT_ROUTES = {
     perUserPerHour: 600,
     auth: "user",
     handle: (env, input, ctx) => members(env, input, ctx),
+  }),
+  "chat/latest": route({
+    input: ChatLatestInputSchema,
+    perUserPerHour: 1_200,
+    auth: "user",
+    handle: (env, input, ctx) => latest(env, input, ctx),
+  }),
+  "chat/joins": route({
+    input: ChatJoinsInputSchema,
+    perUserPerHour: 600,
+    auth: "user",
+    handle: (env, input, ctx) => joins(env, input, ctx),
   }),
 } as const;

@@ -1,13 +1,7 @@
-import { cn } from "cn";
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { ViewWords } from "~/components/brand/view-words";
 import { MetaSep } from "~/components/panel";
-import {
-  formatGpa,
-  formatRating,
-  formatShare,
-  gradeSummary,
-  planetTerpFreshnessWords,
-} from "~/core/grades";
+import { formatGpa, formatRating, gradeSummary } from "~/core/grades";
 import { combinedRatingWords, combineRatings } from "~/core/reviews";
 import { instructorPagePath } from "~/core/reviews/slugs";
 import {
@@ -16,31 +10,19 @@ import {
   type Instructor,
   type PlanetTerpDept,
   planetTerpUrl,
-  type ReviewSummary,
 } from "~/core/schema";
-import { countWords } from "~/core/words";
-import { AiMenu } from "~/features/ai/ai-menu";
-import { AiSparkles } from "~/features/ai/ai-sparkles";
-import { useAiFeatures } from "~/features/ai/use-ai-features";
 import { useAccount } from "~/features/auth/account-store";
-import { crossLinkClicked, viewWords } from "~/lib/cross-link";
-import { deptOf, useCatalog } from "~/state/catalog-store";
-import {
-  useInstructors,
-  usePlanetTerpStatus,
-  useTerpsicleReviews,
-} from "~/state/data-hooks";
+import { crossLinkClicked } from "~/lib/cross-link";
+import { deptOf } from "~/state/catalog-store";
+import { useTerpsicleReviews } from "~/state/data-hooks";
 import { terpsicleInstructor } from "~/state/query/review-numbers";
-import { InlineError } from "~/ui/inline-error";
-import { Skeleton } from "~/ui/skeleton";
+import { StarMark } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
-import { useReviewSummary } from "./use-review-summary";
 
 // Instructors, where the choice is made (UX review §3.4): name, rating and
-// GPA in the group header, and "Reviews" opening the LLM summary under it:
-// the one place in the app with the sparkles icon, because it's the one
-// place an LLM wrote words.
+// GPA in the group header, and "Reviews" opening a preview of what students
+// say (./reviews-preview.tsx).
 
 /** This instructor's grades in this course, when PlanetTerp has them. */
 function courseGrades(
@@ -57,7 +39,7 @@ function courseGrades(
  * One rating over PlanetTerp's reviews and Terpsicle's (V2 §7.6), once
  * Reviews is at least readable; PlanetTerp's alone before that.
  */
-function useCombinedRating(
+export function useCombinedRating(
   name: string,
   course: Course,
   planetTerp: PlanetTerpDept | null,
@@ -114,11 +96,7 @@ export function InstructorMeta({
       {rating?.rating && parts ? (
         <WithTooltip label={parts}>
           <span className="inline-flex h-5 shrink-0 items-center gap-0.5">
-            <Star
-              size={11}
-              aria-hidden="true"
-              className="fill-current text-warn"
-            />
+            <StarMark />
             {/* "★ 4.2 (61)" on screen; "rated 4.2 of 5, 61 reviews" read out. */}
             <span className="sr-only">
               {` rated ${rating.rating} of 5, ${combined?.reviewCount} reviews`}
@@ -167,151 +145,13 @@ export function hasReviews(
   return pt !== null && pt.reviewCount > 0;
 }
 
-/** What "Reviews" opens: the summary (loaded on open), themes, and the way to PlanetTerp. */
-export function InstructorReviews({
-  name,
-  course,
-  planetTerp,
-  loading,
-}: {
-  name: string;
-  course: Course;
-  planetTerp: PlanetTerpDept | null;
-  loading: boolean;
-}) {
-  const pt = instructorFor(planetTerp, name);
-  const grades = courseGrades(planetTerp, course, pt);
-  // The same query course details loaded it with: Try again asks it again.
-  const { retry } = useInstructors(deptOf(course.code));
-  // A newer format than this tab reads: only Reload helps.
-  const stale = useCatalog((s) => s.appStale);
-  // Mounted only while open, so the summary is asked for on open (SPEC §4),
-  // and never while AI features are off: then the review count shows, as
-  // when there's no summary.
-  const ai = useAiFeatures();
-  const review = useReviewSummary(
-    pt && pt.reviewCount > 0 && ai.on === true ? pt.slug : null,
-    course.code,
-  );
-  const { source, failed } = usePlanetTerpStatus(deptOf(course.code));
-  const freshness = pt ? planetTerpFreshnessWords(source) : null;
-  return (
-    <div
-      className="border-hairline border-b px-4 py-3 text-sm"
-      data-instructor={name}
-    >
-      {grades?.aOrBShare != null ? (
-        <p className="tnum text-muted">
-          In {course.code}, {formatShare(grades.aOrBShare)} got an A or B.
-        </p>
-      ) : null}
-      {loading ? (
-        <Skeleton className="mt-2 h-2.5 w-2/3" />
-      ) : failed && !planetTerp ? (
-        <InlineError
-          className="py-0"
-          message={
-            stale
-              ? "Terpsicle has been updated since this page opened. Reload to see PlanetTerp's reviews."
-              : "Couldn't load reviews from PlanetTerp. Check your connection and try again."
-          }
-          onRetry={retry}
-          reload={stale}
-          retryTooltip={stale ? undefined : "Load PlanetTerp's reviews again"}
-        />
-      ) : !pt ? (
-        <p className="text-muted">
-          PlanetTerp has nothing on this instructor yet.
-        </p>
-      ) : review.status === "loading" ? (
-        <div className="mt-1 flex items-start gap-2">
-          <div className="min-w-0 flex-1 space-y-1.5" aria-busy="true">
-            <Skeleton className="h-2.5 w-full" />
-            <Skeleton className="h-2.5 w-4/5" />
-            <div className="flex items-center gap-1 text-xs text-faint">
-              <AiSparkles size={11} aria-hidden="true" />
-              Summarizing {pt.reviewCount} reviews…
-            </div>
-          </div>
-          <AiMenu />
-        </div>
-      ) : review.status === "shown" ? (
-        <div className="fade-in-0 animate-in duration-200">
-          <div className="mt-1 flex items-start gap-2">
-            <p className="min-w-0 flex-1 text-muted leading-5">
-              <AiSparkles
-                size={11}
-                role="img"
-                aria-label="AI summary"
-                className="-mt-0.5 mr-1 inline text-fg"
-              />
-              {review.summary.summary}
-            </p>
-            <AiMenu />
-          </div>
-          {review.summary.themes.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {review.summary.themes.map((t) => (
-                <span
-                  key={t.label}
-                  className={cn(
-                    "rounded px-1.5 py-0.5 text-xs",
-                    t.sentiment === "positive"
-                      ? "bg-ok-soft text-ok"
-                      : t.sentiment === "negative"
-                        ? "bg-warn-soft text-warn"
-                        : "bg-hover text-muted",
-                  )}
-                >
-                  {t.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <p className="mt-2 text-xs text-faint">
-            {summarySourceWords(review.summary)}.
-          </p>
-        </div>
-      ) : pt.reviewCount > 0 ? (
-        <p className="mt-1 text-xs text-faint">
-          {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on
-          PlanetTerp.
-        </p>
-      ) : null}
-      {freshness && !loading ? (
-        <p className="mt-1 text-xs text-faint" data-testid="pt-freshness">
-          {freshness}
-        </p>
-      ) : null}
-      {pt && pt.reviewCount > 0 && !loading ? (
-        <p className="mt-2">
-          <ReadThem slug={pt.slug} course={course.code} name={name} />
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/** "Summary of 48 PlanetTerp reviews", or of both sources' reviews. */
-export function summarySourceWords(summary: ReviewSummary): string {
-  const terpsicle = summary.sources?.terpsicle ?? 0;
-  if (terpsicle === 0) {
-    return `Summary of ${countWords(summary.basedOnReviewCount, "PlanetTerp review")}`;
-  }
-  const planetterp = summary.sources?.planetterp ?? 0;
-  if (planetterp === 0)
-    return `Summary of ${countWords(terpsicle, "Terpsicle review")}`;
-  const n = planetterp + terpsicle;
-  return `Summary of ${n} reviews: ${planetterp} on PlanetTerp, ${terpsicle} on Terpsicle`;
-}
-
 /**
  * Where full reviews live, on a line of its own so it can't read as the
  * source note's (QA S3): Terpsicle Reviews once it's open here (V2 §7.1),
  * as a View link, else PlanetTerp, named. A plain link, like the product
  * menu's: none of Reviews' code loads with the scheduler.
  */
-function ReadThem({
+export function ReadThem({
   slug,
   course,
   name,
@@ -333,7 +173,7 @@ function ReadThem({
           onClick={() => crossLinkClicked("schedule", "reviews")}
           className={link}
         >
-          {viewWords("reviews")}
+          <ViewWords to="reviews" size={12} />
           <ArrowRight size={12} aria-hidden="true" />
         </a>
       </WithTooltip>

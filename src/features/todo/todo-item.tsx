@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { ExternalLink } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import type {
   CourseCode,
   CourseColor,
@@ -109,7 +109,8 @@ export function TodoItemRow({
   menu,
   preview = false,
   showCourse = true,
-}: {
+  ...row
+}: Omit<ComponentProps<"li">, "children" | "color"> & {
   item: TodoItem;
   done: boolean;
   /** The code it's filed under (re-matched against the person's plans). */
@@ -138,6 +139,8 @@ export function TodoItemRow({
   // without a taller row.
   return (
     <ListRow
+      // A context menu's trigger props and ref (./task-menu).
+      {...(row as ComponentProps<"div">)}
       as="li"
       align="start"
       data-testid="todo-item"

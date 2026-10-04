@@ -1,7 +1,7 @@
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import { type PlanetTerpReview, planetTerpUrl } from "~/core/schema";
-import { formatMonthYear } from "~/core/time/format";
+import { formatFullDate } from "~/core/time/format";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { Stars } from "./rating";
@@ -60,9 +60,9 @@ export function PlanetTerpReviewCard({
           ) : null}
           <span className="ml-auto flex items-center gap-3">
             <PlanetTerpChip slug={review.instructorId} />
-            <span className="tnum text-faint">
-              {formatMonthYear(review.createdMonth)}
-            </span>
+            <time dateTime={review.createdDate} className="tnum text-faint">
+              {formatFullDate(review.createdDate)}
+            </time>
           </span>
         </div>
         <p className={REVIEW_BODY} data-private>

@@ -6,10 +6,17 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type ChatLatestMessage,
   type ChatUnreadRoom,
   COURSE_INDEX_MANIFEST_KEY,
   courseRoomId,
@@ -17,10 +24,12 @@ import {
   deptChunkKey,
   type MeUser,
   manifestKey,
+  professorRoomId,
   sectionRoomId,
   TERMS_KEY,
 } from "~/core/schema";
 import {
+  aChatAuthor,
   aCourse,
   aCourseIndexManifest,
   aCourseSearchFile,
@@ -91,7 +100,10 @@ const data = fetchChatData("/data", async (url) => {
 
 const section0101 = sectionRoomId(fixtureTermId, "CMSC351", "0101");
 
-function fakeClient(unread: ChatUnreadRoom[] = []) {
+function fakeClient(
+  unread: ChatUnreadRoom[] = [],
+  latest: ChatLatestMessage[] = [],
+) {
   const client = {
     sync: {
       pull: vi.fn(async () => ({
@@ -120,6 +132,8 @@ function fakeClient(unread: ChatUnreadRoom[] = []) {
       unfollow: vi.fn(async () => ({ status: "ok" as const })),
       mute: vi.fn(async () => ({ status: "ok" as const })),
       members: vi.fn(),
+      latest: vi.fn(async () => ({ latest })),
+      joins: vi.fn(async () => ({ status: "ok" as const, joins: [] })),
     },
     reports: { create: vi.fn() },
   };
@@ -163,6 +177,8 @@ beforeEach(() => {
     synced: { plans: [], settings: null },
     courses: new Map(),
     unread: [],
+    latest: {},
+    latestSeq: {},
     follows: {},
     mutes: {},
     courseRows: null,
@@ -247,18 +263,54 @@ describe("ChatPage", () => {
     expect(screen.getByText(/Chat isn't open yet/)).toBeInTheDocument();
   });
 
-  it("lists your classes with your rooms and their unread counts", async () => {
+  it("lists your classes with your rooms by name, their newest message, and an unread mark", async () => {
     signedIn();
-    fakeClient([
-      {
-        room: section0101,
-        courseCode: "CMSC351",
-        lastSeq: 5,
-        unread: 3,
-        lastMessageAt: FIXTURE_NOW,
-        muted: false,
-      },
-    ]);
+    const client = fakeClient(
+      [
+        {
+          room: section0101,
+          courseCode: "CMSC351",
+          lastSeq: 5,
+          unread: 3,
+          lastMessageAt: FIXTURE_NOW,
+          muted: false,
+        },
+        {
+          room: courseRoomId(fixtureTermId, "CMSC351"),
+          courseCode: "CMSC351",
+          lastSeq: 2,
+          unread: 1,
+          lastMessageAt: FIXTURE_NOW,
+          muted: false,
+        },
+        {
+          room: professorRoomId(fixtureTermId, "CMSC351", ["Ada Brandt"]),
+          courseCode: "CMSC351",
+          lastSeq: 9,
+          unread: 4,
+          lastMessageAt: FIXTURE_NOW,
+          muted: true,
+        },
+      ],
+      [
+        {
+          id: "msg_latest_01",
+          room: section0101,
+          author: aChatAuthor({ directoryId: "alexk", name: "Alex Kim" }),
+          text: "anyone get 3b?",
+          deleted: false,
+          createdAt: FIXTURE_NOW,
+        },
+        {
+          id: "msg_latest_02",
+          room: courseRoomId(fixtureTermId, "CMSC351"),
+          author: aChatAuthor({ directoryId: "samlee", name: "Sam Lee" }),
+          text: "",
+          deleted: true,
+          createdAt: FIXTURE_NOW,
+        },
+      ],
+    );
     const { go, user } = await page();
     const list = await screen.findByRole("list", { name: "Your classes" });
     const rows = within(list)
@@ -271,21 +323,59 @@ describe("ChatPage", () => {
         name: /^CMSC351\s*Algorithms$/,
       }),
     ).toBeInTheDocument();
-    expect(rows).toEqual([
-      expect.stringContaining("CMSC351 · everyone"),
-      expect.stringContaining("Brandt's sections"),
-      expect.stringContaining("0101 · "),
-    ]);
-    expect(within(list).getAllByText("3 unread")).toHaveLength(2);
+    expect(rows).toEqual(["Everyone", "Brandt's Sections", "Section 0101"]);
+    // Each room's newest message, not a summary, asked once per course.
+    expect(await within(list).findByText("Alex: anyone get 3b?")).toBeVisible();
+    expect(within(list).getByText("Message deleted by author")).toBeVisible();
+    expect(client.chat.latest).toHaveBeenCalledTimes(1);
+    // Unread in Chat's blue: a dot for one, the count for more; muted, a bell.
+    const row = (id: string) =>
+      document.querySelector(`[data-room-row="${id}"]`) as HTMLElement;
+    expect(
+      row(courseRoomId(fixtureTermId, "CMSC351")).querySelector(
+        '[data-unread-mark="dot"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      within(row(section0101)).getByText("3 unread", { exact: false }),
+    ).toBeInTheDocument();
+    const muted = row(
+      professorRoomId(fixtureTermId, "CMSC351", ["Ada Brandt"]),
+    );
+    expect(within(muted).getByLabelText("Muted")).toBeInTheDocument();
+    expect(muted.querySelector("[data-unread-mark]")).toBeNull();
     // Which plan, and which term: Schedule is usually on the next one.
     expect(
       screen.getByText(`Rooms from Plan A, your ${aTerm().name} plan`),
     ).toBeInTheDocument();
-    await user.click(within(list).getByRole("button", { name: /^0101 · / }));
-    expect(go).toHaveBeenCalledWith(
-      { term: undefined, course: "CMSC351", room: section0101 },
-      undefined,
+    await user.click(
+      within(list).getByRole("button", { name: "Section 0101" }),
     );
+    expect(go).toHaveBeenCalledWith({ course: "CMSC351", room: section0101 });
+
+    // A right click on a row: mark read (it has unread), and mute.
+    fireEvent.contextMenu(row(section0101));
+    let menu = await screen.findByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual(["Mark read", "Mute"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Mark read" }));
+    await waitFor(() =>
+      expect(row(section0101).querySelector("[data-unread-mark]")).toBeNull(),
+    );
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    fireEvent.contextMenu(row(section0101));
+    menu = await screen.findByRole("menu");
+    await user.click(within(menu).getByRole("menuitem", { name: "Mute" }));
+    expect(client.chat.mute).toHaveBeenCalledWith({
+      termId: fixtureTermId,
+      courseCode: "CMSC351",
+      roomId: section0101,
+      muted: true,
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 
   it("makes another plan main from Rooms from, with Undo", async () => {
@@ -383,7 +473,7 @@ describe("ChatPage", () => {
     ]);
     const { go, user } = await page();
     const open = await screen.findByRole("button", {
-      name: "Open CMSC351 0101",
+      name: "Open CMSC351 · Section 0101",
     });
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(
@@ -392,10 +482,7 @@ describe("ChatPage", () => {
     // The family bar, the page's first header.
     expect(screen.getAllByRole("banner")[0]).toHaveTextContent(aTerm().name);
     await user.click(open);
-    expect(go).toHaveBeenCalledWith(
-      { term: undefined, course: "CMSC351", room: section0101 },
-      undefined,
-    );
+    expect(go).toHaveBeenCalledWith({ room: section0101 });
   });
 
   it("on a phone, says what Chat is first, and Find a course brings the finder", async () => {
@@ -435,18 +522,23 @@ describe("ChatPage", () => {
     quietSockets();
     signedIn();
     fakeClient();
-    await page({ course: "CMSC351", room: section0101 });
+    await page({ course: "CMSC351", room: "0101" });
     const nav = screen.getByRole("navigation", { name: "Rooms" });
     const list = await within(nav).findByRole("list", { name: "Your classes" });
     // Your section's room is the open one; another section's isn't listed.
     expect(
-      await within(list).findByRole("button", { name: /^0101 · / }),
+      await within(list).findByRole("button", { name: "Section 0101" }),
     ).toHaveAttribute("aria-current", "page");
-    expect(screen.queryByRole("button", { name: /^0201 · / })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Section 0201" })).toBeNull();
     expect(screen.queryByText(/Add it to one of yours/)).toBeNull();
     // The room in its own shape while it connects: the header, messages
     // on their way, and a composer you can already type in.
-    const room = await screen.findByRole("region", { name: /^0101 · / });
+    const room = await screen.findByRole("region", {
+      name: "CMSC351 · Section 0101",
+    });
+    expect(
+      within(room).getByRole("heading", { name: "Section 0101" }),
+    ).toBeInTheDocument();
     expect(
       within(room).getByRole("status", { name: "Loading messages" }),
     ).toBeInTheDocument();
@@ -468,8 +560,10 @@ describe("ChatPage", () => {
     );
     signedIn();
     fakeClient();
-    await page({ course: "CMSC351", room: section0101 });
-    const room = await screen.findByRole("region", { name: /^0101 · / });
+    await page({ course: "CMSC351", room: "0101" });
+    const room = await screen.findByRole("region", {
+      name: "CMSC351 · Section 0101",
+    });
     expect(
       within(room).getByRole("link", { name: "Your classes" }),
     ).toBeInTheDocument();
@@ -478,56 +572,26 @@ describe("ChatPage", () => {
     expect(nav).not.toBeVisible();
   });
 
-  it("opens a course's room from a course on its own", async () => {
-    signedIn();
-    fakeClient();
-    const { go } = await page({ course: "CMSC351" });
-    await vi.waitFor(() =>
-      expect(go).toHaveBeenCalledWith(
-        {
-          term: undefined,
-          course: "CMSC351",
-          room: courseRoomId(fixtureTermId, "CMSC351"),
-        },
-        { replace: true },
-      ),
-    );
-  });
-
-  it("joins a course you opened from its room's header, and leaves it from room info with undo", async () => {
+  it("opens a course's room for everyone from its path, and nothing for a path that names no room", async () => {
     quietSockets();
     signedIn();
-    const client = fakeClient();
-    client.sync.pull.mockResolvedValue({
-      status: "ok",
-      cursor: 0,
-      more: false,
-      docs: [],
-    });
-    const { user } = await page({
-      course: "CMSC351",
-      room: courseRoomId(fixtureTermId, "CMSC351"),
-    });
-    // Not yours yet, but it's in the list while it's open.
-    const list = await screen.findByRole("list", { name: "Your classes" });
+    fakeClient();
+    await page({ course: "CMSC351", room: "everyone" });
     expect(
-      await within(list).findByRole("button", { name: /^CMSC351 · everyone/ }),
-    ).toHaveAttribute("aria-current", "page");
-    await user.click(await screen.findByRole("button", { name: "Join" }));
-    expect(client.chat.follow).toHaveBeenCalledWith({
-      termId: fixtureTermId,
-      courseCode: "CMSC351",
-    });
+      await screen.findByRole("region", { name: "CMSC351 · Everyone" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the list, joining nothing, from a link to another term's chat", async () => {
+    signedIn();
+    const client = fakeClient();
+    // Chat's term is Spring 2027, the only one listed; Fall 2027 is to come.
+    const { go } = await page({ term: "202708", course: "CMSC351", join: 1 });
     await vi.waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Join" })).toBeNull(),
+      expect(go).toHaveBeenCalledWith({}, { replace: true }),
     );
-    await user.click(screen.getByRole("button", { name: "Room info" }));
-    await user.click(
-      await screen.findByRole("button", { name: "Leave CMSC351 chat" }),
-    );
-    expect(client.chat.unfollow).toHaveBeenCalled();
-    await user.click(await screen.findByRole("button", { name: "Undo" }));
-    expect(client.chat.follow).toHaveBeenCalledTimes(2);
+    expect(client.chat.follow).not.toHaveBeenCalled();
+    expect(go).toHaveBeenCalledTimes(1);
   });
 
   it("with no classes yet, finds any course and opens its room, with ↵", async () => {
@@ -563,20 +627,16 @@ describe("ChatPage", () => {
     await user.hover(within(results).getAllByRole("button")[0] as HTMLElement);
     expect(
       await screen.findByRole("tooltip", {
-        name: "Open CMSC351's course room ↵",
+        name: "Open CMSC351 · Everyone ↵",
       }),
     ).toBeInTheDocument();
 
     await user.type(box, "{Enter}");
     await vi.waitFor(() =>
-      expect(go).toHaveBeenCalledWith(
-        {
-          term: undefined,
-          course: "CMSC351",
-          room: courseRoomId(fixtureTermId, "CMSC351"),
-        },
-        undefined,
-      ),
+      expect(go).toHaveBeenCalledWith({
+        course: "CMSC351",
+        room: courseRoomId(fixtureTermId, "CMSC351"),
+      }),
     );
   });
 
@@ -601,5 +661,43 @@ describe("ChatPage", () => {
       ),
     ).toBeInTheDocument();
     expect(go).not.toHaveBeenCalled();
+  });
+  it("joins a course you opened from its room's header, and leaves it from Options with undo", async () => {
+    quietSockets();
+    signedIn();
+    const client = fakeClient();
+    client.sync.pull.mockResolvedValue({
+      status: "ok",
+      cursor: 0,
+      more: false,
+      docs: [],
+    });
+    const { user } = await page({ course: "CMSC351", room: "everyone" });
+    // Not yours yet, but it's in the list while it's open.
+    const list = await screen.findByRole("list", { name: "Your classes" });
+    expect(
+      await within(list).findByRole("button", { name: "Everyone" }),
+    ).toHaveAttribute("aria-current", "page");
+    await user.click(await screen.findByRole("button", { name: "Join" }));
+    expect(client.chat.follow).toHaveBeenCalledWith({
+      termId: fixtureTermId,
+      courseCode: "CMSC351",
+    });
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Join" })).toBeNull(),
+    );
+    // The room's one button: Options, as a menu.
+    await user.click(screen.getByRole("button", { name: "Options" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Leave CMSC351 chat" }),
+    );
+    expect(client.chat.unfollow).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    // Focus back on Options: the menu has finished closing.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Options" })).toHaveFocus(),
+    );
+    await user.click(await screen.findByRole("button", { name: "Undo" }));
+    expect(client.chat.follow).toHaveBeenCalledTimes(2);
   });
 });

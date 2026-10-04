@@ -38,10 +38,7 @@ describe("CourseChatEntry", () => {
     const link = await screen.findByRole("link", {
       name: "Join CMSC351 chat · 42 people",
     });
-    expect(link).toHaveAttribute(
-      "href",
-      `/chat?term=${fixtureTermId}&course=CMSC351&join=1`,
-    );
+    expect(link).toHaveAttribute("href", "/chat/CMSC351/everyone?join=1");
     expect(members).toHaveBeenCalledWith({
       termId: fixtureTermId,
       courseCode: "CMSC351",

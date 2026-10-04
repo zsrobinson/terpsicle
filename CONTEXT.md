@@ -168,18 +168,14 @@ _Avoid_: permission prompt, opt-in, enable push (in UI)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (**AI features**, the **room rules** you've closed) beside Schedule's.
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (the **room rules** you've closed, Home's closed callouts) beside Schedule's. In Todo, the bar's sync cloud means Todo's sync: with ELMS, and with our own server for your tasks and checks.
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
 _Avoid_: close account, deactivate
 
 **Sparkles**:
-The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. It shows only while **AI features** are on.
-
-**AI features**:
-Everything a model wrote that students see, marked with the sparkles: today, the review summary. On by default. "Show AI summaries" in Settings, or "Hide AI summaries" in an AI box's ⋯ menu, turns them all off, everywhere; signed in, the choice follows the account. Every new sparkles feature respects it (`useAiFeatures`).
-_Avoid_: AI mode, smart features
+The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. Students see none today (the owner removed Reviews' summaries on 2026-09-29); only the owner's feedback groups carry it.
 
 **Feedback**:
 What someone sends from the feedback sheet: "Report a bug" or "Suggest a feature". The owner's own notes on a page are **pinned notes**.
@@ -309,9 +305,6 @@ A URL that carries a whole plan. It opens read-only as a **shared plan** with "S
 **Review**:
 A signed-in student's rating and text for a course and professor. Readers, moderation and the admin never see who wrote it.
 
-**Review summary**:
-The LLM summary of a professor's reviews, with theme chips. It carries the sparkles.
-
 **PlanetTerp**:
 The outside site whose ratings, reviews and grade data we show, with credit and a link.
 
@@ -327,8 +320,42 @@ _Avoid_: slug (in copy), `/reviews/instructors/…` (the old address, which move
 The professors with the most PlanetTerp reviews. Listed on `/reviews` beside **most taken**, as equals.
 _Avoid_: popular, top-rated
 
-**Review your instructors**:
-The quiet list on `/reviews`, signed in, of the instructors of the sections in your main plans for terms that are over (or in their last six weeks), each one tap from the form. Never a banner.
+**Review your classes**:
+The quiet list in `/reviews`' narrow column, signed in, of the classes you took and haven't reviewed, newest first, each one tap from the form: from the four-year plan's past terms (the course only) and from Schedule's main plans for terms the Schedule of Classes still lists (the course and its instructors). A class without its instructor opens the course's page, which asks who taught you. Under it, your reviews, newest first. Signed out it's "Classes you took", to read about, with a line on signing in. Never a banner.
+_Avoid_: Review your instructors (the old name)
+
+**Review box**:
+On an instructor's or a course's page, the box between the rating and the reviews that asks you to review them yourself. From your plans it can name the class you took and haven't reviewed ("You took CMSC351 with Keiko Ashdown in Spring 2026"), or show your review with Edit; otherwise, and always signed out, it asks "Took CMSC351?". When your plans know the course but not who taught it, it asks instead of claiming: "You took CMSC351 in Fall 2025" with "Who taught you?" on a course's page, "Did you take CMSC351 with Keiko Ashdown?" on an instructor's. Code says `ReviewBox`.
+_Avoid_: banner, nudge (in copy)
+
+**Who taught it**:
+A course's page's side column: each term, newest first, with everyone who taught the course then, from our instructor history (as PlanetTerp's course pages do), each with their rating and their average GPA across all their courses. Each name opens their reviews in the course, or their history page.
+_Avoid_: Instructors (the old heading)
+
+**History page**:
+The page of an instructor PlanetTerp doesn't know, only our instructor history (`/reviews/jo-early?course=CMSC351`, found through the course it's opened from): their name, the review box, "No reviews yet", and "What they taught", term by term. Once someone reviews them, they get a minted id and an instructor's page like anyone's. Code says `TaughtOnlyPage`.
+_Avoid_: unknown instructor, missing instructor
+
+**Review filter**:
+The select left of the review order. On an instructor's page, "All courses" or one of theirs (`?course=`), which narrows the reviews and the grades beside them ("Reviews in CMSC351", "Grades in CMSC351"). On a course's page, "All instructors" or one, which opens that instructor's page for the course, keeping the order. Code says `ReviewFilter`.
+_Avoid_: course chips (the old control), course switch
+
+**Review order**:
+How a page's reviews are sorted, beside "Reviews" at the right: Latest first (the default), Oldest first, Highest rated, Lowest rated. `?sort=` in the address. Code says `ReviewSort`.
+_Avoid_: filter (it hides nothing)
+
+**Half stars**:
+A rating is 1 to 5 in halves, written with the rating slider (a star's left half is its half; the arrow keys move by a half) and shown as stars filled to the number (4.6 fills four and three fifths).
+
+**Recent reviews**:
+The newest reviews anywhere, ours and PlanetTerp's, on `/reviews`, each saying who and which course it's about.
+
+**Reviews preview**:
+In Schedule's course details, the popover (a sheet on phones) an instructor's "Reviews" button opens, wearing Reviews' mark: their rating, the grades sentence, their three newest reviews and "View reviews". Code says `ReviewsPreview`.
+_Avoid_: reviews tab, summary
+
+**Folded tabs**:
+The family bar's product tabs at rest on Reviews: the product you're on with its name, the others only their marks, every name opening when you hover or tab into them. Code says `collapseTabs`.
 
 **Most taken**:
 The courses offered now that the most students have taken, by PlanetTerp's grade data. Listed on `/reviews`.
@@ -347,33 +374,54 @@ _Avoid_: FOIA request (that's federal)
 
 ## Chat
 
+**Chat's term**:
+The one term Chat shows: of the terms Testudo lists, the one in session, or between terms the next one to start. It isn't picked, and another term's chats can't be joined (the owner, 2026-09-29). The bar names it with its term tag. Code says `chatTerm`.
+_Avoid_: current term, this semester (as a label); a term menu in Chat
+
 **Room**:
 A chat for part of a course, derived from the catalog. Nobody creates one, and nothing's stored for it until its first message.
 
 **Course room**:
-The room for everyone in a course ("CMSC131 · everyone"), open to anyone signed in.
+The room for everyone in a course, named **Everyone** under the course's code ("CMSC131 · Everyone" where no heading says the course), open to anyone signed in. Its link is `/chat/CMSC131/everyone`.
 
 **Professor room**:
-The room for one professor's sections, only when a course has more than one professor ("Sadeghian's sections").
+The room for one professor's sections, only when a course has more than one professor, named by their last name: **Sadeghian's Sections**. Its link is `/chat/CMSC131/pedram-sadeghian`.
 
 **Section room**:
-The room for one section, named by its meetings. Only courses with two or more sections have them.
-_Avoid_: lecture room
+The room for one section, named **Section 0303**; when and where it meets is under its name in the room's header. Only courses with two or more sections have them. Its link is `/chat/CMSC131/0303`.
+_Avoid_: lecture room; a section's meetings as its name
+
+**Room path**:
+A room's link, `/chat/<COURSE>/<room>` (`everyone`, a section code, or a professor's slug), with a thread in `?thread=`. No term: Chat is only on Chat's term. Every name and link for a room comes from one module, `src/core/chat/room-paths.ts`; older `/chat?term=…&room=…` links redirect.
+
+**Join line**:
+One small line in a room's timeline for everyone who joined between two messages on one day: "Alex, Sam and 3 others joined", as GroupMe shows it. It replaces the list of people room info had. Code says `joinGroups`, `joinWords`.
+
+**Tombstone**:
+What's left of a message its author deleted after the room saw it: "Message deleted by author", with its name and time and no text or reactions. One only its author saw (held, or still sending) goes entirely.
+_Avoid_: "This message was removed" (that's moderation's, and only its author sees it)
+
+**Options**:
+A room's one button in its header (icon and label): mute or unmute the room, leave a course you joined, and What's allowed. It replaced room info.
+_Avoid_: room info, settings
 
 **Your rooms**:
 The rooms the chat list shows: your main plan's (each section's course, professor and section rooms; a bookmarked course's course room) and the course rooms you've joined. Other sections' and professors' rooms aren't listed at all. A course whose room you opened without joining sits last until you join or leave it.
 _Avoid_: locked rooms, a course's room tree
+
+**Live list**:
+The chat list keeping every row current as messages land, not only the open room's: each course in it keeps its course's socket open for your rooms there. Its fallback, while a socket is down, is the minute-long poll. Code says `useLiveList`, `listLive`.
 
 **Rooms from**:
 The chat list's line naming the plan a term's rooms come from: its main plan ("Rooms from Plan A, your main plan ▾"; with one plan, "Rooms from Plan A, your Fall 2026 plan"). Picking another plan there makes it main everywhere, with Undo. Signed out, Chat says "the classes you add in Schedule", never "sync".
 _Avoid_: chat plan (it's the main plan, since 2026-09-28)
 
 **Join**:
-Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it.
+Keeping a course room in your chat list when the course isn't in your main plan. "Leave" undoes it; "Join CMSC351 chat" in course details does it, for a course in Chat's term only.
 _Avoid_: follow, subscribe (in the UI; the API calls it `chat/follow`)
 
 **Posting here**:
-The two plain lines over the composer the first time you open a course's chat (until "Got it" or your first post there), and in room info: your name is on everything you post, so posting answers to graded work is a bad idea; Report is in each message's menu. Neutral, never a lecture, and never "a bot checks your messages". Code calls them the room rules.
+The two plain lines over the composer the first time you open a course's chat (until "Got it" or your first post there): your name is on everything you post, so posting answers to graded work is a bad idea; Report is in each message's menu. Neutral, never a lecture, and never "a bot checks your messages". Code calls them the room rules.
 _Avoid_: rules, before you post (in UI)
 
 **Mention**:
@@ -478,12 +526,13 @@ _Avoid_: item (in the UI)
 **File import**:
 "Add a calendar file": an `.ics` the student exported, read in the browser. Its items say "From a file" and don't update.
 
-**Calendar** (Todo's):
-Todo's main area: the **Week** (the default), the **Month** or the **List** of what's due by day, each a URL. Weeks start on Monday, so a Sunday-night deadline ends its week, unless the student sets **Weeks start on** Sunday.
-_Avoid_: agenda, planner, schedule (that's the scheduler)
+**Week** (Todo's):
+Todo's one view: Monday to Sunday, so a Sunday-night deadline ends its week, each week a URL. On a phone, the same days one under another.
+_Avoid_: calendar view, month, list, agenda, planner, schedule (that's the scheduler)
 
-**Side panel** (Todo's):
-The column beside Todo's calendar, where the scheduler and Plan keep their sidebars: Add a task, This week, ELMS and Weeks start on. On a phone it sits above the calendar, folded under "Courses and ELMS".
+**Sidebar** (Todo's):
+Todo's workbench sidebar, beside the week: Add a task, No date, and This week (a bar for the week and one per course). On a phone it's the drawer, whose strip is the week's bar.
+_Avoid_: side panel
 
 **Composer**:
 Todo's "Add a task…" field, which reads the date, time and course from the words ("PS3 due fri 11:59pm cmsc351"), marks them as you type, and shows them as chips before adding. In copy it's just "Add a task".

@@ -27,14 +27,19 @@ export function buildPlanetTerpIndex(
   titles: ReadonlyMap<CourseCode, string>,
   whole?: PlanetTerpWhole,
 ): PlanetTerpIndex {
-  const instructors = new Map<InstructorSlug, [string, DeptCode[]]>();
+  const instructors = new Map<InstructorSlug, [string, DeptCode[], number]>();
   const reviewed = new Map<InstructorSlug, Instructor>();
   const students = new Map<CourseCode, number>();
   for (const file of [...depts].sort((a, b) => (a.dept < b.dept ? -1 : 1))) {
     for (const [slug, instructor] of Object.entries(file.instructors)) {
       const entry = instructors.get(slug);
       if (entry) entry[1].push(file.dept);
-      else instructors.set(slug, [instructor.name, [file.dept]]);
+      else
+        instructors.set(slug, [
+          instructor.name,
+          [file.dept],
+          instructor.reviewCount,
+        ]);
       if (instructor.type === "professor" && instructor.reviewCount > 0)
         reviewed.set(slug, instructor);
     }

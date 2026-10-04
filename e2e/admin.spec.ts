@@ -214,7 +214,7 @@ test("the admin removes a chat message from its link and stops its author, then 
   author.on("pageerror", (error) => errors.push(error.message));
   await author.goto("/privacy");
   const authorId = `e2e${Math.random().toString(36).slice(2, 12)}`;
-  const room = "/chat?term=202701&course=CMSC131&room=202701:CMSC131";
+  const room = "/chat/CMSC131/everyone";
   const next = await author.evaluate(
     async ({ id, to }) => {
       const response = await fetch("/api/auth/test-sign-in", {

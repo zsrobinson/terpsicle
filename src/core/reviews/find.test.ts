@@ -30,6 +30,42 @@ describe("matchInstructors", () => {
     ]);
   });
 
+  it("puts the most reviewed first, by first name, last name or part of either", () => {
+    // PlanetTerp's Justins, with their review counts (2026-09-29).
+    const justins = {
+      "abbott-justin": ["Justin Abbott", ["ENGL"], 3],
+      "wyss-gallifent": ["Justin Wyss-Gallifent", ["MATH"], 348],
+      justin_olav: ["Olav Justinsen", ["PHYS"], 40],
+      mcjustin: ["Pat McJustin", ["HIST"], 90],
+      zhang_justin: ["Justin Zhang", ["CMSC"], 12],
+    } as const satisfies Record<string, [string, string[], number]>;
+    const all = justins as unknown as Parameters<typeof matchInstructors>[0];
+    expect(matchInstructors(all, "justin").map(([slug]) => slug)).toEqual([
+      "wyss-gallifent",
+      "justin_olav",
+      "zhang_justin",
+      "abbott-justin",
+      // Only inside a name part: after every name that starts with it.
+      "mcjustin",
+    ]);
+    expect(matchInstructors(all, "wyss")[0]?.[0]).toBe("wyss-gallifent");
+    expect(matchInstructors(all, "gallif")[0]?.[0]).toBe("wyss-gallifent");
+    expect(matchInstructors(all, "justin wys")[0]?.[0]).toBe("wyss-gallifent");
+  });
+
+  it("ranks an older index's instructors by the counts it's given", () => {
+    const older = {
+      "abbott-justin": ["Justin Abbott", ["ENGL"]],
+      "wyss-gallifent": ["Justin Wyss-Gallifent", ["MATH"]],
+    } as const satisfies Record<string, [string, string[]]>;
+    const all = older as unknown as Parameters<typeof matchInstructors>[0];
+    expect(
+      matchInstructors(all, "justin", new Map([["wyss-gallifent", 348]])).map(
+        ([slug]) => slug,
+      ),
+    ).toEqual(["wyss-gallifent", "abbott-justin"]);
+  });
+
   it("leaves course codes to the course search", () => {
     expect(matchInstructors(instructors, "cmsc351")).toEqual([]);
     expect(matchInstructors(instructors, "  ")).toEqual([]);

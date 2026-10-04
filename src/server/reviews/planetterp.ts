@@ -12,6 +12,7 @@ import {
   type PlanetTerpReviewRow,
   PlanetTerpReviewRowSchema,
   ReviewGradeSchema,
+  type ReviewSort,
 } from "~/core/schema";
 import type { PlanetTerpReviewRecord } from "~/ingest/planetterp/reviews";
 
@@ -21,7 +22,49 @@ export interface PlanetTerpQuery {
   instructorId: InstructorId | null;
   course: CourseCode | null;
   cursor: PlanetTerpCursor | null;
+  /** Absent: `latest`. */
+  sort?: ReviewSort;
   limit: number;
+}
+
+/**
+ * Each order's SQL: the ORDER BY and "after the cursor" (?3 rating, ?4
+ * created_at, ?5 id). A rating order breaks ties newest first, as
+ * `compareReviews` (~/core/reviews) does for ours.
+ */
+const ORDERS: Record<ReviewSort, { order: string; after: string }> = {
+  latest: {
+    order: "created_at DESC, id DESC",
+    after: "(created_at, id) < (?4, ?5)",
+  },
+  oldest: {
+    order: "created_at ASC, id ASC",
+    after: "(created_at, id) > (?4, ?5)",
+  },
+  highest: {
+    order: "rating DESC, created_at DESC, id DESC",
+    after: "(rating < ?3 OR (rating = ?3 AND (created_at, id) < (?4, ?5)))",
+  },
+  lowest: {
+    order: "rating ASC, created_at DESC, id DESC",
+    after: "(rating > ?3 OR (rating = ?3 AND (created_at, id) < (?4, ?5)))",
+  },
+};
+
+/** `[rating|]created|id`: where a page ends, in its order. */
+function cursorOf(sort: ReviewSort, row: PlanetTerpReviewRow): string {
+  const at = `${row.created_at}|${row.id}`;
+  return sort === "highest" || sort === "lowest" ? `${row.rating}|${at}` : at;
+}
+
+function readCursor(
+  cursor: PlanetTerpCursor | null,
+): [number | null, string | null, string | null] {
+  if (!cursor) return [null, null, null];
+  const parts = cursor.split("|");
+  const [created, id] = parts.slice(-2);
+  const rating = parts.length === 3 ? Number(parts[0]) : null;
+  return [rating, created ?? null, id ?? null];
 }
 
 function toShown(row: PlanetTerpReviewRow): PlanetTerpReview {
@@ -35,15 +78,23 @@ function toShown(row: PlanetTerpReviewRow): PlanetTerpReview {
     expectedGrade: grade.success ? grade.data : null,
     body: row.body,
     createdMonth: createdMonth(row.created_at),
+    // PlanetTerp's own day: public there, and nothing of ours.
+    createdDate: row.created_at.slice(0, 10),
   };
 }
 
-/** A page of PlanetTerp's reviews, and where the next starts. */
+/** A page of PlanetTerp's reviews in `query.sort`'s order, and where the next starts. */
 export async function planetTerpReviews(
   db: D1Database,
   query: PlanetTerpQuery,
 ): Promise<{ reviews: PlanetTerpReview[]; next: PlanetTerpCursor | null }> {
-  const [afterCreated, afterId] = query.cursor?.split("|") ?? [null, null];
+  const sort = query.sort ?? "latest";
+  const [rating, created, id] = readCursor(query.cursor);
+  // A cursor from another order (no rating where one's needed) starts over.
+  const from =
+    created !== null &&
+    (rating !== null || sort === "latest" || sort === "oldest");
+  const { order, after } = ORDERS[sort];
   // One extra row says whether there's another page.
   const { results } = await db
     .prepare(
@@ -51,15 +102,17 @@ export async function planetTerpReviews(
        FROM planetterp_reviews
        WHERE (?1 IS NULL OR instructor_id = ?1)
          AND (?2 IS NULL OR course = ?2)
-         AND (?3 IS NULL OR (created_at, id) < (?3, ?4))
-       ORDER BY created_at DESC, id DESC
-       LIMIT ?5`,
+         AND (?6 = 0 OR ${after})
+       ORDER BY ${order}
+       LIMIT ?7`,
     )
     .bind(
       query.instructorId,
       query.course,
-      afterCreated ?? null,
-      afterId ?? null,
+      rating,
+      created,
+      id,
+      from ? 1 : 0,
       query.limit + 1,
     )
     .all();
@@ -68,11 +121,41 @@ export async function planetTerpReviews(
   const last = page.at(-1);
   return {
     reviews: page.map(toShown),
-    next:
-      rows.length > query.limit && last
-        ? `${last.created_at}|${last.id}`
-        : null,
+    next: rows.length > query.limit && last ? cursorOf(sort, last) : null,
   };
+}
+
+/** The average and count of PlanetTerp's reviews of a course; null when there are none. */
+export async function planetTerpCourseNumbers(
+  db: D1Database,
+  course: CourseCode,
+): Promise<{ rating: number; reviewCount: number } | null> {
+  const row = await db
+    .prepare(
+      `SELECT AVG(rating) AS rating, COUNT(*) AS count
+       FROM planetterp_reviews WHERE course = ?1`,
+    )
+    .bind(course)
+    .first<{ rating: number | null; count: number }>();
+  return row && row.count > 0 && row.rating !== null
+    ? { rating: row.rating, reviewCount: row.count }
+    : null;
+}
+
+/** How many PlanetTerp reviews one instructor has in one course. */
+export async function planetTerpReviewCount(
+  db: D1Database,
+  instructorId: InstructorId,
+  course: CourseCode,
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM planetterp_reviews
+       WHERE instructor_id = ?1 AND course = ?2`,
+    )
+    .bind(instructorId, course)
+    .first<{ count: number }>();
+  return row?.count ?? 0;
 }
 
 /**

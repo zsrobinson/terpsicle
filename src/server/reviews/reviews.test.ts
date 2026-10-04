@@ -6,14 +6,16 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { writeResultWords } from "~/core/reviews";
 import {
+  LatestReviewsSchema,
   type MyReview,
+  PageReviewsSchema,
+  PlanetTerpReviewsResultSchema,
   PublicReviewSchema,
   QueueListResultSchema,
   ReportCreateResultSchema,
   ResolveResultSchema,
   ReviewListResultSchema,
   ReviewsMineResultSchema,
-  ReviewsRecentResultSchema,
   ReviewWriteResultSchema,
 } from "~/core/schema";
 import {
@@ -27,6 +29,7 @@ import { handleApi } from "../api/router";
 import { markDeleting } from "../auth/store";
 import { retryHeld } from "../moderation/service";
 import { decisionsFor } from "../moderation/store";
+import { replacePlanetTerpReviews } from "./planetterp";
 import { reviewsServerData } from "./public";
 import {
   advance,
@@ -162,6 +165,25 @@ describe("writing and reading", () => {
     expect(ai.run).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a half-star rating as written, and refuses a third of one", async () => {
+    // D1's rating column is INTEGER, which keeps 4.5 as a REAL (type
+    // affinity), and its CHECK is a range: no migration for halves.
+    const result = await author.submit(aReviewSubmitInput({ rating: 4.5 }));
+    expect(result.status).toBe("published");
+    expect((await list()).reviews[0]?.rating).toBe(4.5);
+    const numbers = reviewsServerData(env.DB);
+    expect(await numbers.courseNumbers("CMSC351")).toEqual({
+      rating: 4.5,
+      reviewCount: 1,
+    });
+    const odd = await call(
+      "reviews/submit",
+      aReviewSubmitInput({ rating: 4.3, body: BODY_2 }),
+      author.cookie,
+    );
+    expect(odd.status).toBe(400);
+  });
+
   it("filters by course and pages newest first", async () => {
     const courses = ["CMSC351", "CMSC330", "CMSC351", "CMSC216"];
     const ids: string[] = [];
@@ -271,39 +293,38 @@ describe("writing and reading", () => {
   });
 });
 
-describe("numbers and recent reviews, without the reviews", () => {
-  it("lists reviewed courses and instructors, one row each, by month rather than minute", async () => {
+describe("numbers and the newest reviews", () => {
+  it("lists the newest reviews anywhere, by month rather than minute, with who they're about", async () => {
     await author.submit(aReviewSubmitInput());
-    advance(HOUR);
-    await reader.submit(aReviewSubmitInput({ body: BODY_2 }));
     advance(HOUR);
     await author.submit(
       aReviewSubmitInput({ reviewedName: "Clyde Kruskal", body: BODY_2 }),
     );
-    const response = await call("reviews/recent", { limit: 5 });
+    const response = await call("reviews/latest", { limit: 5 });
     expect(response.status).toBe(200);
-    expect(ReviewsRecentResultSchema.parse(await response.json())).toEqual({
-      // Kruskal's review went up last, but the same month: more reviews
-      // come first, so the order doesn't say who was reviewed a minute ago.
-      reviews: [
-        {
-          course: "CMSC351",
-          instructorId: "brandt",
-          instructorName: "Ada Brandt",
-          month: "2027-02",
-        },
-        {
-          course: "CMSC351",
-          instructorId: "kruskal",
-          instructorName: "Clyde Kruskal",
-          month: "2027-02",
-        },
-      ],
+    const latest = LatestReviewsSchema.parse(await response.json());
+    // The same month: ordered by id, so the order doesn't say which went up
+    // a minute ago.
+    const ids = latest.terpsicle?.map((r) => r.id) ?? [];
+    expect(ids).toEqual([...ids].sort());
+    expect(latest.terpsicle?.map((r) => r.instructorId).sort()).toEqual([
+      "brandt",
+      "kruskal",
+    ]);
+    expect(latest.instructors).toEqual({
+      brandt: "Ada Brandt",
+      kruskal: "Clyde Kruskal",
     });
-    const off = await call("reviews/recent", { limit: 5 }, "", {
+    // Off, ours aren't anyone's to read; PlanetTerp's still are.
+    const off = await call("reviews/latest", { limit: 5 }, "", {
       REVIEWS_ENABLED: "off",
     });
-    expect(off.status).not.toBe(200);
+    expect(off.status).toBe(200);
+    expect(LatestReviewsSchema.parse(await off.json())).toEqual({
+      terpsicle: null,
+      planetTerp: [],
+      instructors: {},
+    });
   });
 
   it("sums published reviews per instructor and per course for server renders", async () => {
@@ -323,6 +344,107 @@ describe("numbers and recent reviews, without the reviews", () => {
       depts: ["CMSC"],
     });
     expect(await data.instructor("nobody")).toBeNull();
+  });
+
+  it("rates a course's page from PlanetTerp's reviews of the course", async () => {
+    const review = (id: string, course: string, rating: number) => ({
+      id,
+      course,
+      rating,
+      expectedGrade: null,
+      body: "Hard but fair.",
+      created: "2026-04-29T15:02:11.000Z",
+    });
+    await env.DB.batch([
+      ...replacePlanetTerpReviews(
+        env.DB,
+        "kruskal",
+        [review("aaaa000000000001", "CMSC351", 4)],
+        "hash-1",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+      ...replacePlanetTerpReviews(
+        env.DB,
+        "brandt",
+        [
+          review("aaaa000000000002", "CMSC351", 2),
+          review("aaaa000000000003", "CMSC250", 5),
+        ],
+        "hash-2",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+    ]);
+    const course = PageReviewsSchema.parse(
+      await (
+        await call("reviews/page", { instructorId: null, course: "CMSC351" })
+      ).json(),
+    );
+    expect(course.planetTerpCourse).toEqual({ rating: 3, reviewCount: 2 });
+    const none = PageReviewsSchema.parse(
+      await (
+        await call("reviews/page", { instructorId: null, course: "CMSC420" })
+      ).json(),
+    );
+    expect(none.planetTerpCourse).toBeNull();
+    // An instructor's page keeps PlanetTerp's own numbers for them.
+    const instructor = PageReviewsSchema.parse(
+      await (
+        await call("reviews/page", { instructorId: "brandt", course: null })
+      ).json(),
+    );
+    expect(instructor.planetTerpCourse).toBeUndefined();
+  });
+
+  it("pages through PlanetTerp's in each order, a page at a time", async () => {
+    // Ratings 1–5, a day apart, the newest the highest; two share a 3.
+    const days = [
+      ["bbbb000000000001", 1, "2026-01-01"],
+      ["bbbb000000000002", 3, "2026-01-02"],
+      ["bbbb000000000003", 3, "2026-01-03"],
+      ["bbbb000000000004", 4, "2026-01-04"],
+      ["bbbb000000000005", 5, "2026-01-05"],
+    ] as const;
+    await env.DB.batch(
+      replacePlanetTerpReviews(
+        env.DB,
+        "brandt",
+        days.map(([id, rating, day]) => ({
+          id,
+          course: "CMSC351",
+          rating,
+          expectedGrade: null,
+          body: "Hard but fair.",
+          created: `${day}T12:00:00.000Z`,
+        })),
+        "hash-sorted",
+        new Date("2026-09-26T05:17:00.000Z"),
+      ),
+    );
+    const read = async (sort: string) => {
+      const ids: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const page = PlanetTerpReviewsResultSchema.parse(
+          await (
+            await call("planetterp/reviews", {
+              instructorId: "brandt",
+              course: null,
+              cursor,
+              sort,
+              limit: 2,
+            })
+          ).json(),
+        );
+        ids.push(...page.reviews.map((r) => r.id.slice(-1)));
+        cursor = page.next;
+      } while (cursor);
+      return ids.join("");
+    };
+    expect(await read("latest")).toBe("54321");
+    expect(await read("oldest")).toBe("12345");
+    // The two 3s, newest first.
+    expect(await read("highest")).toBe("54321");
+    expect(await read("lowest")).toBe("13245");
   });
 });
 

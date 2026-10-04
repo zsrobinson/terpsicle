@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -5,9 +6,17 @@ import {
   RouterProvider,
   stringifySearchWith,
 } from "@tanstack/react-router";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Flags,
@@ -16,17 +25,21 @@ import type {
   TodoSaveTaskInput,
 } from "~/core/schema";
 import {
-  type CalendarView,
   ownTaskDue,
   ownTaskItem,
   TEST_FEED_TOKENS,
   testFeedLink,
 } from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
+import { prefsDb } from "~/features/prefs/save";
 import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
+import {
+  readSidebarWidth,
+  writeSidebarWidth,
+} from "~/state/sidebar-width-pref";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Composer } from "./composer";
@@ -130,18 +143,30 @@ function signedIn(on = true, chat: Flags["chat"] = "off") {
   });
 }
 
-function renderTodo(view: CalendarView = "week", anchor?: string) {
-  return wrap(<TodoPage view={view} anchor={anchor} />);
+function renderTodo(anchor?: string) {
+  return wrap(<TodoPage anchor={anchor} />);
 }
 
-/** Opens one of the bar's panels (a popover, at a desktop's width). */
-async function openPanel(
+/** The workbench's sidebar, at a desktop's width. */
+function sidebar() {
+  return screen.getByRole("complementary", { name: "Sidebar" });
+}
+
+/**
+ * Opens Todo's sync from the bar's cloud, beside the bell: ELMS's and the
+ * account's syncs, Sync now, and ELMS's link. A popover, at a desktop's width.
+ */
+async function openElms(
   user: ReturnType<typeof userEvent.setup>,
-  name: "Add a task" | "Courses and ELMS",
-) {
+): Promise<HTMLElement> {
   const bar = await screen.findByRole("banner");
-  await user.click(await within(bar).findByRole("button", { name }));
-  return screen.findByRole("dialog", { name });
+  await user.click(await within(bar).findByRole("button", { name: "Sync" }));
+  return screen.findByRole("dialog", { name: "Sync" });
+}
+
+/** The fill's width, as the bar draws it. */
+function fillOf(bar: HTMLElement): string {
+  return (within(bar).getByTestId("progress-fill") as HTMLElement).style.width;
 }
 
 beforeEach(() => {
@@ -154,6 +179,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  toast.dismiss();
   vi.useRealTimers();
   useAccount.setState({ status: "loading", flags: FLAGS_OFF, user: null });
 });
@@ -186,8 +212,9 @@ describe("who's looking", () => {
       screen.getByRole("link", { name: "Sign in with Google" }),
     ).toHaveAttribute("href", expect.stringContaining("return=%2Ftodo"));
     expect(screen.getByText(/^A week in Todo/)).toBeVisible();
-    // A picture: nothing in it can be pressed.
+    // A picture: nothing in it can be pressed, and no sidebar yet.
     expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("complementary", { name: "Sidebar" })).toBeNull();
     expect(client.list).not.toHaveBeenCalled();
     // A page you read, like Chat's and Plan's front doors: the footer.
     const footer = screen.getByRole("contentinfo");
@@ -207,50 +234,49 @@ describe("who's looking", () => {
     expect(screen.getByText(/Coming soon/)).toBeVisible();
   });
 
-  it("says what Todo does on the first visit, with its two ways in", async () => {
+  it("says what Todo does on the first visit, over the empty week, with its two ways in", async () => {
     fakeClient({ feed: null });
     signedIn();
     renderTodo();
     expect(
-      await screen.findByRole("heading", {
-        level: 2,
-        name: "Your deadlines, on a calendar",
-      }),
+      await screen.findByText(/^Your deadlines, on a calendar/),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Connect ELMS" })).toHaveAttribute(
-      "href",
-      "/todo/connect",
-    );
     expect(
       screen.getByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
+    // The bar's line, under the week, says there's no link yet.
+    expect(
+      within(screen.getByRole("banner")).getByText("ELMS isn't connected"),
+    ).toBeVisible();
     const user = userEvent.setup();
-    await user.click(
-      within(screen.getByRole("main")).getByRole("button", {
-        name: "Add a task",
-      }),
-    );
-    const field = await screen.findByRole("textbox", { name: "New task" });
+    const main = screen.getByRole("main");
+    await user.click(within(main).getByRole("button", { name: "Add a task" }));
+    const field = screen.getByRole("textbox", { name: "New task" });
     await waitFor(() => expect(field).toHaveFocus());
-    // The paste is in the bar's courses and ELMS.
-    await openPanel(user, "Courses and ELMS");
-    expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
+    // Connect ELMS opens the sync's paste.
+    await user.click(
+      within(main).getByRole("button", { name: "Connect ELMS" }),
+    );
+    const connect = await screen.findByRole("dialog", { name: "Sync" });
+    expect(within(connect).getByLabelText("ELMS calendar link")).toBeVisible();
+    expect(within(connect).getByText(/Click Calendar Feed/)).toBeVisible();
   });
 
-  it("starts a calendar without ELMS from the first visit", async () => {
+  it("starts a week without ELMS from the sidebar's composer", async () => {
     fakeClient({ feed: null, items: [] });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Add a task");
     await user.type(
-      await screen.findByRole("textbox", { name: "New task" }),
+      await within(
+        await screen.findByRole("region", { name: "Add task" }),
+      ).findByRole("textbox", { name: "New task" }),
       "Email my advisor{Enter}",
     );
-    expect(await screen.findByText("Email my advisor")).toBeVisible();
-    expect(
-      screen.queryByRole("heading", { name: "Your deadlines, on a calendar" }),
-    ).toBeNull();
+    // No date: under No date, right under the composer.
+    const noDate = await screen.findByRole("region", { name: "No date" });
+    expect(within(noDate).getByText("Email my advisor")).toBeVisible();
+    expect(screen.queryByText(/^Your deadlines, on a calendar/)).toBeNull();
   });
 });
 
@@ -260,7 +286,7 @@ describe("connecting", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Courses and ELMS");
+    const dialog = await openElms(user);
     const input = await screen.findByLabelText("ELMS calendar link");
     expect(input).toHaveAttribute("type", "url");
     expect(input).toHaveAttribute("autocomplete", "off");
@@ -268,25 +294,31 @@ describe("connecting", () => {
     expect(input).toHaveAttribute("data-private");
     expect(input).toHaveClass("ph-no-capture");
     await user.type(input, "https://example.com/feed.ics");
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(screen.getByText(/That isn't an ELMS calendar link/)).toBeVisible();
     expect(client.connect).not.toHaveBeenCalled();
     expect(input).toHaveValue("");
   });
 
-  it("sends a feed link once, clears it, and shows the calendar", async () => {
+  it("sends a feed link once, clears it, and fills in the week", async () => {
     const client = fakeClient({ feed: null });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
     const link = testFeedLink(TEST_FEED_TOKENS.calendar);
-    await openPanel(user, "Courses and ELMS");
+    const dialog = await openElms(user);
     const input = await screen.findByLabelText("ELMS calendar link");
     await user.type(input, link);
     client.answer({ feed: aTodoFeedState(), items: [aTodoItem()] });
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(client.connect).toHaveBeenCalledWith({ url: link });
     expect(await screen.findByText("Project 2")).toBeVisible();
+    // The popover closes once it's connected.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.body.innerHTML).not.toContain(TEST_FEED_TOKENS.calendar);
   });
 
@@ -295,14 +327,16 @@ describe("connecting", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Courses and ELMS");
+    const dialog = await openElms(user);
     const input = await screen.findByLabelText("ELMS calendar link");
     client.connect.mockResolvedValueOnce({
       status: "unreachable",
       reason: "timeout",
     });
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(
       await screen.findByText(
         "ELMS took too long to send your calendar. Try again in a minute.",
@@ -317,7 +351,9 @@ describe("connecting", () => {
       reason: "http-404",
     });
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.gone));
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(
       await screen.findByText(/^ELMS doesn't know that link anymore/),
     ).toBeVisible();
@@ -340,10 +376,12 @@ describe("connecting", () => {
         answer = resolve;
       }),
     );
-    await openPanel(user, "Courses and ELMS");
+    const dialog = await openElms(user);
     const input = await screen.findByLabelText("ELMS calendar link");
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(
       screen.getByRole("button", { name: "Checking ELMS…" }),
     ).toBeDisabled();
@@ -353,7 +391,7 @@ describe("connecting", () => {
     );
     answer({ status: "unreachable", reason: "timeout" });
     expect(
-      await screen.findByRole("button", { name: "Connect ELMS" }),
+      await within(dialog).findByRole("button", { name: "Connect ELMS" }),
     ).toBeVisible();
     expect(input).toHaveAccessibleDescription(/^ELMS took too long/);
   });
@@ -365,10 +403,12 @@ describe("connecting", () => {
     renderTodo();
     const user = userEvent.setup();
     client.connect.mockRejectedValueOnce(new ApiCallError("unauthorized"));
-    await openPanel(user, "Courses and ELMS");
+    const dialog = await openElms(user);
     const input = await screen.findByLabelText("ELMS calendar link");
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(
       await screen.findByText(
         "You've been signed out. Sign in again to connect ELMS.",
@@ -376,7 +416,9 @@ describe("connecting", () => {
     ).toBeVisible();
     client.connect.mockRejectedValueOnce(new ApiCallError("network"));
     await user.type(input, testFeedLink(TEST_FEED_TOKENS.calendar));
-    await user.click(screen.getByRole("button", { name: "Connect ELMS" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Connect ELMS" }),
+    );
     expect(
       await screen.findByText(
         "That didn't go through. Check your connection and try again.",
@@ -387,6 +429,111 @@ describe("connecting", () => {
       "todo_connect_result",
       expect.anything(),
     );
+  });
+});
+
+describe("syncing, in the bar", () => {
+  it("says under the week when ELMS synced, and the cloud syncs both and takes a new link", async () => {
+    const client = fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    renderTodo();
+    const bar = await screen.findByRole("banner");
+    // BarTitle's pattern: the week, then the line.
+    expect(
+      within(bar).getByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
+    ).toBeVisible();
+    expect(
+      await within(bar).findByText("ELMS synced 14 minutes ago"),
+    ).toBeVisible();
+    // No sync header in the sidebar: it starts with Add a task.
+    expect(
+      within(sidebar()).getAllByRole("heading", { level: 2 })[0],
+    ).toHaveTextContent("Add task");
+    const user = userEvent.setup();
+    const settings = await openElms(user);
+    // Both syncs: ELMS, and the account's own tasks.
+    expect(within(settings).getByText("Synced 14 minutes ago")).toBeVisible();
+    expect(within(settings).getByText(/^Up to date /)).toBeVisible();
+    const lists = client.list.mock.calls.length;
+    await user.click(
+      within(settings).getByRole("button", { name: "Sync now" }),
+    );
+    expect(client.refresh).toHaveBeenCalled();
+    // ELMS had nothing new: the account's list is read again anyway.
+    await waitFor(() =>
+      expect(client.list.mock.calls.length).toBeGreaterThan(lists),
+    );
+    // The fake answers "too soon".
+    expect(
+      await within(settings).findByText(
+        "ELMS was synced in the last 5 minutes.",
+      ),
+    ).toBeVisible();
+    // A new link, the same form as connecting.
+    const link = testFeedLink(TEST_FEED_TOKENS.calendar);
+    await user.type(
+      within(settings).getByLabelText("ELMS calendar link"),
+      link,
+    );
+    await user.click(
+      within(settings).getByRole("button", { name: "Save the new link" }),
+    );
+    expect(client.connect).toHaveBeenCalledWith({ url: link });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Disconnecting and files are on /todo/connect.
+    await openElms(user);
+    expect(
+      screen.getByRole("link", { name: "Disconnect or add a file" }),
+    ).toHaveAttribute("href", "/todo/connect");
+  });
+
+  it("says it's syncing ELMS in words, not with a spinner", async () => {
+    const client = fakeClient({
+      feed: aTodoFeedState({ lastSuccessAt: "2026-09-28T15:00:00.000Z" }),
+      items: [aTodoItem()],
+    });
+    let answer: (v: Awaited<ReturnType<TodoClient["refresh"]>>) => void =
+      () => {};
+    client.refresh.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    signedIn();
+    renderTodo();
+    expect(await screen.findByText("Syncing ELMS…")).toBeVisible();
+    act(() => answer({ status: "fetched", feed: aTodoFeedState() }));
+    expect(await screen.findByText(/^ELMS synced/)).toBeVisible();
+  });
+
+  it("says, in place, when ELMS stopped sharing the link, and takes a new one", async () => {
+    fakeClient({ feed: aTodoFeedState({ status: "broken" }), items: [] });
+    signedIn();
+    renderTodo();
+    expect(
+      await screen.findByText("ELMS stopped sharing your calendar"),
+    ).toBeVisible();
+    const settings = await openElms(userEvent.setup());
+    expect(
+      within(settings).getByText(
+        "ELMS stopped sharing your calendar. Paste a new link.",
+      ),
+    ).toBeVisible();
+    expect(within(settings).getByLabelText("ELMS calendar link")).toBeVisible();
+  });
+
+  it("keeps file items without ELMS, and offers to connect it", async () => {
+    fakeClient({
+      feed: null,
+      items: [aTodoItem({ uid: "file-1", source: "file", link: null })],
+    });
+    signedIn();
+    renderTodo();
+    const connect = await openElms(userEvent.setup());
+    expect(
+      within(connect).getByText(/Some deadlines came from a file/),
+    ).toBeVisible();
+    expect(within(connect).getByLabelText("ELMS calendar link")).toBeVisible();
   });
 });
 
@@ -424,16 +571,14 @@ describe("the week", () => {
     }),
   ];
 
-  it("keeps the family bar, and focus in it, as the account and the calendar load", async () => {
+  it("keeps the family bar, and focus in it, as the account and the week load", async () => {
     fakeClient({ items });
     useAccount.setState({ status: "loading", flags: FLAGS_OFF, user: null });
     renderTodo();
     const feedback = await screen.findByRole("button", { name: "Feedback" });
     feedback.focus();
     act(() => signedIn());
-    expect(
-      await screen.findByText("4 open · ELMS feed checked 14 minutes ago"),
-    ).toBeVisible();
+    expect(await screen.findByText("ELMS synced 14 minutes ago")).toBeVisible();
     // The same bar, not a new one: focus stayed where it was.
     expect(feedback.isConnected).toBe(true);
     expect(feedback).toHaveFocus();
@@ -461,56 +606,89 @@ describe("the week", () => {
     expect(screen.getAllByTestId("todo-chip")).toHaveLength(4);
   });
 
-  it("heads the side panel's sections at the days' level, under the title", async () => {
+  it("heads every day a step darker than its body, and hovers under the heading", async () => {
     fakeClient({ items });
     signedIn();
     renderTodo();
     await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" });
-    // The panels open under the bar's h1: an h3 there would skip a level.
-    const user = userEvent.setup();
-    await openPanel(user, "Add a task");
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Add a task" }),
-    ).toBeVisible();
-    await openPanel(user, "Courses and ELMS");
-    for (const name of ["This week", "ELMS", "Weeks start on"])
-      expect(screen.getByRole("heading", { level: 2, name })).toBeVisible();
+    const day = (date: string) => {
+      const el = document.getElementById(`day-${date}`);
+      if (!el) throw new Error(`no ${date}`);
+      return el;
+    };
+    const head = (date: string) =>
+      within(day(date)).getByRole("heading", { level: 2 });
+    const add = (date: string) =>
+      within(day(date)).getByRole("button", { name: /^Add a task on / });
+    // A weekday: one step on its heading, none on its body.
+    expect(head("2026-09-29")).toHaveClass("bg-panel");
+    expect(day("2026-09-29")).not.toHaveClass("bg-panel", "bg-hover");
+    expect(add("2026-09-29")).toHaveClass("hover:bg-panel/50");
+    // The weekend: two steps over one.
+    for (const date of ["2026-10-03", "2026-10-04"]) {
+      expect(head(date)).toHaveClass("bg-hover");
+      expect(day(date)).toHaveClass("bg-panel");
+      expect(add(date)).toHaveClass("hover:bg-hover/40");
+    }
+    // Today (Monday, Sep 28): two steps on its heading, none on its body.
+    expect(head("2026-09-28")).toHaveClass("bg-hover");
+    expect(day("2026-09-28")).not.toHaveClass("bg-panel", "bg-hover");
+    expect(day("2026-09-28")).toHaveAttribute("data-day", "today");
   });
 
-  it("moves a week at a time with links, so each week is a URL", async () => {
+  it("moves a week at a time with one group of links in the bar, so each week is a URL", async () => {
     fakeClient({ items });
     signedIn();
-    renderTodo("week", "2026-10-07");
+    renderTodo("2026-10-07");
     expect(
       await screen.findByRole("heading", { level: 1, name: "Oct 5 – Oct 11" }),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Back a week" })).toHaveAttribute(
-      "href",
-      "/todo?view=week&date=2026-09-28",
-    );
-    expect(screen.getByRole("link", { name: "Ahead a week" })).toHaveAttribute(
-      "href",
-      "/todo?view=week&date=2026-10-12",
-    );
-    expect(screen.getByRole("link", { name: "Today" })).toHaveAttribute(
-      "href",
-      "/todo?view=week",
-    );
-    const views = screen.getByRole("navigation", { name: "Todo views" });
-    expect(within(views).getByRole("link", { name: "Month" })).toHaveAttribute(
-      "href",
-      "/todo?view=month&date=2026-10-07",
-    );
-    expect(within(views).getByRole("link", { name: "Week" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    const bar = screen.getByRole("banner");
+    const back = within(bar).getByRole("link", { name: "Back a week" });
+    expect(back).toHaveAttribute("href", "/todo?date=2026-09-28");
+    expect(
+      within(bar).getByRole("link", { name: "Ahead a week" }),
+    ).toHaveAttribute("href", "/todo?date=2026-10-12");
+    const today = within(bar).getByRole("link", { name: "Today" });
+    expect(today).toHaveAttribute("href", "/todo");
+    // One bordered group, the kit's segments: no offset shadow.
+    const group = within(bar).getByRole("navigation", { name: "Weeks" });
+    expect(group).toHaveClass("border-hairline-strong");
+    expect(group.querySelector("[class*='shadow-offset']")).toBeNull();
+    // Off this week, Today looks like Back and Ahead: the same segment,
+    // with no fill of its own (the arrows only size their icon).
+    const look = (el: HTMLElement) =>
+      el.className
+        .split(" ")
+        .filter((c) => !/^(active|w-7|px-0|px-2\.5|\[&_svg\]:size-4)$/.test(c))
+        .sort();
+    const ahead = within(bar).getByRole("link", { name: "Ahead a week" });
+    expect(look(today)).toEqual(look(ahead));
+    // Nothing else of Todo's is in the bar, and there's one view.
+    expect(
+      within(bar).queryByRole("button", { name: "Add a task" }),
+    ).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Todo views" })).toBeNull();
+  });
+
+  it("shows Today selected on this week, with nothing to do", async () => {
+    fakeClient({ items });
+    signedIn();
+    renderTodo();
+    const bar = await screen.findByRole("banner");
+    const today = await within(bar).findByRole("link", { name: "Today" });
+    // The group's current segment: filled, and not a way anywhere.
+    expect(today).toHaveAttribute("aria-current", "page");
+    expect(today).toHaveAttribute("aria-disabled", "true");
+    expect(today).not.toHaveAttribute("href");
+    // An <a> like Back and Ahead, so the group's borders are the same.
+    expect(today.tagName).toBe("A");
   });
 
   it("loads a week the list doesn't hold yet", async () => {
     const client = fakeClient({ items });
     signedIn();
-    renderTodo("week", "2027-01-06");
+    renderTodo("2027-01-06");
     await screen.findByRole("heading", { level: 1, name: /Jan 4 – Jan 10/ });
     await waitFor(() =>
       expect(client.list).toHaveBeenCalledWith({
@@ -520,26 +698,15 @@ describe("the week", () => {
     );
   });
 
-  it("starts weeks on Sunday when that's the setting, and changes it from the panel", async () => {
+  it("starts on Monday, even for an account that picked Sunday before", async () => {
     showSyncedPrefs({ todo: { weekStart: "sunday" } });
     fakeClient({ items });
     signedIn();
     renderTodo();
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Sep 27 – Oct 3" }),
-    ).toBeVisible();
-    const user = userEvent.setup();
-    await openPanel(user, "Courses and ELMS");
-    await user.click(screen.getByRole("radio", { name: "Monday" }));
-    expect(
       await screen.findByRole("heading", { level: 1, name: "Sep 28 – Oct 4" }),
     ).toBeVisible();
-    expect(track).toHaveBeenCalledWith("todo_week_start_changed", {
-      start: "monday",
-    });
-    expect(
-      JSON.parse(window.localStorage.getItem("terpsicle:prefs") ?? "{}"),
-    ).toMatchObject({ todo: { weekStart: "monday" } });
+    expect(screen.queryByRole("radio", { name: "Sunday" })).toBeNull();
   });
 
   it("renders what professors write as plain text", async () => {
@@ -566,9 +733,6 @@ describe("the week", () => {
       done: true,
       via: "week",
     });
-    expect(
-      screen.getByText("3 open · ELMS feed checked 14 minutes ago"),
-    ).toBeVisible();
     expect(await screen.findByText("Marked Midterm 1 done")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(client.done).toHaveBeenLastCalledWith({
@@ -621,123 +785,9 @@ describe("the week", () => {
       within(await screen.findByRole("dialog")).queryByRole("link"),
     ).toBeNull();
   });
-
-  it("says it's checking ELMS in words, not with a spinner", async () => {
-    const client = fakeClient({
-      feed: aTodoFeedState({ lastSuccessAt: "2026-09-28T15:00:00.000Z" }),
-      items,
-    });
-    let answer: (v: Awaited<ReturnType<TodoClient["refresh"]>>) => void =
-      () => {};
-    client.refresh.mockReturnValueOnce(
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
-    signedIn();
-    renderTodo();
-    expect(
-      (await screen.findAllByText(/Checking ELMS…/)).length,
-    ).toBeGreaterThan(0);
-    act(() => answer({ status: "too-soon", feed: aTodoFeedState() }));
-    await openPanel(userEvent.setup(), "Courses and ELMS");
-    expect(
-      await screen.findByText("ELMS was checked in the last 5 minutes."),
-    ).toBeVisible();
-  });
-
-  it("says, in the bar and in place, when ELMS stopped sharing the link", async () => {
-    fakeClient({ feed: aTodoFeedState({ status: "broken" }), items });
-    signedIn();
-    renderTodo();
-    expect(
-      await screen.findByText(
-        /^\d+ open · ELMS stopped sharing your calendar$/,
-      ),
-    ).toBeVisible();
-    await openPanel(userEvent.setup(), "Courses and ELMS");
-    expect(
-      await screen.findByText(
-        "ELMS stopped sharing your calendar. Paste a new link.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Paste a new link" }),
-    ).toHaveAttribute("href", "/todo/connect");
-  });
-
-  it("keeps file items without ELMS, and offers to connect it", async () => {
-    fakeClient({ feed: null, items: [items[3] as TodoItem] });
-    signedIn();
-    renderTodo();
-    await openPanel(userEvent.setup(), "Courses and ELMS");
-    expect(
-      await screen.findByText(/Some deadlines came from a file/),
-    ).toBeVisible();
-    expect(screen.getByLabelText("ELMS calendar link")).toBeVisible();
-  });
 });
 
-describe("the month and the list", () => {
-  const many = ["a", "b", "c", "d", "e"].map((n) =>
-    aTodoItem({
-      uid: `event-assignment-${n}`,
-      title: `Reading ${n}`,
-      dueDate: "2026-10-14",
-      dueAt: null,
-    }),
-  );
-
-  it("shows the month, with a few items a day and the rest a week away", async () => {
-    fakeClient({ items: [aTodoItem(), ...many] });
-    signedIn();
-    renderTodo("month", "2026-10-14");
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "October 2026" }),
-    ).toBeVisible();
-    const day = document.getElementById("day-2026-10-14");
-    if (!day) throw new Error("no day");
-    expect(within(day).getAllByTestId("todo-chip")).toHaveLength(3);
-    expect(within(day).getByRole("link", { name: "+2 more" })).toHaveAttribute(
-      "href",
-      "/todo?view=week&date=2026-10-14",
-    );
-    // Monday-first rows, from the week the 1st is in.
-    expect(document.getElementById("day-2026-09-28")).not.toBeNull();
-    expect(document.getElementById("day-2026-11-01")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Back a month" })).toHaveAttribute(
-      "href",
-      "/todo?view=month&date=2026-09-01",
-    );
-  });
-
-  it("lists everything by day, and says how long until what's due today", async () => {
-    fakeClient({
-      items: [
-        aTodoItem({
-          uid: "today-quiz",
-          title: "Quiz 2",
-          dueDate: "2026-09-28",
-          dueAt: "2026-09-28T19:00:00.000Z",
-        }),
-        aTodoItem(),
-      ],
-    });
-    signedIn();
-    renderTodo("list");
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "Everything due" }),
-    ).toBeVisible();
-    const quiz = screen.getByText("Quiz 2").closest("li");
-    if (!quiz) throw new Error("no row");
-    // Noon now; the quiz is at 3pm.
-    expect(within(quiz).getByText("Due in 3 hours")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Tomorrow" })).toBeVisible();
-    expect(screen.queryByRole("link", { name: "Back a week" })).toBeNull();
-  });
-});
-
-describe("courses in the bar's panel", () => {
+describe("the week's progress in the sidebar", () => {
   const week: TodoItem[] = [
     aTodoItem({ uid: "cmsc-a", dueDate: "2026-09-29" }),
     aTodoItem({ uid: "cmsc-b", title: "Lab 5", dueDate: "2026-10-02" }),
@@ -760,21 +810,68 @@ describe("courses in the bar's panel", () => {
     }),
   ];
 
-  it("charts each course's week, and the weeks before it, in words too", async () => {
+  it("has a bar for the week and one per course, in words too", async () => {
     fakeClient({ items: week, done: ["cmsc-a", "cmsc-old"] });
     signedIn();
     renderTodo();
-    await openPanel(userEvent.setup(), "Courses and ELMS");
-    const courses = await screen.findByRole("list", { name: "Courses" });
+    const section = await screen.findByRole("region", { name: "This week" });
+    const all = await within(section).findByRole("progressbar", {
+      name: "This week, every course",
+    });
+    expect(all).toHaveAttribute("aria-valuetext", "1 of 4 done");
+    expect(fillOf(all)).toBe("25%");
+    const courses = within(section).getByRole("list", { name: "Courses" });
     const cmsc = within(courses).getByRole("listitem", { name: "CMSC216" });
-    expect(within(cmsc).getByText("1 of 2 done this week")).toBeVisible();
+    expect(within(cmsc).getByText("1 of 2 done")).toBeVisible();
     expect(
-      within(cmsc).getByRole("img", { name: /^CMSC216 by week/ }),
-    ).toHaveAccessibleName(
-      "CMSC216 by week: week of Sep 7: nothing due; week of Sep 14: nothing due; week of Sep 21: 1 of 1 done; week of Sep 28: 1 of 2 done",
+      within(cmsc).getByRole("progressbar", { name: "CMSC216 this week" }),
+    ).toHaveAttribute("aria-valuetext", "1 of 2 done");
+    // No stacked columns of past weeks.
+    expect(within(section).queryByRole("img")).toBeNull();
+  });
+
+  it("fills the bars as things are checked off, and says so when all's done", async () => {
+    fakeClient({ items: week, done: ["cmsc-a"] });
+    signedIn();
+    renderTodo();
+    const section = await screen.findByRole("region", { name: "This week" });
+    const cmsc = await within(section).findByRole("progressbar", {
+      name: "CMSC216 this week",
+    });
+    expect(fillOf(cmsc)).toBe("50%");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("checkbox", { name: "Done: Lab 5" }));
+    expect(fillOf(cmsc)).toBe("100%");
+    expect(cmsc).toHaveAttribute("aria-valuetext", "All 2 done");
+    const row = within(section).getByRole("listitem", { name: "CMSC216" });
+    expect(within(row).getByText("All 2 done")).toBeVisible();
+    // The words keep one height with or without the check, so finishing
+    // a course (or the week) moves nothing.
+    expect(within(row).getByText("All 2 done")).toHaveClass("h-5");
+    expect(
+      within(section).getByRole("progressbar", {
+        name: "This week, every course",
+      }),
+    ).toHaveAttribute("aria-valuetext", "2 of 4 done");
+    // It slides, unless Reduce Motion is on.
+    expect(within(cmsc).getByTestId("progress-fill")).toHaveClass(
+      "transition-[width]",
+      "motion-reduce:transition-none",
     );
-    const panel = screen.getByRole("region", { name: "This week" });
-    expect(within(panel).getByText("1 of 4 done")).toBeVisible();
+  });
+
+  it("follows the week on screen", async () => {
+    fakeClient({ items: week, done: ["cmsc-old"] });
+    signedIn();
+    renderTodo("2026-09-22");
+    const section = await screen.findByRole("region", {
+      name: "Week of Sep 21",
+    });
+    expect(
+      await within(section).findByRole("progressbar", {
+        name: "Week of Sep 21, every course",
+      }),
+    ).toHaveAttribute("aria-valuetext", "Done");
   });
 
   it("hides a course with Undo, and shows it again from its row", async () => {
@@ -782,7 +879,6 @@ describe("courses in the bar's panel", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Courses and ELMS");
     await user.click(
       await screen.findByRole("button", { name: "Hide Terps Robotics Club" }),
     );
@@ -792,7 +888,9 @@ describe("courses in the bar's panel", () => {
     });
     expect(screen.queryByText("Robotics build night")).toBeNull();
     // Hidden items count in nothing.
-    expect(screen.getByText(/^4 open/)).toBeVisible();
+    expect(
+      screen.getByRole("progressbar", { name: "This week, every course" }),
+    ).toHaveAttribute("aria-valuetext", "0 of 3 done");
     expect(await screen.findByText("Hid Terps Robotics Club")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(client.hideCourse).toHaveBeenLastCalledWith({
@@ -807,7 +905,6 @@ describe("courses in the bar's panel", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Courses and ELMS");
     expect(await screen.findByText("Hidden everywhere in Todo")).toBeVisible();
     expect(screen.queryByText("WebAssign 5")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Show MATH240" }));
@@ -818,23 +915,59 @@ describe("courses in the bar's panel", () => {
     expect(await screen.findByText("WebAssign 5")).toBeVisible();
   });
 
-  it("links each course to its chat room while Chat is on", async () => {
+  it("links each course to its chat room while Chat is on, with Chat's mark", async () => {
     fakeClient({ items: week });
     signedIn(true, "on");
     renderTodo();
-    await openPanel(userEvent.setup(), "Courses and ELMS");
-    expect(
-      await screen.findByRole("link", { name: "View chat for CMSC216" }),
-    ).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
+    const link = await screen.findByRole("link", {
+      name: "View chat for CMSC216",
+    });
+    expect(link).toHaveAttribute("href", "/chat/CMSC216/everyone");
+    expect(link.querySelector('[data-mark="chat"]')).not.toBeNull();
   });
 
   it("has no chat links while Chat is off", async () => {
     fakeClient({ items: week });
     signedIn();
     renderTodo();
-    await openPanel(userEvent.setup(), "Courses and ELMS");
     await screen.findByRole("list", { name: "Courses" });
     expect(screen.queryByRole("link", { name: /^View chat/ })).toBeNull();
+  });
+
+  it("links the week to its classes in Schedule", async () => {
+    fakeClient({ items: week });
+    signedIn();
+    renderTodo();
+    const section = await screen.findByRole("region", { name: "This week" });
+    expect(
+      within(section).getByRole("link", { name: "View schedule" }),
+    ).toHaveAttribute("href", "/schedule?term=202608");
+  });
+});
+
+describe("the sidebar's width", () => {
+  it("is the workbenches' one width, dragged or keyed, and kept", async () => {
+    // Saved where every workbench keeps it, the scheduler's prefs.
+    await writeSidebarWidth(prefsDb(), 400);
+    fakeClient({ items: [aTodoItem()] });
+    signedIn();
+    renderTodo();
+    const handle = await screen.findByRole("separator", {
+      name: "Sidebar width",
+    });
+    expect(handle).toHaveAttribute("aria-controls", "todo-sidebar");
+    expect(handle).toHaveAttribute("aria-valuenow", "400");
+    const user = userEvent.setup();
+    handle.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(handle).toHaveAttribute("aria-valuenow", "416");
+    expect(window.localStorage.getItem("terpsicle:sidebar-width")).toBe("416");
+    expect(
+      document.documentElement.style.getPropertyValue("--sidebar-width"),
+    ).toBe("416px");
+    await waitFor(async () =>
+      expect(await readSidebarWidth(prefsDb())).toBe(416),
+    );
   });
 });
 
@@ -844,17 +977,16 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Add a task");
     const field = await screen.findByRole("textbox", { name: "New task" });
     expect(field).toHaveAttribute("data-private");
     await user.type(field, "PS3 due tomorrow 11:59pm cmsc216");
-    const chips = screen.getByRole("list", { name: "The task will be" });
-    expect(within(chips).getByText("Tue, Sep 29")).toBeVisible();
-    expect(within(chips).getByText("11:59pm")).toBeVisible();
-    expect(within(chips).getByText("CMSC216")).toBeVisible();
-    // The pickers show what the words said.
+    // No chips: the words fill in the pickers.
+    expect(screen.queryByRole("list", { name: "The task will be" })).toBeNull();
     expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-29");
     expect(screen.getByLabelText("Time")).toHaveValue("23:59");
+    expect(screen.getByRole("combobox", { name: "Course" })).toHaveTextContent(
+      "CMSC216",
+    );
     // The recognized words are marked in the layer behind the field.
     expect(
       [...document.querySelectorAll("mark")].map((m) => m.textContent),
@@ -874,26 +1006,25 @@ describe("the composer", () => {
       course: true,
       typed: true,
     });
-    // It closes on the add, to show the task.
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Add a task" })).toBeNull(),
-    );
+    // The field's ready for the next one, and the task is on its day.
+    expect(field).toHaveValue("");
+    expect(field).toHaveFocus();
     expect(await screen.findByText("PS3")).toBeVisible();
   });
 
-  it("takes a part off with its chip, leaving its words in the title", async () => {
+  it("takes a part off by clearing its picker, leaving its words in the title", async () => {
     const client = fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Read the Sun Also Rises sun",
     );
-    await user.click(screen.getByRole("button", { name: "No date" }));
-    expect(screen.queryByRole("list", { name: "The task will be" })).toBeNull();
-    await user.keyboard("{Enter}");
+    const date = screen.getByLabelText("Due date");
+    expect(date).toHaveValue("2026-10-04");
+    await user.clear(date);
+    await user.click(screen.getByRole("button", { name: "Add task" }));
     expect(client.saveTask).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Read the Sun Also Rises sun",
@@ -907,7 +1038,6 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Return library books fri",
@@ -927,7 +1057,7 @@ describe("the composer", () => {
     });
   });
 
-  it("starts a task on a day clicked on the calendar", async () => {
+  it("starts a task on a day clicked on the week, and with Q", async () => {
     fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();
@@ -935,14 +1065,14 @@ describe("the composer", () => {
     await user.click(
       await screen.findByRole("button", { name: "Add a task on Wed, Sep 30" }),
     );
-    // The bar's composer opens, with the day.
-    const field = await screen.findByRole("textbox", { name: "New task" });
+    // The sidebar's composer takes the day.
+    const field = screen.getByRole("textbox", { name: "New task" });
     await waitFor(() => expect(field).toHaveFocus());
-    expect(
-      within(screen.getByRole("list", { name: "The task will be" })).getByText(
-        "Wed, Sep 30",
-      ),
-    ).toBeVisible();
+    expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-30");
+    await user.keyboard("{Escape}");
+    field.blur();
+    await user.keyboard("q");
+    await waitFor(() => expect(field).toHaveFocus());
   });
 
   it("takes a task off again when it didn't save, and says so", async () => {
@@ -951,7 +1081,6 @@ describe("the composer", () => {
     signedIn();
     renderTodo();
     const user = userEvent.setup();
-    await openPanel(user, "Add a task");
     await user.type(
       await screen.findByRole("textbox", { name: "New task" }),
       "Buy a lab coat tomorrow{Enter}",
@@ -961,23 +1090,24 @@ describe("the composer", () => {
   });
 });
 
-describe("the composer on a phone", () => {
+describe("the composer, folded", () => {
   it("is the field alone until it's in use, then opens its pickers", async () => {
     fakeClient();
     render(
       <TooltipProvider delayDuration={0}>
-        <Composer
-          courses={["CMSC216"]}
-          colors={{}}
-          weekStart="monday"
-          compact
-        />
+        <Composer courses={["CMSC216"]} colors={{}} compact />
         <button type="button">elsewhere</button>
       </TooltipProvider>,
     );
     const user = userEvent.setup();
     const field = screen.getByRole("textbox", { name: "New task" });
-    expect(screen.getByText(/^Try “PS3 due fri/)).toBeVisible();
+    // What it understands is its info icon's tooltip, and the field's description.
+    expect(field).toHaveAccessibleDescription(
+      /like “PS3 due fri 11:59pm cmsc351”/,
+    );
+    expect(
+      screen.getByRole("button", { name: "What you can type" }),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Due date")).not.toBeVisible();
     await user.click(field);
     expect(screen.getByLabelText("Due date")).toBeVisible();
@@ -987,10 +1117,7 @@ describe("the composer on a phone", () => {
     // With words in it, it stays open.
     await user.type(field, "PS3 tomorrow");
     await user.click(screen.getByRole("button", { name: "elsewhere" }));
-    expect(screen.getByLabelText("Due date")).toBeVisible();
-    expect(
-      screen.getByRole("list", { name: "The task will be" }),
-    ).toBeVisible();
+    expect(screen.getByLabelText("Due date")).toHaveValue("2026-09-29");
   });
 });
 
@@ -1004,13 +1131,74 @@ describe("your own tasks", () => {
     dueAt: "2026-09-29T18:00:00.000Z",
   });
 
-  it("lists tasks with no date under the calendar", async () => {
+  it("has a right-click menu with what fits each item", async () => {
+    const client = fakeClient({ items: [aTodoItem(), office] });
+    signedIn();
+    renderTodo();
+    const user = userEvent.setup();
+    const card = (title: string) => {
+      const box = screen.getByRole("checkbox", { name: `Done: ${title}` });
+      const li = box.closest("li");
+      if (!li) throw new Error(`no card for ${title}`);
+      return li;
+    };
+    await screen.findByRole("checkbox", { name: "Done: Project 2" });
+    // An ELMS item: check it off, or open it in ELMS.
+    fireEvent.contextMenu(card("Project 2"), { clientX: 20, clientY: 20 });
+    let menu = await screen.findByRole("menu", { name: "Project 2, actions" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((m) => m.textContent),
+    ).toEqual(["Mark done", "Open in ELMS"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Mark done" }));
+    expect(client.done).toHaveBeenCalledWith({
+      uid: "event-assignment-4410001",
+      done: true,
+    });
+    // Your own task: check it, change it, move it, or delete it.
+    fireEvent.contextMenu(card("Office hours"), { clientX: 20, clientY: 20 });
+    menu = await screen.findByRole("menu", { name: "Office hours, actions" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((m) => m.textContent),
+    ).toEqual([
+      "Mark done",
+      "Edit",
+      "Move a day earlier",
+      "Move a day later",
+      "Delete",
+    ]);
+    await user.click(
+      within(menu).getByRole("menuitem", { name: "Move a day later" }),
+    );
+    expect(client.saveTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uid: office.uid, dueDate: "2026-09-30" }),
+    );
+    const moved = await screen.findByText("Moved Office hours to Wed, Sep 30");
+    const toast = moved.closest("li");
+    if (!toast) throw new Error("no toast");
+    await user.click(within(toast).getByRole("button", { name: "Undo" }));
+    expect(client.saveTask).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uid: office.uid, dueDate: "2026-09-29" }),
+    );
+    // Edit opens its details on its fields.
+    fireEvent.contextMenu(card("Office hours"), { clientX: 20, clientY: 20 });
+    menu = await screen.findByRole("menu", { name: "Office hours, actions" });
+    await user.click(within(menu).getByRole("menuitem", { name: "Edit" }));
+    expect(await screen.findByRole("textbox", { name: "Title" })).toHaveValue(
+      "Office hours",
+    );
+  });
+
+  it("lists tasks with no date in the sidebar, under the composer", async () => {
     fakeClient({ items: [aTodoItem(), anOwnTask()] });
     signedIn();
     renderTodo();
-    const heading = await screen.findByRole("heading", { name: "No date" });
-    const section = heading.closest("section");
-    if (!section) throw new Error("no section");
+    const section = await within(
+      await screen.findByRole("complementary", { name: "Sidebar" }),
+    ).findByRole("region", { name: "No date" });
     expect(
       within(section).getByText("Email Dr. Kim about the lab"),
     ).toBeVisible();
@@ -1041,15 +1229,19 @@ describe("your own tasks", () => {
       dueDate: null,
       dueTime: null,
     });
-    expect(screen.getByRole("heading", { name: "No date" })).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "No date" }),
+    ).toBeVisible();
   });
 
   it("deletes a task at once, and Undo puts it back as it was, done and all", async () => {
     const client = fakeClient({ items: [office], done: [office.uid] });
     signedIn();
-    renderTodo("list");
+    renderTodo();
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "1 done" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Office hours, details" }),
+    );
     await user.click(
       await screen.findByRole("button", { name: "Office hours options" }),
     );

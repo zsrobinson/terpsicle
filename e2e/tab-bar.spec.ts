@@ -160,13 +160,13 @@ test("a Chat room takes the bottom for its composer", async ({ page }) => {
   await expect(room).toBeVisible({ timeout: 20_000 });
   await expect(tabBar(page)).toBeVisible();
   await room.tap();
-  await expect(page).toHaveURL(/room=/);
+  await expect(page).toHaveURL(/\/chat\/[A-Z0-9]+\/[^/?]+/);
   await expect(tabBar(page)).toBeHidden();
   await page
     .getByRole("link", { name: "Your classes" })
     .or(page.getByRole("button", { name: "Your classes" }))
     .tap();
-  await expect(page).not.toHaveURL(/room=/);
+  await expect(page).toHaveURL(/\/chat$/);
   await expect(tabBar(page)).toBeVisible();
 });
 

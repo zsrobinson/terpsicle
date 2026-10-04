@@ -51,10 +51,15 @@ export async function push(
   // Chat rooms come from the stored plans (V2.md §8.2): what was saved moves
   // the person's chat_members.
   const saved = results.filter((r) => r.status === "ok");
-  await refreshChatMembers(env.DB, user.id, {
-    planIds: saved.filter((r) => r.kind === "plan").map((r) => r.id),
-    settings: saved.some((r) => r.kind === "settings"),
-  });
+  await refreshChatMembers(
+    env.DB,
+    user.id,
+    {
+      planIds: saved.filter((r) => r.kind === "plan").map((r) => r.id),
+      settings: saved.some((r) => r.kind === "settings"),
+    },
+    ctx.now,
+  );
   ctx.waitUntil(
     captureServerEvent(
       env,

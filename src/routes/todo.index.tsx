@@ -6,13 +6,13 @@ import { useReadDayNotifications } from "~/features/notifications/read-here";
 import { TodoPage } from "~/features/todo";
 import { initAnalytics } from "~/lib/analytics";
 
-// Terpsicle Todo (docs/V3.md §1.1, §3.9): a calendar of what's due. `?view`
-// is the week (the default), `month` or `list`; `?date` is a day in the week
-// or month shown (today's when it's missing), which Back, Ahead and Today
-// change; `?day=YYYY-MM-DD` opens that day's week (the due-tomorrow push
-// links there). Signed in only, so it renders in the browser.
+// Terpsicle Todo (docs/V3.md §1.1, §3.9): the week of what's due. `?date`
+// is a day in the week shown (today's when it's missing), which Back, Ahead
+// and Today change; `?day=YYYY-MM-DD` opens that day's week (the
+// due-tomorrow push links there). The month and the list are gone: an old
+// link's `?view=` is dropped and opens the week. Signed in only, so it
+// renders in the browser.
 const searchSchema = z.object({
-  view: z.enum(["week", "month", "list"]).optional().catch(undefined),
   date: IsoDateSchema.optional().catch(undefined),
   day: IsoDateSchema.optional().catch(undefined),
 });
@@ -25,8 +25,7 @@ export const Route = createFileRoute("/todo/")({
       { title: "Todo · Terpsicle" },
       {
         name: "description",
-        content:
-          "Your deadlines from ELMS and your own tasks, on a calendar by week or month.",
+        content: "Your deadlines from ELMS and your own tasks, on your week.",
       },
     ],
   }),
@@ -34,7 +33,7 @@ export const Route = createFileRoute("/todo/")({
 });
 
 function TodoRoute() {
-  const { view, date, day } = Route.useSearch();
+  const { date, day } = Route.useSearch();
 
   useEffect(() => {
     void initAnalytics();
@@ -42,5 +41,5 @@ function TodoRoute() {
   // The day the "Due tomorrow" push opens reads it (V2.md §6.7).
   useReadDayNotifications(day);
 
-  return <TodoPage view={view ?? "week"} anchor={date ?? day} day={day} />;
+  return <TodoPage anchor={date ?? day} day={day} />;
 }

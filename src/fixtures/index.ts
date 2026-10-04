@@ -37,7 +37,6 @@ export {
   mockInstructors,
   mockPlanetTerpDepts,
   mockPlanetTerpReviews,
-  mockReviewSummaries,
 } from "./mock/planetterp";
 export {
   demoArchivedPlan,

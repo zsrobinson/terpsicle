@@ -180,15 +180,20 @@ Revisit if: never on its own.
 After the week, the daily purge removes every row with the person's directory ID or addresses and their chat messages in every course object (there are no pictures to remove). Reviews and feedback stay with no author, and reports with a random stand-in reporter, since moderation counts them. `PURGE_LEDGER` must list every table.
 Revisit if: moderation needs to tell that two reports came from one deleted person, or the owner wants a deleted account's held reviews dropped.
 
-### LLMs only in three places
+### A product's part inside another wears its mark
+2026-09-29 · owner · app-wide
+Where one product shows a piece of another (Reviews' preview in Schedule's course details, first), the control that opens it carries that product's mark, as the family bar's tabs do, so people learn which product they're reaching into. Every "View …" link into another product does too ("remember my note about wanting to have the icon of the page you're switching to"): `ViewWords` (`src/components/brand/view-words.tsx`) writes the mark and the words together, and a test keeps "View …" words from being written anywhere else. Home's sections are the exception, since each title already wears its product's mark.
+Revisit if: a product's mark gets in the way where space is tight.
+
+### LLMs only in moderation
 2026-09-26 · owner · app-wide
-Review summaries, their small generated chips, and moderation. No other LLM features.
+Moderation (and grouping the owner's feedback in admin). No LLM feature anyone else sees. (changed 2026-09-29: the owner removed review summaries and their chips; see "No AI features in Reviews".)
 Revisit if: the owner asks for one.
 
 ### AI features can be turned off
 2026-09-27 · owner · app-wide
-"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`.
-Revisit if: never on its own.
+"some users really don't like AI. they should be able to disable our visible AI features like the reviews summarizer thing (which i really like, but again some prefer not to have it). there should likely be a little settings/dots thing on the box where it generates that allows you to disable them. then it should also appear in your account preferences." One pref, "Show AI summaries", on by default and following the account: in Settings, and as "Hide AI summaries" (with Undo) in every AI box's ⋯ menu. Off, no model is asked and nothing is left in the box's place. Every sparkles feature goes through `useAiFeatures()`. (changed 2026-09-29: Reviews' summaries were the only AI feature anyone saw, and the owner removed them, so the pref, Settings' "Show AI summaries" and `useAiFeatures()` went with them. A new visible AI feature brings the switch back with it.)
+Revisit if: a visible AI feature returns.
 
 ### Moderation is model-first
 2026-09-26 · owner · app-wide
@@ -437,8 +442,63 @@ Revisit if: never on its own.
 
 ### Full reviews live at /reviews
 2026-09-26 · owner · one feature
-The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`.
+The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".)
 Revisit if: people don't find reviews from the scheduler.
+
+### No AI features in Reviews
+2026-09-29 · owner · one feature
+"let's remove all AI features for reviews. we can add it back later, but i'm making that decision now. clean up anything that references it or relies on that." Gone: the review summaries and their theme chips, `review-summary` and `src/server/summaries`, the private copy of PlanetTerp's review text kept for them (`_jobs/planetterp/reviews/`), `SUMMARIES_DAILY_CAP`, their analytics events, and the "Show AI summaries" pref with its Settings row and ⋯ menus. Moderation still uses models; nothing a reader sees does.
+Revisit if: the owner brings summaries back.
+
+### Course pages work like PlanetTerp's
+2026-09-29 · owner · one feature
+"planetterp deprioritizes viewing results per course, not filtered by instructor... their main page for courses just groups by term and shows what professors taught it, their average GPAs (across all their courses). i want users who use our site to already be familiar with it because they've used planetterp before." A course's page shows every review of it, never filtered by default. Its side column, "Who taught it", lists each term newest first with everyone who taught it then, from our instructor history (`history/`, #221), so an instructor appears under every term they taught; whoever teaches it now is under this term, and anyone the history lacks is under the newest term PlanetTerp's grades know. Each has their average GPA across all their courses in the department's file and their rating; each name is the filter, their page for the course.
+Revisit if: a course's term list grows too long to scan (then fold the older terms).
+
+### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
+2026-09-29 · owner · one feature
+"the whole app is free... if you're on that page and not signed in you've already proved that point." The page's title is the product's name, with no "free, no sign-in" line. Like PlanetTerp's front page it has recent reviews (ours and PlanetTerp's, newest first), grades across every course, and a row of counts (courses, professors, reviews, course grades) that counts up from 0 once when it comes into view, and doesn't move with Reduce Motion. The counts are PlanetTerp's data (the index's `totals`).
+Revisit if: our own reviews outnumber PlanetTerp's, so the counts should be ours.
+
+### What Reviews knows you took
+2026-09-29 · owner · one feature
+Your classes come from the four-year plan's past terms (a transcript import fills them), which know the course but not who taught it, and from Schedule's main plan only for terms the Schedule of Classes still lists, which know the instructor. Where the instructor isn't known, Reviews asks ("Who taught you?", "Did you take CMSC351 with …?") and never claims. No copy tells anyone to build a past term's schedule: Testudo doesn't list old terms.
+Revisit if: transcripts start carrying instructors.
+
+### PlanetTerp's reviews fill on a page's first visit
+2026-09-29 · agent · one feature
+The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
+Revisit if: PlanetTerp asks us not to call its API from page loads.
+
+### Reviews pages: two columns from the top, no back link
+2026-09-29 · owner · one feature
+"having the 2/3 1/3 thing extend all the way to the top, with the 1/3 starting with that similar outline box to review them, followed by courses (which could really be selectable chips rather than a long list …), followed by grades." The wide column is the name, the rating box and the reviews; the narrow one is the review box, the courses as chips (each fused with an arrow to the course's own page), then grades (`SplitLayout`'s `top` and `after`; on a phone the grades come after the reviews). The rating box shows the number, the stars and the count, with no PlanetTerp notice or source ("we don't need the notice about planetterp or mention which site the review aggregate is from"); the math stays in its tooltip. No back link on any Reviews page: "the back location switches in ways you wouldn't expect". A course page's "Who taught it" draws a rule after each term's label, and the narrow column's type steps down: section, term, name, meta. (changed 2026-09-30, by the owner: "we should switch the purple review box with the 'took a class with?' box … we don't need that whole section with courses, actually. let's have it as a box to the left of the sorting dropdown, with all courses as the default select option. let's have a similar thing for 'all instructors' for the course page, but clicking on one of the options actually brings you to the instructor page with that course and sorting preselected. let's try to line up the start of the reviews section and the grade section vertically". The wide column is now the name, the review box, then the reviews with a course filter (instructor pages; "All courses") or an instructor filter (course pages; "All instructors", which opens that instructor's page with the course and order) left of the sort; the narrow one is the rating box, then the grades, which start level with the reviews (`SplitLayout`'s `after`), then a course's "Who taught it". The header says "Reviews in CMSC351 42", as the grades say "Grades in CMSC351". "Taught CMSC320, CMSC351 …" links each code, and "and more" opens the course filter. The narrow column's sections have no rules.) (changed 2026-10-04, by the owner: "only last thing i'd say is to not worry about 'grades' and 'reviews' starting at the same y-position since it creates a weird gap under the average review score. let's instead just have those two columns and things flowing naturally within them." Each column starts at the top and flows on its own: the grades sit right under the rating box, wherever the reviews start. On a phone the order stays the name, the review box, the rating, the reviews, then the grades.)
+Revisit if: the narrow column crowds on a laptop screen.
+
+### Account-dependent parts never show the signed-out state first
+2026-09-30 · owner · app-wide
+"there's a bit of a flash of un-signed in state on the reviews tab." The server's render is anonymous (for search engines and the edge cache), so a part that depends on the account (the review box, what you took, /reviews' narrow column, the bar's account) draws a placeholder of its size until the page knows, never the signed-out words. The account store remembers whether this browser was last signed in (`terpsicle:signed-in`, a yes or no, nothing about who), and a page draws that state at once while /api/me confirms: signed out, the signed-out parts; signed in, the placeholders until your reviews and plans are read.
+Revisit if: pages render per person on the server.
+
+### Instructors PlanetTerp doesn't know get a page from the history
+2026-09-30 · owner (the page), agent (its address) · one feature
+The owner asked that every instructor row be clickable: about 500 names in the instructor history join no PlanetTerp slug. Each gets our own page, the history page: what they taught in the department, term by term, and the review box (the first review mints their id, V2 §7.2). Nothing indexes these names, so the address carries the course it's opened from, `/reviews/<name>?course=CMSC351`, and the page reads that course's department history to find them. It's thin, so it's `noindex`, and it isn't in search or the sitemap.
+Revisit if: they should be searchable or have a bare address; the nightly PlanetTerp job, which already reads every history name, can write the unjoined ones into the index.
+
+### Review dates: PlanetTerp's by the day, ours by the month
+2026-09-30 · agent · one feature
+The owner asked for "the date for reviews, not just month and year". PlanetTerp's reviews show their day ("Sep 14, 2024", `<time datetime>`), as PlanetTerp publishes it. Ours keep the month (V2 §7.5): a review of ours with its day beside it would help someone who saw it go up tell who wrote it, and every reader-facing number and file already rounds to the month for that reason.
+Revisit if: the owner wants days on ours too, knowing that trade.
+
+### Reviews sort, and rate in half stars
+2026-09-29 · owner · one feature
+"reviews should likely be sortable, both by rating highest/lowest and latest/oldest … on the same line as reviews, aligned to the right. the count of reviews can be next to the word reviews itself." `?sort=latest|oldest|highest|lowest` (absent is latest) is a page the server renders; a rating order breaks ties newest first, and PlanetTerp's pages come from D1 in the same order. "users should be able to rate professors by increments of half stars using an intuitive and accessible input method": ratings are 1 to 5 in halves (`ReviewRatingSchema`), set with a slider over five stars (a star's left half is its half; the arrow keys move by a half). D1's `rating INTEGER` keeps 4.5 as a REAL, so there's no migration. Stars show fractions ("so 4.6 actually shows 4.6 stars colored in") in a gold that reads on paper (`--star`, `--star-line`), not the old brown.
+Revisit if: people want to sort by course or by expected grade.
+
+### /reviews: grades and the most reviewed in the narrow column
+2026-09-29 · owner · one feature
+"the 'courses in your plans' section isn't needed. move the UMD global grades to the 1/3. department listing isn't necessary, remove. move the most rated thing to the 1/3, below grades." The wide column is the search, the counts, recent reviews and the most taken; the narrow one is yours, then grades across UMD, then the most reviewed. A department is still browsable from search (`?q=CMSC`). (changed 2026-09-30, by the owner: no sign-in line in the narrow column, "that will show up when they click the instructor they want to review", and "no more separator lines between items but keep visually distinct": each item is a soft band.)
+Revisit if: people miss browsing by department.
 
 ### Search markup never borrows PlanetTerp's ratings
 2026-09-26 · agent · one feature
@@ -460,9 +520,19 @@ Revisit if: an instructor's slug ever matches a course code, or `/reviews/<word>
 "reviews are more important to display than grades"; instructors and courses are equals. Reviews' pages use the kit's `display` sizes (bigger type, roomier sections), the product's purple as an accent, and a bar with no rule until the page scrolls.
 Revisit if: the other products want a public page too.
 
+### Reviews in two columns, with the search over the page
+2026-09-29 · owner · one feature
+"i like that 2/3 1/3 layout we have on the dashboard, and i think we can carry over some of that into this tab." An instructor's or a course's page puts the name, the rating box, the "review them yourself" box and the reviews in the wide column, and the filter (courses by instructor, instructors by course) and the grades in the narrow one; `/reviews` keeps the search and browsing wide and puts your instructors to review, your reviews and your classes narrow. One column below `lg`, the wide one first (a phone keeps an instructor's course switch under the name, since it filters the reviews). Home's grid is the kit's `SplitLayout`. The search's results open over the page as Base UI's Autocomplete, never in its place; "Every result" and a department's link are `/reviews?q=`, a page of its own for search engines. Past the front door the family bar has a smaller search, and a phone a magnifier that opens it in a sheet. The review box says what your plans know: the class you took and haven't reviewed, naming the term; your review, with Edit; or, signed out, the plain question and Sign in. A course's rating box rates the course from every PlanetTerp review of it (`reviews/page`'s `planetTerpCourse`) plus ours.
+Revisit if: the narrow column's filter is missed on phones, or people search from the bar more than from `/reviews`.
+
+### The family bar's other products can fold to their marks
+2026-09-29 · owner · one feature
+"when you're not hovering up there, we could condense it to only show the icons for the components you're not on", Reviews first: `AppBar`'s `collapseTabs`. At rest the product you're on keeps its name and the others show only their marks (with their tooltips and accessible names); hovering or tabbing into the tabs opens every name, and moving between a folded and an unfolded bar animates the change. Reduce Motion drops the movement.
+Revisit if: the owner wants it on every product, or people miss the names.
+
 ### Published review numbers carry a month, never a time or text
 2026-09-26 · agent · one feature
-R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. Summaries count our newest review by month for the same reason, and go stale when our published count changes.
+R2's `reviews/` files hold ratings, counts and `latestReviewMonth` (`YYYY-MM`), not V2 §7.6's `latestReviewAt`: an exact publish time beside an instructor would undo the month rounding readers see. `reviews/latest`, /reviews' "Recent reviews", orders ours by month, then id, for the same reason.
 Revisit if: readers need finer freshness than a month.
 
 ### We keep our own record of who taught what
@@ -481,6 +551,32 @@ Revisit if: rooms feel empty or noisy. (changed 2026-09-28: no pictures)
 2026-09-28 · owner · one feature
 "i don't think we need to display other sections or instructors in there as locked; if you wanted to see them you would've just added that other section to your schedule." And opening a room "felt like you opened up a whole new sidebar". So the chat list is Chat's one sidebar and only lists your rooms (plus the course whose room is open, last, until you join or leave). There's no course page of every room: a course on its own opens its course room, Join sits in that room's header, and a room opens beside the list (a desktop) or slides in over it (a phone), in its final shape from the first frame.
 Revisit if: people ask to browse a course's other sections' rooms.
+
+### Chat is for this term only
+2026-09-29 · owner · one feature
+"let's make chats completely a this-semester sort of thing. you shouldn't be able to join one for a future course, that's confusing. your chat tab should just pull from the current semseter." Chat shows one term, `chatTerm`: of the terms Testudo lists, the one in session, else between terms the next to start. There's no term menu, "Join … chat" in course details shows only for that term's courses, and the server refuses to join any other term's. Earlier follows in a term still to come are kept, hidden until that term is Chat's.
+Revisit if: people want a past term's chat while it's still readable, or a future class's before its first day.
+
+### Chat reads like a group chat: names, newest messages, joins and tombstones
+2026-09-29 · owner · one feature
+"let's refine the names of the chats, so they just display as "Everyone", "[last name]'s Sections", and "Section [section]". no more summary line under it, that should instead display the last message, and we should have some sort of unread message indicator (maybe using the same blue theme of this component). muted chats should have an extra icon showing that they're muted on the right side of the sidebar. we don't need the room info thing, just a button in that top bar (with icon and label). instead of search params, the room code can just be an extra path in the url, which also makes it a little prettier of a link. instead of showing a list of people, let's instead show a small status thing like groupme when someone joins the room, grouped up so it doesn't clog things up. and let's rework the language again on the "what's allowed thing". if someone deletes a message, it should say something like *message deleted by author* to keep that record." And: "make sure that we clean up all the paths that name the rooms." So a room is "Everyone", "Nelson's Sections" or "Section 0101" under its course, its list row shows its newest message and an unread mark in Chat's blue (a dot, or the count) or a muted bell, its header has one Options button (mute, leave, What's allowed) instead of room info, its link is `/chat/<COURSE>/<room>`, joins are grouped lines in its timeline, and a deleted message leaves a tombstone. Every room name and link goes through `src/core/chat/room-paths.ts`.
+Revisit if: never on its own.
+
+### A room's newest message comes from its object, not D1
+2026-09-29 · agent · one feature
+The list's second line needs each room's newest text, and D1 never holds chat text (V2 §6.8). So `chat/latest` asks the course's `CourseChat` object, only for rooms whose `lastSeq` moved since the list last asked, and the open room keeps its own row current from its socket. It wakes an object only when there's something new in it, which it just wrote anyway.
+Revisit if: objects wake too often for the list, or a list of many courses is slow to fill.
+(changed 2026-09-29: the owner wanted every row live, "in realtime for chats besides the one that's currently selected". Each course in the list keeps its course's socket open, and `chat/latest` is the fallback while a socket is down; see "The list listens per course".)
+
+### The list listens per course, on the rooms' own sockets
+2026-09-29 · agent · one feature
+Live rows need each room's new messages. The `CourseChat` object already sends a room's messages to every socket that reads it, and hibernates between them, so the list opens one socket per course in it (hello with your rooms there, no history) instead of a new per-user channel. A per-user object would need the course object to write to every member's object on every message (hundreds for a big course room), where this needs nothing new on the server and costs one connection per course, usually four to six.
+Revisit if: people follow so many courses that the sockets add up, or a phone's battery says otherwise.
+
+### Chat's list resizes like the workbench sidebars
+2026-09-29 · owner · one feature
+"the sidebar on the chat and todo pages should be adjustable just like those on the schedule and plan pages even though the sidebar doesn't have tabs." Chat's list takes the workbenches' `SidebarResizeHandle` and their one shared width (`UiPrefs.sidebarWidth`), so it's 360px by default, not its old fixed 320.
+Revisit if: never on its own.
 
 ### Anonymous chat is held off
 2026-09-28 · owner · one feature
@@ -541,7 +637,7 @@ Revisit if: Plan turns on in production; then list it always and add the shortcu
 
 ### Plan and Schedule share one sidebar width
 2026-09-27 · agent · one feature
-The two workbenches draw one sidebar, so they keep one width: Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
+The workbenches draw one sidebar, so they keep one width (Chat's list and Todo's too, since 2026-09-29: both use `useSidebarWidth`, `src/hooks/use-sidebar-width.ts`, which loads Dexie only after first paint, so neither page carries it up front): Plan reads and writes `UiPrefs.sidebarWidth`, changing only that field in a transaction, without loading the scheduler's stores (`src/state/sidebar-width-pref.ts`). A width of Plan's own would have needed a second CSS variable and head script, and would flash the scheduler's width first. A scheduler open in another tab can put its older width back, which is the worst a race does; Plan's other prefs stay in their own row for that reason.
 Revisit if: people want different widths in each product.
 
 ### Gradescope, honestly
@@ -559,15 +655,20 @@ Revisit if: Gradescope offers students an API or feed.
 Todo marks no item as an exam. The owner wasn't sure how exams were marked and asked to keep it only if it's plain from the ELMS feed and the calendar shows it clearly; the feed never says which items are exams (it was a keyword guess on the title that called "Final exam review session" an exam), so it goes.
 Revisit if: ELMS's feed starts saying what an item is beyond assignment or event.
 
-### Todo's controls are in its bar
+### Todo is one week
 2026-09-29 · owner · one feature
-Todo has no side panel: its views, Back, Today and Ahead, and the period's title are the family bar's context, and Add a task (+) and the courses and ELMS (This week, ELMS, Weeks start on) open from bar icons, as popovers on a desktop and sheets on a phone, so the calendar fills the page in every view. The owner: "the todo app has lots of things in the main content area that are more like controls and should really be at the top, and the calendar in its forms should be taking up that whole area." Weeks start on stays with the courses and ELMS rather than moving to Settings (the agent's call): it changes the calendar you're looking at. This changes "Todo is a calendar"'s side panel.
-Revisit if: people miss the composer or the courses' chart now that they're a click away.
+Todo is one view, the week, Monday to Sunday: the month, the list and "Weeks start on" are gone. The owner: "let's ONLY design around the week view. remove the other two views. let's just make this one excellent" and "starting things on monday makes too much sense to have a toggle for it". The week is edge to edge under the bar, "very similar to the schedule tab with its week": weekends one step of gray, today's day heading two, today's body not filled. (changed 2026-09-29, on the preview: "the tasks background for a day is a darker background than the background for the heading for the day itself"; so a day's heading is always at least a step darker than its body: weekdays one over none, the weekend two over one, today two over none, and hovering to add a task tints at most half a step. On a phone each day heads its rows with the sidebars' band.) An account that saved Sunday still loads: `SyncedPrefs` keeps the old `todo` key as an unknown one and nothing reads it. Old `?view=` links open the week.
+Revisit if: people ask to see further ahead than a week at a time.
+
+### Todo's sidebar holds its controls; the bar only moves the week
+2026-09-29 · owner · one feature
+Todo is a workbench with a sidebar, resizable like Schedule's and Plan's and sharing their width, with no rail. From the top: Add a task, No date (tasks without one), and the week on screen: a bar for the whole week and one per course in its color, "2 of 5 done", each with its chat link and hide toggle. The family bar holds Back, Today and Ahead as one group (the kit's segments, no offset shadow: "we actually don't have any other of those buttons with a box shadow in the topbar"; Today like its neighbors off this week, and on this week filled as the selected segment while disabled, the owner: "flip it around from now"), the week's short dates with "ELMS synced 3 minutes ago" under them, and the app's sync cloud beside the bell, now meaning Todo's sync with both ELMS and our own server; its popover has each one's last sync, Sync now, and ELMS's link (changed 2026-09-29, on the preview: the sidebar's ELMS section moved there). On a phone the sidebar is the workbench drawer, whose strip is the week's bar. The owner: "things like adding a todo and showing the week completion by course should continue to be in that sidebar, they're pretty important"; "the stacked vertical bars within the data viz for each of the courses makes no sense ... i like the overall bar for the week, maybe we could also have one for each course. it feels rewarding to check things off that way." Tasks with no date move into the sidebar and the week's "View schedule" link to This week's band (the agent's calls: nothing but the week is on the canvas). This replaces "Todo's controls are in its bar" (2026-09-29).
+Revisit if: the sidebar grows past what one column holds.
 
 ### Todo is a calendar
 2026-09-28 · owner · one feature
-Todo's main view is a calendar: the week by default, then the month and a list, each a URL, with weeks starting Monday "since so many things are due sunday nights" and a synced pref for Sunday. It takes the workbench's shape with a side panel (adding a task in plain words, each course's weekly completion, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The side panel has no tabs (the agent's call): four short parts fit one column, and a rail would hide the composer.
-Revisit if: the side panel grows past what one column holds. Changed 2026-09-29: the side panel's parts open from the bar ("Todo's controls are in its bar").
+Todo's main view is a calendar, with weeks starting Monday "since so many things are due sunday nights". It takes the workbench's shape with a sidebar (adding a task in plain words, each course's week, ELMS); the by-course view and the list-first page are gone. The owner, after watching a first-time user: "i thought the new todo features didn't ship because it was so hard to notice them." The sidebar has no tabs (the agent's call): its short parts fit one column, and a rail would hide the composer.
+Revisit if: the sidebar grows past what one column holds. Changed 2026-09-29: the week is the only view, and the sidebar is back ("Todo is one week", "Todo's sidebar holds its controls; the bar only moves the week").
 
 ### Todo reads tasks with its own grammar
 2026-09-28 · agent · one feature

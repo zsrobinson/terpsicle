@@ -40,7 +40,7 @@ function apiEnv(env: HarnessEnv): ApiEnv {
     SEAT_ALERTS_ENABLED: "true",
     // Sign in as a test person (loopback hosts only, docs/AUTH.md).
     AUTH_TEST_MODE: "true",
-    // Summaries aren't part of this harness.
+    // Moderation isn't part of this harness.
     AI: { run: async () => ({}) } as unknown as Ai,
   };
 }

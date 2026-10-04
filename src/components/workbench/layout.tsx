@@ -58,10 +58,12 @@ export function Workbench({
       tabIndex={-1}
       className={cn(
         mobile ? "min-h-0 flex-1 outline-none" : "min-w-0 flex-1 outline-none",
+        // No drawer (Todo signed out): it ends above the tab bar.
+        mobile && !drawer && "pb-(--tab-bar-space)",
         canvasClassName,
       )}
       // The drawer at peek, on the tab bar.
-      style={mobile ? { paddingBottom: PEEK_CSS } : undefined}
+      style={mobile && drawer ? { paddingBottom: PEEK_CSS } : undefined}
     >
       {canvas}
     </main>

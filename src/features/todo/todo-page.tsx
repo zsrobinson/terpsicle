@@ -1,165 +1,91 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
-import { Plus } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { Mark } from "~/components/brand/mark";
+import { CanvasHint } from "~/components/workbench/canvas-hint";
+import {
+  lazyDrawer,
+  Workbench,
+  WorkbenchSidebar,
+} from "~/components/workbench/layout";
 import { SkipLinks } from "~/components/workbench/skip-links";
-import { seasonTermOf } from "~/core/catalog/terms";
-import { addDays } from "~/core/ics/dates";
+import { seasonTermOf, termLabel } from "~/core/catalog/terms";
 import type { CourseCode, IsoDate, TodoItem } from "~/core/schema";
 import {
-  type CalendarView,
   courseChatTerm,
   courseKey,
-  courseWeeks,
-  feedWords,
+  courseWeek,
   isHiddenItem,
+  isThisWeek,
   itemCourse,
   NO_COURSE_KEY,
-  openCount,
-  openWords,
-  shiftAnchor,
-  viewSpan,
-  type WeekStart,
+  shiftWeek,
+  weekSpan,
   weekStartOf,
 } from "~/core/todo";
 import { useAccount } from "~/features/auth/account-store";
 import { useSignInAction } from "~/features/auth/sign-in-panel";
+import { PushAskCard } from "~/features/notifications/push-ask-card";
 import {
   ComingSoonPage,
   SiteHeader,
   SitePage,
 } from "~/features/site/site-page";
 import { useIsMobile } from "~/hooks/use-media-query";
+import { useSidebarWidth } from "~/hooks/use-sidebar-width";
 import { track } from "~/lib/analytics";
 import { useShortcut } from "~/lib/shortcuts";
+import { Button } from "~/ui/button";
 import { EmptyState } from "~/ui/empty-state";
 import { InlineError } from "~/ui/inline-error";
-import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
 import { PAGE_WIDTH, PageFooter } from "~/ui/product-page";
-import { Sheet, SheetTitle } from "~/ui/sheet";
-import { PageSkeleton, RowSkeleton } from "~/ui/skeleton";
 import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
-import { MonthGrid, MonthPicker, WeekAgenda, WeekGrid } from "./calendar";
-import { COMPOSER_ID, startTask, useComposerRequest } from "./composer";
+import { WeekAgenda, WeekGrid } from "./calendar";
+import { startTask } from "./composer";
 import { todoCourseColors, useSchedulerCourses } from "./course-colors";
+import { SyncLine, SyncSheet, TodoSyncButton } from "./elms";
 import { SamplePreview } from "./sample";
 import {
   type CourseRow,
-  CoursesPanel,
-  TaskPanel,
-  TODO_CONNECT_PATH,
-} from "./side-panel";
+  type SidebarSchedule,
+  TODO_SIDEBAR_PANEL_ID,
+  TodoSidebar,
+} from "./sidebar";
 import { TASK_TOAST_ID } from "./task-form";
-import {
-  closeTodoPanel,
-  openTodoPanel,
-  PANEL_BUTTONS,
-  TODO_PATH,
-  TodoBarActions,
-  TodoBarContext,
-  type TodoPanel,
-  useNow,
-  useTodoBar,
-  useWeekStart,
-  VIEW_SHORTCUTS,
-} from "./todo-bar";
-import { type CheckedVia, DayList, type ViewProps } from "./todo-lists";
+import { TODO_PATH, TodoBarContext, useNow } from "./todo-bar";
+import type { CheckedVia, ViewProps } from "./todo-lists";
 import { useTodo } from "./todo-store";
+import {
+  openElmsSettings,
+  useTodoWorkbench,
+  useTodoWorkbenchMounted,
+} from "./workbench-store";
 
-// `/todo` (docs/V3.md §3.9): a calendar of what's due, under the family bar
-// with Todo's controls (./todo-bar: the views, the week and its title, Add
-// a task, and the courses and ELMS), as Schedule's and Plan's bars hold
-// theirs. The calendar fills the page; the two panels (./side-panel) open
-// from the bar, as popovers on a desktop and sheets on a phone. The week is
-// the default, then the month and the list; each is a URL. Signed out,
-// it's the front door. Nothing here is stored in the browser.
+// `/todo` (docs/V3.md §3.9): one week, done well (the owner, 2026-09-29:
+// "let's ONLY design around the week view"). A workbench like Schedule's
+// and Plan's: the family bar with Back, Today, Ahead and the week; a
+// sidebar (./sidebar) with ELMS's line, Add a task and the week's progress
+// by course, its edge draggable like theirs; and the week, edge to edge,
+// shaded as Schedule's is. On a phone the sidebar is the drawer
+// (./todo-drawer). Each week is a URL. Signed out, it's the front door.
+// Nothing here is stored in the browser but the sidebar's width.
 
-export { TEXT_LINK, TODO_CONNECT_PATH } from "./side-panel";
-export { TODO_PATH, useNow } from "./todo-bar";
+export { TODO_CONNECT_PATH, TODO_PATH, useNow } from "./todo-bar";
 
-/** The calendar's id: the skip link and focus land there. */
+/** The week's id: the skip link and focus land there. */
 const CANVAS_ID = "todo-calendar";
+/** The sidebar's frame, which the resize handle controls. */
+const SIDEBAR_ID = "todo-sidebar";
 
-const PANEL_TITLES: Record<TodoPanel, string> = {
-  task: "Add a task",
-  courses: "Courses and ELMS",
-};
-
-/**
- * One of the bar's panels: a popover under its button on a desktop, as
- * the bell's inbox and Share are, and a sheet on a phone. Adding a task
- * focuses the field (keyboard and all); the courses and ELMS focus the
- * panel itself, so a phone's keyboard stays down.
- */
-function BarPanel({
-  which,
-  mobile,
-  children,
-}: {
-  which: TodoPanel;
-  mobile: boolean;
-  children: ReactNode;
-}) {
-  const open = useTodoBar((s) => s.panel === which);
-  const body = useRef<HTMLDivElement>(null);
-  const onOpenChange = (next: boolean) => {
-    if (!next && useTodoBar.getState().panel === which) closeTodoPanel();
-  };
-  const title = PANEL_TITLES[which];
-  const focusFirst = () =>
-    which === "task" ? document.getElementById(COMPOSER_ID) : null;
-  if (mobile)
-    return (
-      <Sheet
-        open={open}
-        onOpenChange={onOpenChange}
-        initialFocus={() => focusFirst() ?? body.current ?? true}
-      >
-        <SheetTitle className="sr-only">{title}</SheetTitle>
-        <div
-          ref={body}
-          tabIndex={-1}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4 outline-none"
-        >
-          {children}
-        </div>
-      </Sheet>
-    );
-  const button = PANEL_BUTTONS[which];
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverAnchor virtualRef={button} />
-      <PopoverContent
-        side="bottom"
-        align="end"
-        role="dialog"
-        aria-label={title}
-        className="scroll-thin max-h-[min(40rem,var(--radix-popover-content-available-height))] w-[380px] overflow-y-auto overscroll-y-contain p-0"
-        // Its button toggles it: a press on it isn't a click away.
-        onInteractOutside={(e) => {
-          if (button.current?.contains(e.target as Node)) e.preventDefault();
-        }}
-        onOpenAutoFocus={(e) => {
-          const first = focusFirst();
-          if (!first) return;
-          e.preventDefault();
-          first.focus({ preventScroll: true });
-        }}
-      >
-        {children}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** How many weeks each course's chart shows, ending with the week shown. */
-const CHART_WEEKS = 4;
+// The phone drawer (Base UI's Drawer) is its own chunk, fetched at once on phones only.
+const TodoDrawer = lazyDrawer(() =>
+  import("./todo-drawer").then((m) => m?.TodoDrawer),
+);
 
 /**
- * Where `/todo/connect` goes: the site's frame, a note (560). The calendar
- * is a workbench of its own (`TodoPage`).
+ * Where `/todo/connect` goes: the site's frame, a note (560). The week is
+ * a workbench of its own (`TodoPage`).
  */
 export function TodoFrame({ children }: { children: ReactNode }) {
   return <SitePage layout="note">{children}</SitePage>;
@@ -203,46 +129,20 @@ function FrontDoor({ returnTo }: { returnTo: string }) {
   );
 }
 
-/** W, M and L switch views; P, N and T move the calendar; Q starts a task. */
-function Shortcuts({
-  view,
-  anchor,
-  weekStart,
-}: {
-  view: CalendarView;
-  anchor: IsoDate;
-  weekStart: WeekStart;
-}) {
+/** P, N and T move the week; Q starts a task. */
+function Shortcuts({ anchor }: { anchor: IsoDate }) {
   const navigate = useNavigate();
-  const go = (search: { view: CalendarView; date?: IsoDate }) =>
-    void navigate({ to: TODO_PATH, search });
-  useShortcut(
-    (["week", "month", "list"] as const).map((v) => ({
-      key: VIEW_SHORTCUTS[v].toLowerCase(),
-    })),
-    (event) => {
-      const next = (["week", "month", "list"] as const).find(
-        (v) => VIEW_SHORTCUTS[v].toLowerCase() === event.key.toLowerCase(),
-      );
-      if (!next) return false;
-      go(next === "list" ? { view: next } : { view: next, date: anchor });
-      return true;
-    },
-  );
-  // Here, not in the composer: a phone's is in a sheet that Q opens.
   useShortcut({ key: "q" }, () => {
     startTask();
     return true;
   });
   useShortcut([{ key: "p" }, { key: "n" }, { key: "t" }], (event) => {
-    if (view === "list") return false;
     const key = event.key.toLowerCase();
-    if (key === "t") go({ view });
-    else
-      go({
-        view,
-        date: shiftAnchor(view, anchor, key === "p" ? -1 : 1, weekStart),
-      });
+    void navigate({
+      to: TODO_PATH,
+      search:
+        key === "t" ? {} : { date: shiftWeek(anchor, key === "p" ? -1 : 1) },
+    });
     return true;
   });
   return null;
@@ -254,25 +154,27 @@ const DONE_TOAST_ID = "todo-done";
 /** One toast for hiding and showing courses. */
 const HIDE_TOAST_ID = "todo-hide";
 
-/** The calendar and its side panel, signed in. */
-function TodoWorkspace({
-  view,
-  anchor: asked,
-  day,
-}: {
-  view: CalendarView;
-  anchor?: IsoDate;
-  day?: IsoDate;
-}) {
+/** The skip link to the sidebar: raises a resting drawer, then focuses it. */
+function toSidebar() {
+  const ui = useTodoWorkbench.getState();
+  if (ui.drawerSnap === "peek") ui.setDrawerSnap("half");
+  requestAnimationFrame(() =>
+    document.getElementById(TODO_SIDEBAR_PANEL_ID)?.focus(),
+  );
+}
+
+/**
+ * Everything the week and its sidebar show. It asks for nothing until
+ * someone's signed in (`on`), so the page can keep one frame throughout.
+ */
+function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
   const { now, today } = useNow();
-  const mobile = useIsMobile();
   const phase = useTodo((s) => s.phase);
   const load = useTodo((s) => s.load);
   const ensureRange = useTodo((s) => s.ensureRange);
   const feed = useTodo((s) => s.feed);
   const items = useTodo((s) => s.items);
   const done = useTodo((s) => s.done);
-  const refreshing = useTodo((s) => s.refreshing);
   const setDone = useTodo((s) => s.setDone);
   const hidden = useTodo((s) => s.hidden);
   const hideCourse = useTodo((s) => s.hideCourse);
@@ -280,20 +182,18 @@ function TodoWorkspace({
   const restoreTask = useTodo((s) => s.restoreTask);
   const scheduler = useSchedulerCourses();
   const chatOn = useAccount((s) => s.flags.chat !== "off");
-  const [weekStart, setWeekStart] = useWeekStart();
-  const anchor = asked ?? today;
+  const weekFirst = weekStartOf(anchor);
 
   // Once per page, and again when the date turns over.
   useEffect(() => {
-    void load(today, Date.now());
-  }, [load, today]);
+    if (on) void load(today, Date.now());
+  }, [on, load, today]);
 
-  // A week or month away from today: its dates, and the chart's weeks before it.
+  // A week away from today: its dates, and the weeks before it.
   useEffect(() => {
-    if (phase !== "ready" || view === "list") return;
-    const span = viewSpan(view, anchor, weekStart);
-    void ensureRange(span);
-  }, [phase, view, anchor, weekStart, ensureRange]);
+    if (phase !== "ready") return;
+    void ensureRange(weekSpan(anchor));
+  }, [phase, anchor, ensureRange]);
 
   useEffect(() => {
     if (phase !== "ready" || !day) return;
@@ -324,28 +224,22 @@ function TodoWorkspace({
     [items, hidden, scheduler],
   );
 
-  const lastWeek = weekStartOf(view === "week" ? anchor : today, weekStart);
   const rows = useMemo((): CourseRow[] => {
     const course = (item: TodoItem) => ({
       key: courseKey(item, scheduler.planCourses),
       code: itemCourse(item, scheduler.planCourses),
       label: item.courseLabel,
     });
-    const tallied = courseWeeks(items, done, lastWeek, CHART_WEEKS, course);
-    // Every course on the list has a row, charted or not, and so does each
-    // hidden one, so it can be shown again.
+    const tallied = courseWeek(items, done, weekFirst, course);
+    // A hidden course keeps its row, due this week or not, so it can be
+    // shown again.
     const byKey = new Map(tallied.map((r) => [r.key, r]));
     for (const item of items) {
       const c = course(item);
-      if (!byKey.has(c.key))
-        byKey.set(c.key, {
-          ...c,
-          weeks: Array.from({ length: CHART_WEEKS }, (_, i) => ({
-            week: addDays(lastWeek, 7 * (i - CHART_WEEKS + 1)),
-            done: 0,
-            total: 0,
-          })),
-        });
+      if (byKey.has(c.key)) continue;
+      if (!hidden.has(c.key) && !(c.code !== null && hidden.has(c.code)))
+        continue;
+      byKey.set(c.key, { ...c, done: 0, total: 0 });
     }
     const chatItems = (key: string) =>
       items.filter((i) => course(i).key === key);
@@ -364,7 +258,7 @@ function TodoWorkspace({
           Number(a.key === NO_COURSE_KEY) - Number(b.key === NO_COURSE_KEY) ||
           a.key.localeCompare(b.key),
       );
-  }, [items, done, lastWeek, scheduler, colors, hidden, chatOn, today]);
+  }, [items, done, weekFirst, scheduler, colors, hidden, chatOn, today]);
 
   const onHide = useCallback(
     (row: CourseRow, hide: boolean) => {
@@ -382,7 +276,7 @@ function TodoWorkspace({
             );
         });
       send(hide);
-      // Hiding takes things off the calendar, so it gets Undo; showing puts
+      // Hiding takes things off the week, so it gets Undo; showing puts
       // them back where they can be seen.
       if (hide)
         undoToast({
@@ -463,223 +357,219 @@ function TodoWorkspace({
     done,
     today,
     now,
-    weekStart,
     look,
     onToggle,
     taskCourses,
     onDeleteTask,
   };
 
-  const ready = phase === "ready";
-  const empty = ready && !feed && items.length === 0;
-  const words = feedWords(feed, now);
-  const checked = refreshing
-    ? "Checking ELMS…"
-    : // The panel says what to do; the bar says it's happened.
-      feed?.status === "broken"
-      ? "ELMS stopped sharing your calendar"
-      : words.checked;
-  const openLine = ready
-    ? `${openWords(openCount(shown, done))}${checked ? ` · ${checked}` : ""}`
-    : null;
-  const term = seasonTermOf(weekStartOf(anchor, weekStart));
+  // "View schedule": the week's classes, on its term's main plan.
+  const term = seasonTermOf(weekFirst);
   const mainPlan = scheduler.mainPlans[term];
-  // The bar says what's open and links the week's classes (./todo-bar).
-  useEffect(() => {
-    useTodoBar.setState({
-      status: openLine,
-      schedule: {
-        term,
-        planId: mainPlan?.id,
-        planName: mainPlan?.name,
-      },
-    });
-  }, [openLine, term, mainPlan]);
-  useEffect(
-    () => () =>
-      useTodoBar.setState({ status: null, schedule: null, panel: null }),
-    [],
-  );
+  const schedule: SidebarSchedule = {
+    term,
+    planId: mainPlan?.id,
+    label: mainPlan
+      ? `Opens ${mainPlan.name}, your main plan for ${termLabel(term)}`
+      : `Your ${termLabel(term)} classes`,
+  };
 
-  // The composer is in the bar's panel: a task started anywhere (+, Q, an
-  // empty day, the first visit) opens it, and the composer takes the day.
-  const request = useComposerRequest();
-  const panelOpen = useTodoBar((s) => s.panel);
-  useEffect(() => {
-    if (request.seq !== request.taken && panelOpen !== "task")
-      openTodoPanel("task");
-  }, [request, panelOpen]);
+  return {
+    phase,
+    reload: () => void load(today, Date.now()),
+    firstVisit: phase === "ready" && !feed && items.length === 0,
+    props,
+    sidebar: {
+      props,
+      rows,
+      weekFirst,
+      thisWeek: isThisWeek(anchor, today),
+      schedule,
+      onHide,
+      courses: taskCourses,
+      colors,
+    },
+    hasFileItems: items.some((i) => i.source === "file"),
+  };
+}
 
-  // The first visit: what Todo does, and its two ways in.
-  const firstVisit = empty ? (
-    <EmptyState
-      title="Your deadlines, on a calendar"
-      line={WHAT_TODO_DOES}
-      equal
-      primary={{
-        label: "Connect ELMS",
-        hint: "Paste your ELMS calendar link: three steps",
-        to: TODO_CONNECT_PATH,
-      }}
-      secondary={{
-        label: "Add a task",
-        icon: <Plus aria-hidden="true" />,
-        hint: "Type a task in the box, with its date",
-        shortcut: "Q",
-        onClick: () => startTask(),
-      }}
-      className="py-2"
-    />
-  ) : null;
-
-  const calendar =
-    phase === "failed" ? (
-      <InlineError
-        message="We couldn't load your calendar. Check your connection and try again."
-        onRetry={() => void load(today, Date.now())}
-      />
-    ) : !ready ? (
-      <PageSkeleton rows={4} label="Loading your calendar" />
-    ) : view === "list" ? (
-      <DayList {...props} />
-    ) : view === "week" ? (
-      mobile ? (
-        <WeekAgenda anchor={anchor} props={props} />
-      ) : (
-        <WeekGrid anchor={anchor} props={props} />
-      )
-    ) : mobile ? (
-      <MonthPicker
-        anchor={anchor}
-        props={props}
-        dayLink={(date, children, label) => (
-          <WithTooltip label={label}>
-            <Link
-              to={TODO_PATH}
-              search={{ view: "month", date }}
-              replace
-              aria-label={label}
-              aria-current={date === anchor ? "date" : undefined}
-            >
-              {children}
-            </Link>
-          </WithTooltip>
-        )}
-      />
-    ) : (
-      <MonthGrid
-        anchor={anchor}
-        props={props}
-        weekLink={(date, more) => (
-          <WithTooltip label="See the whole week">
-            <Link
-              to={TODO_PATH}
-              search={{ view: "week", date }}
-              className="px-2 text-left text-muted text-xs hover:text-fg hover:underline"
-            >
-              +{more} more
-            </Link>
-          </WithTooltip>
-        )}
-      />
-    );
-
-  const loadingPanel = <RowSkeleton rows={4} label="Loading" />;
-
+/** The first visit, over the empty week: what lands here, and the two ways in. */
+function FirstVisitHint() {
   return (
-    <>
-      <Shortcuts view={view} anchor={anchor} weekStart={weekStart} />
-      {/* The page's h1 is the bar's title (./todo-bar). */}
-      <main
-        id={CANVAS_ID}
-        tabIndex={-1}
-        className={cn(
-          "scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain outline-none",
-          mobile ? "px-4 pt-3 pb-8" : "p-4",
-        )}
-      >
-        {firstVisit}
-        {calendar}
-      </main>
-      <BarPanel which="task" mobile={mobile}>
-        {ready ? (
-          <TaskPanel
-            courses={taskCourses}
-            colors={colors}
-            weekStart={weekStart}
-            onAdded={closeTodoPanel}
-          />
-        ) : (
-          loadingPanel
-        )}
-      </BarPanel>
-      <BarPanel which="courses" mobile={mobile}>
-        {ready ? (
-          <CoursesPanel
-            weekStart={weekStart}
-            onWeekStart={setWeekStart}
-            rows={rows}
-            lastWeek={lastWeek}
-            isThisWeek={lastWeek === weekStartOf(today, weekStart)}
-            onHide={onHide}
-            feed={feed}
-            now={now}
-            hasFileItems={items.some((i) => i.source === "file")}
-          />
-        ) : (
-          loadingPanel
-        )}
-      </BarPanel>
-    </>
+    <CanvasHint className="py-2 max-md:w-full">
+      <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:gap-4">
+        <p className="min-w-0 flex-1">
+          <span className="emph-heading">Your deadlines, on a calendar. </span>
+          <span className="emph-secondary">
+            Connect ELMS and your assignments land on their days, or add your
+            own tasks.
+          </span>
+        </p>
+        <span className="flex shrink-0 gap-2">
+          <WithTooltip label="Paste your ELMS calendar link: three steps">
+            <Button size="sm" onClick={() => openElmsSettings()}>
+              Connect ELMS
+            </Button>
+          </WithTooltip>
+          <WithTooltip label="Type a task, with its date" shortcut="Q">
+            <Button size="sm" variant="outline" onClick={() => startTask()}>
+              Add a task
+            </Button>
+          </WithTooltip>
+        </span>
+      </div>
+    </CanvasHint>
+  );
+}
+
+/** The week, signed in: the grid on a desktop, its days on a phone. */
+function TodoCanvas({
+  mobile,
+  anchor,
+  week,
+}: {
+  mobile: boolean;
+  anchor: IsoDate;
+  week: ReturnType<typeof useTodoWeek>;
+}) {
+  if (week.phase === "failed")
+    return (
+      <div className="p-4">
+        <InlineError
+          message="We couldn't load your deadlines. Check your connection and try again."
+          onRetry={week.reload}
+        />
+      </div>
+    );
+  // While it loads, the week's days are already there, empty.
+  const hint = week.firstVisit ? <FirstVisitHint /> : null;
+  if (mobile)
+    return (
+      <>
+        {/* Connecting ELMS asks for reminders (V2 §6.7): over the week on
+            a phone, where the drawer at rest wouldn't show it. */}
+        <PushAskCard moment="todo-connected" className="m-3" />
+        {hint ? <div className="p-3">{hint}</div> : null}
+        <WeekAgenda anchor={anchor} props={week.props} />
+      </>
+    );
+  return (
+    <div
+      className="relative flex flex-1 flex-col"
+      aria-busy={week.phase !== "ready" || undefined}
+    >
+      <WeekGrid anchor={anchor} props={week.props} />
+      {hint ? (
+        // Floats under the day names, as Schedule's hints do.
+        <div className="pointer-events-none absolute inset-x-4 top-12 z-20 flex justify-center">
+          {hint}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
 /** `/todo`, whoever's looking. */
-export function TodoPage({
-  view,
-  anchor,
-  day,
-}: {
-  view: CalendarView;
-  anchor?: IsoDate;
-  day?: IsoDate;
-}) {
+export function TodoPage({ anchor, day }: { anchor?: IsoDate; day?: IsoDate }) {
   const status = useAccount((s) => s.status);
   const on = useAccount((s) => s.flags.todo);
   if (status !== "loading" && !on) return <TodoOff />;
-  // One frame for every state, so the family bar stays mounted (with focus
-  // in it) as the account and the calendar arrive.
+  return <TodoWorkbench status={status} anchor={anchor} day={day} />;
+}
+
+/**
+ * One frame for every state, so the family bar stays mounted (with focus
+ * in it) as the account and the week arrive.
+ */
+function TodoWorkbench({
+  status,
+  anchor: asked,
+  day,
+}: {
+  status: ReturnType<typeof useAccount.getState>["status"];
+  anchor?: IsoDate;
+  day?: IsoDate;
+}) {
+  const mobile = useIsMobile();
+  const { today } = useNow();
+  const anchor = asked ?? today;
+  const signedIn = status === "signed-in";
+  const week = useTodoWeek(anchor, day, signedIn);
+  const [width, setWidth] = useSidebarWidth();
+  useTodoWorkbenchMounted();
   return (
-    // Its panes end above a phone's tab bar (--tab-bar-space, styles.css).
-    <div
-      data-app-shell=""
-      className="flex h-dvh flex-col bg-bg pb-(--tab-bar-space) text-fg"
-    >
-      {status === "signed-in" ? (
-        <SkipLinks canvasId={CANVAS_ID} canvasName="calendar" />
-      ) : null}
-      <SiteHeader
-        // Todo's controls, in the bar (./todo-bar), once there's a calendar.
-        context={
-          status === "signed-in" ? (
-            <TodoBarContext view={view} anchor={anchor} />
-          ) : undefined
-        }
-        status={
-          status === "signed-in" ? (
-            <TodoBarActions view={view} anchor={anchor} />
-          ) : undefined
-        }
-      />
-      {status === "loading" ? (
-        <div className={cn("mx-auto w-full px-4 pt-6", PAGE_WIDTH.app)}>
-          <PageSkeleton rows={4} label="Loading your calendar" />
-        </div>
-      ) : status === "signed-out" ? (
-        <FrontDoor returnTo={TODO_PATH} />
-      ) : (
-        <TodoWorkspace view={view} anchor={anchor} day={day} />
-      )}
-    </div>
+    <Workbench
+      mobile={mobile}
+      before={
+        signedIn ? (
+          <SkipLinks
+            canvasId={CANVAS_ID}
+            canvasName="week"
+            sidebarId={TODO_SIDEBAR_PANEL_ID}
+            onSidebar={toSidebar}
+          />
+        ) : null
+      }
+      bar={
+        <SiteHeader
+          context={
+            signedIn ? (
+              <TodoBarContext
+                anchor={anchor}
+                status={<SyncLine now={week.props.now} />}
+              />
+            ) : undefined
+          }
+          status={
+            signedIn ? (
+              <TodoSyncButton
+                hasFileItems={week.hasFileItems}
+                now={week.props.now}
+              />
+            ) : undefined
+          }
+        />
+      }
+      rail={null}
+      sidebar={
+        signedIn ? (
+          <WorkbenchSidebar
+            id={SIDEBAR_ID}
+            open
+            width={width}
+            onWidth={setWidth}
+          >
+            <TodoSidebar {...week.sidebar} />
+          </WorkbenchSidebar>
+        ) : null
+      }
+      drawer={signedIn ? <TodoDrawer {...week.sidebar} /> : null}
+      canvas={
+        signedIn ? (
+          <TodoCanvas mobile={mobile} anchor={anchor} week={week} />
+        ) : status === "signed-out" ? (
+          <FrontDoor returnTo={TODO_PATH} />
+        ) : null
+      }
+      canvasId={CANVAS_ID}
+      canvasClassName={
+        signedIn
+          ? "scroll-thin flex flex-col overflow-y-auto overscroll-y-contain"
+          : "flex flex-col"
+      }
+      after={
+        signedIn ? (
+          <>
+            <Shortcuts anchor={anchor} />
+            {mobile ? (
+              <SyncSheet
+                hasFileItems={week.hasFileItems}
+                now={week.props.now}
+              />
+            ) : null}
+          </>
+        ) : null
+      }
+    />
   );
 }

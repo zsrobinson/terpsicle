@@ -43,23 +43,26 @@ test("anyone can find a course or an instructor and read their reviews", async (
   await page.goto("/reviews");
   await expect(
     page.getByRole("heading", {
-      name: "UMD course and instructor reviews",
+      name: "Terpsicle Reviews",
       level: 1,
     }),
   ).toBeVisible();
   await hydrated(page);
-  const search = page.getByPlaceholder(/Search instructors and courses/);
-  // Instructors and courses are found alike.
+  const search = page.getByRole("combobox", {
+    name: "Search instructors and courses",
+  });
+  // Instructors and courses are found alike, in the search's results.
   await search.fill("ashdown");
+  const results = page.getByRole("listbox");
   await expect(
-    page
-      .getByRole("list", { name: "Instructors" })
-      .getByRole("link", { name: "Keiko Ashdown" }),
+    results.getByRole("group", { name: "Instructors" }).getByRole("option", {
+      name: /Keiko Ashdown/,
+    }),
   ).toHaveAttribute("href", "/reviews/ashdown-keiko");
   await search.fill("cmsc 351");
-  await page
-    .getByRole("list", { name: "Courses" })
-    .getByRole("link", { name: /CMSC351\s*Algorithms/ })
+  await results
+    .getByRole("group", { name: "Courses" })
+    .getByRole("option", { name: /CMSC351\s*Algorithms/ })
     .click();
 
   await expect(page).toHaveURL(/\/reviews\/cmsc351$/);
@@ -74,10 +77,14 @@ test("anyone can find a course or an instructor and read their reviews", async (
     page.getByRole("heading", { name: "Keiko Ashdown", level: 1 }),
   ).toBeVisible();
   // PlanetTerp's 142, and ours from the published numbers (the mock bucket
-  // has some for her) while the page shows one course.
+  // has some for her) while the page shows one course: the count, with no
+  // source named (owner, 2026-09-29), and stars filled to the number.
   await expect(page.getByTestId("rating-math")).toContainText(
-    /(3\.1 from 142|142 reviews) on PlanetTerp/,
+    /^from 1\d\d reviews$/,
   );
+  await expect(
+    page.getByRole("img", { name: /^3\.\d out of 5 stars$/ }).first(),
+  ).toBeVisible();
   // PlanetTerp's reviews are here, each marked and linking to PlanetTerp.
   const theirs = page.locator('article[data-source="planetterp"]');
   await expect(theirs.first()).toBeVisible();
@@ -92,6 +99,32 @@ test("anyone can find a course or an instructor and read their reviews", async (
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
+test("an instructor PlanetTerp doesn't know opens a page of what they taught", async ({
+  page,
+}) => {
+  // Dario Castellano teaches CMSC426 in the mock term; PlanetTerp's mock
+  // data doesn't join his name, so only our instructor history knows him.
+  await page.goto("/reviews/cmsc426");
+  await hydrated(page);
+  await page.getByRole("link", { name: "Dario Castellano" }).first().click();
+  await expect(page).toHaveURL(/\/reviews\/dario-castellano\?course=CMSC426$/);
+  await expect(
+    page.getByRole("heading", { name: "Dario Castellano", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Nobody's reviewed Dario Castellano yet.", { exact: false }),
+  ).toBeVisible();
+  const taught = page.getByRole("list", { name: /^Taught in / }).first();
+  await expect(taught.getByRole("link", { name: /CMSC426/ })).toHaveAttribute(
+    "href",
+    "/reviews/cmsc426",
+  );
+  // Signed out, the box asks, as on anyone's page.
+  await expect(
+    page.getByRole("region", { name: "Took a class with Dario Castellano?" }),
+  ).toBeVisible();
+});
+
 test("write, fix, edit and delete a review", { tag: "@critical" }, async ({
   page,
   isMobile,
@@ -101,7 +134,12 @@ test("write, fix, edit and delete a review", { tag: "@critical" }, async ({
 
   await page.getByRole("button", { name: "Write a review" }).click();
   const form = page.getByRole("form", { name: "Write a review" });
-  await form.getByRole("radio", { name: "4 stars" }).click();
+  // Half stars: the slider's arrow keys move by a half.
+  const rating = form.getByRole("slider", { name: "Rating" });
+  await rating.focus();
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowLeft");
+  await expect(rating).toHaveAttribute("aria-valuetext", "4.5 out of 5 stars");
   // The newest term in the list (after "Rather not say").
   await form.getByLabel("When you took it").click();
   await page.getByRole("option").nth(1).click();
@@ -137,6 +175,9 @@ test("write, fix, edit and delete a review", { tag: "@critical" }, async ({
   await expect(mine).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Keiko Ashdown" })).toBeVisible();
   await expect(mine.getByText("Held")).toBeVisible();
+  await expect(
+    mine.getByRole("img", { name: "4.5 out of 5 stars" }),
+  ).toBeVisible();
   await expect(mine.getByText(HELD)).toBeVisible();
   await expect(
     mine.getByText(/^Took it (Spring|Summer|Fall|Winter) \d{4}$/),
@@ -239,9 +280,15 @@ test("course details in the scheduler link to the instructor's reviews", async (
   await box.fill("cmsc 351");
   await page.locator('[data-course-result="CMSC351"]').click();
   await expect(page.getByRole("heading", { name: "Algorithms" })).toBeVisible();
-  // Keiko Ashdown's group, the open one (the plan has her 0301).
-  await page.getByRole("button", { name: "Reviews" }).last().click();
-  const read = page.getByRole("link", { name: "View reviews" }).first();
+  // Keiko Ashdown's group, the open one (the plan has her 0301). Its
+  // Reviews button wears Reviews' mark and opens a preview over the list.
+  const reviews = page.getByRole("button", { name: "Reviews" }).last();
+  await expect(reviews.locator('[data-mark="reviews"]')).toBeVisible();
+  await reviews.click();
+  const preview = page.locator('[data-instructor="Keiko Ashdown"]');
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText("reviews on PlanetTerp");
+  const read = preview.getByRole("link", { name: "View reviews" });
   await expect(read).toHaveAttribute(
     "href",
     /^\/reviews\/[^/?]+\?course=CMSC351$/,
@@ -260,6 +307,7 @@ for (const scheme of ["light", "dark"] as const)
       "/reviews/cmsc351",
       INSTRUCTOR,
       "/reviews/keiko-ashdown",
+      "/reviews/dario-castellano?course=CMSC426",
       "/reviews/policy",
     ]) {
       await page.goto(path);

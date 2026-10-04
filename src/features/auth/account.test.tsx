@@ -4,7 +4,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -128,6 +128,7 @@ class UnsavedChangesError extends Error {
 beforeEach(() => {
   useAccount.setState({
     status: "loading",
+    lastKnown: null,
     flags: FLAGS_OFF,
     user: null,
     deleteAfter: null,
@@ -288,7 +289,9 @@ describe("the top bar's account button", () => {
   it("on phones, stands in for the theme toggle only once sign-in is on", async () => {
     const toggle = <button type="button">Theme</button>;
     const { rerender } = wrap(<AccountButton compact fallback={toggle} />);
-    expect(screen.getByRole("button", { name: "Theme" })).toBeInTheDocument();
+    // Nobody knows yet: the avatar's place, quiet, and nothing to press.
+    expect(screen.getByTestId("account-placeholder")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
 
     await loaded({ status: "signed-out", flags: flags({ signIn: true }) });
     rerender(
@@ -308,6 +311,34 @@ describe("the top bar's account button", () => {
     );
     expect(
       within(menu).getByRole("menuitemradio", { name: "Dark" }),
+    ).toBeInTheDocument();
+  });
+
+  it("draws what this browser last saw while /api/me answers, never Sign in first", async () => {
+    // Signed in last time: the page opens on the avatar's place.
+    await loaded(signedIn());
+    let answer: (me: MeResult) => void = () => {};
+    setAccountClient({
+      ...api,
+      me: vi.fn(
+        () =>
+          new Promise<MeResult>((resolve) => {
+            answer = resolve;
+          }),
+      ),
+    } as unknown as AccountClient);
+    useAccount.setState({ status: "loading", user: null });
+    const pending = useAccount.getState().load();
+    expect(useAccount.getState().lastKnown).toBe("signed-in");
+    wrap(<AccountButton />);
+    expect(screen.getByTestId("account-placeholder")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    await act(async () => {
+      answer(signedIn());
+      await pending;
+    });
+    expect(
+      screen.getByRole("button", { name: /^Account: / }),
     ).toBeInTheDocument();
   });
 

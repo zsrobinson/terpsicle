@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ArrowUp, Bell, BellRing, Star, TriangleAlert } from "lucide-react";
+import { ArrowUp, Bell, BellRing, TriangleAlert } from "lucide-react";
 import {
   type FormEvent,
   type ReactNode,
@@ -13,6 +13,7 @@ import { tintStyle } from "~/features/calendar/tint";
 import { Button } from "~/ui/button";
 import { Input } from "~/ui/input";
 import { ListRow } from "~/ui/list-row";
+import { StarMark } from "~/ui/stars";
 import { undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -319,11 +320,7 @@ function ReviewsPiece() {
             aria-label="Rated 4.4 from 72 reviews"
             className="flex items-center gap-1 text-sm hover:bg-hover"
           >
-            <Star
-              size={13}
-              aria-hidden="true"
-              className="fill-current text-warn"
-            />
+            <StarMark size={13} />
             <span className="tnum font-semibold">4.4</span>
             <span className="tnum text-muted">(72)</span>
           </button>
