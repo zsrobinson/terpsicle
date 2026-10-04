@@ -1,5 +1,3 @@
-import { createServer, type IncomingHttpHeaders } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, type Page, test } from "@playwright/test";
 import {
   decryptPushPayload,
@@ -11,6 +9,7 @@ import {
 import { deviceLabel } from "../src/core/pwa/device-label";
 import { scan } from "./axe";
 import { payloadOf } from "./push-message";
+import { startPushService } from "./push-service";
 import { liveToasts } from "./toasts";
 
 // Notifications at /settings/notifications on `pnpm dev:mock` (V2.md §6),
@@ -34,36 +33,6 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => {
   expect(errors).toEqual([]);
 });
-
-interface Delivery {
-  path: string;
-  headers: IncomingHttpHeaders;
-  body: Buffer;
-}
-
-/** A push service on this machine: answers 201 and keeps what it got. */
-async function startPushService() {
-  const received: Delivery[] = [];
-  const server = createServer((request, response) => {
-    const chunks: Buffer[] = [];
-    request.on("data", (chunk: Buffer) => chunks.push(chunk));
-    request.on("end", () => {
-      received.push({
-        path: request.url ?? "",
-        headers: request.headers,
-        body: Buffer.concat(chunks),
-      });
-      response.writeHead(201).end();
-    });
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  return {
-    received,
-    origin: `http://127.0.0.1:${port}`,
-    close: () => new Promise((resolve) => server.close(resolve)),
-  };
-}
 
 /** The key pair and secret a browser would make for its subscription. */
 async function aSubscription(endpoint: string) {
@@ -152,10 +121,9 @@ async function signIn(page: Page) {
   expect(next).toContain("/settings");
 }
 
-test("turn on notifications, send a test, see it, remove the device", async ({
-  page,
-  context,
-}) => {
+test("turn on notifications, send a test, see it, remove the device", {
+  tag: "@critical",
+}, async ({ page, context }) => {
   const service = await startPushService();
   try {
     const id = Math.random().toString(36).slice(2);

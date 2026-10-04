@@ -82,11 +82,9 @@ async function takeFullSection(page: Page) {
   return row;
 }
 
-test("watch a full section: sign in, watching everywhere, the email, stop and undo", async ({
-  page,
-  request,
-  baseURL,
-}) => {
+test("watch a full section: sign in, watching everywhere, the email, stop and undo", {
+  tag: "@critical",
+}, async ({ page, request, baseURL }) => {
   test.setTimeout(120_000);
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

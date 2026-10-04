@@ -17,9 +17,8 @@ Page scripts (the probe) go over each browser's debugging protocol; every touch 
 
 **In CI** (`.github/workflows/mobile-lab.yml`):
 
-- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (`webkit,android,ios`), `scenarios` (ids, comma-separated; empty for all), `repeat` (each scenario this many times, for an intermittent failure; repeats are `<id>-2`, `<id>-3`, …), `video` (off rules the recorder out when chasing a crash).
-- **Nightly:** every engine against https://terpsicle.com.
-- **PRs:** `ci.yml` runs WebKit against the PR's preview after it deploys, when the PR touches the scheduler's shell or the shared layer (`src/features/schedule/`, `src/components/` outside the kit, `src/hooks/`, `src/lib/`), `src/styles.css`, anything named `*drawer*` or the lab itself. Add the **`mobile-lab`** label to a PR to run Android and iOS as well: adding it runs all three at once against the current preview, and later pushes include them.
+- **Any URL, any engines:** Actions → *Mobile lab* → *Run workflow*. Inputs: `url` (default production), `engines` (default `webkit`; add `android,ios` when needed), `scenarios` (ids, comma-separated; empty for all), `repeat` (each scenario this many times, for an intermittent failure; repeats are `<id>-2`, `<id>-3`, …), `video` (off by default; enable when motion is useful evidence).
+- **Explicit investigations:** choose the PR preview URL when investigating a change. There are no automatic nightly or PR-label device runs. The required CI gate includes small phone Chromium/WebKit smoke checks; **Browser diagnostics** supplies desktop/phone page grids and the full regression suite (docs/TESTING.md).
 
 A run fails when a `fail` check fails (below); results are published either way.
 

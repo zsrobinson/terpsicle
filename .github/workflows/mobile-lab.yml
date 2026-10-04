@@ -4,11 +4,7 @@ name: Mobile lab
 # mobile engines. docs/MOBILE-TESTING.md explains the engines and the results.
 #
 # - By hand: Actions → Mobile lab → Run workflow, with any URL and engines.
-# - Nightly: every engine against production.
-# - PRs: ci.yml calls this with WebKit against the PR's preview when a PR
-#   touches the app shell or styles; the `mobile-lab` label adds Android and
-#   iOS (adding the label runs them at once, on the current preview).
-#
+# - On demand: choose the preview URL, scenarios and engines to inspect.
 # Every run's screenshots, recordings and step logs go to the run's artifacts
 # (mobile-lab-<engine>), never to a Git branch: recordings bloat the repo for
 # every clone (docs/decisions.md, "Test recordings stay out of Git").
@@ -21,7 +17,7 @@ on:
         required: true
       engines:
         description: "Engines, comma-separated: webkit, android, ios"
-        default: webkit,android,ios
+        default: webkit
         required: true
       scenarios:
         description: Only these scenario ids, comma-separated (empty for all)
@@ -32,7 +28,7 @@ on:
       video:
         description: Record each scenario (off isolates the recorder when chasing a crash)
         type: boolean
-        default: true
+        default: false
       screenshots:
         description: Screenshot each step (off only to test whether screenshots cause a crash)
         type: boolean
@@ -51,13 +47,15 @@ on:
       repeat:
         type: string
         default: "1"
-  schedule:
-    - cron: "23 8 * * *"
-  pull_request:
-    types: [labeled]
+      video:
+        type: boolean
+        default: false
+      screenshots:
+        type: boolean
+        default: true
 
 concurrency:
-  group: mobile-lab-${{ github.event.pull_request.number || github.run_id }}-${{ github.event_name }}
+  group: mobile-lab-${{ github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -68,9 +66,6 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Called from ci.yml, `github.event_name` is the caller's (pull_request):
-    # a URL input tells that apart from the label trigger.
-    if: inputs.url != '' || github.event_name != 'pull_request' || github.event.label.name == 'mobile-lab'
     outputs:
       url: ${{ steps.plan.outputs.url }}
       engines: ${{ steps.plan.outputs.engines }}
@@ -81,38 +76,22 @@ jobs:
     steps:
       - id: plan
         env:
-          EVENT: ${{ github.event_name }}
           INPUT_URL: ${{ inputs.url }}
           INPUT_ENGINES: ${{ inputs.engines }}
           INPUT_SCENARIOS: ${{ inputs.scenarios }}
           INPUT_REPEAT: ${{ inputs.repeat }}
           INPUT_VIDEO: ${{ inputs.video }}
           INPUT_SCREENSHOTS: ${{ inputs.screenshots }}
-          PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ -n "$INPUT_URL" ]; then
-            url="$INPUT_URL"; engines="$INPUT_ENGINES"; scenarios="$INPUT_SCENARIOS"
-          elif [ "$EVENT" = pull_request ]; then
-            url="https://pr-$PR-terpsicle.zsrobinson.workers.dev"; engines=webkit,android,ios; scenarios=
-          else
-            url=https://terpsicle.com; engines=webkit,android,ios; scenarios=
-          fi
+          url="$INPUT_URL"; engines="$INPUT_ENGINES"; scenarios="$INPUT_SCENARIOS"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "engines=$engines" >> "$GITHUB_OUTPUT"
           echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
           echo "repeat=${INPUT_REPEAT:-1}" >> "$GITHUB_OUTPUT"
-          # Only a dispatch can turn recording off.
           if [ "$INPUT_VIDEO" = false ]; then echo "video=--no-video" >> "$GITHUB_OUTPUT"; else echo "video=--video" >> "$GITHUB_OUTPUT"; fi
           if [ "$INPUT_SCREENSHOTS" = false ]; then echo "screenshots=--no-screenshots" >> "$GITHUB_OUTPUT"; else echo "screenshots=--screenshots" >> "$GITHUB_OUTPUT"; fi
           echo "Testing $url on $engines ${scenarios:+(only $scenarios)}"
-          # Labeled before the preview is up (a new PR): wait for it.
-          if [ "$EVENT" = pull_request ] && [ -z "$INPUT_URL" ]; then
-            for i in $(seq 1 100); do
-              curl -fsS -o /dev/null "$url" && exit 0
-              sleep 15
-            done
-            echo "::error::$url didn't come up"; exit 1
-          fi
+
 
   webkit:
     name: WebKit (iPhone viewport)
@@ -124,7 +103,7 @@ jobs:
       URL: ${{ needs.plan.outputs.url }}
       SCENARIOS: ${{ needs.plan.outputs.scenarios }}
       REPEAT: ${{ needs.plan.outputs.repeat || '1' }}
-      VIDEO: ${{ needs.plan.outputs.video || '--video' }}
+      VIDEO: ${{ needs.plan.outputs.video || '--no-video' }}
       SCREENSHOTS: ${{ needs.plan.outputs.screenshots || '--screenshots' }}
       SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
@@ -180,7 +159,7 @@ jobs:
       URL: ${{ needs.plan.outputs.url }}
       SCENARIOS: ${{ needs.plan.outputs.scenarios }}
       REPEAT: ${{ needs.plan.outputs.repeat || '1' }}
-      VIDEO: ${{ needs.plan.outputs.video || '--video' }}
+      VIDEO: ${{ needs.plan.outputs.video || '--no-video' }}
       SCREENSHOTS: ${{ needs.plan.outputs.screenshots || '--screenshots' }}
       SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
@@ -244,7 +223,7 @@ jobs:
       URL: ${{ needs.plan.outputs.url }}
       SCENARIOS: ${{ needs.plan.outputs.scenarios }}
       REPEAT: ${{ needs.plan.outputs.repeat || '1' }}
-      VIDEO: ${{ needs.plan.outputs.video || '--video' }}
+      VIDEO: ${{ needs.plan.outputs.video || '--no-video' }}
       SCREENSHOTS: ${{ needs.plan.outputs.screenshots || '--screenshots' }}
       SOURCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       IOS_DEVICE: iPhone 16
