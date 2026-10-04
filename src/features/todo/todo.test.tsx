@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -30,10 +31,15 @@ import {
   testFeedLink,
 } from "~/core/todo";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
+import { prefsDb } from "~/features/prefs/save";
 import { showSyncedPrefs } from "~/features/prefs/synced-prefs";
 import { anOwnTask, aTodoFeedState, aTodoItem } from "~/fixtures";
 import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
+import {
+  readSidebarWidth,
+  writeSidebarWidth,
+} from "~/state/sidebar-width-pref";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Composer } from "./composer";
@@ -910,7 +916,7 @@ describe("the week's progress in the sidebar", () => {
     const link = await screen.findByRole("link", {
       name: "View chat for CMSC216",
     });
-    expect(link).toHaveAttribute("href", "/chat?term=202608&course=CMSC216");
+    expect(link).toHaveAttribute("href", "/chat/CMSC216/everyone");
     expect(link.querySelector('[data-mark="chat"]')).not.toBeNull();
   });
 
@@ -935,7 +941,8 @@ describe("the week's progress in the sidebar", () => {
 
 describe("the sidebar's width", () => {
   it("is the workbenches' one width, dragged or keyed, and kept", async () => {
-    window.localStorage.setItem("terpsicle:sidebar-width", "400");
+    // Saved where every workbench keeps it, the scheduler's prefs.
+    await writeSidebarWidth(prefsDb(), 400);
     fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();
@@ -952,6 +959,9 @@ describe("the sidebar's width", () => {
     expect(
       document.documentElement.style.getPropertyValue("--sidebar-width"),
     ).toBe("416px");
+    await waitFor(async () =>
+      expect(await readSidebarWidth(prefsDb())).toBe(416),
+    );
   });
 });
 

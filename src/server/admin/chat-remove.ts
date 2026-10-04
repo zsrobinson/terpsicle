@@ -5,6 +5,7 @@
 // and Undo puts it back in the queue, held.
 import { courseRoomId, type ResolveResult } from "~/core/schema";
 import type { AdminChatRemoveInput } from "~/core/schema/admin";
+import { loadChatTerm } from "../chat/catalog";
 import { chatTargetId } from "../chat/moderation-handler";
 import { type AdminDeps, resolveQueueItem } from "../moderation/admin";
 import type { ModerationHandlerEnv } from "../moderation/handlers";
@@ -15,12 +16,15 @@ import {
 } from "../moderation/store";
 
 export async function removeChatMessage(
-  env: ModerationHandlerEnv & { DB: D1Database },
+  env: ModerationHandlerEnv & { DB: D1Database; DATA: R2Bucket },
   input: AdminChatRemoveInput,
   deps: AdminDeps,
 ): Promise<ResolveResult> {
   if (!env.COURSE_CHAT) return { status: "not-found" };
-  const { termId, courseCode, messageId } = input;
+  const { courseCode, messageId } = input;
+  // A Chat link names no term: it's Chat's (~/core/chat/room-paths).
+  const termId = input.termId ?? (await loadChatTerm(env.DATA, deps.now));
+  if (!termId) return { status: "not-found" };
   const found = await env.COURSE_CHAT.get(
     env.COURSE_CHAT.idFromName(courseRoomId(termId, courseCode)),
   ).messageForOwner({ termId, courseCode, messageId });

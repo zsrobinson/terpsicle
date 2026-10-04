@@ -4,6 +4,7 @@ import { PanelBody, PanelNote } from "~/components/panel";
 import { termLabel } from "~/core/catalog/terms";
 import type { ChatListCourse } from "~/core/chat";
 import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
+import { useAccount } from "~/features/auth/account-store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,13 +21,15 @@ import { RowSkeleton } from "~/ui/skeleton";
 import { MainPlanMark } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, termPlans, useChatHome, useMainPlan } from "./chat-home";
-import type { ChatGo, ChatView } from "./nav";
-import { RoomRow, UnreadCount } from "./room-row";
-import { showNote, showUndo } from "./undo";
+import type { ChatGo } from "./nav";
+import { RoomContextMenu } from "./room-menu";
+import { RoomRow } from "./room-row";
+import { showNote, showUndo, useNow } from "./undo";
 
 // The chat list (V2.md §8.6): your courses this term, each under a tinted
-// course bar with your rooms (course, professor, section) as rows, and
-// unread counts, like the scheduler's Courses tab. "Rooms from Plan A, your
+// course bar with your rooms ("Everyone", "Nelson's Sections", "Section
+// 0101") as rows, each with its newest message and an unread mark, like
+// the scheduler's Courses tab. "Rooms from Plan A, your
 // main plan ▾" says where your rooms come from and changes the main plan
 // (V2 §5.5); the term is in the bar, tagged Now or Next, since Schedule is
 // usually on the next one.
@@ -54,18 +57,19 @@ export function useChatList(
 }
 
 export function RoomList({
-  view,
+  currentRoom,
   go,
   empty,
 }: {
-  view: ChatView;
+  /** The open room, if any. */
+  currentRoom: RoomId | null;
   go: ChatGo;
   /** What the list shows with no classes yet (the page decides, by width). */
   empty: ReactNode;
 }) {
   const status = useChatHome((s) => s.status);
-  const viewing = view.room
-    ? (parseRoomId(view.room)?.courseCode ?? null)
+  const viewing = currentRoom
+    ? (parseRoomId(currentRoom)?.courseCode ?? null)
     : null;
   const list = useChatList(viewing);
 
@@ -79,7 +83,7 @@ export function RoomList({
           <InlineError
             className="px-4"
             message="We couldn't load your classes. Check your connection and try again."
-            onRetry={() => void useChatHome.getState().load(view.term ?? null)}
+            onRetry={() => void useChatHome.getState().load()}
             retryTooltip="Load your classes again"
           />
         ) : list.length === 0 ? (
@@ -90,7 +94,7 @@ export function RoomList({
               <CourseGroup
                 key={c.courseCode}
                 entry={c}
-                currentRoom={view.room ?? null}
+                currentRoom={currentRoom}
                 go={go}
               />
             ))}
@@ -111,8 +115,12 @@ function CourseGroup({
   go: ChatGo;
 }) {
   const { courseCode, course, rooms } = entry;
+  const latest = useChatHome((s) => s.latest);
+  const you = useAccount((s) => s.user?.id ?? null);
+  const now = new Date(useNow()).toISOString();
   // Just a heading: its rooms are right under it, so there's nowhere else
-  // to go (a course's other rooms aren't yours, so they aren't listed).
+  // to go (a course's other rooms aren't yours, so they aren't listed), and
+  // each room carries its own unread mark.
   return (
     <li className="border-hairline border-b last:border-b-0">
       <GroupHeader
@@ -127,21 +135,29 @@ function CourseGroup({
             ) : null}
           </span>
         }
-        right={<UnreadCount count={entry.unread} />}
       />
       {course === null ? (
         <PanelNote>{courseCode} isn't in this term's catalog.</PanelNote>
       ) : (
         <div>
           {rooms.map((r) => (
-            <RoomRow
+            <RoomContextMenu
               key={r.room.id}
+              courseCode={courseCode}
               room={r.room}
-              unread={r.unread}
-              muted={r.muted}
-              current={r.room.id === currentRoom}
-              onOpen={() => go({ course: courseCode, room: r.room.id })}
-            />
+              unread={r.muted ? 0 : r.unread}
+            >
+              <RoomRow
+                room={r.room}
+                latest={latest[r.room.id]}
+                you={you}
+                now={now}
+                unread={r.unread}
+                muted={r.muted}
+                current={r.room.id === currentRoom}
+                onOpen={() => go({ course: courseCode, room: r.room.id })}
+              />
+            </RoomContextMenu>
           ))}
         </div>
       )}

@@ -50,12 +50,14 @@ describe("scrubPath", () => {
 
   it("keeps chat paths as their route pattern", () => {
     expect(scrubPath("/chat")).toBe("/chat");
-    expect(scrubPath("/chat/202608/CMSC131")).toBe("/chat/:term/:course");
-    expect(scrubPath("/chat/202608/CMSC131/s-0101")).toBe(
-      "/chat/:term/:course/:room",
+    expect(scrubPath("/chat/CMSC131")).toBe("/chat/:course");
+    expect(scrubPath("/chat/CMSC131/0101")).toBe("/chat/:course/:room");
+    // A professor's room names them.
+    expect(scrubPath("/chat/CMSC131/pedram-sadeghian")).toBe(
+      "/chat/:course/:room",
     );
-    expect(scrubPath("/chat/202608/CMSC131/s-0101/extra")).toBe(
-      "/chat/:term/:course/:room/:param",
+    expect(scrubPath("/chat/CMSC131/0101/extra")).toBe(
+      "/chat/:course/:room/:param",
     );
   });
 
@@ -105,8 +107,8 @@ describe("scrubUrl", () => {
   });
 
   it("scrubs chat rooms, drops hashes and credentials", () => {
-    expect(scrubUrl(`${ORIGIN}/chat/202608/CMSC131/s-0101?m=xyz#end`)).toBe(
-      `${ORIGIN}/chat/:term/:course/:room`,
+    expect(scrubUrl(`${ORIGIN}/chat/CMSC131/0101?thread=msg-0000001#end`)).toBe(
+      `${ORIGIN}/chat/:course/:room`,
     );
     expect(scrubUrl("https://user:pw@example.com/a?b=c#d")).toBe(
       "https://example.com/a",
@@ -141,11 +143,11 @@ describe("scrubEvent", () => {
       anEvent({
         $current_url: sharedLink,
         $pathname: "/schedule",
-        $referrer: `${ORIGIN}/chat/202608/CMSC131/s-0101`,
+        $referrer: `${ORIGIN}/chat/CMSC131/0101`,
         $referring_domain: "terpsicle.com",
         $session_entry_url: sharedLink,
         $session_entry_referrer: "$direct",
-        $prev_pageview_pathname: "/chat/202608/CMSC131",
+        $prev_pageview_pathname: "/chat/CMSC131/everyone",
         $web_vitals_LCP_event: { $current_url: sharedLink, value: 1200 },
         title: "Terpsicle",
       }),
@@ -153,11 +155,11 @@ describe("scrubEvent", () => {
     expect(out?.properties).toEqual({
       $current_url: `${ORIGIN}/schedule?plan=shared`,
       $pathname: "/schedule",
-      $referrer: `${ORIGIN}/chat/:term/:course/:room`,
+      $referrer: `${ORIGIN}/chat/:course/:room`,
       $referring_domain: "terpsicle.com",
       $session_entry_url: `${ORIGIN}/schedule?plan=shared`,
       $session_entry_referrer: "$direct",
-      $prev_pageview_pathname: "/chat/:term/:course",
+      $prev_pageview_pathname: "/chat/:course/:room",
       $web_vitals_LCP_event: {
         $current_url: `${ORIGIN}/schedule?plan=shared`,
         value: 1200,
@@ -181,19 +183,19 @@ describe("scrubEvent", () => {
     });
     expect(out?.$set_once).toEqual({
       $initial_current_url: `${ORIGIN}/schedule?plan=shared`,
-      $initial_pathname: "/chat/:term/:course",
+      $initial_pathname: "/chat/:course/:room",
     });
   });
 
   it("drops a chat page's title, which names the course", () => {
     const out = scrubEvent(
       anEvent({
-        $current_url: `${ORIGIN}/chat/202608/CMSC131`,
+        $current_url: `${ORIGIN}/chat/CMSC131/everyone`,
         title: "CMSC131 · Chat · Terpsicle",
       }),
     );
     expect(out?.properties).toEqual({
-      $current_url: `${ORIGIN}/chat/:term/:course`,
+      $current_url: `${ORIGIN}/chat/:course/:room`,
     });
   });
 
@@ -225,13 +227,13 @@ describe("scrubEvent", () => {
     const out = scrubEvent(
       anEvent(
         {
-          $elements_chain: `a.link:href="/schedule?plan=abc"attr__href="/chat/1/CMSC131/s-1"nth-child="1"text="Open"`,
+          $elements_chain: `a.link:href="/schedule?plan=abc"attr__href="/chat/CMSC131/0101"nth-child="1"text="Open"`,
         },
         "$autocapture",
       ),
     );
     expect(out?.properties.$elements_chain).toBe(
-      `a.link:href="/schedule?plan=shared"attr__href="/chat/:term/:course/:room"nth-child="1"text="Open"`,
+      `a.link:href="/schedule?plan=shared"attr__href="/chat/:course/:room"nth-child="1"text="Open"`,
     );
   });
 

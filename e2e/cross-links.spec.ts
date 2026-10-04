@@ -119,5 +119,5 @@ test("Todo links a course to its chat, and the week to its schedule", async ({
   await expect(elms).toContainText("ELMS synced");
   await raise();
   await page.getByRole("link", { name: "View chat for CMSC216" }).click();
-  await expect(page).toHaveURL(/\/chat\?term=\d{6}&course=CMSC216$/);
+  await expect(page).toHaveURL(/\/chat\/CMSC216\/everyone$/);
 });

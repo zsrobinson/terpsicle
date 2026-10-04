@@ -4,6 +4,7 @@ import { Check, Eye, EyeOff } from "lucide-react";
 import type { CSSProperties } from "react";
 import { Mark } from "~/components/brand/mark";
 import { PanelBody, SectionHeader } from "~/components/panel";
+import { EVERYONE_SLUG } from "~/core/chat/room-paths";
 import { courseColorTokens } from "~/core/color";
 import type { CourseCode, CourseColor, IsoDate, TermId } from "~/core/schema";
 import { formatShortDate } from "~/core/time";
@@ -172,8 +173,8 @@ function CourseLine({
                 size="icon-sm"
                 render={
                   <Link
-                    to="/chat"
-                    search={{ term: row.chatTerm, course: row.code }}
+                    to="/chat/$course/$room"
+                    params={{ course: row.code, room: EVERYONE_SLUG }}
                     aria-label={`View chat for ${row.code}`}
                     onClick={() => crossLinkClicked("todo", "chat")}
                   />

@@ -32,6 +32,7 @@ import {
   SitePage,
 } from "~/features/site/site-page";
 import { useIsMobile } from "~/hooks/use-media-query";
+import { useSidebarWidth } from "~/hooks/use-sidebar-width";
 import { track } from "~/lib/analytics";
 import { useShortcut } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
@@ -494,8 +495,7 @@ function TodoWorkbench({
   const anchor = asked ?? today;
   const signedIn = status === "signed-in";
   const week = useTodoWeek(anchor, day, signedIn);
-  const width = useTodoWorkbench((s) => s.sidebarWidth);
-  const setWidth = useTodoWorkbench((s) => s.setSidebarWidth);
+  const [width, setWidth] = useSidebarWidth();
   useTodoWorkbenchMounted();
   return (
     <Workbench

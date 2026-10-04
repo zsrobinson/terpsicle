@@ -147,6 +147,21 @@ describe("chatList", () => {
     expect(chatListUnread(list)).toBe(3);
   });
 
+  it("marks a room muted here at once, messages or not, over the last unread answer", () => {
+    const list = chatList({
+      termId: fixtureTermId,
+      mainPlan: plan,
+      follows: [],
+      unread: [unreadRow(courseRoomId(fixtureTermId, "CMSC351"), 4, true)],
+      courses,
+      mutes: {
+        [courseRoomId(fixtureTermId, "CMSC351")]: false,
+        [sectionRoomId(fixtureTermId, "CMSC351", "0101")]: true,
+      },
+    });
+    expect(list[0]?.rooms.map((r) => r.muted)).toEqual([false, false, true]);
+  });
+
   it("keeps a course whose department hasn't loaded, with no rooms yet", () => {
     const [only] = chatList({
       termId: fixtureTermId,

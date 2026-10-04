@@ -97,7 +97,7 @@ test("asks after your first Chat post, above the composer, and remembers Not now
   const course = courseFor(info);
   await signInNew(page, "/chat");
   await syncPlan(page, course);
-  await page.goto(`/chat?term=${TERM}&course=${course}&room=${TERM}:${course}`);
+  await page.goto(`/chat/${course}/everyone`);
   await expect(page.getByRole("log", { name: "Messages" })).toBeVisible();
   // Someone new sees "Posting here" over the composer; their first post
   // closes it, and that's when the ask comes, in the same place.
@@ -138,7 +138,8 @@ test("asks after your first Chat post, above the composer, and remembers Not now
   const nextField = next.getByRole("textbox", { name: /^Message/ });
   await nextField.fill(`one more ${tag}`);
   await nextField.press("Enter");
-  await expect(next.getByText(`one more ${tag}`)).toBeVisible({
+  // In the room (the list's second line says it too).
+  await expect(next.getByRole("log").getByText(`one more ${tag}`)).toBeVisible({
     timeout: 15_000,
   });
   await next.waitForTimeout(1000);

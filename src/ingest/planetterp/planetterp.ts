@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { historyDeptFacts } from "~/core/history";
 import { buildPlanetTerpIndex } from "~/core/reviews/planetterp-index";
 import {
   type CourseGrades,
@@ -7,6 +8,8 @@ import {
   GRADE_KEYS,
   type GradeCounts,
   type GradeRecord,
+  HISTORY_MANIFEST_KEY,
+  historyDeptKey,
   type Instructor,
   instructorNameKey,
   JOBS_PREFIX,
@@ -25,6 +28,10 @@ import {
   TermIdSchema,
   TermsFileSchema,
 } from "~/core/schema";
+import {
+  HistoryDeptSchema,
+  HistoryManifestSchema,
+} from "~/core/schema/history";
 import type { BlobStore } from "../blob-store";
 import { type HttpClient, HttpError, mapLimit } from "../http";
 import {
@@ -202,6 +209,10 @@ interface CatalogIndex {
   coursesByName: Map<string, Set<string>>;
   /** Course → its title, from the newest active term that lists it. */
   titles: Map<string, string>;
+  /** dept → names as PlanetTerp spells them in our history → their courses. */
+  planetTerpNames: Map<string, Map<string, Set<string>>>;
+  /** PlanetTerp's grade rows since Spring 2012, as our history reflects them. */
+  gradeRows: number;
 }
 
 export async function runPlanetTerp(
@@ -210,6 +221,7 @@ export async function runPlanetTerp(
   const { http, store, now, log } = options;
   const errors: string[] = [];
   const catalog = await loadCatalog(store, log);
+  await addHistory(store, catalog);
   const lastState = await readJsonOrNull(
     store,
     SOURCE_STATE_KEY,
@@ -365,6 +377,18 @@ export async function runPlanetTerp(
       names[instructorNameKey(name)] = slug;
       addInstructor(slug);
     }
+    // PlanetTerp's own spellings from the history's older terms, joined the
+    // way its grade rows are (by exact name), so a course page's grades and
+    // its "who taught it" agree on one slug per person. A Testudo spelling
+    // with the same key has already had its say.
+    for (const [name, taught] of catalog.planetTerpNames.get(dept) ?? []) {
+      const key = instructorNameKey(name);
+      if (names[key]) continue;
+      const slug = matcher.exact(name, taught);
+      if (!slug) continue;
+      names[key] = slug;
+      addInstructor(slug);
+    }
     const courseGrades: Record<string, CourseGrades> = {};
     for (const code of [...courses].sort()) {
       const state = grades.courses[code];
@@ -424,7 +448,11 @@ export async function runPlanetTerp(
     const out = await writeHashed(
       store,
       PlanetTerpIndexSchema,
-      buildPlanetTerpIndex(published, catalog.titles),
+      buildPlanetTerpIndex(published, catalog.titles, {
+        professors: professors.length,
+        reviews,
+        gradeRows: catalog.gradeRows,
+      }),
       planetTerpIndexKey,
       "PlanetTerp index",
       previous?.index?.hash ?? null,
@@ -590,6 +618,8 @@ async function loadCatalog(
     names: new Map(),
     coursesByName: new Map(),
     titles: new Map(),
+    planetTerpNames: new Map(),
+    gradeRows: 0,
   };
   const add = <K, V>(map: Map<K, Set<V>>, key: K, value: V) => {
     const set = map.get(key) ?? new Set<V>();
@@ -626,6 +656,52 @@ async function loadCatalog(
   if (index.courses.size === 0)
     throw new Error("No catalog departments to attach PlanetTerp data to");
   return index;
+}
+
+/**
+ * Adds the instructor history (DATA.md §3.5) to the catalog's index: every
+ * course taught since Spring 2012 gets a place (and grades) in its
+ * department's file, and every name on record is joined to a slug, not only
+ * the active terms'. With no history yet there's nothing to add. A history
+ * that won't read stops the run: publishing without it would drop courses
+ * and names the last run had (DATA.md §4.1, never good data for empty).
+ */
+async function addHistory(
+  store: BlobStore,
+  index: CatalogIndex,
+): Promise<void> {
+  const manifest = await readJson(
+    store,
+    HISTORY_MANIFEST_KEY,
+    HistoryManifestSchema,
+  );
+  if (!manifest) return;
+  const add = <K, V>(map: Map<K, Set<V>>, key: K, value: V) => {
+    const set = map.get(key) ?? new Set<V>();
+    set.add(value);
+    map.set(key, set);
+  };
+  // Sequential on purpose: one department in memory at a time.
+  for (const entry of manifest.departments) {
+    const key = historyDeptKey(entry.code, entry.hash);
+    const dept = await readJson(store, key, HistoryDeptSchema);
+    if (!dept) throw new Error(`${key} is missing; kept the last good files`);
+    const facts = historyDeptFacts(dept);
+    for (const code of facts.courses.keys())
+      add(index.courses, dept.dept, code);
+    for (const [name, courses] of facts.testudoNames) {
+      for (const code of courses) {
+        add(index.names, dept.dept, name);
+        add(index.coursesByName, name, code);
+      }
+    }
+    const planetTerp =
+      index.planetTerpNames.get(dept.dept) ?? new Map<string, Set<string>>();
+    for (const [name, courses] of facts.planetTerpNames)
+      for (const code of courses) add(planetTerp, name, code);
+    index.planetTerpNames.set(dept.dept, planetTerp);
+    index.gradeRows += facts.gradeRows;
+  }
 }
 
 /** A listed professor with the review text dropped once it's stored. */

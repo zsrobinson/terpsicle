@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { PanelNote } from "~/components/panel";
+import { EVERYONE_NAME, roomPlace } from "~/core/chat/room-paths";
 import { matchCourses } from "~/core/reviews/find";
 import { type CourseCode, courseRoomId } from "~/core/schema";
 import { InlineError } from "~/ui/inline-error";
@@ -139,7 +140,7 @@ export function CourseFinder({
               )}
             >
               <WithTooltip
-                label={`Open ${code}'s course room`}
+                label={`Open ${roomPlace(code, EVERYONE_NAME)}`}
                 shortcut={i === 0 ? "↵" : undefined}
               >
                 <button

@@ -44,7 +44,9 @@ export function ChatRemoveForm({
     setBusy(true);
     try {
       const result = await client.chatRemove({
-        ...target,
+        courseCode: target.courseCode,
+        messageId: target.messageId,
+        ...(target.termId ? { termId: target.termId } : {}),
         reason,
         ...(stop ? { authorAction: "stop" } : {}),
       });
@@ -94,7 +96,7 @@ export function ChatRemoveForm({
               setNote(null);
             }}
             aria-describedby={note ? noteId : undefined}
-            placeholder="https://terpsicle.com/chat?term=…&thread=…"
+            placeholder="https://terpsicle.com/chat/CMSC351/0101?thread=…"
             autoComplete="off"
             spellCheck={false}
           />

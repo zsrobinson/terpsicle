@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { ChatSearchSchema } from "./chat-api";
+import { ChatRoomSearchSchema } from "./chat-api";
 
-describe("ChatSearchSchema", () => {
-  it("takes the term back as text when the router read it as a number", () => {
-    expect(ChatSearchSchema.parse({ term: 202608, course: "CMSC216" })).toEqual(
-      { term: "202608", course: "CMSC216" },
-    );
-    expect(ChatSearchSchema.parse({ term: "202608" }).term).toBe("202608");
+describe("ChatRoomSearchSchema", () => {
+  it("takes the term and join back as text when the router read numbers", () => {
+    expect(ChatRoomSearchSchema.parse({ term: 202608, join: 1 })).toEqual({
+      term: "202608",
+      join: 1,
+    });
+    expect(ChatRoomSearchSchema.parse({ join: "1" }).join).toBe(1);
   });
 
-  it("drops a term that isn't one", () => {
-    expect(ChatSearchSchema.parse({ term: 2026 }).term).toBeUndefined();
-    expect(ChatSearchSchema.parse({ term: "fall" }).term).toBeUndefined();
+  it("drops what isn't one", () => {
+    expect(ChatRoomSearchSchema.parse({ term: 2026 }).term).toBeUndefined();
+    expect(ChatRoomSearchSchema.parse({ term: "fall" }).term).toBeUndefined();
+    expect(
+      ChatRoomSearchSchema.parse({ thread: "<b>" }).thread,
+    ).toBeUndefined();
   });
 });

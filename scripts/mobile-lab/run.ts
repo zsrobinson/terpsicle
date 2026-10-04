@@ -123,7 +123,7 @@ function save(): void {
       `# Mobile lab: ${engine}\n\nThe report failed to render (${error}); summary.json has the run.\n`,
     );
   }
-  // Three lines for the mobile-runs index (publish.sh).
+  // Three lines for the job summary (.github/workflows/mobile-lab.yml).
   const t = tally(run.scenarios);
   writeFileSync(
     path.join(out, "RESULT"),

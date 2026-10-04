@@ -1,5 +1,4 @@
 import type { z } from "zod";
-import { pickTerm } from "~/core/catalog";
 import {
   type AcademicCalendar,
   AcademicCalendarSchema,
@@ -135,24 +134,4 @@ export function fetchChatData(
     calendar: (termId) =>
       read(calendarKey(termId), AcademicCalendarSchema).catch(() => null),
   };
-}
-
-/**
- * The term the chat list opens on: the one asked for; else the term in
- * session (Now) when you have a plan in it, since Chat is for the classes
- * you're taking; else the scheduler's rule (SPEC §3.0) with the term of your
- * newest synced plan as the last pick.
- */
-export function chatTerm(
-  terms: readonly Term[],
-  asked: TermId | null,
-  plans: readonly Plan[],
-  now: TermId | null = null,
-): Term | undefined {
-  const inSession =
-    now !== null && plans.some((p) => p.termId === now) ? now : null;
-  const newest = [...plans].sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt),
-  )[0];
-  return pickTerm(terms, asked ?? inSession ?? newest?.termId ?? null);
 }

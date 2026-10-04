@@ -53,6 +53,8 @@ describe("the composed route table", () => {
         "calendar/feed auth=user ip=- user=120 bytes=- reviews=- whenOff=-",
         "calendar/feed/reset auth=user ip=- user=20 bytes=- reviews=- whenOff=-",
         "chat/follow auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
+        "chat/joins auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
+        "chat/latest auth=user ip=- user=1200 bytes=- reviews=- whenOff=-",
         "chat/members auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
         "chat/mute auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
         "chat/unfollow auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
