@@ -16,7 +16,7 @@ A fast, clear class scheduler for University of Maryland students. Live at [terp
 
 ## Stack
 
-One Cloudflare Worker serves the app (TanStack Start, React 19, Tailwind 4, shadcn/ui), the catalog data from R2, and runs the data pipeline on cron triggers. D1 holds seat-alert subscriptions only.
+One Cloudflare Worker serves the app (TanStack Start, React 19, Tailwind 4, Base UI), the catalog data from R2, and runs the data pipeline on cron triggers. D1 holds seat-alert subscriptions only.
 
 ## Develop
 

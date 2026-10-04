@@ -12,7 +12,9 @@ import { WithTooltip } from "./tooltip";
 // primary line (the identity: a code in `ident`, a name), with `secondary`
 // muted at 12px under it; `trail` is right-aligned tabular facts; `action` is
 // one small button. Hover is `bg-hover` (the caller's, when the row does
-// something); the selected row is `bg-accent-soft`, never a product tint.
+// something), and it stays while the row's own menu or popover is open:
+// `hover:bg-hover menu-open:bg-hover` (the variant is in styles.css). The
+// selected row is `bg-accent-soft`, never a product tint.
 // Groups get a `GroupHeader` band, never a card.
 
 /**

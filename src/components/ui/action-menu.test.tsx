@@ -16,7 +16,7 @@ import {
   ActionMenuSub,
   ActionMenuText,
 } from "./action-menu";
-import { TooltipProvider } from "./tooltip";
+import { quietTooltips, TooltipProvider, WithTooltip } from "./tooltip";
 
 /** A phone (below md) when `phone`, a desktop otherwise. */
 function screenIs(phone: boolean) {
@@ -577,5 +577,112 @@ describe("A group label under a sheet title that says it", () => {
     await screen.findByRole("dialog", { name: "No classes on" });
     expect(screen.getByRole("group", { name: "No classes on" })).toBeVisible();
     expect(screen.getAllByText("No classes on")[1]).toHaveClass("sr-only");
+  });
+});
+
+// A row keeps its highlight while its own menu is open: the `menu-open`
+// variant in src/styles.css (`hover:bg-hover menu-open:bg-hover`). Its
+// selector comes from there, so these hold the rows to what the page paints.
+const STYLES =
+  Object.values(
+    import.meta.glob<string>("/src/styles.css", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }),
+  )[0] ?? "";
+/** The variant's selector, applied to the row itself. */
+const MENU_OPEN =
+  /@custom-variant menu-open \(\s*&(.+?)\s*\);/s.exec(STYLES)?.[1] ?? "";
+
+/** A list row with a ⋯ menu, a tooltip and a disclosure in it. */
+function MenuRow() {
+  const [more, setMore] = useState(false);
+  return (
+    <TooltipProvider delayDuration={0}>
+      <ActionContextMenu
+        title="CMSC216"
+        target={<div data-testid="row">CMSC216 row</div>}
+      >
+        <ActionMenuItem>Remove</ActionMenuItem>
+      </ActionContextMenu>
+      <div data-testid="menu-row">
+        <WithTooltip label="See sections and details">
+          <button type="button">CMSC216</button>
+        </WithTooltip>
+        <button
+          type="button"
+          aria-expanded={more}
+          onClick={() => setMore(!more)}
+        >
+          More
+        </button>
+        <ActionMenu
+          title="CMSC216"
+          tooltip="Actions for CMSC216"
+          trigger={<button type="button">Actions for CMSC216</button>}
+        >
+          <ActionMenuItem>Remove</ActionMenuItem>
+        </ActionMenu>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+describe("A row with its own menu open", () => {
+  it("reads the variant from styles.css", () => {
+    expect(MENU_OPEN).toContain("[data-menu-open]");
+  });
+
+  it("is lit while its ⋯ menu is open, on a desktop and a phone", async () => {
+    for (const phone of [false, true]) {
+      screenIs(phone);
+      const user = userEvent.setup();
+      const { unmount } = render(<MenuRow />);
+      const row = screen.getByTestId("menu-row");
+      expect(row.matches(MENU_OPEN)).toBe(false);
+      await user.click(
+        screen.getByRole("button", { name: "Actions for CMSC216" }),
+      );
+      await screen.findByRole(phone ? "dialog" : "menu", { name: "CMSC216" });
+      expect(row.matches(MENU_OPEN)).toBe(true);
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(row.matches(MENU_OPEN)).toBe(false));
+      unmount();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("is lit while its right-click menu is open", async () => {
+    screenIs(false);
+    render(<MenuRow />);
+    const row = screen.getByTestId("row");
+    expect(row.matches(MENU_OPEN)).toBe(false);
+    fireEvent.contextMenu(row, { clientX: 20, clientY: 20 });
+    await screen.findByRole("menu", { name: "CMSC216" });
+    expect(row).toHaveAttribute("data-menu-open");
+    expect(row.matches(MENU_OPEN)).toBe(true);
+    await userEvent.setup().keyboard("{Escape}");
+    await waitFor(() => expect(row.matches(MENU_OPEN)).toBe(false));
+  });
+
+  it("isn't lit by a tooltip or an open disclosure", async () => {
+    screenIs(false);
+    const user = userEvent.setup();
+    render(<MenuRow />);
+    const row = screen.getByTestId("menu-row");
+    const more = screen.getByRole("button", { name: "More" });
+    // The menus closed by the tests above keep tooltips quiet for a moment.
+    quietTooltips(0);
+    // The keyboard reaches the row's first control, and its tooltip opens.
+    await user.tab();
+    const name = screen.getByRole("button", { name: "CMSC216" });
+    expect(name).toHaveFocus();
+    await screen.findByRole("tooltip");
+    fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    // Base UI marks a tooltip's trigger as a popup's.
+    expect(name).toHaveAttribute("data-popup-open");
+    expect(row.matches(MENU_OPEN)).toBe(false);
   });
 });

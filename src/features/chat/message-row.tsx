@@ -142,7 +142,12 @@ export const MessageRow = memo(function MessageRow({
         held !== null
           ? // Only you see it: tinted, with a warn edge, in both themes.
             "bg-warn-soft"
-          : cn("hover:bg-hover", selected && "bg-hover"),
+          : cn(
+              // Lit while its ⋯ menu, reaction picker or right-click menu
+              // is open.
+              "hover:bg-hover menu-open:bg-hover",
+              selected && "bg-hover",
+            ),
       )}
     >
       {held !== null ? (

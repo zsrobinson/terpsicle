@@ -19,14 +19,26 @@
  * marks, the product menu and the marketing page.
  *
  * shadcn/ui: the compatibility names below (background, primary, card,
- * popover, border, input, ring, destructive, muted-foreground) make generated
- * components render correctly. Two shadcn names collide with ours and mean
- * something different here, so restyle them when adding a component:
+ * popover, border, input, ring, destructive, muted-foreground) are left from
+ * when the kit's controls were shadcn/ui components; the kit is Base UI now,
+ * with no shadcn CLI. Two shadcn names collide with ours and mean something
+ * different here, so restyle them in code brought over from shadcn/ui:
  *   bg-accent / bg-muted (subtle hover fills) → bg-hover
  *   text-accent-foreground                    → text-fg
  */
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * A row whose own menu or popover is open keeps the highlight it shows under
+ * the pointer (`hover:bg-hover menu-open:bg-hover`, ~/ui/list-row). A popup's
+ * trigger in the row says it's open with aria-expanded, which tooltips never
+ * set (they do set data-popup-open); a row that is its own right-click menu's
+ * target carries the kit's data-menu-open (~/ui/action-menu).
+ */
+@custom-variant menu-open (
+  &:is([data-menu-open], :has([aria-haspopup][aria-expanded="true"]))
+);
 
 @theme inline {
   --font-sans:

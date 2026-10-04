@@ -52,7 +52,7 @@ Cloudflare Worker "terpsicle"  (one deployable: src/server.ts)
 │ bindings: R2 DATA (terpsicle-data) · D1 DB (terpsicle) · AI (Workers AI) · secrets     │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 Browser
-  React (TanStack Start/Router, shadcn) · Zustand stores · Dexie (plans, settings, catalog cache)
+  React (TanStack Start/Router, Base UI) · Zustand stores · Dexie (plans, settings, catalog cache)
   Web Worker (Comlink): catalog index, search, fit, generator
 ```
 
@@ -95,7 +95,7 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 │   ├── features/<name>/        one folder per feature, every product's (course-details, generate, reviews, chat, four-year for Plan, todo, notifications, pwa, …)
 │   │   └── schedule/           the scheduler's shell: top bar, rail, sidebar + drill-in, drawer, calendar region, its URL state and actions (README.md)
 │   ├── components/             views every product shares: the family bar (app-bar), product menu, theme toggle, panel pieces, brand/ (Mark, Wordmark, logo), workbench/
-│   │   └── ui/                 the page kit and shadcn/Radix controls every product composes (docs/COHESION.md)
+│   │   └── ui/                 the page kit and the Base UI controls every product composes (docs/COHESION.md)
 │   ├── hooks/                  React hooks every product shares (use-media-query, use-scrolled)
 │   ├── lib/                    non-view code every product shares: analytics, the activity log, config, theme, shortcuts, products and cross-links, head scripts, brand/ marks and tokens, the TanStack Query client
 │   ├── state/                  the data layer: Zustand stores, Dexie persistence, undo, published-data loading, and query/ (TanStack Query factories and the query cache's persister)
@@ -144,7 +144,7 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 | Language/runtime | TypeScript `strict` (plus `noUncheckedIndexedAccess`), ESM, Node 22 for scripts |
 | Package manager | pnpm |
 | App | TanStack Start (React 19) with `@cloudflare/vite-plugin`, custom server entry. The scheduler (`/schedule`) is client-rendered (`ssr: false`); the marketing page at `/` and the other static pages are server-rendered. The Worker mostly serves assets and data. `/` sends returning visitors straight to `/schedule` (`docs/V2.md` §2: the session cookie in `src/server/routing.ts`, the returning flag and saved plans in `src/features/marketing/returning.ts`). |
-| UI | Tailwind 4, shadcn/ui (Radix), lucide, Geist + Geist Mono, Base UI (`@base-ui/react`: the phone drawer and sheets, and the kit's primitives as they move), `sonner` (toasts) |
+| UI | Tailwind 4, Base UI (`@base-ui/react`: every kit primitive, the phone drawer and sheets), lucide, Geist + Geist Mono, `sonner` (toasts) |
 | State | Zustand, Dexie; undo is a snapshot stack in the plans store (pure reducer in `core/plans`) |
 | Validation | zod 4 at every boundary |
 | Parsing | htmlparser2 (streaming, runs in Workers and Node) |
