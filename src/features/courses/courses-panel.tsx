@@ -38,19 +38,11 @@ import {
   useTermCatalog,
 } from "~/state/hooks";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionContextMenu,
+  ActionMenu,
+  ActionMenuItem,
+  ActionMenuSeparator,
+} from "~/ui/action-menu";
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { bookmarkInstead, openCourse, removeCourse } from "./actions";
@@ -417,27 +409,25 @@ function RowMenu({
   className?: string;
 }) {
   return (
-    <DropdownMenu>
-      <WithTooltip label={`Actions for ${courseCode}`}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Actions for ${courseCode}`}
-            className={cn(
-              "flex size-6 items-center justify-center rounded-md text-muted opacity-0 transition-opacity hover:bg-raised hover:text-fg focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 data-[state=open]:bg-raised data-[state=open]:opacity-100",
-              className,
-            )}
-          >
-            <Ellipsis size={14} aria-hidden />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent align="end">
-        {menuActions(courseCode, placed).map((a) => (
-          <MenuItemPair key={a.key} action={a} kind="dropdown" />
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ActionMenu
+      title={courseCode}
+      tooltip={`Actions for ${courseCode}`}
+      align="end"
+      trigger={
+        <button
+          type="button"
+          aria-label={`Actions for ${courseCode}`}
+          className={cn(
+            "flex size-6 items-center justify-center rounded-md text-muted opacity-0 transition-opacity hover:bg-raised hover:text-fg focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 data-popup-open:bg-raised data-popup-open:opacity-100",
+            className,
+          )}
+        >
+          <Ellipsis size={14} aria-hidden />
+        </button>
+      }
+    >
+      <MenuItems courseCode={courseCode} placed={placed} />
+    </ActionMenu>
   );
 }
 
@@ -451,14 +441,9 @@ function WithContextMenu({
   children: ReactElement;
 }) {
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        {menuActions(courseCode, placed).map((a) => (
-          <MenuItemPair key={a.key} action={a} kind="context" />
-        ))}
-      </ContextMenuContent>
-    </ContextMenu>
+    <ActionContextMenu target={children} title={courseCode}>
+      <MenuItems courseCode={courseCode} placed={placed} />
+    </ActionContextMenu>
   );
 }
 
@@ -475,35 +460,35 @@ export function CourseContextMenu({
   children: ReactNode;
 }) {
   return (
-    <ContextMenu>
-      <ContextMenuTrigger className="contents">{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        {menuActions(courseCode, true).map((a) => (
-          <MenuItemPair key={a.key} action={a} kind="context" />
-        ))}
-      </ContextMenuContent>
-    </ContextMenu>
+    <ActionContextMenu
+      target={<div className="contents">{children}</div>}
+      title={courseCode}
+    >
+      <MenuItems courseCode={courseCode} placed />
+    </ActionContextMenu>
   );
 }
 
-function MenuItemPair({
-  action,
-  kind,
+/** A course's actions, the same in its ⋯ menu and its right-click menu. */
+function MenuItems({
+  courseCode,
+  placed,
 }: {
-  action: MenuAction;
-  kind: "dropdown" | "context";
+  courseCode: CourseCode;
+  placed: boolean;
 }) {
-  const Icon = action.icon;
-  const Item = kind === "dropdown" ? DropdownMenuItem : ContextMenuItem;
-  const Separator =
-    kind === "dropdown" ? DropdownMenuSeparator : ContextMenuSeparator;
-  return (
-    <>
-      {action.separatorBefore ? <Separator /> : null}
-      <Item onSelect={action.run}>
-        <Icon aria-hidden className="text-muted" />
-        {action.label}
-      </Item>
-    </>
-  );
+  return menuActions(courseCode, placed).map((action) => {
+    const Icon = action.icon;
+    return (
+      <Fragment key={action.key}>
+        {action.separatorBefore ? <ActionMenuSeparator /> : null}
+        <ActionMenuItem
+          icon={<Icon aria-hidden className="text-muted" />}
+          onSelect={action.run}
+        >
+          {action.label}
+        </ActionMenuItem>
+      </Fragment>
+    );
+  });
 }

@@ -72,7 +72,7 @@ What a popover becomes on a phone: a panel that slides up from the bottom edge w
 _Avoid_: modal, bottom sheet
 
 **Action menu**:
-A menu written once that's a menu under its button from 768px up and a sheet of the same items on a phone, headed by the menu's title (the plans, the account, the term, a sort). Code says `ActionMenu`.
+A menu written once that's a menu under its button from 768px up and a sheet of the same items on a phone, headed by the menu's title (the plans, the account, the term, a sort). A submenu ("Move to…") opens beside its item on a desktop and takes the sheet's list's place on a phone, under a row that goes back. A row's right-click menu is one too: on a phone a long press opens it as the same sheet. Every menu in the products is one. Code says `ActionMenu`, `ActionMenuSub` and `ActionContextMenu`.
 _Avoid_: dropdown
 
 **Push, pop and tab**:

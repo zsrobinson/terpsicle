@@ -228,13 +228,13 @@ test("the same four-year plan changed on two devices, one offline, keeps both", 
   await expect(spring(b).getByText("STAT400")).toBeVisible();
   await expect(spring(b).getByText("MATH240")).toHaveCount(0);
   await b.getByRole("button", { name: /^My plan/ }).click();
-  await b.getByRole("menuitem", { name: "My plan (copy)" }).click();
+  await b.getByRole("menuitemradio", { name: "My plan (copy)" }).click();
   await expect(spring(b).getByText("MATH240")).toBeVisible();
 
   await pull(a);
   await a.getByRole("button", { name: /^My plan/ }).click();
   await expect(
-    a.getByRole("menuitem", { name: "My plan (copy)" }),
+    a.getByRole("menuitemradio", { name: "My plan (copy)" }),
   ).toBeVisible();
 });
 

@@ -64,6 +64,11 @@ Revisit if: never on its own.
 Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.
 Revisit if: Base UI lacks a primitive we need; wrap it in the kit and say why.
 
+### Menus are ActionMenus
+2026-10-04 · agent · app-wide
+Following the iPhone plan the owner approved: feature code builds every menu from the kit's `ActionMenu` (a button's menu) or `ActionContextMenu` (a row's right click, a long press on a phone), a menu from 768px up and a sheet below; a submenu takes the sheet's list's place. A guard test (`src/components/ui/menus.test.ts`) fails on a raw dropdown or context menu outside the kit. Reviews keeps its `DropdownMenu` while its move to PlanetTerp is decided.
+Revisit if: a menu needs to stay a popup on a phone (say so in the guard), or Reviews' future is settled.
+
 ### Haptics live in the kit
 2026-09-28 · owner · app-wide
 On iPhone, kit controls (tabs, segments, switches, menu and sheet items, a sheet grabber's tap, Undo) tick through a native switch under the finger, the trick `@haptics/react` uses, copied into `src/components/ui` with credit (MIT) rather than taken as a dependency. Feature code never mentions haptics. iOS 26.5+ ticks only on a real tap, so drags, long presses and results can't tick.

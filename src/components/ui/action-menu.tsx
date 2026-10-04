@@ -1,8 +1,9 @@
+import { ContextMenu } from "@base-ui/react/context-menu";
 import { Menu } from "@base-ui/react/menu";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cn } from "cn";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   type ComponentProps,
   type ComponentType,
@@ -14,11 +15,13 @@ import {
   type Ref,
   Suspense,
   useContext,
+  useEffect,
   useId,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import { HapticTap } from "./haptic";
 import {
   MENU_ITEM,
@@ -42,6 +45,12 @@ import { quietTooltips, WithTooltip } from "./tooltip";
 //     <ActionMenuSeparator />
 //     <ActionMenuItem icon={<Plus />} onSelect={newPlan}>New plan</…>
 //   </ActionMenu>
+//
+// A row's right-click menu is the same items in `ActionContextMenu`: a
+// context menu at the pointer on a desktop, and on a phone a long press
+// opens the same sheet. Feature code builds every menu from these two
+// (./menus.test.ts holds it to that), so no menu on a phone is a small
+// desktop dropdown.
 //
 // The desktop menu is the kit's DropdownMenu card and rows (./popup.ts):
 // Ink's look (a raised card, a hairline, the soft gray highlight) with the
@@ -75,7 +84,19 @@ const LazySheet = lazy<ComponentType<ComponentProps<typeof SheetComponent>>>(
   () => import("./sheet").then((m) => ({ default: m.Sheet })),
 );
 
-type Shape = { kind: "menu" } | { kind: "sheet"; close: () => void };
+type Shape =
+  | { kind: "menu" }
+  | {
+      kind: "sheet";
+      /** The sheet's title: a group label that only repeats it isn't drawn. */
+      title: string;
+      close: () => void;
+      /** The submenu showing in the list's place, if one is. */
+      sub: string | null;
+      openSub: (id: string | null) => void;
+      /** Where a submenu's items go while it shows. */
+      pane: HTMLElement | null;
+    };
 
 const ShapeContext = createContext<Shape>({ kind: "menu" });
 const RadioContext = createContext<{
@@ -127,7 +148,6 @@ function ActionMenu({
   };
   const triggerRef = useRef<HTMLElement>(null);
   const headingId = useId();
-  const list = useRef<HTMLDivElement>(null);
 
   if (!phone)
     return (
@@ -162,7 +182,7 @@ function ActionMenu({
               // trigger's tooltip over what was just picked.
               finalFocus={() => {
                 quietTooltips();
-                return finalFocus?.() ?? true;
+                return finalFocus?.() ?? !focusMovedOn();
               }}
               className={cn(MENU_POPUP, className)}
             >
@@ -176,7 +196,6 @@ function ActionMenu({
       </Menu.Root>
     );
 
-  const shape: Shape = { kind: "sheet", close: () => setOpen(false) };
   return (
     <>
       <WithTooltip label={tooltip} shortcut={shortcut}>
@@ -187,45 +206,219 @@ function ActionMenu({
           onOpen={() => setOpen(true)}
         />
       </WithTooltip>
-      <Suspense fallback={null}>
-        <LazySheet
+      <MenuSheet
+        open={open}
+        onOpenChange={setOpen}
+        title={title}
+        description={description}
+        // Back to the trigger, which a finger's tap didn't focus.
+        finalFocus={() => {
+          quietTooltips();
+          return (
+            finalFocus?.() ??
+            (focusMovedOn() ? false : stillHere(triggerRef.current))
+          );
+        }}
+      >
+        {children}
+      </MenuSheet>
+    </>
+  );
+}
+
+/**
+ * Whether focus went on to something else while the menu closed (a field an
+ * item opened, a tab double-clicked as the menu faded): it stays there, as it
+ * did on Radix, rather than going back to the trigger. Base UI asks once the
+ * closing animation ends.
+ */
+function focusMovedOn(): boolean {
+  const active = document.activeElement;
+  return (
+    active instanceof HTMLElement &&
+    active !== document.body &&
+    !active.closest(
+      '[data-slot="action-menu"], [data-slot="action-submenu"], [data-slot="action-sheet"]',
+    )
+  );
+}
+
+/**
+ * Where a sheet hands focus back: `el` while it's on the page, or nowhere.
+ * Never Base UI's fallback, the last thing focused that's still here: after
+ * a Delete took the trigger's row away, that was the Undo toast's button,
+ * which holds the toast open while it has focus.
+ */
+function stillHere(el: HTMLElement | null): HTMLElement | false {
+  return el?.isConnected ? el : false;
+}
+
+/**
+ * A menu's phone shape: its items in a sheet, headed by its title. A
+ * submenu's items take the list's place, under a row that goes back.
+ */
+function MenuSheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  finalFocus,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: ReactNode;
+  finalFocus: () => HTMLElement | boolean | null;
+  children: ReactNode;
+}) {
+  const headingId = useId();
+  const list = useRef<HTMLDivElement>(null);
+  const [pane, setPane] = useState<HTMLDivElement | null>(null);
+  const [sub, setSub] = useState<string | null>(null);
+  // Every opening starts on the menu's own list.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setSub(null);
+  }
+  const shape: Shape = {
+    kind: "sheet",
+    title,
+    close: () => onOpenChange(false),
+    sub,
+    openSub: setSub,
+    pane,
+  };
+  const listClass = "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2";
+  return (
+    <Suspense fallback={null}>
+      <LazySheet
+        open={open}
+        onOpenChange={onOpenChange}
+        aria-labelledby={headingId}
+        data-slot="action-sheet"
+        // Focus starts on the chosen item (or the first).
+        initialFocus={() =>
+          list.current?.querySelector<HTMLElement>(
+            '[aria-checked="true"], [role^="menuitem"]:not([aria-disabled="true"])',
+          ) ?? true
+        }
+        finalFocus={finalFocus}
+      >
+        <div className="shrink-0 px-4 pt-1.5 pb-2">
+          <p id={headingId} className="emph-heading text-base">
+            {title}
+          </p>
+          {description ? (
+            <p className="emph-secondary text-sm">{description}</p>
+          ) : null}
+        </div>
+        <div
+          ref={list}
+          role="menu"
+          aria-labelledby={headingId}
+          hidden={sub !== null}
+          onKeyDown={moveFocus}
+          className={listClass}
+        >
+          <ShapeContext.Provider value={shape}>
+            {children}
+          </ShapeContext.Provider>
+        </div>
+        <div
+          ref={setPane}
+          role="menu"
+          aria-labelledby={headingId}
+          hidden={sub === null}
+          onKeyDown={moveFocus}
+          className={listClass}
+        />
+      </LazySheet>
+    </Suspense>
+  );
+}
+
+/**
+ * A row's menu: a right click on it opens it at the pointer; on a phone a
+ * long press opens the same items as a sheet headed by `title`, as an
+ * iPhone's long-press menu does. The row is `target`; the children are the
+ * `ActionMenu…` items an `ActionMenu` takes.
+ */
+function ActionContextMenu({
+  target,
+  title,
+  description,
+  className,
+  children,
+}: {
+  /** What a right click or a long press lands on: the row, the card. */
+  target: ReactElement;
+  /** Names the menu, and heads the sheet on phones: the row's own name. */
+  title: string;
+  description?: ReactNode;
+  /** Classes for the desktop menu's card. */
+  className?: string;
+  children: ReactNode;
+}) {
+  const phone = usePhoneMenus();
+  const [open, setOpen] = useState(false);
+  const headingId = useId();
+  // Typed as Base UI types its trigger (a div, unless `target` is another).
+  const row = useRef<HTMLDivElement>(null);
+  const backToPage = () => {
+    quietTooltips();
+    return !focusMovedOn();
+  };
+  return (
+    <>
+      <ContextMenu.Root
+        // On a phone Base UI only spots the long press (or Android's
+        // context menu): its menu stays shut and the sheet opens.
+        open={open && !phone}
+        onOpenChange={(next) => setOpen(next)}
+      >
+        <ContextMenu.Trigger ref={row} render={target} />
+        {phone ? null : (
+          <ContextMenu.Portal>
+            <ContextMenu.Positioner
+              {...POSITIONER}
+              className={POPUP_LAYER}
+              // Its top-left corner just right of the pointer.
+              side="right"
+              align="start"
+              sideOffset={2}
+              collisionPadding={8}
+            >
+              <ContextMenu.Popup
+                aria-labelledby={headingId}
+                data-slot="action-menu"
+                finalFocus={backToPage}
+                className={cn(MENU_POPUP, className)}
+              >
+                <span id={headingId} hidden>
+                  {title}
+                </span>
+                {children}
+              </ContextMenu.Popup>
+            </ContextMenu.Positioner>
+          </ContextMenu.Portal>
+        )}
+      </ContextMenu.Root>
+      {phone ? (
+        <MenuSheet
           open={open}
           onOpenChange={setOpen}
-          aria-labelledby={headingId}
-          data-slot="action-sheet"
-          // Focus starts on the chosen item (or the first), and goes back to
-          // the trigger, which a finger's tap didn't focus.
-          initialFocus={() =>
-            list.current?.querySelector<HTMLElement>(
-              '[aria-checked="true"], [role^="menuitem"]:not([aria-disabled="true"])',
-            ) ?? true
-          }
+          title={title}
+          description={description}
           finalFocus={() => {
             quietTooltips();
-            return finalFocus?.() ?? triggerRef.current ?? true;
+            return focusMovedOn() ? false : stillHere(row.current);
           }}
         >
-          <div className="shrink-0 px-4 pt-1.5 pb-2">
-            <p id={headingId} className="emph-heading text-base">
-              {title}
-            </p>
-            {description ? (
-              <p className="emph-secondary text-sm">{description}</p>
-            ) : null}
-          </div>
-          <div
-            ref={list}
-            role="menu"
-            aria-labelledby={headingId}
-            onKeyDown={moveFocus}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2"
-          >
-            <ShapeContext.Provider value={shape}>
-              {children}
-            </ShapeContext.Provider>
-          </div>
-        </LazySheet>
-      </Suspense>
+          {children}
+        </MenuSheet>
+      ) : null}
     </>
   );
 }
@@ -309,7 +502,10 @@ function ItemText({
     <span className="min-w-0 flex-1">
       <span className="block truncate">{label}</span>
       {hint ? (
-        <span className="block truncate text-muted text-sm">{hint}</span>
+        // Two lines at most, where a menu's width runs out.
+        <span className="line-clamp-2 text-pretty text-muted text-sm">
+          {hint}
+        </span>
       ) : null}
       {note ? (
         <span
@@ -473,6 +669,8 @@ function ActionMenuLinkItem({
         <Menu.LinkItem
           href={href}
           render={render}
+          // As the sheet does: following a link (a new tab, say) is a pick.
+          closeOnClick
           aria-current={current ? "page" : undefined}
           className={cn(menuItemClass, current && currentClassName)}
         >
@@ -702,9 +900,147 @@ function GroupLabel({ id, children }: { id: string; children: ReactNode }) {
       </Menu.GroupLabel>
     );
   return (
-    <div id={id} className="emph-heading px-4 pt-2 pb-1 text-xs">
+    <div
+      id={id}
+      className={cn(
+        "emph-heading px-4 pt-2 pb-1 text-xs",
+        // Under a sheet title that already says it, it only names the group.
+        children === shape.title && "sr-only",
+      )}
+    >
       {children}
     </div>
+  );
+}
+
+/**
+ * Items behind one item ("Move to…", "Credits"): a submenu beside it on a
+ * desktop; on a phone they take the sheet's list's place, under a row that
+ * goes back.
+ */
+function ActionMenuSub({
+  label,
+  hint,
+  icon,
+  className,
+  children,
+}: {
+  label: ReactNode;
+  hint?: ReactNode;
+  icon?: ReactNode;
+  /** Classes for the desktop submenu's card (a width, say). */
+  className?: string;
+  children: ReactNode;
+}) {
+  const shape = useContext(ShapeContext);
+  const id = useId();
+  const row = useRef<HTMLButtonElement>(null);
+  const showing = shape.kind === "sheet" && shape.sub === id;
+  // Focus follows the finger's place: into the submenu's chosen item (or its
+  // first), then back to its row.
+  const pane = shape.kind === "sheet" ? shape.pane : null;
+  const goingBack = useRef(false);
+  useEffect(() => {
+    if (showing && pane) {
+      const items = [
+        ...pane.querySelectorAll<HTMLElement>(
+          '[role^="menuitem"]:not([aria-disabled="true"])',
+        ),
+      ];
+      // Past the row that goes back.
+      const first =
+        items.find((el) => el.getAttribute("aria-checked") === "true") ??
+        items[1] ??
+        items[0];
+      first?.focus();
+    } else if (!showing && goingBack.current) {
+      goingBack.current = false;
+      row.current?.focus();
+    }
+  }, [showing, pane]);
+
+  if (shape.kind === "menu")
+    return (
+      <Menu.SubmenuRoot>
+        <Menu.SubmenuTrigger
+          className={cn(menuItemClass, "data-popup-open:bg-hover")}
+        >
+          {icon}
+          <ItemText label={label} hint={hint} />
+          <ChevronRight aria-hidden="true" className="ml-auto text-muted" />
+        </Menu.SubmenuTrigger>
+        <Menu.Portal>
+          <Menu.Positioner
+            {...POSITIONER}
+            className={POPUP_LAYER}
+            collisionPadding={8}
+          >
+            <Menu.Popup
+              data-slot="action-submenu"
+              className={cn(MENU_POPUP, className)}
+            >
+              {children}
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.SubmenuRoot>
+    );
+  const back = () => {
+    goingBack.current = true;
+    shape.openSub(null);
+  };
+  return (
+    <>
+      <button
+        ref={row}
+        type="button"
+        role="menuitem"
+        aria-haspopup="menu"
+        aria-expanded={showing}
+        onClick={() => shape.openSub(id)}
+        // The keys a desktop submenu answers to: right goes in, left out.
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowRight") return;
+          event.preventDefault();
+          shape.openSub(id);
+        }}
+        className={sheetItemClass}
+      >
+        {icon}
+        <ItemText label={label} hint={hint} />
+        <ChevronRight aria-hidden="true" className="text-muted" />
+        <HapticTap />
+      </button>
+      {showing && shape.pane
+        ? createPortal(
+            <fieldset
+              className="contents"
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowLeft") return;
+                event.preventDefault();
+                back();
+              }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={back}
+                className={cn(sheetItemClass, "font-medium")}
+              >
+                <ChevronLeft aria-hidden="true" className="text-muted" />
+                <span className="min-w-0 flex-1 truncate">
+                  {label}
+                  <span className="sr-only">, back</span>
+                </span>
+                <HapticTap />
+              </button>
+              <ActionMenuSeparator />
+              {children}
+            </fieldset>,
+            shape.pane,
+          )
+        : null}
+    </>
   );
 }
 
@@ -741,6 +1077,7 @@ function ActionMenuSeparator() {
 }
 
 export {
+  ActionContextMenu,
   ActionMenu,
   ActionMenuCheckboxItem,
   ActionMenuGroup,
@@ -749,6 +1086,7 @@ export {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuSub,
   ActionMenuText,
   usePhoneMenus,
 };

@@ -1,16 +1,10 @@
 import { MoreHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { CourseCode, CourseColor, IsoDate, TodoItem } from "~/core/schema";
 import { relativeDue, taskFieldsOf } from "~/core/todo";
+import { ActionMenu, ActionMenuItem } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { ListRow } from "~/ui/list-row";
-import { WithTooltip } from "~/ui/tooltip";
 import { TaskEditor } from "./task-form";
 import { TaskContextMenu } from "./task-menu";
 import { TodoItemRow } from "./todo-item";
@@ -53,25 +47,39 @@ export function TaskMenu({
   onDelete: () => void;
   className?: string;
 }) {
+  const editing = useRef(false);
   return (
-    <DropdownMenu>
-      <WithTooltip label="Edit or delete this task">
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`${item.title} options`}
-            className={className}
-          >
-            <MoreHorizontal aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
-        <DropdownMenuItem onSelect={onDelete}>Delete</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <ActionMenu
+      title={item.title}
+      tooltip="Edit or delete this task"
+      align="end"
+      // Edit's fields take focus, in the row's place: not back to the ⋯.
+      finalFocus={() => {
+        const sent = editing.current;
+        editing.current = false;
+        return sent ? false : null;
+      }}
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`${item.title} options`}
+          className={className}
+        >
+          <MoreHorizontal aria-hidden="true" />
+        </Button>
+      }
+    >
+      <ActionMenuItem
+        onSelect={() => {
+          editing.current = true;
+          onEdit();
+        }}
+      >
+        Edit
+      </ActionMenuItem>
+      <ActionMenuItem onSelect={onDelete}>Delete</ActionMenuItem>
+    </ActionMenu>
   );
 }
 

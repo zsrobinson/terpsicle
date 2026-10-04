@@ -191,7 +191,8 @@ test("travel pills step aside while a course's sections show", async ({
 test("a class's right-click menu is its row's, and Remove has Undo", async ({
   page,
 }) => {
-  // A long press on a phone opens the same menu (the kit's ContextMenu).
+  // On a phone a long press opens the same items as a sheet (the kit's
+  // ActionContextMenu; e2e/phone-menus.spec.ts).
   await calendar(page)
     .getByRole("button", { name: /^ECON200 0101/ })
     .first()

@@ -1,3 +1,4 @@
+import { Drawer } from "@base-ui/react/drawer";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -157,5 +158,37 @@ describe("Sheet", () => {
     expect(page).toHaveAttribute("data-active");
     await user.keyboard("{Escape}");
     await waitFor(() => expect(page).not.toHaveAttribute("data-active"));
+  });
+
+  it("holds the page back from inside another drawer's provider too", async () => {
+    // The workbench drawer has its own provider, which the page's indent
+    // can't see; a sheet opened from it reports to the page all the same.
+    const user = userEvent.setup();
+    function Nested() {
+      const [open, setOpen] = useState(false);
+      return (
+        <TooltipProvider delayDuration={0}>
+          <SheetIndent>
+            <Drawer.Provider>
+              <button type="button" onClick={() => setOpen(true)}>
+                Open
+              </button>
+              <Sheet open={open} onOpenChange={setOpen}>
+                <SheetTitle>Reviews</SheetTitle>
+              </Sheet>
+            </Drawer.Provider>
+          </SheetIndent>
+        </TooltipProvider>
+      );
+    }
+    const { container } = render(<Nested />);
+    const page = container.querySelector("[data-sheet-indent]");
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await screen.findByRole("dialog", { name: "Reviews" });
+    // Base UI's provider is the inner one: only the kit's hold marks it.
+    expect(page).not.toHaveAttribute("data-active");
+    expect(page).toHaveAttribute("data-held");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(page).not.toHaveAttribute("data-held"));
   });
 });

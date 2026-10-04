@@ -15,12 +15,10 @@ import type {
   PlanetTerpDept,
 } from "~/core/schema";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionMenu,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+} from "~/ui/action-menu";
 import { InlineError } from "~/ui/inline-error";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
@@ -138,36 +136,36 @@ export function Grades({
             />
           ))}
           {past.length > 0 ? (
-            <DropdownMenu>
-              <WithTooltip label="Instructors who taught it before this term">
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex h-7 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm transition-colors",
-                      pastPicked
-                        ? "bg-hover font-medium"
-                        : "text-muted hover:text-fg data-[state=open]:text-fg",
-                    )}
-                  >
-                    {pastPicked ? pastPicked.name : "Past instructors"}
-                    <ChevronDown size={12} aria-hidden="true" />
-                  </button>
-                </DropdownMenuTrigger>
-              </WithTooltip>
-              <DropdownMenuContent className="max-h-72" align="start">
-                <DropdownMenuRadioGroup
-                  value={pastPicked?.slug ?? ""}
-                  onValueChange={(slug) => setWho(slug)}
+            <ActionMenu
+              title="Past instructors"
+              tooltip="Instructors who taught it before this term"
+              className="max-h-72"
+              trigger={
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-7 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm transition-colors",
+                    pastPicked
+                      ? "bg-hover font-medium"
+                      : "text-muted hover:text-fg data-popup-open:text-fg",
+                  )}
                 >
-                  {past.map((p) => (
-                    <DropdownMenuRadioItem key={p.slug} value={p.slug}>
-                      {p.name}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {pastPicked ? pastPicked.name : "Past instructors"}
+                  <ChevronDown size={12} aria-hidden="true" />
+                </button>
+              }
+            >
+              <ActionMenuRadioGroup
+                value={pastPicked?.slug ?? ""}
+                onValueChange={(slug) => setWho(slug)}
+              >
+                {past.map((p) => (
+                  <ActionMenuRadioItem key={p.slug} value={p.slug}>
+                    {p.name}
+                  </ActionMenuRadioItem>
+                ))}
+              </ActionMenuRadioGroup>
+            </ActionMenu>
           ) : null}
         </div>
       ) : null}

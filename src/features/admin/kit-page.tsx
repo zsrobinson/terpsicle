@@ -24,22 +24,18 @@ import { GEN_ED_LABELS } from "~/core/schema";
 import type { KitPart } from "~/core/schema/admin-kit";
 import { NO_FILTERS, type SearchFilters } from "~/core/search/filters";
 import {
+  ActionContextMenu,
   ActionMenu,
   ActionMenuCheckboxItem,
+  ActionMenuGroup,
   ActionMenuItem,
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
   ActionMenuSeparator,
+  ActionMenuSub,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
 import { Card } from "~/ui/card";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "~/ui/context-menu";
 import {
   COURSE_SEARCH_TIP,
   CourseResultRow,
@@ -51,22 +47,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "~/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuItemText,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
 import { EmptyState } from "~/ui/empty-state";
 import { FilterChips } from "~/ui/filter-chips";
 import { InlineError } from "~/ui/inline-error";
@@ -1201,76 +1181,71 @@ function PopupParts() {
   const [dialog, setDialog] = useState(false);
   return (
     <>
-      <PageSection title="Menus" aside="DropdownMenu · ContextMenu">
+      <PageSection
+        title="Menus"
+        aside="ActionMenu · ActionMenuSub · ActionContextMenu"
+      >
         <Pair>
           <Demo
             className="p-4"
-            caption="A menu: a label, a choice of one, checks, a shortcut, a submenu and a destructive item."
+            caption="A menu: a label, a choice of one, checks, a shortcut, a submenu and a destructive item. On a phone, a sheet; its submenu takes the sheet's list's place."
           >
-            <DropdownMenu>
-              <WithTooltip label="Other plans and options">
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" data-kit-menu="">
-                    Plan A
-                    <ChevronDown aria-hidden="true" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </WithTooltip>
-              <DropdownMenuContent>
-                <DropdownMenuLabel>Spring 2027</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={plan} onValueChange={setPlan}>
-                  <DropdownMenuRadioItem value="a">
-                    Plan A
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="b">
-                    Plan B
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
+            <ActionMenu
+              title="Plan A"
+              description="Spring 2027"
+              tooltip="Other plans and options"
+              trigger={
+                <Button variant="outline" data-kit-menu="">
+                  Plan A
+                  <ChevronDown aria-hidden="true" />
+                </Button>
+              }
+            >
+              <ActionMenuRadioGroup
+                label="Spring 2027"
+                value={plan}
+                onValueChange={setPlan}
+              >
+                <ActionMenuRadioItem value="a">Plan A</ActionMenuRadioItem>
+                <ActionMenuRadioItem value="b">Plan B</ActionMenuRadioItem>
+              </ActionMenuRadioGroup>
+              <ActionMenuSeparator />
+              <ActionMenuGroup>
+                <ActionMenuCheckboxItem
                   checked={openSeats}
                   onCheckedChange={setOpenSeats}
                 >
                   Open seats only
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
+                </ActionMenuCheckboxItem>
+                <ActionMenuCheckboxItem
                   checked={accessible}
                   onCheckedChange={setAccessible}
                 >
                   Accessible routes
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Plus aria-hidden="true" />
-                  New plan
-                  <DropdownMenuShortcut>N</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <DropdownMenuItemText
-                    label="Generate plans…"
-                    hint="Every schedule that fits your courses"
-                  />
-                </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Move to…</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem>Fall 2026</DropdownMenuItem>
-                    <DropdownMenuItem>Spring 2027</DropdownMenuItem>
-                    <DropdownMenuItem disabled>Fall 2027</DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Rename</DropdownMenuItem>
-                <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                <DropdownMenuItem variant="destructive">
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </ActionMenuCheckboxItem>
+              </ActionMenuGroup>
+              <ActionMenuSeparator />
+              <ActionMenuItem icon={<Plus aria-hidden="true" />} shortcut="N">
+                New plan
+              </ActionMenuItem>
+              <ActionMenuItem hint="Every schedule that fits your courses">
+                Generate plans…
+              </ActionMenuItem>
+              <ActionMenuSub label="Move to…">
+                <ActionMenuItem>Fall 2026</ActionMenuItem>
+                <ActionMenuItem>Spring 2027</ActionMenuItem>
+                <ActionMenuItem disabled>Fall 2027</ActionMenuItem>
+              </ActionMenuSub>
+              <ActionMenuSeparator />
+              <ActionMenuItem>Rename</ActionMenuItem>
+              <ActionMenuItem>Duplicate</ActionMenuItem>
+              <ActionMenuItem variant="destructive">Delete</ActionMenuItem>
+            </ActionMenu>
           </Demo>
-          <Demo caption="A row's right-click menu: the same items as its ⋯ menu.">
-            <ContextMenu>
-              <ContextMenuTrigger asChild>
+          <Demo caption="A row's right-click menu (a long press on a phone, which opens it as a sheet): the same items as its ⋯ menu.">
+            <ActionContextMenu
+              title="CMSC216"
+              target={
                 <ListRow
                   data-kit-context=""
                   secondary="Right-click for its menu"
@@ -1279,23 +1254,25 @@ function PopupParts() {
                   <span className="ident">CMSC216</span> Introduction to
                   Computer Systems
                 </ListRow>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem>
-                  <Info aria-hidden="true" className="text-muted" />
-                  More about this course
-                </ContextMenuItem>
-                <ContextMenuItem>
-                  <Layers aria-hidden="true" className="text-muted" />
-                  Show all sections
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem>
-                  <Trash2 aria-hidden="true" className="text-muted" />
-                  Remove
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+              }
+            >
+              <ActionMenuItem
+                icon={<Info aria-hidden="true" className="text-muted" />}
+              >
+                More about this course
+              </ActionMenuItem>
+              <ActionMenuItem
+                icon={<Layers aria-hidden="true" className="text-muted" />}
+              >
+                Show all sections
+              </ActionMenuItem>
+              <ActionMenuSeparator />
+              <ActionMenuItem
+                icon={<Trash2 aria-hidden="true" className="text-muted" />}
+              >
+                Remove
+              </ActionMenuItem>
+            </ActionContextMenu>
           </Demo>
         </Pair>
       </PageSection>
