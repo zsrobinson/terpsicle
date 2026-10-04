@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
 import {
   chatTerm,
@@ -18,7 +19,6 @@ import {
   type ChatUnreadRoom,
   type Course,
   type CourseCode,
-  type CourseSearchRow,
   type Plan,
   type RoomId,
   type Term,
@@ -30,8 +30,8 @@ import { chatApi } from "~/server/fns/chat-api";
 import {
   type ChatApi,
   type ChatData,
-  fetchChatData,
   pullSynced,
+  queryChatData,
   type Synced,
 } from "./chat-data";
 import { type LiveListener, liveSessionFor } from "./session";
@@ -94,15 +94,10 @@ export interface ChatHomeState {
   follows: Record<TermId, CourseCode[]>;
   /** Mutes set here, for rooms chat/unread doesn't list yet (no messages). */
   mutes: Record<RoomId, boolean>;
-  /** Every course's code and title, for finding any course's room; null until asked for. */
-  courseRows: readonly CourseSearchRow[] | null;
-  courseRowsState: "idle" | "loading" | "ready" | "error";
 
   /** Loads everything for Chat's term. */
   load: () => Promise<void>;
   refreshUnread: () => Promise<void>;
-  /** Loads `courseRows` once; after an error, asking again tries again. */
-  ensureCourseRows: () => Promise<void>;
   /** Makes sure a course's catalog entry is loaded (a room opened by link or Find a course). */
   ensureCourse: (courseCode: CourseCode) => Promise<Course | null>;
   follow: (
@@ -131,17 +126,34 @@ export interface ChatHomeState {
 
 export interface ChatHomeDeps {
   client: ChatApi;
-  data: ChatData;
 }
 
 let deps: ChatHomeDeps = {
   client: { sync: api.sync, reports: api.reports, chat: chatApi },
-  data: fetchChatData(),
 };
 
 /** Test hook. */
 export function setChatHomeDeps(next: ChatHomeDeps): void {
   deps = next;
+}
+
+const notConnected = (): Promise<never> =>
+  Promise.reject(new Error("Chat's published reads aren't connected yet"));
+
+/** Published data, read through the page's query client once it's connected. */
+let data: ChatData = {
+  terms: notConnected,
+  courses: notConnected,
+  calendar: notConnected,
+};
+
+/**
+ * Reads published data through the page's query client from now on, so
+ * Chat shares every file with the other products in the page (the chat
+ * page connects it before it loads).
+ */
+export function connectChatData(client: QueryClient): void {
+  data = queryChatData(client);
 }
 
 const EMPTY: Synced = { plans: [], settings: null };
@@ -151,7 +163,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     const have = get().termId === termId ? get().courses : new Map();
     const missing = codes.filter((c) => !have.has(c));
     if (missing.length === 0) return have;
-    const loaded = await deps.data.courses(termId, missing);
+    const loaded = await data.courses(termId, missing);
     return new Map([...have, ...loaded]);
   };
 
@@ -228,19 +240,15 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     viewing: null,
     follows: typeof window === "undefined" ? {} : readFollows(),
     mutes: {},
-    courseRows: null,
-    courseRowsState: "idle",
 
     load: async () => {
       set({ status: "loading" });
       try {
         const today = newYorkClock(Date.now()).date;
         const [terms, synced, calendars] = await Promise.all([
-          deps.data.terms(),
+          data.terms(),
           pullSynced(deps.client),
-          Promise.all(
-            termTagCandidates(today).map((id) => deps.data.calendar(id)),
-          ),
+          Promise.all(termTagCandidates(today).map((id) => data.calendar(id))),
         ]);
         const tags = termTags(
           today,
@@ -275,20 +283,6 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         await refreshLatest(termId, rooms);
       } catch {
         // Keep the counts we have; the next refresh tries again.
-      }
-    },
-
-    ensureCourseRows: async () => {
-      const state = get().courseRowsState;
-      if (state === "loading" || state === "ready") return;
-      set({ courseRowsState: "loading" });
-      try {
-        set({
-          courseRows: await deps.data.courseSearch(),
-          courseRowsState: "ready",
-        });
-      } catch {
-        set({ courseRowsState: "error" });
       }
     },
 

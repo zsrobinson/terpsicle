@@ -13,6 +13,7 @@ import {
   mockDataSource,
   mockTermsFile,
 } from "~/fixtures";
+import { resetPageSource } from "~/lib/published-source";
 import {
   createBucketDataSource,
   createMemoryDataSource,
@@ -30,9 +31,8 @@ import {
   flushQueryStorage,
   setQueryStorage,
 } from "~/state/query/persister";
-import { connectPublished, usePublishedSource } from "~/state/query/published";
+import { connectPublished } from "~/state/query/published";
 import { createTestQueryClient } from "~/state/query/testing";
-import { homeSource, resetHomeSource } from "./data";
 import {
   fourYearCoursesQuery,
   homeCalendarsQuery,
@@ -83,13 +83,13 @@ async function settled(client: QueryClient) {
 
 beforeEach(() => {
   setQueryStorage(createMemoryQueryStorage());
-  resetHomeSource();
+  resetPageSource();
 });
 
 afterEach(() => {
   setQueryStorage(null);
   connectPublished(null);
-  resetHomeSource();
+  resetPageSource();
   onlineManager.setOnline(true);
 });
 
@@ -243,16 +243,5 @@ describe("Home's published reads", () => {
     await expect(
       client.fetchQuery(fourYearCoursesQuery(["CMSC"])),
     ).resolves.toBeNull();
-  });
-
-  it("uses the source another product connected, else connects its own", async () => {
-    const server = aServer();
-    connectPublished(server.source);
-    expect(await homeSource()).toBe(server.source);
-    connectPublished(null);
-    resetHomeSource();
-    const own = await homeSource();
-    expect(usePublishedSource.getState().source).toBe(own);
-    expect(await homeSource()).toBe(own);
   });
 });

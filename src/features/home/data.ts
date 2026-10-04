@@ -15,8 +15,7 @@ import type {
   TermId,
 } from "~/core/schema";
 import type { CampusMap } from "~/core/travel";
-import { clientConfig } from "~/lib/config";
-import { createDataSource, type DataSource } from "~/state/data-source";
+import { pageSource } from "~/lib/published-source";
 import {
   buildingsQuery,
   calendarQuery,
@@ -30,7 +29,6 @@ import {
   termsQuery,
 } from "~/state/query/catalog";
 import { ensureIndexDepts } from "~/state/query/course-index";
-import { connectPublished, usePublishedSource } from "~/state/query/published";
 
 // What Home reads from published data (docs/DATA.md §2), after the page
 // shows what's on the device: the academic calendars for Now and Next, the
@@ -43,27 +41,6 @@ import { connectPublished, usePublishedSource } from "~/state/query/published";
 // stale. Nothing here is Home's own: every read fails quietly to "not
 // yet". Loaded on first use (./queries.ts), so Home's first load carries
 // neither the persister nor the stores (scripts/check-bundle.ts).
-
-let opening: Promise<DataSource> | null = null;
-
-/**
- * The page's published data: the source another product already
- * connected, else one of Home's own, connected for the rest of the page.
- */
-export function homeSource(): Promise<DataSource> {
-  const connected = usePublishedSource.getState().source;
-  if (connected) return Promise.resolve(connected);
-  opening ??= createDataSource(clientConfig).then((source) => {
-    if (!usePublishedSource.getState().source) connectPublished(source);
-    return usePublishedSource.getState().source ?? source;
-  });
-  return opening;
-}
-
-/** Forgets Home's own source (tests). */
-export function resetHomeSource(): void {
-  opening = null;
-}
 
 /** A read that may fail: null, and the card shows what it has. */
 async function orNull<T>(read: Promise<T>): Promise<T | null> {
@@ -83,7 +60,7 @@ export async function loadCalendars(
   client: QueryClient,
   today: IsoDate,
 ): Promise<AcademicCalendar[]> {
-  const source = await orNull(homeSource());
+  const source = await orNull(pageSource());
   if (!source) return [];
   const terms = await orNull(
     client.ensureQueryData({ ...termsQuery(source), revalidateIfStale: true }),
@@ -107,7 +84,7 @@ export async function loadCalendars(
 export async function loadCampus(
   client: QueryClient,
 ): Promise<CampusMap | null> {
-  const source = await orNull(homeSource());
+  const source = await orNull(pageSource());
   if (!source) return null;
   const manifest = await orNull(
     client.ensureQueryData({
@@ -143,7 +120,7 @@ export async function loadPlanCatalog(
   termId: TermId,
   depts: readonly DeptCode[],
 ): Promise<PlanCatalog | null> {
-  const source = await orNull(homeSource());
+  const source = await orNull(pageSource());
   if (!source) return null;
   const manifest = await orNull(
     client.ensureQueryData({
@@ -203,7 +180,7 @@ export async function loadFourYearCourses(
   client: QueryClient,
   depts: readonly DeptCode[],
 ): Promise<FourYearCourses | null> {
-  const source = await orNull(homeSource());
+  const source = await orNull(pageSource());
   if (!source) return null;
   const read = await orNull(ensureIndexDepts(client, source, depts));
   if (!read) return null;

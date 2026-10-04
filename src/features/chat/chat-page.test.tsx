@@ -47,11 +47,18 @@ import {
   fixtureTermId,
 } from "~/fixtures";
 import { MOBILE_QUERY } from "~/hooks/use-media-query";
+import { resetPageSource } from "~/lib/published-source";
 import { chatApi } from "~/server/fns/chat-api";
+import { createMemoryDataSource } from "~/state/data-source";
+import {
+  createMemoryQueryStorage,
+  setQueryStorage,
+} from "~/state/query/persister";
+import { connectPublished } from "~/state/query/published";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { FLAGS_OFF, useAccount } from "../auth/account-store";
-import { type ChatApi, fetchChatData } from "./chat-data";
+import type { ChatApi } from "./chat-data";
 import { setChatHomeDeps, useChatHome } from "./chat-home";
 import { ChatPage } from "./chat-page";
 import type { ChatView } from "./nav";
@@ -73,7 +80,7 @@ const cmsc351 = aCourse({
   ],
 });
 
-/** /data as the Worker serves it: the terms, CMSC's manifest entry and its chunk. */
+/** Published data: the terms, CMSC's manifest entry and its chunk. */
 const files: Record<string, unknown> = {
   [TERMS_KEY]: aTermsFile({ terms: [aTerm()] }),
   [manifestKey(fixtureTermId)]: aManifest({
@@ -91,12 +98,6 @@ const files: Record<string, unknown> = {
     ],
   }),
 };
-const data = fetchChatData("/data", async (url) => {
-  const key = String(url).replace("/data/", "");
-  return key in files
-    ? new Response(JSON.stringify(files[key]))
-    : new Response("missing", { status: 404 });
-});
 
 const section0101 = sectionRoomId(fixtureTermId, "CMSC351", "0101");
 
@@ -137,10 +138,7 @@ function fakeClient(
     },
     reports: { create: vi.fn() },
   };
-  setChatHomeDeps({
-    client: client as unknown as ChatApi,
-    data,
-  });
+  setChatHomeDeps({ client: client as unknown as ChatApi });
   return client;
 }
 
@@ -170,6 +168,9 @@ async function page(view: ChatView = {}) {
 }
 
 beforeEach(() => {
+  // The page's queries read these files, saved to memory, not IndexedDB.
+  setQueryStorage(createMemoryQueryStorage());
+  connectPublished(createMemoryDataSource(files));
   useChatHome.setState({
     status: "idle",
     terms: [],
@@ -181,12 +182,13 @@ beforeEach(() => {
     latestSeq: {},
     follows: {},
     mutes: {},
-    courseRows: null,
-    courseRowsState: "idle",
   });
 });
 
 afterEach(() => {
+  connectPublished(null);
+  resetPageSource();
+  setQueryStorage(null);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

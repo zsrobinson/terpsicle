@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Search } from "lucide-react";
@@ -28,7 +29,12 @@ import { EmptyState } from "~/ui/empty-state";
 import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
 import { RowSkeleton } from "~/ui/skeleton";
-import { chatListOf, listLive, useChatHome } from "./chat-home";
+import {
+  chatListOf,
+  connectChatData,
+  listLive,
+  useChatHome,
+} from "./chat-home";
 import { CourseFinder } from "./course-finder";
 import { JoinButton } from "./join-button";
 import { useLiveList } from "./live-list";
@@ -107,13 +113,16 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
   // Try again on a room whose socket gave up opens a new one.
   const [attempt, setAttempt] = useState(0);
 
-  // Load once: Chat's term is today's, whatever the link says.
+  // Load once: Chat's term is today's, whatever the link says. Published
+  // files go through the page's query client, shared with the other products.
+  const queryClient = useQueryClient();
   const loaded = useRef(false);
   useEffect(() => {
     if (loaded.current) return;
     loaded.current = true;
+    connectChatData(queryClient);
     void useChatHome.getState().load();
-  }, []);
+  }, [queryClient]);
 
   // A link to another term's chat (an older one, or for a term that's over
   // or still to come) opens the list: nothing joins or opens there.
