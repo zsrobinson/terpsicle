@@ -1,9 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
+  type NotificationSettings,
+  type NotificationSettingsResult,
   NotificationSettingsSchema,
   type PushDevice,
 } from "~/core/schema/notifications";
@@ -50,6 +52,17 @@ const aDevice = (over: Partial<PushDevice> = {}): PushDevice => ({
   ...over,
 });
 
+/** A promise and the hands that settle it. */
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: unknown) => void = () => {};
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
 function renderSection() {
   const user = userEvent.setup();
   render(
@@ -68,9 +81,22 @@ beforeEach(() => {
     flags: { ...FLAGS_OFF, signIn: true, push: true },
     pushPublicKey: "BKey",
   });
-  api.settings.mockResolvedValue({ settings: DEFAULT_NOTIFICATION_SETTINGS });
+  serve({ settings: DEFAULT_NOTIFICATION_SETTINGS });
   api.devices.mockResolvedValue({ devices: [] });
 });
+
+/**
+ * The server's side of the settings: it answers with `answer` until a save,
+ * then with what was saved (the page asks again after each run of saves).
+ */
+function serve(answer: NotificationSettingsResult) {
+  let saved = answer;
+  api.settings.mockImplementation(async () => saved);
+  api.setSettings.mockImplementation(async ({ settings }) => {
+    saved = { ...saved, settings: NotificationSettingsSchema.parse(settings) };
+    return { settings: saved.settings };
+  });
+}
 
 // Sonner removes a dismissed toast on a timer; waiting for it here keeps that
 // timer from firing after the DOM is torn down.
@@ -83,9 +109,6 @@ afterEach(async () => {
 
 describe("NotificationSettingsSection", () => {
   it("lists every type; the ones that send switch and save, the rest stay quiet", async () => {
-    api.setSettings.mockResolvedValue({
-      settings: DEFAULT_NOTIFICATION_SETTINGS,
-    });
     const user = renderSection();
     for (const row of TYPE_ROWS)
       expect(await screen.findByText(row.title)).toBeInTheDocument();
@@ -111,9 +134,6 @@ describe("NotificationSettingsSection", () => {
   });
 
   it("switches Chat's mentions, replies and digest", async () => {
-    api.setSettings.mockResolvedValue({
-      settings: DEFAULT_NOTIFICATION_SETTINGS,
-    });
     const user = renderSection();
     const mention = await screen.findByRole("switch", {
       name: "Mentions: Notification",
@@ -169,9 +189,6 @@ describe("NotificationSettingsSection", () => {
   });
 
   it("switches quiet hours, seats through them, and message text", async () => {
-    api.setSettings.mockResolvedValue({
-      settings: DEFAULT_NOTIFICATION_SETTINGS,
-    });
     const user = renderSection();
     const quiet = await screen.findByRole("switch", { name: "Quiet hours" });
     const seats = screen.getByRole("switch", {
@@ -222,7 +239,7 @@ describe("NotificationSettingsSection", () => {
   });
 
   it("reads settings saved before quiet hours with their defaults", async () => {
-    api.settings.mockResolvedValue({
+    serve({
       settings: NotificationSettingsSchema.parse({
         v: 1,
         seatOpen: { push: true, email: true },
@@ -252,12 +269,9 @@ describe("NotificationSettingsSection", () => {
   });
 
   it("switches Due tomorrow once ELMS is connected", async () => {
-    api.settings.mockResolvedValue({
+    serve({
       settings: { ...DEFAULT_NOTIFICATION_SETTINGS, todoDue: { push: true } },
       todoConnected: true,
-    });
-    api.setSettings.mockResolvedValue({
-      settings: DEFAULT_NOTIFICATION_SETTINGS,
     });
     const user = renderSection();
     const due = await screen.findByRole("switch", {
@@ -287,6 +301,90 @@ describe("NotificationSettingsSection", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "That didn't go through.",
     );
+  });
+
+  it("shows a switch at once, and puts it back when the save fails", async () => {
+    const save = deferred<never>();
+    api.setSettings.mockReturnValue(save.promise);
+    const user = renderSection();
+    const seatEmail = await screen.findByRole("switch", {
+      name: "Seat openings: Email",
+    });
+    await user.click(seatEmail);
+    // Before the server answers.
+    expect(seatEmail).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByRole("status")).toBeNull();
+    save.reject(new Error("offline"));
+    await waitFor(() =>
+      expect(seatEmail).toHaveAttribute("aria-checked", "true"),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "That didn't go through. Check your connection and try again.",
+    );
+  });
+
+  it("saves one change at a time, in order", async () => {
+    const first = deferred<{ settings: NotificationSettings }>();
+    api.setSettings.mockReturnValueOnce(first.promise);
+    const user = renderSection();
+    const seatEmail = await screen.findByRole("switch", {
+      name: "Seat openings: Email",
+    });
+    const text = screen.getByRole("switch", { name: "Show message text" });
+    await user.click(seatEmail);
+    await user.click(text);
+    // Both show; the second waits for the first, and sends both.
+    expect(seatEmail).toHaveAttribute("aria-checked", "false");
+    expect(text).toHaveAttribute("aria-checked", "false");
+    expect(api.setSettings).toHaveBeenCalledOnce();
+    first.resolve({ settings: DEFAULT_NOTIFICATION_SETTINGS });
+    await waitFor(() => expect(api.setSettings).toHaveBeenCalledTimes(2));
+    expect(api.setSettings).toHaveBeenLastCalledWith({
+      settings: {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        seatOpen: { push: true, email: false },
+        showText: false,
+      },
+    });
+  });
+
+  it("asks for the settings again once the last save is done", async () => {
+    const user = renderSection();
+    const text = await screen.findByRole("switch", {
+      name: "Show message text",
+    });
+    expect(api.settings).toHaveBeenCalledOnce();
+    await user.click(text);
+    await waitFor(() => expect(api.settings).toHaveBeenCalledTimes(2));
+    expect(text).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("says when the settings didn't load, and Try again loads them", async () => {
+    api.settings.mockRejectedValueOnce(new Error("offline"));
+    const user = renderSection();
+    expect(
+      await screen.findByText(
+        "Couldn't load your notification settings. Check your connection and try again.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByRole("switch", { name: "Quiet hours" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByText(/Couldn't load/)).toBeNull();
+  });
+
+  it("says when the devices didn't load, and Try again loads them", async () => {
+    api.devices.mockRejectedValueOnce(new Error("offline"));
+    const user = renderSection();
+    expect(
+      await screen.findByText(/^Couldn't load your notification settings\./),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByText("Notifications are off here."),
+    ).toBeInTheDocument();
   });
 
   it("turns notifications on here, then lists this device", async () => {
@@ -392,6 +490,89 @@ describe("NotificationSettingsSection", () => {
     await user.click(screen.getByRole("button", { name: "Send me a test" }));
     await screen.findByText(/^Sent to 2 devices/);
     expect(screen.queryByText("Mac · Chrome")).not.toBeInTheDocument();
+  });
+
+  it("removes a device once Undo's toast goes, and it stays gone", async () => {
+    api.devices.mockResolvedValue({ devices: [aDevice()] });
+    api.remove.mockResolvedValue({ status: "ok" });
+    const user = renderSection();
+    const row = (await screen.findByText("iPhone · Safari")).closest("li");
+    if (!row) throw new Error("no row");
+    await user.click(within(row).getByRole("button", { name: "Remove" }));
+    await screen.findByText("Removed iPhone · Safari");
+    expect(api.remove).not.toHaveBeenCalled();
+    // The toast goes without Undo: now the server hears.
+    act(() => {
+      toast.dismiss();
+    });
+    await waitFor(() =>
+      expect(api.remove).toHaveBeenCalledWith(
+        { id: "d1" },
+        expect.objectContaining({ fetcher: expect.any(Function) }),
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Devices with notifications on"),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText("iPhone · Safari")).not.toBeInTheDocument();
+  });
+
+  it("puts a device back and says so when removing fails", async () => {
+    api.devices.mockResolvedValue({ devices: [aDevice()] });
+    api.remove.mockRejectedValue(new Error("offline"));
+    const user = renderSection();
+    const row = (await screen.findByText("iPhone · Safari")).closest("li");
+    if (!row) throw new Error("no row");
+    await user.click(within(row).getByRole("button", { name: "Remove" }));
+    await screen.findByText("Removed iPhone · Safari");
+    expect(
+      screen.queryByText("iPhone · Safari", { selector: "div" }),
+    ).not.toBeInTheDocument();
+    act(() => {
+      toast.dismiss();
+    });
+    expect(
+      await screen.findByText(
+        "Couldn't remove iPhone · Safari. Check your connection and try again.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("iPhone · Safari", { selector: "div" }),
+    ).toBeInTheDocument();
+  });
+
+  it("still removes a device as the page closes, with keepalive", async () => {
+    api.devices.mockResolvedValue({ devices: [aDevice()] });
+    api.remove.mockResolvedValue({ status: "ok" });
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}"));
+    const user = renderSection();
+    const row = (await screen.findByText("iPhone · Safari")).closest("li");
+    if (!row) throw new Error("no row");
+    await user.click(within(row).getByRole("button", { name: "Remove" }));
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    await waitFor(() => expect(api.remove).toHaveBeenCalledOnce());
+    const fetcher = api.remove.mock.calls[0]?.[1]?.fetcher;
+    if (!fetcher) throw new Error("no fetcher");
+    await fetcher("/api/push/remove", { method: "POST" });
+    expect(fetchSpy).toHaveBeenCalledWith("/api/push/remove", {
+      method: "POST",
+      keepalive: true,
+    });
+    fetchSpy.mockRestore();
+    // The toast going after that doesn't send it again.
+    act(() => {
+      toast.dismiss();
+    });
+    await waitFor(() =>
+      expect(document.querySelector("[data-sonner-toast]")).toBeNull(),
+    );
+    expect(api.remove).toHaveBeenCalledOnce();
   });
 
   it("says push is coming while it's off here", async () => {

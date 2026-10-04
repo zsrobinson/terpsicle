@@ -6,6 +6,7 @@ import { PageSection } from "~/ui/page-section";
 import { RowSkeleton } from "~/ui/skeleton";
 import { CalendarFeedSection } from "./calendar-feed";
 import { NotificationSettingsSection } from "./notification-settings";
+import { useForgetSettingsOnSignOut } from "./settings-queries";
 
 export const NOTIFICATIONS_PATH = "/settings/notifications";
 
@@ -14,6 +15,7 @@ export const NOTIFICATIONS_PATH = "/settings/notifications";
  * site's frame, like /settings, with Back to it.
  */
 export function NotificationsPage() {
+  useForgetSettingsOnSignOut();
   const status = useAccount((s) => s.status);
   const signInOn = useAccount((s) => s.flags.signIn);
   return (
