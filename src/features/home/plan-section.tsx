@@ -1,5 +1,6 @@
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FourYearCourses } from "~/core/four-year/course-lookup";
 import {
   CREDITS_GOAL,
@@ -8,14 +9,14 @@ import {
 } from "~/core/four-year/credits";
 import { allocateGenEds } from "~/core/four-year/gen-ed";
 import { statusResolver } from "~/core/four-year/status";
-import { genEdsCovered } from "~/core/home";
+import { fourYearDepts, genEdsCovered } from "~/core/home";
 import type { AcademicCalendar, IsoDate } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { ListRow } from "~/ui/list-row";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
-import { loadFourYearCourses } from "./data";
 import { HomeMeter } from "./meter";
+import { fourYearCoursesQuery } from "./queries";
 import { HomeSection, homeLinkClicked, ROW_LINK } from "./section";
 
 // "Plan" (docs/V3.md §1.5): the four-year plan's credits and GenEds in one
@@ -93,21 +94,21 @@ export function PlanSection({
   );
 }
 
-/** The course index's departments the plan uses; null while they load. */
+/**
+ * The course index's departments the plan uses; null while they load. A
+ * plan that needs another department keeps what's shown until it loads.
+ */
 function useFourYearCourses(doc: FourYearDoc): FourYearCourses | null {
-  const [lookup, setLookup] = useState<FourYearCourses | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadFourYearCourses(doc)
-      .catch(() => null)
-      .then((next) => {
-        // Unreadable: count what's known, as Plan does before files load.
-        if (live)
-          setLookup(next ?? { courses: new Map(), loadedDepts: new Set() });
-      });
-    return () => {
-      live = false;
-    };
-  }, [doc]);
-  return lookup;
+  const query = useQuery({
+    ...fourYearCoursesQuery(fourYearDepts(doc)),
+    placeholderData: keepPreviousData,
+  });
+  if (query.isPending) return null;
+  // Unreadable: count what's known, as Plan does before files load.
+  return query.data ?? NOTHING_LOADED;
 }
+
+const NOTHING_LOADED: FourYearCourses = {
+  courses: new Map(),
+  loadedDepts: new Set(),
+};

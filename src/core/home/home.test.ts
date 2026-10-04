@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  aFourYear,
+  aFourYearCreditEntry,
+  aFourYearEntry,
+  aFourYearWildcardEntry,
   anUntimedMeeting,
   aPlan,
   aPlanCourse,
@@ -17,9 +21,11 @@ import {
 import { campusMap, EMPTY_CAMPUS } from "../travel/campus";
 import { decodeRoutes, encodeRoutes } from "../travel/routes-binary";
 import {
+  fourYearDepts,
   genEdsCovered,
   greeting,
   openWatches,
+  planDepts,
   planLine,
   seatsOpenWords,
   unreadByCourse,
@@ -366,5 +372,39 @@ describe("genEdsCovered", () => {
       covered: 3,
       of: GEN_ED_REQUIREMENTS.length,
     });
+  });
+});
+
+describe("planDepts", () => {
+  it("lists a plan's departments once each, sorted", () => {
+    const plan = aPlan({
+      courses: [
+        aPlanCourse({ courseCode: "MATH140", sectionCode: "0101" }),
+        aPlanCourse({ courseCode: "CMSC351", sectionCode: "0101" }),
+        aPlanCourse({ courseCode: "CMSC330", sectionCode: "0201" }),
+      ],
+    });
+    expect(planDepts(plan)).toEqual(["CMSC", "MATH"]);
+    expect(planDepts(aPlan({ courses: [] }))).toEqual([]);
+  });
+});
+
+describe("fourYearDepts", () => {
+  it("lists each course's department and what courses and credits count as", () => {
+    const doc = aFourYear({
+      entries: [
+        aFourYearEntry({ code: "CMSC351" }),
+        aFourYearEntry({
+          id: "entry_fixture_2",
+          code: "HIST289T",
+          details: { title: null, genEds: [], countsAs: "ENGL101" },
+        }),
+        aFourYearCreditEntry({ countsAs: "CHEM135" }),
+        aFourYearCreditEntry({ id: "entry_fixture_d", countsAs: null }),
+        aFourYearWildcardEntry(),
+      ],
+    });
+    expect(fourYearDepts(doc)).toEqual(["CHEM", "CMSC", "ENGL", "HIST"]);
+    expect(fourYearDepts(aFourYear())).toEqual([]);
   });
 });
