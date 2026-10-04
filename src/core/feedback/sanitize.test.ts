@@ -40,7 +40,7 @@ describe("sanitizeContext", () => {
     theme: "light",
     route: "/schedule?plan=eyJzZWN0aW9ucyI6W119&tab=search",
     actions: [
-      { type: "nav", at: 1, route: "/chat/202608/CMSC131/0101" },
+      { type: "nav", at: 1, route: "/chat/CMSC131/0101" },
       {
         type: "request",
         at: 2,
@@ -73,7 +73,7 @@ describe("sanitizeContext", () => {
     const out = sanitizeContext(context);
     expect(out.route).toBe("/schedule?plan=shared&tab=search");
     expect(out.actions).toEqual([
-      { type: "nav", at: 1, route: "/chat/:term/:course/:room" },
+      { type: "nav", at: 1, route: "/chat/:course/:room" },
       {
         type: "request",
         at: 2,

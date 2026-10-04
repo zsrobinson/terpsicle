@@ -326,7 +326,7 @@ jobs:
     needs: [preview, changes]
     if: needs.changes.outputs.mobile == 'true' || contains(github.event.pull_request.labels.*.name, 'mobile-lab')
     permissions:
-      contents: write
+      contents: read
     uses: ./.github/workflows/mobile-lab.yml
     with:
       url: ${{ needs.preview.outputs.url }}

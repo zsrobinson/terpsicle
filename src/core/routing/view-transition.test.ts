@@ -51,12 +51,13 @@ describe("screenOf", () => {
     expect(screenOf("/settings/notifications", {}).depth).toBe(1);
   });
 
-  it("reads Chat's room and thread from its search params", () => {
+  it("reads Chat's room from its path and its thread from a search param", () => {
     expect(screenOf("/chat", {}).depth).toBe(0);
-    expect(screenOf("/chat/", { room: "202701:CMSC351" }).depth).toBe(1);
-    expect(
-      screenOf("/chat", { room: "202701:CMSC351", thread: "m1" }).depth,
-    ).toBe(2);
+    expect(screenOf("/chat/CMSC351/everyone/", {}).depth).toBe(1);
+    expect(screenOf("/chat/CMSC351/0101", { thread: "m1" }).depth).toBe(2);
+    expect(screenOf("/chat/CMSC351/0101", {}).key).not.toBe(
+      screenOf("/chat/CMSC351/0102", {}).key,
+    );
   });
 
   it("ignores a trailing slash", () => {
@@ -113,9 +114,9 @@ describe("viewTransitionType", () => {
 
   it("pops a link back up to the place a drill-in is over", () => {
     // Chat's "Your classes" and Esc are new entries that go up a level.
-    expect(
-      type(at("/chat", 7, { room: "202701:CMSC351" }), at("/chat", 8, {})),
-    ).toBe("pop");
+    expect(type(at("/chat/CMSC351/everyone", 7), at("/chat", 8, {}))).toBe(
+      "pop",
+    );
     expect(
       type(
         at("/schedule/course/CMSC351", 4, { tab: "search" }),
@@ -134,16 +135,12 @@ describe("viewTransitionType", () => {
   });
 
   it("opens and closes a Chat room with push and pop", () => {
-    expect(type(at("/chat", 1), at("/chat", 2, { room: "202701:X" }))).toBe(
-      "push",
-    );
-    expect(type(at("/chat", 2, { room: "202701:X" }), at("/chat", 1))).toBe(
-      "pop",
-    );
+    expect(type(at("/chat", 1), at("/chat/CMSC351/everyone", 2))).toBe("push");
+    expect(type(at("/chat/CMSC351/everyone", 2), at("/chat", 1))).toBe("pop");
     expect(
       type(
-        at("/chat", 2, { room: "202701:X" }),
-        at("/chat", 3, { room: "202701:X", thread: "m1" }),
+        at("/chat/CMSC351/everyone", 2),
+        at("/chat/CMSC351/everyone", 3, { thread: "m1" }),
       ),
     ).toBe("push");
   });

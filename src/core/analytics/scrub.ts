@@ -39,7 +39,8 @@ export const MAX_PROPERTY_LENGTH = 200;
  * their route pattern.
  */
 const PATH_PATTERNS: readonly { route: string; params: readonly string[] }[] = [
-  { route: "/chat", params: [":term", ":course", ":room"] },
+  // A room: `/chat/CMSC351/0101`, or a professor's, which names them.
+  { route: "/chat", params: [":course", ":room"] },
   // The scheduler's drill-ins: a course, and a connection between two of
   // the person's own sections. (`/schedule/result/…` is a run's own id.)
   { route: "/schedule/course", params: [":code"] },
@@ -53,7 +54,7 @@ const PATH_PATTERNS: readonly { route: string; params: readonly string[] }[] = [
 /** Allowlisted values are short words or ids, never free text. */
 const SAFE_VALUE = /^[\w.-]{1,32}$/;
 
-/** `/chat/<term>/<course>/<room>` → `/chat/:term/:course/:room`. */
+/** `/chat/<course>/<room>` → `/chat/:course/:room`. */
 export function scrubPath(pathname: string): string {
   for (const { route, params } of PATH_PATTERNS) {
     if (!isUnderRoute(pathname, route)) continue;

@@ -63,6 +63,25 @@ export function whenWords(iso: string, now: string): string {
   return `${short} ${clockWords(iso)}`;
 }
 
+const SHORT_WEEKDAY = new Intl.DateTimeFormat("en-US", {
+  timeZone: ZONE,
+  weekday: "short",
+});
+const SHORT_DATE = new Intl.DateTimeFormat("en-US", {
+  timeZone: ZONE,
+  month: "short",
+  day: "numeric",
+});
+
+/** A list row's time: "2:14pm" today, "Yesterday", "Wed" this week, else "Sep 23". */
+export function listTimeWords(iso: string, now: string): string {
+  const ago = daysBetween(campusDay(iso), campusDay(now));
+  if (ago <= 0) return clockWords(iso);
+  if (ago === 1) return "Yesterday";
+  if (ago < 7) return SHORT_WEEKDAY.format(new Date(iso));
+  return SHORT_DATE.format(new Date(iso));
+}
+
 /** Consecutive messages by one person within this long share one header. */
 export const RUN_GAP_MS = 5 * 60_000;
 

@@ -929,7 +929,7 @@ export function anInboxItem(overrides: Partial<InboxItem> = {}): InboxItem {
     product: "chat",
     title: "Maya in CMSC351",
     body: "are we meeting at McKeldin at 7? I booked 2nd floor",
-    url: `/chat?term=${fixtureTermId}&course=CMSC351&room=${fixtureTermId}%3ACMSC351`,
+    url: "/chat/CMSC351/everyone",
     count: 1,
     createdAt: "2026-09-27T22:28:00.000Z",
     readAt: null,
@@ -1053,6 +1053,7 @@ export function aChatMessage(
     thread: null,
     reactions: {},
     moderation: { state: "visible" },
+    deleted: false,
     ...overrides,
   };
 }

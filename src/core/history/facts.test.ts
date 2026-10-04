@@ -85,4 +85,28 @@ describe("historyDeptFacts", () => {
     );
     expect(facts.gradeRows).toBe(1);
   });
+
+  it("reads umd.io's names as Testudo's spellings, with no grade rows", () => {
+    const summer: HistoryDept = {
+      ...dept,
+      courses: [
+        {
+          code: "CMSC131",
+          title: null,
+          offerings: [
+            offering({
+              termId: "202505",
+              source: "umdio",
+              instructors: ["Fawzi Emad"],
+              sections: [{ code: "0101", instructors: ["Fawzi Emad"] }],
+            }),
+          ],
+        },
+      ],
+    };
+    const facts = historyDeptFacts(summer);
+    expect(facts.testudoNames.get("Fawzi Emad")).toEqual(new Set(["CMSC131"]));
+    expect(facts.planetTerpNames.size).toBe(0);
+    expect(facts.gradeRows).toBe(0);
+  });
 });

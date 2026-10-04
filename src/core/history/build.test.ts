@@ -4,8 +4,65 @@ import { aCourse, aSection, fixtureTermId } from "~/fixtures";
 import {
   historyCoursesFromChunk,
   historyFromPlanetTerpGrades,
+  historyFromUmdioSections,
   planetTerpSectionCode,
 } from "./build";
+
+describe("historyFromUmdioSections", () => {
+  const row = (
+    section_id: string,
+    instructors: string[],
+    semester = "202505",
+  ) => ({
+    section_id,
+    semester,
+    number: section_id.split("-")[1] ?? null,
+    instructors,
+  });
+
+  it("groups a term's sections by course, as Testudo spells the names", () => {
+    const courses = historyFromUmdioSections(
+      "202505",
+      [
+        row("CMSC131-0201", ["Fawzi Emad"]),
+        row("CMSC131-0101", ["Fawzi Emad", "Ilchul Yoon"]),
+        // TBA isn't a name, but the section is still recorded.
+        row("CMSC131-0301", ["Instructor: TBA"]),
+        row("AASP100-WB11", ["Jason Nichols"]),
+        // Another term's row, and codes that don't read, are skipped.
+        row("CMSC132-0101", ["Nelson Padua-Perez"], "202501"),
+        row("NOTACODE-0101", ["Nobody"]),
+      ],
+      (code) =>
+        code === "CMSC131"
+          ? { title: " Object-Oriented Programming I " }
+          : null,
+    );
+    expect(courses).toEqual([
+      {
+        code: "AASP100",
+        title: null,
+        credits: null,
+        source: "umdio",
+        instructors: ["Jason Nichols"],
+        sections: [{ code: "WB11", instructors: ["Jason Nichols"] }],
+      },
+      {
+        code: "CMSC131",
+        title: "Object-Oriented Programming I",
+        credits: null,
+        source: "umdio",
+        instructors: ["Fawzi Emad", "Ilchul Yoon"],
+        sections: [
+          { code: "0101", instructors: ["Fawzi Emad", "Ilchul Yoon"] },
+          { code: "0201", instructors: ["Fawzi Emad"] },
+          { code: "0301", instructors: [] },
+        ],
+      },
+    ]);
+    for (const c of courses) expect(HistoryCourseSchema.parse(c)).toEqual(c);
+  });
+});
 
 describe("historyCoursesFromChunk", () => {
   it("keeps codes, titles, credits and each section's names, sorted", () => {

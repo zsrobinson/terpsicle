@@ -2,6 +2,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { termLabel } from "~/core/catalog/terms";
+import { roomSlug } from "~/core/chat/room-paths";
 import { unreadWords } from "~/core/chat/talk-words";
 import { unreadByCourse } from "~/core/home";
 import type {
@@ -78,8 +79,8 @@ export function ChatSection({
             >
               <WithTooltip label={`Open ${c.courseCode} chat`}>
                 <Link
-                  to="/chat"
-                  search={{ term: termId, course: c.courseCode, room: c.room }}
+                  to="/chat/$course/$room"
+                  params={{ course: c.courseCode, room: roomSlug(c.room) }}
                   onClick={() => homeLinkClicked("chat")}
                   className={ROW_LINK}
                 >

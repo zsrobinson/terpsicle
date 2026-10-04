@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  chatTerm,
   type TermTags,
   termTagCandidates,
   termTags,
@@ -8,10 +9,12 @@ import {
   type ChatListCourse,
   chatList,
   chatListCourseCodes,
+  chatPreview,
 } from "~/core/chat";
 import { mainPlanFor, tabsInTerm } from "~/core/plans/main-plan";
 import {
   ChatJoinedStoreSchema,
+  type ChatLatestMessage,
   type ChatUnreadRoom,
   type Course,
   type CourseCode,
@@ -27,16 +30,18 @@ import { chatApi } from "~/server/fns/chat-api";
 import {
   type ChatApi,
   type ChatData,
-  chatTerm,
   fetchChatData,
   pullSynced,
   type Synced,
 } from "./chat-data";
+import { type LiveListener, liveSessionFor } from "./session";
 
 // The chat list's state (V2.md §8.6): the term, your synced plans and
 // settings, the catalog courses the list shows, unread counts, and courses
 // you follow. Loaded once you're signed in; conversations live in their
-// own sessions (./session).
+// own sessions (./session). The term is always Chat's term (`chatTerm`: the
+// one in session, or between terms the next to start), never a pick: a
+// chat for a term you aren't in yet is confusing (owner, 2026-09-29).
 
 export type ChatHomeStatus = "idle" | "loading" | "ready" | "error";
 
@@ -65,12 +70,27 @@ function writeFollows(follows: Record<TermId, CourseCode[]>): void {
 export interface ChatHomeState {
   status: ChatHomeStatus;
   terms: Term[];
-  /** Now and Next (V2 §5.5), for the term menu's tags. */
+  /** Now and Next (V2 §5.5), for the term's tag in the bar. */
   tags: TermTags;
   termId: TermId | null;
   synced: Synced;
   courses: Map<CourseCode, Course>;
   unread: ChatUnreadRoom[];
+  /**
+   * Each room's newest message, the list's second line (the owner,
+   * 2026-09-29), from the course's object: asked again only when a room's
+   * `lastSeq` moves, and kept current by the room that's open.
+   */
+  latest: Record<RoomId, ChatLatestMessage>;
+  /** The `lastSeq` each room's `latest` was asked at. */
+  latestSeq: Record<RoomId, number>;
+  /**
+   * Courses whose socket is open (./live-list, or the open room's): their
+   * rows update live, so the list asks `chat/latest` only for the others.
+   */
+  live: Record<CourseCode, boolean>;
+  /** The room on screen: a message there is read as it lands. */
+  viewing: RoomId | null;
   follows: Record<TermId, CourseCode[]>;
   /** Mutes set here, for rooms chat/unread doesn't list yet (no messages). */
   mutes: Record<RoomId, boolean>;
@@ -78,15 +98,16 @@ export interface ChatHomeState {
   courseRows: readonly CourseSearchRow[] | null;
   courseRowsState: "idle" | "loading" | "ready" | "error";
 
-  /** Loads everything for a term (the asked one, or the usual pick). */
-  load: (term: TermId | null) => Promise<void>;
-  setTerm: (termId: TermId) => Promise<void>;
+  /** Loads everything for Chat's term. */
+  load: () => Promise<void>;
   refreshUnread: () => Promise<void>;
   /** Loads `courseRows` once; after an error, asking again tries again. */
   ensureCourseRows: () => Promise<void>;
   /** Makes sure a course's catalog entry is loaded (a room opened by link or Find a course). */
   ensureCourse: (courseCode: CourseCode) => Promise<Course | null>;
-  follow: (courseCode: CourseCode) => Promise<"ok" | "too-many" | "failed">;
+  follow: (
+    courseCode: CourseCode,
+  ) => Promise<"ok" | "too-many" | "other-term" | "failed">;
   unfollow: (courseCode: CourseCode) => Promise<boolean>;
   mute: (
     courseCode: CourseCode,
@@ -95,6 +116,11 @@ export interface ChatHomeState {
   ) => Promise<boolean>;
   /** You've seen a room's newest message: its count goes to 0 here at once. */
   markRead: (room: RoomId) => void;
+  /** The open room's newest message, as its socket has it. */
+  noteLatest: (message: ChatLatestMessage) => void;
+  setViewing: (room: RoomId | null) => void;
+  /** "Mark read" on a room's row: its count goes now, and the object hears it on the course's socket. */
+  markRoomRead: (room: RoomId) => void;
   /**
    * Makes a plan the term's main plan, whose sections are your rooms (and
    * which Schedule, Plan, Todo and the calendar feed read); false if it
@@ -145,10 +171,47 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
       unread,
     });
 
+  /** Asks the courses' objects for the rooms whose newest message moved. */
+  const refreshLatest = async (termId: TermId, rooms: ChatUnreadRoom[]) => {
+    const { latestSeq: asked, live } = get();
+    // A course with an open socket keeps its rows current itself.
+    const stale = rooms.filter(
+      (r) => asked[r.room] !== r.lastSeq && !live[r.courseCode],
+    );
+    if (stale.length === 0) return;
+    const byCourse = new Map<CourseCode, ChatUnreadRoom[]>();
+    for (const r of stale)
+      byCourse.set(r.courseCode, [...(byCourse.get(r.courseCode) ?? []), r]);
+    await Promise.all(
+      [...byCourse].map(async ([courseCode, list]) => {
+        try {
+          const { latest } = await deps.client.chat.latest({
+            termId,
+            courseCode,
+            rooms: list.map((r) => r.room),
+          });
+          set({
+            latest: {
+              ...get().latest,
+              ...Object.fromEntries(latest.map((m) => [m.room, m])),
+            },
+            latestSeq: {
+              ...get().latestSeq,
+              ...Object.fromEntries(list.map((r) => [r.room, r.lastSeq])),
+            },
+          });
+        } catch {
+          // The rows keep what they had; the next refresh asks again.
+        }
+      }),
+    );
+  };
+
   const open = async (termId: TermId, synced: Synced) => {
     const { rooms } = await deps.client.chat.unread({ termId });
     const courses = await coursesFor(termId, listCodes(termId, synced, rooms));
     set({ termId, synced, unread: rooms, courses, status: "ready" });
+    await refreshLatest(termId, rooms);
   };
 
   return {
@@ -159,12 +222,16 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
     synced: EMPTY,
     courses: new Map(),
     unread: [],
+    latest: {},
+    latestSeq: {},
+    live: {},
+    viewing: null,
     follows: typeof window === "undefined" ? {} : readFollows(),
     mutes: {},
     courseRows: null,
     courseRowsState: "idle",
 
-    load: async (term) => {
+    load: async () => {
       set({ status: "loading" });
       try {
         const today = newYorkClock(Date.now()).date;
@@ -179,22 +246,17 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
           today,
           calendars.filter((c) => c !== null),
         );
-        const picked = chatTerm(terms, term, synced.plans, tags.now);
+        const picked = chatTerm(
+          today,
+          terms.map((t) => t.id),
+          calendars.filter((c) => c !== null),
+        );
         set({ terms, tags });
         if (!picked) {
           set({ status: "ready", synced });
           return;
         }
-        await open(picked.id, synced);
-      } catch {
-        set({ status: "error" });
-      }
-    },
-
-    setTerm: async (termId) => {
-      set({ status: "loading", courses: new Map(), unread: [] });
-      try {
-        await open(termId, get().synced);
+        await open(picked, synced);
       } catch {
         set({ status: "error" });
       }
@@ -210,6 +272,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
           listCodes(termId, get().synced, rooms),
         );
         set({ unread: rooms, courses });
+        await refreshLatest(termId, rooms);
       } catch {
         // Keep the counts we have; the next refresh tries again.
       }
@@ -246,7 +309,7 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
       if (!termId) return "failed";
       try {
         const result = await deps.client.chat.follow({ termId, courseCode });
-        if (result.status === "too-many") return "too-many";
+        if (result.status !== "ok") return result.status;
       } catch {
         return "failed";
       }
@@ -295,6 +358,29 @@ export const useChatHome = create<ChatHomeState>()((set, get) => {
         set({ mutes: before });
         return false;
       }
+    },
+
+    noteLatest: (message) => {
+      const before = get().latest[message.room];
+      if (
+        before &&
+        before.createdAt === message.createdAt &&
+        before.text === message.text &&
+        before.deleted === message.deleted
+      )
+        return;
+      // An edit of an older message doesn't take the newest one's place.
+      if (before && before.createdAt > message.createdAt) return;
+      set({ latest: { ...get().latest, [message.room]: message } });
+    },
+
+    setViewing: (viewing) => set({ viewing }),
+
+    markRoomRead: (room) => {
+      get().markRead(room);
+      const newest = get().latest[room];
+      const courseCode = room.split(":")[1] ?? "";
+      if (newest) liveSessionFor(courseCode)?.readUpTo(room, newest.id);
     },
 
     markRead: (room) =>
@@ -392,6 +478,7 @@ export function chatListOf(
     ),
     follows: state.follows[state.termId] ?? [],
     unread: withMutes(state.unread, state.mutes),
+    mutes: state.mutes,
     courses: state.courses,
   });
 }
@@ -414,3 +501,66 @@ export function isMuted(state: ChatHomeState, room: RoomId): boolean {
     false
   );
 }
+
+/**
+ * The list's side of every course socket (./session's `LiveListener`): a
+ * welcome's unread counts, and each message as it lands, which moves its
+ * room's newest message and, for one someone else just sent in a room
+ * that isn't on screen, its unread count. A muted room updates its line too;
+ * the list never shows it as unread.
+ */
+export const listLive: LiveListener = {
+  welcome: (courseCode, rooms) => {
+    const counts = new Map(rooms.map((r) => [r.room, r.unread]));
+    const { unread, viewing } = useChatHome.getState();
+    useChatHome.setState({
+      unread: unread.map((r) =>
+        r.courseCode === courseCode && counts.has(r.room)
+          ? { ...r, unread: r.room === viewing ? 0 : (counts.get(r.room) ?? 0) }
+          : r,
+      ),
+    });
+  },
+  message: (message, fresh, you) => {
+    const home = useChatHome.getState();
+    const courseCode = message.room.split(":")[1] ?? "";
+    home.noteLatest({
+      id: message.id,
+      room: message.room,
+      author: message.author,
+      text: message.deleted ? "" : chatPreview(message.text),
+      deleted: message.deleted,
+      createdAt: message.createdAt,
+    });
+    if (!fresh || message.author.directoryId === you) return;
+    const seen = home.viewing === message.room;
+    const row = home.unread.find((r) => r.room === message.room);
+    const next: ChatUnreadRoom = row
+      ? {
+          ...row,
+          lastSeq: row.lastSeq + 1,
+          unread: seen ? 0 : row.unread + 1,
+          lastMessageAt: message.createdAt,
+        }
+      : {
+          room: message.room,
+          courseCode,
+          lastSeq: 1,
+          unread: seen ? 0 : 1,
+          lastMessageAt: message.createdAt,
+          muted: false,
+        };
+    useChatHome.setState({
+      unread: row
+        ? home.unread.map((r) => (r === row ? next : r))
+        : [...home.unread, next],
+      // The seq it was asked at moves with it: the poll needn't ask again.
+      latestSeq: { ...home.latestSeq, [message.room]: next.lastSeq },
+    });
+  },
+  status: (courseCode, open) => {
+    const { live } = useChatHome.getState();
+    if (Boolean(live[courseCode]) === open) return;
+    useChatHome.setState({ live: { ...live, [courseCode]: open } });
+  },
+};

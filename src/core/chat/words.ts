@@ -1,6 +1,5 @@
 import type {
   CourseCode,
-  InstructorName,
   Meeting,
   Minutes,
   Reaction,
@@ -8,26 +7,9 @@ import type {
 } from "../schema";
 import { formatDays, formatTime } from "../time/format";
 
-// Plain words for room labels, details and descriptions (SPEC §3.13), in the
-// Chat canvas's style: "Sadeghian's sections", "0303 · MWF 11am and TuTh 11am
-// discussion", "People in section 0101 of CMSC131, from their plans".
-
-/** "Pedram Sadeghian" → "Sadeghian", "Aaron Kyei-Asare" → "Kyei-Asare". */
-export function instructorShortName(name: InstructorName): string {
-  const parts = name.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? name;
-}
-
-/** "" (TBA), "Rendall", "Rendall and Moss", "Rendall and 2 others". */
-export function instructorsWords(
-  instructors: readonly InstructorName[],
-): string {
-  const [first, second, ...rest] = instructors.map(instructorShortName);
-  if (first === undefined) return "";
-  if (second === undefined) return first;
-  if (rest.length === 0) return `${first} and ${second}`;
-  return `${first} and ${rest.length + 1} others`;
-}
+// Plain words for rooms' details and descriptions (SPEC §3.13): "MWF 10am ·
+// IRB 0324", "People in section 0101 of CMSC131, from their plans". Rooms'
+// names and paths are ./room-paths's.
 
 /** "2–3:15pm", "11:30am–12:20pm": the start's am/pm goes when the end has the same. */
 export function compactTimeRange(start: Minutes, end: Minutes): string {
@@ -156,3 +138,9 @@ export const REACTION_WORDS = {
   laugh: "Funny",
   question: "Question",
 } as const satisfies Record<Reaction, string>;
+
+/**
+ * What's left of a message its author deleted after the room saw it (the
+ * owner, 2026-09-29), in the room and as a room's latest message.
+ */
+export const DELETED_MESSAGE_WORDS = "Message deleted by author";

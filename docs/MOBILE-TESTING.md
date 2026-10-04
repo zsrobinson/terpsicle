@@ -34,10 +34,10 @@ pnpm tsx scripts/mobile-lab/run.ts --engine webkit --url http://localhost:3000 -
 
 ## Reading results
 
-Every CI run is published to the **`mobile-runs` branch**, under `runs/<UTC time>-<engine>-<workflow run id>/`, and uploaded as the workflow run's artifact (`mobile-lab-<engine>`, kept 14 days). The branch's `README.md` lists the newest 40 runs with their results. It's a single orphan commit, rewritten on each publish, so old runs drop out and nothing reaches `main`.
+Every CI run is uploaded as the workflow run's artifact, `mobile-lab-<engine>` (kept 14 days), with one folder, `<UTC time>-<engine>-<workflow run id>/`. The job summary links the artifact and gives the result. Nothing goes in Git: recordings once grew the repo past 400 MiB, and `pnpm lint` now fails on test output, recordings and files over 2 MiB (`scripts/check-tracked-files.ts`).
 
-- **On GitHub:** open `https://github.com/zsrobinson/terpsicle/blob/mobile-runs/README.md` and follow a run. Its `README.md` shows each scenario's steps as screenshots next to what the step measured, with failed checks in bold, and links each scenario's recording.
-- **From a checkout (agents):** `git fetch origin mobile-runs && git worktree add /tmp/mobile-runs origin/mobile-runs`, then read `runs/<run>/README.md`, look at the screenshots, and query `summary.json`.
+- **On GitHub:** open the workflow run, then its summary's link (or **Artifacts** at the bottom), and unzip it. The folder's `README.md` shows each scenario's steps as screenshots next to what the step measured, with failed checks in bold, and links each scenario's recording.
+- **From a checkout (agents):** download the artifact through the GitHub API (`GET /repos/zsrobinson/terpsicle/actions/runs/<run id>/artifacts`, then the artifact's `archive_download_url`), unzip it, then read `README.md`, look at the screenshots, and query `summary.json`.
 
 A run folder holds:
 
@@ -51,7 +51,7 @@ A run folder holds:
   - `frames`: a per-animation-frame trace of whatever moved, as `[ms, drawerTop, snap, innerHeight, vvHeight, vvOffsetTop, vvScale, scrollY, focusedTop]`. This is how a drawer that jumps or a field that slides out of view mid-animation shows up, even between screenshots.
 - `<scenario>/NN-<step>.jpg`: the whole screen, browser toolbar and keyboard included on `android` and `ios`.
 - `<scenario>/video.mp4` (`.webm` on `webkit`): the scenario's screen recording.
-- `RESULT`: three lines for the index.
+- `RESULT`: three lines for the job summary.
 - `browser-log.txt` (`webkit`): WebKit's own output (`DEBUG=pw:browser`).
 - `kernel-log.txt` (`webkit`): the runner's kernel lines about segfaults and OOM kills, and `free -m`: how a crashed page process died.
 - `webcontent-log.txt` (`ios`): the Simulator's log lines from Safari's page process about crashes, memory pressure and jetsam.

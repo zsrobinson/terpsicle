@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at   TEXT NOT NULL,
   edited_at    TEXT,
   check_after  INTEGER,
+  deleted_at   TEXT,
   UNIQUE (author_id, client_req),
   UNIQUE (room_id, seq)
 );
@@ -75,6 +76,12 @@ export const MessageRowSchema = z.object({
   edited_at: z.string().nullable(),
   /** Epoch ms after which a message still `checking` is screened again; null while the moderation cron owns it. */
   check_after: z.number().int().nullable(),
+  /**
+   * When its author deleted it: a shown message stays as a tombstone ("Message
+   * deleted by author"), with its text gone. Absent in rows from before the
+   * column (none were deleted that way).
+   */
+  deleted_at: z.string().nullable().default(null),
 });
 export type MessageRow = z.infer<typeof MessageRowSchema>;
 
@@ -97,6 +104,17 @@ export class ObjectStore {
           "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'messages'",
         )
         .one().n === 1;
+    if (this.#ready) this.#migrate();
+  }
+
+  /** Columns added after an object's tables were made. */
+  #migrate(): void {
+    const columns = this.sql
+      .exec("SELECT name FROM pragma_table_info('messages')")
+      .toArray()
+      .map((r) => String(r.name));
+    if (!columns.includes("deleted_at"))
+      this.sql.exec("ALTER TABLE messages ADD COLUMN deleted_at TEXT");
   }
 
   private get sql(): SqlStorage {
@@ -168,7 +186,7 @@ export class ObjectStore {
   }
 
   /** Stores a new message at the room's next seq; the room's row comes with its first. */
-  insertMessage(m: Omit<MessageRow, "seq">): MessageRow {
+  insertMessage(m: Omit<MessageRow, "seq" | "deleted_at">): MessageRow {
     this.ensure();
     return this.storage.transactionSync(() => {
       const seq =
@@ -205,7 +223,7 @@ export class ObjectStore {
         m.edited_at,
         m.check_after,
       );
-      return { ...m, seq };
+      return { ...m, seq, deleted_at: null };
     });
   }
 
@@ -246,6 +264,35 @@ export class ObjectStore {
       this.sql.exec("DELETE FROM reactions WHERE message_id = ?", id);
       this.sql.exec("DELETE FROM messages WHERE id = ?", id);
     });
+  }
+
+  /**
+   * Its author deleted a message the room had seen: the text and reactions
+   * go, and a tombstone keeps its place, author and time, so the room's
+   * record still says something was there.
+   */
+  tombstone(id: string, at: string): void {
+    this.storage.transactionSync(() => {
+      this.sql.exec("DELETE FROM reactions WHERE message_id = ?", id);
+      this.sql.exec(
+        "UPDATE messages SET body = '', deleted_at = ?, check_after = NULL WHERE id = ?",
+        at,
+        id,
+      );
+    });
+  }
+
+  /** The newest message everyone in `room` can see (a tombstone included), or null. */
+  latestVisible(room: RoomId): MessageRow | null {
+    if (!this.#ready) return null;
+    const row = this.sql
+      .exec(
+        `SELECT * FROM messages WHERE room_id = ? AND status = 'visible'
+         ORDER BY seq DESC LIMIT 1`,
+        room,
+      )
+      .toArray()[0];
+    return row ? toRow(row) : null;
   }
 
   /**

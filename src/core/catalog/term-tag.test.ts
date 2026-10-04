@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aPublishedCalendar } from "~/fixtures";
 import { termStatus } from "../four-year/status";
-import { termTagCandidates, termTagOf, termTags } from "./term-tag";
+import { chatTerm, termTagCandidates, termTagOf, termTags } from "./term-tag";
 
 const FALL_2026 = "202608";
 const WINTER_2027 = "202612";
@@ -69,5 +69,46 @@ describe("termTagOf", () => {
     expect(termTagOf(FALL_2026, tags)).toBe("now");
     expect(termTagOf(SPRING_2027, tags)).toBe("next");
     expect(termTagOf(FALL_2027, tags)).toBeNull();
+  });
+});
+
+describe("chatTerm", () => {
+  const listed = [SUMMER_2027, SPRING_2027, WINTER_2027, FALL_2026];
+
+  it("is the listed term in session", () => {
+    expect(chatTerm("2026-09-28", listed, [fall2026])).toBe(FALL_2026);
+    expect(chatTerm("2027-01-10", listed, [])).toBe(WINTER_2027);
+    expect(chatTerm("2027-07-01", listed, [])).toBe(SUMMER_2027);
+  });
+
+  it("between terms, is the next one to start, winter and summer too", () => {
+    const spring = aPublishedCalendar({
+      termId: SPRING_2027,
+      classesStart: "2027-01-27",
+      classesEnd: "2027-05-11",
+    });
+    const summer = aPublishedCalendar({
+      termId: SUMMER_2027,
+      classesStart: "2027-06-07",
+      classesEnd: "2027-08-13",
+    });
+    // Spring's grades are in by 05-25; summer's classes start on 06-07.
+    expect(chatTerm("2027-06-01", listed, [spring, summer])).toBe(SUMMER_2027);
+    // Before Fall 2026's first day, with nothing in session: fall.
+    expect(chatTerm("2026-08-25", [SPRING_2027, FALL_2026], [fall2026])).toBe(
+      FALL_2026,
+    );
+  });
+
+  it("counts only the terms Testudo lists", () => {
+    // Fall 2026 is in session, but without its catalog it has no rooms.
+    expect(chatTerm("2026-09-28", [SPRING_2027], [])).toBe(SPRING_2027);
+  });
+
+  it("with nothing in session or to come, is the newest listed term", () => {
+    expect(chatTerm("2027-09-01", [FALL_2026, SPRING_2027], [])).toBe(
+      SPRING_2027,
+    );
+    expect(chatTerm("2027-09-01", [], [])).toBeNull();
   });
 });

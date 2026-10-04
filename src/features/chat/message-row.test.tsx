@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -60,6 +60,68 @@ describe("MessageRow", () => {
     );
     expect(article.querySelector("b, img[src='x']")).toBeNull();
     expect(within(article).getByText(noor.name)).toBeInTheDocument();
+  });
+
+  it("keeps a deleted message's place as a tombstone, with nothing to do on it", () => {
+    row(
+      aChatMessage({
+        author: me,
+        text: "",
+        deleted: true,
+        thread: { count: 2, lastAt: FIXTURE_NOW },
+      }),
+    );
+    const article = screen.getByRole("article");
+    expect(
+      within(article).getByText("Message deleted by author"),
+    ).toBeInTheDocument();
+    expect(within(article).getByText(me.name)).toBeInTheDocument();
+    // No edit, delete, react or report, a right click included; its thread
+    // still opens.
+    fireEvent.contextMenu(article);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(
+      within(article).queryByRole("button", { name: /Delete|Edit|More/ }),
+    ).toBeNull();
+    expect(
+      within(article).getByRole("button", { name: /2 replies/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens its actions on a right click: reply, copy, copy link, and delete for your own", async () => {
+    const { a, user } = row(aChatMessage({ author: me, text: "see you at 7" }));
+    fireEvent.contextMenu(screen.getByRole("article"));
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual([
+      "Reply in a thread",
+      "Copy text",
+      "Copy link",
+      "Edit",
+      "Delete",
+    ]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Copy link" }));
+    // user-event puts its own clipboard in place: read the link back from it.
+    expect(await navigator.clipboard.readText()).toBe(
+      `${window.location.origin}/chat/CMSC351/everyone?thread=msg_fixture_01`,
+    );
+    fireEvent.contextMenu(screen.getByRole("article"));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    expect(a.remove).toHaveBeenCalled();
+  });
+
+  it("offers Report, not Delete, on someone else's, and no menu on a tombstone", async () => {
+    const { user } = row(aChatMessage({ author: noor }));
+    fireEvent.contextMenu(screen.getByRole("article"));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByRole("menuitem", { name: "Delete" })).toBeNull();
+    await user.click(within(menu).getByRole("menuitem", { name: "Report" }));
+    expect(
+      await screen.findByText("Why are you reporting it?", { exact: false }),
+    ).toBeInTheDocument();
   });
 
   it("marks a held message for its author: yellow, with one plain line", () => {

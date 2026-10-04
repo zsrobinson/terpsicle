@@ -86,14 +86,19 @@ describe("the words", () => {
   const professor = professorRoomId(TERM, "CMSC131", ["Pedram Sadeghian"]);
 
   it("names the place", () => {
-    expect(chatPlaceWords(courseRoomId(TERM, "CMSC131"), null)).toBe("CMSC131");
+    expect(chatPlaceWords(courseRoomId(TERM, "CMSC131"), null)).toBe(
+      "CMSC131 · Everyone",
+    );
     expect(chatPlaceWords(sectionRoomId(TERM, "CMSC131", "0303"), null)).toBe(
-      "CMSC131 · 0303",
+      "CMSC131 · Section 0303",
     );
     expect(chatPlaceWords(professor, tree.byId.get(professor) ?? null)).toBe(
-      "CMSC131 · Sadeghian's sections",
+      "CMSC131 · Sadeghian's Sections",
     );
-    expect(chatPlaceWords(professor, null)).toBe("CMSC131");
+    // Without the catalog, the name comes from the room's id.
+    expect(chatPlaceWords(professor, null)).toBe(
+      "CMSC131 · Sadeghian's Sections",
+    );
   });
 
   it("cuts a preview at a word", () => {
@@ -116,9 +121,7 @@ describe("the words", () => {
         roomId: room,
         thread: "01J0000000000000000000000A",
       }),
-    ).toBe(
-      `/chat?term=202701&course=CMSC131&room=${encodeURIComponent(room)}&thread=01J0000000000000000000000A`,
-    );
+    ).toBe("/chat/CMSC131/0303?thread=01J0000000000000000000000A");
     expect(
       chatMessageHref({
         termId: TERM,
@@ -126,7 +129,7 @@ describe("the words", () => {
         roomId: courseRoomId(TERM, "CMSC131"),
         thread: null,
       }),
-    ).toBe("/chat?term=202701&course=CMSC131&room=202701%3ACMSC131");
+    ).toBe("/chat/CMSC131/everyone");
   });
 
   it("groups a long professor room's mentions under a 64-character tag", () => {
