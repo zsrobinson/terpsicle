@@ -490,7 +490,7 @@ export function EntryBlock({
       draggable
       onDragStart={onDragStart}
       className={cn(
-        "group flex items-start gap-1 border bg-raised transition-colors",
+        "group/block flex items-start gap-1 border bg-raised transition-colors",
         entry.kind === "wildcard"
           ? "border-hairline-strong border-dashed"
           : "border-hairline",
@@ -528,7 +528,8 @@ export function EntryBlock({
             focusSearch();
           }}
           className={cn(
-            "min-w-0 flex-1 space-y-0.5 px-2 py-1.5 text-left hover:bg-hover",
+            // Lit while the block's ⋯ menu is open, as under the pointer.
+            "min-w-0 flex-1 space-y-0.5 px-2 py-1.5 text-left hover:bg-hover group-menu-open/block:bg-hover",
             done && "text-muted",
           )}
         >

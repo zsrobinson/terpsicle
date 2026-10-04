@@ -198,8 +198,8 @@ function PlacedRow({
 
   const row = (
     <ListRow
-      // Lit while its color dot (the lead) has its popover open.
-      className="group items-start hover:bg-hover has-[>:first-child_[aria-expanded=true]]:bg-hover"
+      // Lit while its ⋯ menu, right-click menu or color dot is open.
+      className="group items-start hover:bg-hover menu-open:bg-hover"
       lead={
         <CourseColorPicker
           courseCode={courseCode}
@@ -318,7 +318,7 @@ function BookmarkRow({
   const row = (
     <ListRow
       density="compact"
-      className="group hover:bg-hover"
+      className="group hover:bg-hover menu-open:bg-hover"
       lead={
         <Bookmark
           size={12}

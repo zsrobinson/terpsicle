@@ -378,7 +378,15 @@ function ActionContextMenu({
         open={open && !phone}
         onOpenChange={(next) => setOpen(next)}
       >
-        <ContextMenu.Trigger ref={row} render={target} />
+        <ContextMenu.Trigger
+          ref={row}
+          render={target}
+          // The row keeps its highlight while its menu is open (the
+          // `menu-open` variant in styles.css), on a phone's sheet too.
+          // Base UI's data-popup-open can't say it: a row that's also a
+          // tooltip's trigger gets that from its tooltip.
+          data-menu-open={open ? "" : undefined}
+        />
         {phone ? null : (
           <ContextMenu.Portal>
             <ContextMenu.Positioner

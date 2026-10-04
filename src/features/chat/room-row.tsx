@@ -138,7 +138,10 @@ export function RoomRow({
           )}
         </span>
       }
-      className={cn("relative max-md:min-h-11", !current && "hover:bg-hover")}
+      className={cn(
+        "relative max-md:min-h-11",
+        !current && "hover:bg-hover menu-open:bg-hover",
+      )}
     >
       <WithTooltip label={room.description} side="right">
         <button
