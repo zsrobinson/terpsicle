@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BellRing } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { termLabel } from "~/core/catalog/terms";
 import {
   type OpenWatch,
   openWatches,
+  planDepts,
   planLine,
   seatsOpenWords,
 } from "~/core/home";
@@ -24,9 +25,9 @@ import { ListRow } from "~/ui/list-row";
 import { Skeleton } from "~/ui/skeleton";
 import { TermTag } from "~/ui/term-tag";
 import { WithTooltip } from "~/ui/tooltip";
-import { loadPlanCatalog, type PlanCatalog } from "./data";
+import type { PlanCatalog } from "./data";
 import type { HomeLocal } from "./local";
-import { seatWatchesQuery } from "./queries";
+import { planCatalogQuery, seatWatchesQuery } from "./queries";
 import {
   HomeNote,
   HomeSection,
@@ -173,25 +174,16 @@ function OpenWatchRow({ w }: { w: OpenWatch }) {
   );
 }
 
-/** undefined while loading, null when it can't be read. */
+/**
+ * undefined while loading, null when it can't be read. Another plan, or
+ * another department in it, keeps what's shown until its own load.
+ */
 function usePlanCatalog(plan: Plan): PlanCatalog | null | undefined {
-  const [catalog, setCatalog] = useState<PlanCatalog | null | undefined>();
-  const depts = [...new Set(plan.courses.map((c) => c.courseCode))]
-    .sort()
-    .join(",");
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the plan's courses (`depts`) and term decide what loads, not the object
-  useEffect(() => {
-    let live = true;
-    void loadPlanCatalog(plan.termId, plan)
-      .catch(() => null)
-      .then((next) => {
-        if (live) setCatalog(next);
-      });
-    return () => {
-      live = false;
-    };
-  }, [plan.termId, depts]);
-  return catalog;
+  const query = useQuery({
+    ...planCatalogQuery(plan.termId, planDepts(plan)),
+    placeholderData: keepPreviousData,
+  });
+  return query.isError ? null : query.data;
 }
 
 /**

@@ -2,12 +2,14 @@ import type { GenEdProgress } from "../four-year/gen-ed";
 import type {
   ChatUnreadRoom,
   CourseCode,
+  DeptCode,
   Minutes,
   Plan,
   RoomId,
   SeatWatch,
   TermId,
 } from "../schema";
+import type { FourYearDoc } from "../schema/four-year";
 import { type SeatsMap, seatCounts } from "../seats/seats";
 
 // The small facts Home shows from each product (docs/V3.md §1.5), one
@@ -122,4 +124,32 @@ export function genEdsCovered(progress: readonly GenEdProgress[]): {
     covered: progress.filter((p) => p.short === 0).length,
     of: progress.length,
   };
+}
+
+/** Sorted and without repeats: one list, one query key. */
+function deptsOf(codes: Iterable<CourseCode | null | undefined>): DeptCode[] {
+  const depts = new Set<DeptCode>();
+  for (const code of codes) if (code) depts.add(code.slice(0, 4));
+  return [...depts].sort();
+}
+
+/** The catalog departments a plan's courses come from: what its problems read. */
+export function planDepts(plan: Pick<Plan, "courses">): DeptCode[] {
+  return deptsOf(plan.courses.map((c) => c.courseCode));
+}
+
+/**
+ * The course index departments a four-year plan's credits and GenEds
+ * read: its courses', and what each course or credit counts as.
+ */
+export function fourYearDepts(doc: Pick<FourYearDoc, "entries">): DeptCode[] {
+  return deptsOf(
+    doc.entries.flatMap((entry) =>
+      entry.kind === "course"
+        ? [entry.code, entry.details?.countsAs]
+        : entry.kind === "credit"
+          ? [entry.countsAs]
+          : [],
+    ),
+  );
 }
