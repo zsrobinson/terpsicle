@@ -30,11 +30,14 @@ import { type BackTo, PageHeader } from "~/ui/page-header";
 import { PAGE_WIDTH, ProductPage } from "~/ui/product-page";
 import { RowSkeleton } from "~/ui/skeleton";
 import {
-  chatListOf,
   connectChatData,
+  currentChatList,
   listLive,
   useChatHome,
+  useChatReads,
+  useChatSynced,
 } from "./chat-home";
+import { followCourse } from "./chat-mutations";
 import { CourseFinder } from "./course-finder";
 import { JoinButton } from "./join-button";
 import { useLiveList } from "./live-list";
@@ -60,9 +63,6 @@ import { ChatTermLabel } from "./term-label";
 
 /** The list's id: the resize handle controls it. */
 const CHAT_LIST_ID = "chat-list";
-
-/** How often the list's unread counts refresh while /chat is open. */
-const UNREAD_EVERY_MS = 60_000;
 
 export function ChatPage({ view, go }: { view: ChatView; go: ChatGo }) {
   const status = useAccount((s) => s.status);
@@ -123,6 +123,10 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     connectChatData(queryClient);
     void useChatHome.getState().load();
   }, [queryClient]);
+  // Your plans as the page opens, and the unread counts every minute while
+  // it's on screen (V2 §8.3: one D1 query that wakes no room), which the
+  // course sockets keep current in between.
+  useChatReads();
 
   // A link to another term's chat (an older one, or for a term that's over
   // or still to come) opens the list: nothing joins or opens there.
@@ -155,20 +159,6 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     go,
   ]);
 
-  // Counts stay fresh without waking any room (V2 §8.3: one D1 query).
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible")
-        void useChatHome.getState().refreshUnread();
-    };
-    const timer = setInterval(refresh, UNREAD_EVERY_MS);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, []);
-
   // "Join CMSC351 chat" from the scheduler: follow once signed in, then open its course room.
   const joined = useRef(false);
   useEffect(() => {
@@ -177,9 +167,8 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     joined.current = true;
     const course = view.course;
     void (async () => {
-      const home = useChatHome.getState();
-      const inList = chatListOf(home).some((c) => c.courseCode === course);
-      if (!inList) await home.follow(course);
+      const inList = currentChatList().some((c) => c.courseCode === course);
+      if (!inList) await followCourse(course);
       go({ room: `${termId}:${course}` }, { replace: true });
     })();
   }, [view.join, view.course, homeStatus, termId, otherTerm, go]);
@@ -207,14 +196,14 @@ function ChatApp({ view, go }: { view: ChatView; go: ChatGo }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [room, view.thread, go]);
 
+  const list = useChatList();
   // The tab's title counts unread messages.
-  const unread = useChatHome((s) => chatListUnread(chatListOf(s)));
+  const unread = chatListUnread(list);
   useEffect(() => {
     document.title =
       unread > 0 ? `(${unread}) Chat · Terpsicle` : "Chat · Terpsicle";
   }, [unread]);
 
-  const list = useChatList();
   const noClasses = homeStatus === "ready" && list.length === 0;
   // Every other course's rows update live too; the open one's socket is the room's.
   useLiveList(termId, list, course);
@@ -396,7 +385,7 @@ function CourseRoom({
   onReconnect: () => void;
 }) {
   const course = useChatHome((s) => s.courses.get(courseCode) ?? null);
-  const plans = useChatHome((s) => s.synced.plans);
+  const { plans } = useChatSynced();
   const [missing, setMissing] = useState(false);
   useEffect(() => {
     if (course) return;

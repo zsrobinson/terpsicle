@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import type { Room } from "~/core/chat";
-import { mainPlanFor } from "~/core/plans/main-plan";
 import type { CourseCode } from "~/core/schema";
 import {
   ActionContextMenu,
@@ -17,7 +16,8 @@ import {
   ActionMenuSeparator,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
-import { isMuted, useChatHome } from "./chat-home";
+import { isMuted, useChatHome, useChatUnread, useMainPlan } from "./chat-home";
+import { followCourse, muteRoom, unfollowCourse } from "./chat-mutations";
 import { showNote, showUndo } from "./undo";
 
 // A room's actions, in two places: the one button in its top bar (the
@@ -38,26 +38,19 @@ export const ROOM_RULES = [
 
 /** Mute and leave for a room, as both menus offer them. */
 function useRoomActions(courseCode: CourseCode, room: Room) {
-  const muted = useChatHome((s) => isMuted(s, room.id));
+  const unread = useChatUnread();
+  const mutes = useChatHome((s) => s.mutes);
+  const muted = isMuted(mutes, unread, room.id);
   const following = useChatHome((s) =>
     s.termId ? (s.follows[s.termId] ?? []).includes(courseCode) : false,
   );
-  const plan = useChatHome((s) =>
-    s.termId
-      ? mainPlanFor(
-          s.termId,
-          s.synced.plans,
-          s.synced.settings?.body.mainPlans ?? {},
-        )
-      : null,
-  );
+  const plan = useMainPlan();
   const inPlan = plan?.courses.some((c) => c.courseCode === courseCode);
   const [busy, setBusy] = useState(false);
-  const home = useChatHome.getState;
 
   const mute = async (on: boolean) => {
     setBusy(true);
-    const ok = await home().mute(courseCode, room.id, on);
+    const ok = await muteRoom(courseCode, room.id, on);
     setBusy(false);
     if (!ok)
       showNote(
@@ -66,9 +59,9 @@ function useRoomActions(courseCode: CourseCode, room: Room) {
       );
   };
   const leave = async () => {
-    if (!(await home().unfollow(courseCode)))
+    if (!(await unfollowCourse(courseCode)))
       return showNote(`We couldn't leave ${courseCode} chat.`, leave);
-    showUndo(`Left ${courseCode} chat`, () => void home().follow(courseCode));
+    showUndo(`Left ${courseCode} chat`, () => void followCourse(courseCode));
   };
   return {
     muted,
