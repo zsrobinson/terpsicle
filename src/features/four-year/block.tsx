@@ -25,20 +25,17 @@ import {
 } from "~/core/schema/four-year";
 import { useAccount } from "~/features/auth/account-store";
 import { crossLinkClicked } from "~/lib/cross-link";
-import { Button } from "~/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionMenu,
+  ActionMenuGroup,
+  ActionMenuItem,
+  ActionMenuLinkItem,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+  ActionMenuSeparator,
+  ActionMenuSub,
+} from "~/ui/action-menu";
+import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -148,185 +145,175 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
     return s ? `${s.credits} cr` : "";
   };
   return (
-    <DropdownMenu>
-      <WithTooltip label={`Move, remove or change ${name}`}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`${name} options`}
-            className="size-6 shrink-0"
-          >
-            <MoreHorizontal aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent align="end" className="w-[220px]">
-        {entry.kind === "credit" ? (
-          <DropdownMenuItem
-            onSelect={() =>
-              nav.go({ credit: entry.id, course: undefined }, { drill: true })
-            }
-          >
-            What it counts as
-          </DropdownMenuItem>
-        ) : null}
-        {entry.kind === "course" ? (
-          <DropdownMenuItem
-            onSelect={() =>
-              nav.go({ course: entry.code, credit: undefined }, { drill: true })
-            }
-          >
-            {!isUnknownCourse(lookup, entry.code)
-              ? `About ${entry.code}`
-              : entry.details
-                ? "Edit course info"
-                : "Add course info"}
-          </DropdownMenuItem>
-        ) : null}
-        {entry.kind === "course" && reviewsOn ? (
-          <WithTooltip label={`${entry.code}'s grades and reviews`} side="left">
-            <DropdownMenuItem asChild>
-              <Link
-                to="/reviews/$slug"
-                params={{ slug: courseSlug(entry.code) }}
-                onClick={() => crossLinkClicked("plan", "reviews")}
-              >
-                <IntegrationLabel product="reviews" />
-              </Link>
-            </DropdownMenuItem>
-          </WithTooltip>
-        ) : null}
-        {entry.kind === "wildcard" ? (
-          <DropdownMenuItem
-            onSelect={() => {
-              nav.go({
-                tab: "search",
-                wildcard: entry.id,
-                gened: undefined,
-                credits: undefined,
-                level: undefined,
-                semester: entry.term,
-                ...CLOSE_DRILL,
-                q: undefined,
-              });
-              focusSearch();
-            }}
-          >
-            Pick a course
-          </DropdownMenuItem>
-        ) : null}
-        {at > 0 ? (
-          <DropdownMenuItem
-            onSelect={() => moveEntry(doc, entry, entry.term, "menu", at - 1)}
-          >
-            Move up
-          </DropdownMenuItem>
-        ) : null}
-        {at >= 0 && at < siblings.length - 1 ? (
-          <DropdownMenuItem
-            onSelect={() => moveEntry(doc, entry, entry.term, "menu", at + 1)}
-          >
-            Move down
-          </DropdownMenuItem>
-        ) : null}
-        {targets.columns.length > 0 ? (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Move to…</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-[200px]">
-              {targets.columns.map((term) => (
-                <DropdownMenuItem
-                  key={term}
-                  onSelect={() => moveEntry(doc, entry, term, "menu")}
-                >
-                  <span className="flex-1">{fourYearTermLabel(term)}</span>
-                  <span className="tnum text-muted text-xs">
-                    {summaryOf(term)}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-              {targets.extra.length > 0 ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Summer and winter</DropdownMenuLabel>
-                  {targets.extra.map((term) => (
-                    <DropdownMenuItem
-                      key={term}
-                      onSelect={() => moveEntry(doc, entry, term, "menu")}
-                    >
-                      {fourYearTermLabel(term)}
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              ) : null}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        ) : null}
-        {creditChoices.length > 0 ? (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Credits</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-[160px]">
-              <DropdownMenuRadioGroup
-                value={String(entryCredits(entry, lookup))}
-                onValueChange={(value) => setCredits(doc, entry, Number(value))}
-              >
-                {creditChoices.map((n) => (
-                  <DropdownMenuRadioItem key={n} value={String(n)}>
-                    {n} {n === 1 ? "credit" : "credits"}
-                  </DropdownMenuRadioItem>
+    <ActionMenu
+      title={name}
+      tooltip={`Move, remove or change ${name}`}
+      align="end"
+      className="w-[220px]"
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`${name} options`}
+          className="size-6 shrink-0"
+        >
+          <MoreHorizontal aria-hidden="true" />
+        </Button>
+      }
+    >
+      {entry.kind === "credit" ? (
+        <ActionMenuItem
+          onSelect={() =>
+            nav.go({ credit: entry.id, course: undefined }, { drill: true })
+          }
+        >
+          What it counts as
+        </ActionMenuItem>
+      ) : null}
+      {entry.kind === "course" ? (
+        <ActionMenuItem
+          onSelect={() =>
+            nav.go({ course: entry.code, credit: undefined }, { drill: true })
+          }
+        >
+          {!isUnknownCourse(lookup, entry.code)
+            ? `About ${entry.code}`
+            : entry.details
+              ? "Edit course info"
+              : "Add course info"}
+        </ActionMenuItem>
+      ) : null}
+      {entry.kind === "course" && reviewsOn ? (
+        <ActionMenuLinkItem
+          tooltip={`${entry.code}'s grades and reviews`}
+          render={
+            <Link
+              to="/reviews/$slug"
+              params={{ slug: courseSlug(entry.code) }}
+              onClick={() => crossLinkClicked("plan", "reviews")}
+            />
+          }
+        >
+          <IntegrationLabel product="reviews" />
+        </ActionMenuLinkItem>
+      ) : null}
+      {entry.kind === "wildcard" ? (
+        <ActionMenuItem
+          onSelect={() => {
+            nav.go({
+              tab: "search",
+              wildcard: entry.id,
+              gened: undefined,
+              credits: undefined,
+              level: undefined,
+              semester: entry.term,
+              ...CLOSE_DRILL,
+              q: undefined,
+            });
+            focusSearch();
+          }}
+        >
+          Pick a course
+        </ActionMenuItem>
+      ) : null}
+      {at > 0 ? (
+        <ActionMenuItem
+          onSelect={() => moveEntry(doc, entry, entry.term, "menu", at - 1)}
+        >
+          Move up
+        </ActionMenuItem>
+      ) : null}
+      {at >= 0 && at < siblings.length - 1 ? (
+        <ActionMenuItem
+          onSelect={() => moveEntry(doc, entry, entry.term, "menu", at + 1)}
+        >
+          Move down
+        </ActionMenuItem>
+      ) : null}
+      {targets.columns.length > 0 ? (
+        <ActionMenuSub label="Move to…" className="w-[200px]">
+          {targets.columns.map((term) => (
+            <ActionMenuItem
+              key={term}
+              hint={summaryOf(term) || undefined}
+              onSelect={() => moveEntry(doc, entry, term, "menu")}
+            >
+              {fourYearTermLabel(term)}
+            </ActionMenuItem>
+          ))}
+          {targets.extra.length > 0 ? (
+            <>
+              <ActionMenuSeparator />
+              <ActionMenuGroup label="Summer and winter">
+                {targets.extra.map((term) => (
+                  <ActionMenuItem
+                    key={term}
+                    onSelect={() => moveEntry(doc, entry, term, "menu")}
+                  >
+                    {fourYearTermLabel(term)}
+                  </ActionMenuItem>
                 ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        ) : null}
-        {orGroups.map(({ group, index }) => {
-          const chosen =
-            entry.kind === "course" ? entry.genEdChoices[String(index)] : null;
-          const counted = picks.find((p) => p.group === index)?.code ?? null;
-          return (
-            <DropdownMenuSub key={index}>
-              <DropdownMenuSubTrigger>
-                Counts as {counted ?? "…"}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-[240px]">
-                <DropdownMenuRadioGroup
-                  value={chosen ?? "auto"}
-                  onValueChange={(value) =>
-                    setGenEdChoice(
-                      doc,
-                      entry,
-                      index,
-                      value === "auto" ? null : value,
-                    )
-                  }
+              </ActionMenuGroup>
+            </>
+          ) : null}
+        </ActionMenuSub>
+      ) : null}
+      {creditChoices.length > 0 ? (
+        <ActionMenuSub label="Credits" className="w-[160px]">
+          <ActionMenuRadioGroup
+            value={String(entryCredits(entry, lookup))}
+            onValueChange={(value) => setCredits(doc, entry, Number(value))}
+          >
+            {creditChoices.map((n) => (
+              <ActionMenuRadioItem key={n} value={String(n)}>
+                {n} {n === 1 ? "credit" : "credits"}
+              </ActionMenuRadioItem>
+            ))}
+          </ActionMenuRadioGroup>
+        </ActionMenuSub>
+      ) : null}
+      {orGroups.map(({ group, index }) => {
+        const chosen =
+          entry.kind === "course" ? entry.genEdChoices[String(index)] : null;
+        const counted = picks.find((p) => p.group === index)?.code ?? null;
+        return (
+          <ActionMenuSub
+            key={index}
+            label={`Counts as ${counted ?? "…"}`}
+            className="w-[240px]"
+          >
+            <ActionMenuRadioGroup
+              value={chosen ?? "auto"}
+              onValueChange={(value) =>
+                setGenEdChoice(
+                  doc,
+                  entry,
+                  index,
+                  value === "auto" ? null : value,
+                )
+              }
+            >
+              <ActionMenuRadioItem value="auto">
+                Where it helps most
+              </ActionMenuRadioItem>
+              {group.map((option) => (
+                <ActionMenuRadioItem
+                  key={option.code}
+                  value={option.code}
+                  hint={option.condition ?? GEN_ED_LABELS[option.code]}
                 >
-                  <DropdownMenuRadioItem value="auto">
-                    Where it helps most
-                  </DropdownMenuRadioItem>
-                  {group.map((option) => (
-                    <DropdownMenuRadioItem
-                      key={option.code}
-                      value={option.code}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="ident">{option.code}</span>{" "}
-                        <span className="text-muted">
-                          {option.condition ?? GEN_ED_LABELS[option.code] ?? ""}
-                        </span>
-                      </span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          );
-        })}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => removeEntry(doc, entry)}>
-          Remove from {fourYearTermLabel(entry.term)}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  <span className="ident">{option.code}</span>
+                </ActionMenuRadioItem>
+              ))}
+            </ActionMenuRadioGroup>
+          </ActionMenuSub>
+        );
+      })}
+      <ActionMenuSeparator />
+      <ActionMenuItem onSelect={() => removeEntry(doc, entry)}>
+        Remove from {fourYearTermLabel(entry.term)}
+      </ActionMenuItem>
+    </ActionMenu>
   );
 }
 

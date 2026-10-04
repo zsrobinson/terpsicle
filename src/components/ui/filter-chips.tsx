@@ -9,12 +9,10 @@ import {
 } from "~/core/search/filters";
 import type { FilterToken } from "~/core/search/tokens";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "./dropdown-menu";
+  ActionMenu,
+  ActionMenuCheckboxItem,
+  ActionMenuGroup,
+} from "./action-menu";
 import { WithTooltip } from "./tooltip";
 
 // One line of chips under any course search box (SPEC §3.5): dropdowns and
@@ -52,7 +50,8 @@ export const chipClass = (active: boolean) =>
     "flex h-6 shrink-0 items-center gap-px rounded-md border px-1 text-xs transition-colors",
     active
       ? "border-fg bg-fg text-bg hover:bg-fg/85"
-      : "border-hairline text-muted hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
+      : // Open: a popover's trigger says `data-state`, a menu's `data-popup-open`.
+        "border-hairline text-muted hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
   );
 
 function toggle<T>(list: readonly T[], value: T): T[] {
@@ -222,33 +221,34 @@ function MultiChip<T extends string | number>({
     .filter((v) => picked.includes(v))
     .map(format);
   return (
-    <DropdownMenu>
-      <WithTooltip label={tooltip}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={active ? `${label}: ${ordered.join(", ")}` : label}
-            className={chipClass(active)}
-          >
-            <span className={cn(active && label === "Gen-eds" && "ident")}>
-              {summary(label, ordered)}
-            </span>
-            <ChevronDown size={10} aria-hidden="true" />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent className="max-h-80 min-w-[200px]">
-        {heading ? <DropdownMenuLabel>{heading}</DropdownMenuLabel> : null}
+    <ActionMenu
+      title={label}
+      tooltip={tooltip}
+      className="max-h-80 min-w-[200px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={active ? `${label}: ${ordered.join(", ")}` : label}
+          className={chipClass(active)}
+        >
+          <span className={cn(active && label === "Gen-eds" && "ident")}>
+            {summary(label, ordered)}
+          </span>
+          <ChevronDown size={10} aria-hidden="true" />
+        </button>
+      }
+    >
+      <ActionMenuGroup label={heading}>
         {options.map((o) => (
-          <DropdownMenuCheckboxItem
+          <ActionMenuCheckboxItem
             key={String(o.value)}
             checked={picked.includes(o.value)}
             onCheckedChange={() => onToggle(o.value)}
           >
             {o.label}
-          </DropdownMenuCheckboxItem>
+          </ActionMenuCheckboxItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </ActionMenuGroup>
+    </ActionMenu>
   );
 }

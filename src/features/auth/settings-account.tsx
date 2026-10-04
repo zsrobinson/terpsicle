@@ -236,16 +236,19 @@ function AccountActions() {
               : "Sign out and remove plans from this device"}
           </Button>
         </WithTooltip>
-        <WithTooltip label="Signs you out everywhere. The account goes after a week unless you sign in again.">
-          <Button
-            variant="ghost"
-            disabled={working !== null}
-            onClick={() => void run("delete")}
-          >
-            {working === "delete" ? "Deleting…" : "Delete account"}
-          </Button>
-        </WithTooltip>
       </div>
+      <WithTooltip label="Signs you out everywhere. The account goes after a week unless you sign in again.">
+        <Button
+          variant="ghost"
+          disabled={working !== null}
+          onClick={() => void run("delete")}
+          // Over the words that explain it, its own words on the column's
+          // edge: the ghost button's padding hangs out into the gutter.
+          className="-ml-3 self-start"
+        >
+          {working === "delete" ? "Deleting…" : "Delete account"}
+        </Button>
+      </WithTooltip>
       <p className="text-sm">
         Deleting signs you out everywhere. After a week, your profile, synced
         plans, chat messages and ELMS feed are gone for good. Your published

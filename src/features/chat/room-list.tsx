@@ -7,19 +7,16 @@ import type { ChatListCourse } from "~/core/chat";
 import { type CourseCode, parseRoomId, type RoomId } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/ui/dropdown-menu";
+  ActionMenu,
+  ActionMenuRadioGroup,
+  ActionMenuRadioItem,
+  ActionMenuSeparator,
+  ActionMenuText,
+} from "~/ui/action-menu";
 import { InlineError } from "~/ui/inline-error";
 import { GroupHeader } from "~/ui/list-row";
 import { PageHeader } from "~/ui/page-header";
 import { RowSkeleton } from "~/ui/skeleton";
-import { WithTooltip } from "~/ui/tooltip";
 import { chatListOf, termPlans, useChatHome, useMainPlan } from "./chat-home";
 import type { ChatGo } from "./nav";
 import { RoomContextMenu } from "./room-menu";
@@ -210,38 +207,39 @@ function RoomsFrom() {
       });
   };
   return (
-    <DropdownMenu>
-      <WithTooltip
-        label={`Your rooms come from your main plan for ${term}. Pick another to change it everywhere.`}
+    <ActionMenu
+      title={`${term} · your main plan`}
+      tooltip={`Your rooms come from your main plan for ${term}. Pick another to change it everywhere.`}
+      className="w-[280px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={`Rooms from ${main.name}, your main plan`}
+          className="-ml-1.5 flex h-7 max-w-full items-center gap-1.5 px-1.5 text-muted transition-colors hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg max-md:h-11"
+        >
+          <IntegrationLabel product="schedule" className="truncate">
+            Rooms from {main.name}, your main plan
+          </IntegrationLabel>
+          <ChevronDown size={12} aria-hidden="true" className="shrink-0" />
+        </button>
+      }
+    >
+      <ActionMenuRadioGroup
+        label={`${term} · your main plan`}
+        value={main.id}
+        onValueChange={pick}
       >
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Rooms from ${main.name}, your main plan`}
-            className="-ml-1.5 flex h-7 max-w-full items-center gap-1.5 px-1.5 text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-md:h-11"
-          >
-            <IntegrationLabel product="schedule" className="truncate">
-              Rooms from {main.name}, your main plan
-            </IntegrationLabel>
-            <ChevronDown size={12} aria-hidden="true" className="shrink-0" />
-          </button>
-        </DropdownMenuTrigger>
-      </WithTooltip>
-      <DropdownMenuContent align="start" className="w-[280px]">
-        <DropdownMenuLabel>{term} · your main plan</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={main.id} onValueChange={pick}>
-          {plans.map((p) => (
-            <DropdownMenuRadioItem key={p.id} value={p.id}>
-              <span className="truncate">{p.name}</span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <p className="px-2 py-1.5 text-muted text-xs">
-          Picking one makes it your main plan everywhere: Schedule, Plan, Todo
-          and your calendar too.
-        </p>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        {plans.map((p) => (
+          <ActionMenuRadioItem key={p.id} value={p.id}>
+            {p.name}
+          </ActionMenuRadioItem>
+        ))}
+      </ActionMenuRadioGroup>
+      <ActionMenuSeparator />
+      <ActionMenuText>
+        Picking one makes it your main plan everywhere: Schedule, Plan, Todo and
+        your calendar too.
+      </ActionMenuText>
+    </ActionMenu>
   );
 }
