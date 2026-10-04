@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { mainPlanFor } from "~/core/plans/main-plan";
 import type { ChatUnreadRoom, CourseCode, RoomId, TermId } from "~/core/schema";
-import { refetchWhenRunSettles } from "~/state/query/settle-run";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { chatClient } from "./chat-client";
 import {
   cachedSynced,

@@ -1,7 +1,7 @@
 import { MutationObserver, type QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestQueryClient } from "~/state/query/testing";
 import { refetchWhenRunSettles } from "./settle-run";
-import { createTestQueryClient } from "./testing";
 
 // A run of optimistic changes asks for the server's copy once, after its
 // last change has settled, however the changes' ends fall.

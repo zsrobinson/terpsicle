@@ -22,8 +22,8 @@ import {
   withoutElms,
 } from "~/core/todo";
 import { track } from "~/lib/analytics";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { ApiCallError } from "~/server/fns/api";
-import { refetchWhenRunSettles } from "~/state/query/settle-run";
 import {
   cachedFeed,
   cachedWeeks,

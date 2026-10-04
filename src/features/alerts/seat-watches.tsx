@@ -20,6 +20,7 @@ import {
 import { useAccount } from "~/features/auth/account-store";
 import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { track } from "~/lib/analytics";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { ApiCallError } from "~/server/fns/api";
 import {
   cachedSeatWatches,
@@ -31,7 +32,6 @@ import {
   withoutSeatWatch,
   withSeatWatch,
 } from "~/state/query/seat-watches";
-import { refetchWhenRunSettles } from "~/state/query/settle-run";
 import { noteToast, undoToast } from "~/ui/toast";
 import { sectionLabel } from "./labels";
 

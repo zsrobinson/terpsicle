@@ -11,9 +11,9 @@ import type {
   PushDevice,
 } from "~/core/schema/notifications";
 import { useAccount } from "~/features/auth/account-store";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { retryApi } from "~/server/fns/api";
 import { notificationsApi } from "~/server/fns/notifications";
-import { refetchWhenRunSettles } from "~/state/query/settle-run";
 import { noteToast } from "~/ui/toast";
 import { currentEndpoint } from "./this-device";
 
