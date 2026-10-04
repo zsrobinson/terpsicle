@@ -277,6 +277,9 @@ jobs:
   deploy:
     name: Production
     needs: [check, changes]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
+    # A bare condition carries an implicit success(), which is false when
+    # any upstream job was skipped, and on main `preview` always is. So
+    # gate on the aggregate check's own result instead.
+    if: ${{ !cancelled() && needs.check.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.changes.outputs.code == 'true' }}
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
