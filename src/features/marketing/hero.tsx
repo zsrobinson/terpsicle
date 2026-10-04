@@ -25,8 +25,8 @@ export function HeroWords() {
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <LazyTooltip label="No account needed">
-            <Button asChild className="mk-cta">
-              <a href={SCHEDULE_PATH}>View schedule</a>
+            <Button className="mk-cta" render={<a href={SCHEDULE_PATH} />}>
+              View schedule
             </Button>
           </LazyTooltip>
           {signedIn ? null : (

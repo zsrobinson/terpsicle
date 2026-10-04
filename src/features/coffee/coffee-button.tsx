@@ -57,39 +57,45 @@ export function CoffeeButton() {
       }}
     >
       <WithTooltip label="Support Terpsicle" side="bottom">
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label="Support Terpsicle"
-            data-testid="coffee-button"
-            className={cn(
-              "flex shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg",
-              // The bell's box beside it.
-              "size-8",
-              // Phones (MOBILE_QUERY) before the page's code knows it's one.
-              "max-[769px]:hidden",
-            )}
-          >
-            <CoffeeHeart size={16} aria-hidden="true" />
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-label="Support Terpsicle"
+              data-testid="coffee-button"
+              className={cn(
+                "flex shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg aria-expanded:bg-hover aria-expanded:text-fg",
+                // The bell's box beside it.
+                "size-8",
+                // Phones (MOBILE_QUERY) before the page's code knows it's one.
+                "max-[769px]:hidden",
+              )}
+            />
+          }
+        >
+          <CoffeeHeart size={16} aria-hidden="true" />
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent align="end" className="w-[272px]">
         <p className="text-base">{COFFEE_PITCH}</p>
         <WithTooltip label="Opens Buy Me a Coffee in a new tab" side="bottom">
-          <Button asChild size="sm" className="mt-3">
-            <a
-              href={COFFEE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => {
-                track("coffee_link_clicked", { via: "popover" });
-                setOpen(false);
-              }}
-            >
-              <CoffeeHeart aria-hidden="true" />
-              {COFFEE_LINK}
-            </a>
+          <Button
+            size="sm"
+            className="mt-3"
+            render={
+              <a
+                href={COFFEE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  track("coffee_link_clicked", { via: "popover" });
+                  setOpen(false);
+                }}
+              />
+            }
+          >
+            <CoffeeHeart aria-hidden="true" />
+            {COFFEE_LINK}
           </Button>
         </WithTooltip>
       </PopoverContent>

@@ -44,8 +44,8 @@ export function ReviewsNotFound({ data }: { data: unknown }) {
       />
       {/* The same shape as every page we don't have: say so, then the way on. */}
       <WithTooltip label="Search every UMD instructor and course">
-        <Button asChild size="lg" className="w-fit">
-          <Link to="/reviews">Search reviews</Link>
+        <Button size="lg" className="w-fit" render={<Link to="/reviews" />}>
+          Search reviews
         </Button>
       </WithTooltip>
       {suggestions.length > 0 ? (

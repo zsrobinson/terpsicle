@@ -31,11 +31,7 @@ const EXCLUDE = [".maplibregl-canvas", "[data-base-ui-focus-guard]"];
 // them. Every other rule still checks them.
 // The kit marks each with `data-floating`; Base UI portals each one in a
 // `data-base-ui-portal` div, which axe otherwise reports in its place.
-const FLOATING = [
-  "[data-floating]",
-  "[data-base-ui-portal]",
-  "[data-radix-popper-content-wrapper]",
-];
+const FLOATING = ["[data-floating]", "[data-base-ui-portal]"];
 
 export async function scan(page: Page, what: string) {
   // Let entry animations (drill-in slide, popovers, toasts) finish: axe

@@ -111,9 +111,7 @@ function Connection() {
       )}
       <div className="flex flex-wrap items-center gap-2">
         <WithTooltip label="Back to your calendar">
-          <Button asChild>
-            <Link to={TODO_PATH}>See your calendar</Link>
-          </Button>
+          <Button render={<Link to={TODO_PATH} />}>See your calendar</Button>
         </WithTooltip>
         <WithTooltip label="Stop reading ELMS and delete the link and its deadlines">
           <Button variant="ghost" onClick={onDisconnect}>

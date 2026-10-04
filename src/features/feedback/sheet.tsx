@@ -16,7 +16,12 @@ import { track } from "~/lib/analytics";
 import { isApple, modKey } from "~/lib/shortcuts";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
-import { Popover, PopoverAnchor, PopoverContent } from "~/ui/popover";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  pressedOn,
+} from "~/ui/popover";
 import { Sheet, SheetTitle } from "~/ui/sheet";
 import { Skeleton } from "~/ui/skeleton";
 import { quietTooltips, WithTooltip } from "~/ui/tooltip";
@@ -619,24 +624,27 @@ function FeedbackPopover({
 }) {
   const startPin = useStartPinning(() => onOpenChange(false));
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover
+      open={open}
+      onOpenChange={(next, details) => {
+        // The button toggles it: a press on it isn't a click away.
+        if (pressedOn(anchor, details)) details.cancel();
+        else onOpenChange(next);
+      }}
+    >
       <PopoverAnchor virtualRef={anchor} />
       <PopoverContent
         data-feedback-ui=""
         align="end"
         aria-label="Send feedback"
         role="dialog"
-        className="max-h-(--radix-popover-content-available-height) w-[380px] overflow-y-auto"
+        className="max-h-(--available-height) w-[380px] overflow-y-auto"
         // The first field takes focus: its tooltip would cover its label.
-        onOpenAutoFocus={() => quietTooltips(800)}
-        // The button toggles it: a press on it isn't a click away.
-        onInteractOutside={(e) => {
-          if (anchor.current?.contains(e.target as Node)) e.preventDefault();
+        initialFocus={() => {
+          quietTooltips(800);
+          return true;
         }}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          anchor.current?.focus();
-        }}
+        finalFocus={anchor}
       >
         <h2 className="emph-title mb-3 text-lg">Send feedback</h2>
         <FeedbackForm

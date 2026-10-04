@@ -71,19 +71,21 @@ export function ShareButton({
       }}
     >
       <WithTooltip label="Share a link to this plan">
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label="Share"
-            data-share-button=""
-            className={cn(
-              // The family bar's icons: Feedback's and the bell's size.
-              "flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg data-[state=open]:bg-hover data-[state=open]:text-fg max-[380px]:size-7",
-              className,
-            )}
-          >
-            <Share2 size={16} strokeWidth={1.75} aria-hidden="true" />
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-label="Share"
+              data-share-button=""
+              className={cn(
+                // The family bar's icons: Feedback's and the bell's size.
+                "flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg aria-expanded:bg-hover aria-expanded:text-fg max-[380px]:size-7",
+                className,
+              )}
+            />
+          }
+        >
+          <Share2 size={16} strokeWidth={1.75} aria-hidden="true" />
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent

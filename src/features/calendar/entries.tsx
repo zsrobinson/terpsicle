@@ -410,17 +410,19 @@ export function Ghost({
   return (
     <Popover>
       <WithTooltip label={`Pick one of ${entry.sectionCodes.length} sections`}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            data-ghost={shown}
-            aria-label={ghostName(entry, parsed.courseCode)}
-            className={className}
-            style={boxStyle}
-            {...hover}
-          >
-            {body}
-          </button>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              data-ghost={shown}
+              aria-label={ghostName(entry, parsed.courseCode)}
+              className={className}
+              style={boxStyle}
+              {...hover}
+            />
+          }
+        >
+          {body}
         </PopoverTrigger>
       </WithTooltip>
       <PopoverContent

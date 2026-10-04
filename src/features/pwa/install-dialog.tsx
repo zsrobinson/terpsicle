@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "~/ui/dialog";
-import { quietTooltips, WithTooltip } from "~/ui/tooltip";
+import { WithTooltip } from "~/ui/tooltip";
 import { dismissInstallPrompt, promptInstall } from "./install-store";
 import { IosSteps, IosStepsIllustration } from "./ios-steps";
 
@@ -31,27 +31,21 @@ export function InstallDialog({ method }: { method: InstallMethod }) {
     >
       <DialogContent
         // Focus starts on the main action, without popping its tooltip unasked.
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          quietTooltips();
-          primary.current?.focus();
-        }}
+        initialFocus={primary}
       >
         <DialogTitle>Put Terpsicle on your home screen</DialogTitle>
         {/* What installing gives you is what the dialog is about. */}
-        <DialogDescription asChild>
-          <ul className="mt-3 space-y-2 text-fg">
-            {INSTALL_BENEFITS.map((text, i) => {
-              const Icon = ICONS[i] ?? Bell;
-              return (
-                <Benefit
-                  key={text}
-                  icon={<Icon size={15} aria-hidden="true" />}
-                  text={text}
-                />
-              );
-            })}
-          </ul>
+        <DialogDescription render={<ul className="mt-3 space-y-2 text-fg" />}>
+          {INSTALL_BENEFITS.map((text, i) => {
+            const Icon = ICONS[i] ?? Bell;
+            return (
+              <Benefit
+                key={text}
+                icon={<Icon size={15} aria-hidden="true" />}
+                text={text}
+              />
+            );
+          })}
         </DialogDescription>
 
         {ios ? (

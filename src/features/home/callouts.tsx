@@ -80,14 +80,18 @@ function StepLink({
 }) {
   return (
     <WithTooltip label={hint}>
-      <Button asChild variant="outline" className="w-fit">
-        <Link
-          to={to}
-          search={search}
-          onClick={() => track("home_callout_followed", { callout: id })}
-        >
-          {label}
-        </Link>
+      <Button
+        variant="outline"
+        className="w-fit"
+        render={
+          <Link
+            to={to}
+            search={search}
+            onClick={() => track("home_callout_followed", { callout: id })}
+          />
+        }
+      >
+        {label}
       </Button>
     </WithTooltip>
   );

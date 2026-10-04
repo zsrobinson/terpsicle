@@ -10,14 +10,7 @@ import {
   POPUP_MOTION,
   POSITIONER,
 } from "./popup";
-import {
-  type CompatEvent,
-  radixPositionerProps,
-  returnFocusProp,
-  triggerState,
-  useWatchedOpen,
-} from "./radix-compat";
-import { quietTooltips } from "./tooltip";
+import { focusBackQuietly } from "./popup-focus";
 
 // The kit's select, on Base UI, in Ink: a 28px trigger with a hairline, and
 // the same raised card as our dropdown menus for the list, under the trigger.
@@ -37,12 +30,10 @@ type SelectProps = {
   children?: React.ReactNode;
 };
 
-const SelectOpen = React.createContext(false);
-
 /**
  * The items' values and labels, read from the `SelectItem`s among the
- * children, so the trigger shows the chosen item's label (as it did on Radix)
- * rather than its value.
+ * children, so the trigger shows the chosen item's label rather than its
+ * value.
  */
 function itemsIn(
   node: React.ReactNode,
@@ -72,32 +63,25 @@ function Select({
   children,
   ...props
 }: SelectProps) {
-  const [isOpen, handleOpenChange] = useWatchedOpen(
-    open,
-    defaultOpen,
-    onOpenChange,
-  );
   return (
-    <SelectOpen.Provider value={isOpen}>
-      <SelectPrimitive.Root<string>
-        items={itemsIn(children)}
-        value={value}
-        defaultValue={defaultValue}
-        onValueChange={(next, details) => {
-          if (next !== null) onValueChange?.(next, details);
-        }}
-        open={open}
-        defaultOpen={defaultOpen}
-        onOpenChange={handleOpenChange}
-        // Not modal, as the kit's menus aren't. A modal select keeps
-        // blocking the page while its list fades out, so a press on the
-        // next field in a form (Ends, right after Starts) went nowhere.
-        modal={false}
-        {...props}
-      >
-        {children}
-      </SelectPrimitive.Root>
-    </SelectOpen.Provider>
+    <SelectPrimitive.Root<string>
+      items={itemsIn(children)}
+      value={value}
+      defaultValue={defaultValue}
+      onValueChange={(next, details) => {
+        if (next !== null) onValueChange?.(next, details);
+      }}
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
+      // Not modal, as the kit's menus aren't. A modal select keeps
+      // blocking the page while its list fades out, so a press on the
+      // next field in a form (Ends, right after Starts) went nowhere.
+      modal={false}
+      {...props}
+    >
+      {children}
+    </SelectPrimitive.Root>
   );
 }
 
@@ -113,14 +97,13 @@ function SelectTrigger({
 }: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "default";
 }) {
-  const open = React.useContext(SelectOpen);
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
       className={cn(
         "flex w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-md border border-hairline-strong bg-bg text-fg transition-colors",
-        "hover:bg-hover focus-visible:border-fg/40 data-[state=open]:bg-hover disabled:pointer-events-none disabled:opacity-50 data-placeholder:text-muted",
+        "hover:bg-hover focus-visible:border-fg/40 aria-expanded:bg-hover disabled:pointer-events-none disabled:opacity-50 data-placeholder:text-muted",
         // The heights of the Input and Button beside it: 32px, and 28px small.
         "data-[size=default]:h-8 data-[size=default]:px-2 data-[size=default]:text-sm data-[size=sm]:h-7 data-[size=sm]:px-1.5 data-[size=sm]:text-sm",
         // 44px on phones, like every control (Button). Scoped by size like the
@@ -130,7 +113,6 @@ function SelectTrigger({
         className,
       )}
       {...props}
-      {...triggerState(open)}
     >
       {children}
       <SelectPrimitive.Icon className="flex shrink-0">
@@ -147,16 +129,13 @@ function SelectContent({
   align = "start",
   sideOffset = 4,
   collisionPadding = 8,
-  onCloseAutoFocus,
+  finalFocus,
   ...props
-}: Omit<SelectPrimitive.Popup.Props, "finalFocus"> &
+}: SelectPrimitive.Popup.Props &
   Pick<
     SelectPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "collisionPadding"
-  > & {
-    /** Radix's: prevent it to put focus somewhere yourself. */
-    onCloseAutoFocus?: (event: CompatEvent) => void;
-  }) {
+  >) {
   const popup = React.useRef<HTMLDivElement>(null);
   return (
     <SelectPrimitive.Portal>
@@ -169,12 +148,11 @@ function SelectContent({
         collisionPadding={collisionPadding}
         {...POSITIONER}
         className={POPUP_LAYER}
-        {...radixPositionerProps}
       >
         <SelectPrimitive.Popup
           ref={popup}
           data-slot="select-content"
-          finalFocus={returnFocusProp(onCloseAutoFocus, popup, quietTooltips)}
+          finalFocus={focusBackQuietly(finalFocus, popup)}
           className={cn(
             POPUP_CARD,
             POPUP_MOTION,

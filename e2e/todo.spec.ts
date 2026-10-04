@@ -38,7 +38,7 @@ async function scan(page: Page, what: string) {
   await page.waitForTimeout(250);
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .exclude("[data-radix-popper-content-wrapper]")
+    .exclude("[data-floating]")
     .analyze();
   expect
     .soft(

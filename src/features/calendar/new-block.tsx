@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { DAYS, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTimeRange } from "~/core/time";
 import { addBlock } from "~/features/schedule/actions";
@@ -76,6 +76,7 @@ export function NewBlockPopover({
   onDone: () => void;
 }) {
   const [label, setLabel] = useState("");
+  const field = useRef<HTMLInputElement>(null);
   const save = (text: string) => {
     const clean = text.trim().slice(0, 40);
     if (!clean) return;
@@ -92,25 +93,22 @@ export function NewBlockPopover({
   };
   return (
     <Popover open onOpenChange={(open) => !open && onDone()}>
-      <PopoverAnchor asChild>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute"
-          style={anchorStyle}
-        />
-      </PopoverAnchor>
+      <PopoverAnchor
+        render={
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute"
+            style={anchorStyle}
+          />
+        }
+      />
       <PopoverContent
         side="right"
         align="start"
         className="w-60"
         aria-label="New block"
-        onOpenAutoFocus={(event) => {
-          // Focus the label field rather than the first preset.
-          event.preventDefault();
-          (event.currentTarget as HTMLElement)
-            .querySelector<HTMLInputElement>("input")
-            ?.focus();
-        }}
+        // Focus the label field rather than the first preset.
+        initialFocus={field}
       >
         <form
           onSubmit={(event) => {
@@ -122,6 +120,7 @@ export function NewBlockPopover({
           {/* No tooltip: the field is focused on open, and a focus tooltip
               would cover the time above it. The placeholder says it. */}
           <Input
+            ref={field}
             aria-label="Block label"
             value={label}
             maxLength={40}

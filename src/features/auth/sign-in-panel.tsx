@@ -93,13 +93,15 @@ export function GoogleButton({
           : `Use your ${UMD_ACCOUNTS_WORDS} account`
       }
     >
-      <Button asChild size="lg" className={cn("w-full", className)}>
-        <a href={href} onClick={onClick}>
-          {testMode ? null : (
-            <img src="/google-g.svg" alt="" width={16} height={16} />
-          )}
-          {testMode ? "Sign in (test mode)" : "Sign in with Google"}
-        </a>
+      <Button
+        size="lg"
+        className={cn("w-full", className)}
+        render={<a href={href} onClick={onClick} />}
+      >
+        {testMode ? null : (
+          <img src="/google-g.svg" alt="" width={16} height={16} />
+        )}
+        {testMode ? "Sign in (test mode)" : "Sign in with Google"}
       </Button>
     </WithTooltip>
   );

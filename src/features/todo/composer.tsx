@@ -238,8 +238,7 @@ export function Composer({
         // The course's list opens in a layer of its own: still in use.
         if (
           to instanceof Element &&
-          (event.currentTarget.contains(to) ||
-            to.closest("[data-radix-popper-content-wrapper]"))
+          (event.currentTarget.contains(to) || to.closest("[data-floating]"))
         )
           return;
         setFocused(false);

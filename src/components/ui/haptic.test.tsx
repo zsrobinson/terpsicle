@@ -209,11 +209,11 @@ describe("HapticTap", () => {
     expect(overlays(container)).toHaveLength(2);
   });
 
-  it("carries a render element's own children, with the overlay after them", () => {
+  it("puts the overlay inside a render element, after the children", () => {
     pretendIPhone();
     render(
-      <Button haptic asChild>
-        <a href="/plan">Open Plan</a>
+      <Button haptic render={<a href="/plan" />}>
+        Open Plan
       </Button>,
     );
     const link = screen.getByRole("link", { name: "Open Plan" });
