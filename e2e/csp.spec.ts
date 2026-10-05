@@ -37,8 +37,6 @@ async function watchCsp(page: Page) {
   return { logged, events };
 }
 
-const calendar = (page: Page) =>
-  page.getByRole("region", { name: "Week calendar" });
 const sidebar = (page: Page) =>
   page.getByRole("complementary", { name: "Sidebar" });
 
@@ -64,11 +62,11 @@ test("/, then search, add a section, Travel and a route map: no CSP violations",
   ).toBeVisible();
 
   await page.goto("/schedule?demo=1");
-  await expect(
-    calendar(page)
-      .getByRole("button", { name: /^CMSC351 0301/ })
-      .first(),
-  ).toBeVisible();
+  // "/" needs the scheduler with the demo in, which its plan's rows show,
+  // waited for as an action would (on a cold page that can take most of
+  // 5 s). The calendar's blocks wait for the term's catalog too; nothing
+  // here needs them, and the clicks below wait for what they click.
+  await page.getByTestId("course-row-CMSC351").waitFor();
 
   // Search, and add a section.
   await page.keyboard.press("/");
