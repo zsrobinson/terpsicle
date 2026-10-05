@@ -205,8 +205,23 @@ test("/ shows the marketing page to a first visit, and /privacy loads", async ({
   ).toBeVisible();
 });
 
+test("our Reviews pages go to PlanetTerp, as previews have them off", async ({
+  page,
+}) => {
+  // REVIEWS_PAGES_ENABLED is unset on previews (wrangler.jsonc): each
+  // address answers a 302 to its PlanetTerp twin, which isn't followed here.
+  for (const [path, to] of [
+    ["/reviews", "https://planetterp.com"],
+    ["/reviews/cmsc351", "https://planetterp.com/course/CMSC351"],
+  ]) {
+    const response = await page.request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(302);
+    expect(response.headers().location, path).toBe(to);
+  }
+});
+
 test("the public product pages render and hydrate", async ({ page }) => {
-  for (const path of ["/reviews", "/chat", "/plan", "/todo"]) {
+  for (const path of ["/chat", "/plan", "/todo"]) {
     await test.step(path, async () => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
