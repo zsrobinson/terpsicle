@@ -71,6 +71,7 @@ import {
   type TranscriptLine,
   type UntimedMeeting,
 } from "~/core/schema";
+import type { AccountData } from "~/core/schema/data-export";
 import type { FeedbackContext, FeedbackItem } from "~/core/schema/feedback";
 import type {
   FourYearCourseEntry,
@@ -80,7 +81,11 @@ import type {
   FourYearWildcardEntry,
 } from "~/core/schema/four-year";
 import type { HistoryCourse, HistoryTerm } from "~/core/schema/history";
-import type { InboxItem } from "~/core/schema/notifications";
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  type InboxItem,
+} from "~/core/schema/notifications";
+import type { SyncedTables } from "~/core/sync";
 
 /** Term id of the mock catalog's active, default term (Spring 2027). */
 export const fixtureTermId = "202701";
@@ -1289,6 +1294,89 @@ export function aFeedback(overrides: Partial<FeedbackItem> = {}): FeedbackItem {
     createdAt: FIXTURE_NOW,
     updatedAt: FIXTURE_NOW,
     closedAt: null,
+    ...overrides,
+  };
+}
+
+// ---------- your data (the data file) ----------
+
+/** What a device syncs (`SyncedTables`): Plan A, the fixture block and color, no four-year plan. */
+export function aSyncedTables(
+  overrides: Partial<SyncedTables> = {},
+): SyncedTables {
+  return {
+    plans: [aPlan()],
+    blocks: [aBlock()],
+    colors: { CMSC351: "blue" },
+    travel: DEFAULT_TRAVEL_SETTINGS,
+    mainPlans: {},
+    fourYear: [],
+    prefs: {},
+    ...overrides,
+  };
+}
+
+/** What `account/export` answers for the test student: two own tasks, a watch, a room, a message. */
+export function anAccountData(
+  overrides: Partial<AccountData> = {},
+): AccountData {
+  return {
+    profile: {
+      id: "tstudent",
+      name: "Test Student",
+      email: "tstudent@terpmail.umd.edu",
+      createdAt: FIXTURE_NOW,
+    },
+    todo: {
+      tasks: [
+        {
+          uid: "own-reading-group-0001",
+          title: "Read chapter 4 with the study group",
+          courseCode: "CMSC351",
+          dueDate: "2026-10-07",
+          dueTime: null,
+          done: false,
+        },
+        {
+          uid: "own-problem-set-0002",
+          title: "Problem set 3",
+          courseCode: null,
+          dueDate: "2026-10-09",
+          dueTime: 23 * 60 + 59,
+          done: true,
+        },
+      ],
+      hiddenCourses: [],
+    },
+    seatWatches: [
+      {
+        termId: fixtureTermId,
+        sectionKey: "CMSC351-0101",
+        createdAt: FIXTURE_NOW,
+      },
+    ],
+    notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
+    chat: {
+      rooms: [
+        { termId: fixtureTermId, courseCode: "CMSC351", sectionCode: "0101" },
+      ],
+      follows: [],
+      muted: [],
+      messages: [
+        {
+          termId: fixtureTermId,
+          courseCode: "CMSC351",
+          roomId: courseRoomId(fixtureTermId, "CMSC351"),
+          id: "01JAAAAAAAAAAAAAAAAAAAAAA1",
+          body: "Is anyone else doing the problem set tonight?",
+          replyTo: null,
+          status: "visible",
+          createdAt: FIXTURE_NOW,
+          editedAt: null,
+        },
+      ],
+    },
+    reviews: [],
     ...overrides,
   };
 }

@@ -169,6 +169,11 @@ export interface AnalyticsEvents {
   signin_failed: { reason: SignInError };
   signed_out: { removedLocal: boolean };
   account_deletion_requested: NoProperties;
+  // Your data (docs/DATA.md §5.6), from Settings: where the file came from,
+  // and counts only, never names, courses or grades.
+  data_downloaded: { from: "account" | "browser" };
+  data_file_added: { plans: number; fourYear: number; tasks: number };
+  data_file_undone: NoProperties;
   // Plan sync (V2.md §11): counts only, never plan names or courses.
   sync_first_sign_in: { uploaded: number; renamed: number; copies: number };
   // Reviews (V2.md §11). Never a review, instructor or course on writing events.
