@@ -574,7 +574,8 @@ describe("sessions", () => {
         push: false,
         todo: false,
         plan: false,
-        reviewsPages: false,
+        // The tests' bindings turn our Reviews pages on (vitest.config.ts).
+        reviewsPages: true,
         authTestMode: false,
       },
     });
