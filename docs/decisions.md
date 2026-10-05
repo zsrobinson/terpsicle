@@ -770,6 +770,16 @@ Revisit if: runs need to outlive 14 days or be browsable without unzipping (then
 Keep correctness tests and a small high-risk desktop/phone browser gate on every code PR; keep full browser regressions, visual renders, timing benchmarks and the mobile lab available explicitly, without automatic device matrices. Deploy the exact validated main commit using its build; preview success is part of the same-repository PR gate. Selection and contribution rules: docs/TESTING.md.
 Revisit if: a production escape reveals a missing browser seam, or routine checks again spend most of their time on setup, retries or repeated presentation checks.
 
+### Local test servers skip the sign-in limits
+2026-10-05 · owner · process
+"sure, if that makes sense go for it." A full e2e run shares one IP and ran out of test sign-ins (60 an hour). `auth/test-sign-in` and `me` skip their per-IP limit only for a loopback host with a loopback (or no) client; deployed Workers never see that, so production and previews are limited as before (V2.md §12).
+Revisit if: a deployed host could ever be loopback, or another route needs the same.
+
+### Chat's push e2e runs with quiet hours off
+2026-10-05 · owner · process
+"yes, update what you need to for this." `e2e/chat-notify.spec.ts` failed between 11pm and 8am New York, when quiet hours hold the push. Its recipient turns quiet hours off through the settings API; a worker test with a set clock holds that the same mention waits at night.
+Revisit if: the server gets a test clock e2e can set.
+
 ### "As built" goes in the PR body
 2026-09-27 · agent · process
 A PR's "as built" notes go in its body. `DATA.md`, `STATUS.md`, `V2.md` and `V3.md` change only when a contract changes (a schema, storage, an API or a flag). Parallel PRs kept colliding in those files.
