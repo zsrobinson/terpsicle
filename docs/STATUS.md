@@ -98,7 +98,7 @@ Terpsicle stays free with no billing; sync is on whenever you're signed in, grad
 | PR | What | State |
 |---|---|---|
 | `docs/privacy-direction` | The owner's direction in `docs/decisions.md` and CLAUDE.md | In review |
-| `v2/sync-encryption` | `src/server/security/seal.ts` from Todo's crypto; per-account keys in `user_keys`, wrapped by `USER_DATA_KEY`; `sync_docs.body` and Todo's task text sealed and bound to their rows; deleting an account destroys its key first; existing synced data cleared and re-uploaded | Planned |
+| `v2/sync-encryption` | `src/server/security/seal.ts` from Todo's crypto; per-account keys in `user_keys`, wrapped by `USER_DATA_KEY`; `sync_docs.body` and Todo's task text sealed and bound to their rows; deleting an account destroys its key first; existing synced data cleared and re-uploaded. Keys moved to R2 `USER_KEYS` in `v2/keys-in-r2`, so a D1 restore can't bring a deleted account's key back | Planned |
 | Reviews' anonymity | Waits on the owner's call on moving Reviews to PlanetTerp | On hold |
 | `v2/privacy-and-terms` | `/privacy` rewritten from what was built, and a new `/terms`, linked from the footer, the account menu and sign-in | Planned, last |
 

@@ -208,7 +208,7 @@ Revisit if: never on its own.
 
 ### Synced data is encrypted on the server, with a key per account
 2026-10-04 · owner · app-wide
-Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so nothing it sealed can be opened afterward; D1's Time Travel can still restore the whole database, key included, for 30 days. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
+Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key, so nothing it sealed can be opened afterward, even from a backup of the database: the keys live in R2, apart from what they seal ("Account keys live in R2, apart from what they seal"). The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`. (changed 2026-10-05: it said D1's Time Travel could restore a deleted account's key for 30 days; the owner moved the keys to R2.)
 Revisit if: a feature needs the server to read synced data in bulk, or the owner wants end-to-end encryption and gives up server-side reads.
 
 ### Privacy and terms in plain words; open source is the proof
@@ -479,10 +479,10 @@ Revisit if: a third product needs sync, or loading the whole engine on Plan cost
 Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `prefs` object in the settings doc and one `prefs` row on the device. It's loose, so every build carries keys it doesn't know, and a conflict settles it per product key, like a course's color. Schedule never edits it but always pushes it whole. Every page reads a localStorage copy (Reviews loads no IndexedDB up front), which whatever writes the row keeps current.
 Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
 
-### Account keys live in D1, beside what they seal
-2026-10-04 · agent · one feature
-Each account's data key is a `user_keys` row, sealed under the Worker secret `USER_DATA_KEY`, as the owner's plan laid out (DATA.md §7.7). Deleting the account deletes the row first, so nothing it sealed opens afterward. But D1's Time Travel can restore the whole database, keys and all, to any minute of the last 30 days, so for those 30 days a full restore would bring a deleted account's data back; after them nothing can. Keeping the wrapped keys in R2 instead, which has no point-in-time restore, would make deleting final at once, for an R2 read on each sync request.
-Revisit if: `/privacy` is to promise that deleted data can't come back even from a backup.
+### Account keys live in R2, apart from what they seal
+2026-10-05 · owner · one feature
+Each account's data key, sealed under the Worker secret `USER_DATA_KEY`, is one object, `keys/<userId>`, in the private R2 bucket `terpsicle-user-keys` (binding `USER_KEYS`; DATA.md §7.7). D1's Time Travel can put the whole database back as it was at any minute of the last 30 days, but R2 keeps no earlier version of an object, so once the purge deletes the key, the rows it sealed stay unreadable even if a restore brings them back. The cost is one R2 read per request that opens synced data. "if that makes sense, go for it, it'd be good for privacy." (changed 2026-10-05, owner: the keys were `user_keys` rows in D1, which a Time Travel restore would bring back with the data for 30 days.)
+Revisit if: R2 gains versioning or point-in-time restore that we'd turn on, or the read on each request shows up in latency.
 
 ## Reviews
 
