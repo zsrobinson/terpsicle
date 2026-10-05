@@ -159,8 +159,11 @@ export function TermColumn({
         className,
       )}
     >
-      <header className="flex items-baseline gap-2 px-2 pt-2 pb-1.5">
-        <Heading id={id} className="emph-heading">
+      {/* When the column is too narrow for one line, the counts wrap under
+          the name whole, and anything still too wide ends in an ellipsis
+          inside the column, never across its border. */}
+      <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-2 pt-2 pb-1.5">
+        <Heading id={id} className="emph-heading min-w-0 truncate">
           {fourYearTermLabel(term)}
         </Heading>
         {tag ? (
@@ -168,9 +171,11 @@ export function TermColumn({
           <TermTag tag={tag} className="self-center" />
         ) : status === "done" && entries.length === 0 ? null : (
           // A past semester with nothing in it isn't "Done": the name is enough.
-          <span className="text-muted text-xs">{STATUS_WORDS[status]}</span>
+          <span className="min-w-0 truncate text-muted text-xs">
+            {STATUS_WORDS[status]}
+          </span>
         )}
-        <span className="tnum ml-auto text-muted text-xs">
+        <span className="tnum ml-auto min-w-0 truncate text-muted text-xs">
           {summary && summary.entries > 0 ? columnLabel(summary) : null}
         </span>
       </header>
@@ -251,6 +256,26 @@ function BeforeRow() {
   );
 }
 
+// A year's semesters side by side, or stacked in a narrow canvas (a tablet,
+// with the sidebar open). A year with a winter or a summer takes the whole
+// row where two years would share one, so its columns are about as wide as
+// every other year's; in a canvas too narrow for all of them in a line, its
+// semesters go two to a line. Squeezed into half a row, four columns
+// truncated every title and pushed the header's counts into the next one.
+function yearLayout(terms: number): { year?: string; terms: string } {
+  if (terms >= 4)
+    return {
+      year: "@4xl:col-span-2",
+      terms: "@xl:grid-cols-2 @3xl:grid-cols-4",
+    };
+  if (terms === 3)
+    return {
+      year: "@4xl:col-span-2",
+      terms: "@xl:grid-cols-2 @3xl:grid-cols-3",
+    };
+  return { terms: "@xl:auto-cols-[minmax(0,1fr)] @xl:grid-flow-col" };
+}
+
 /** Desktop: every semester at once. */
 export function Board() {
   const { columns } = useModel();
@@ -265,24 +290,26 @@ export function Board() {
     <div className="@container space-y-3">
       <BeforeRow />
       <div className="grid gap-x-3 gap-y-4 @4xl:grid-cols-2">
-        {ordered.map(([year, terms], i) => (
-          <section
-            key={year}
-            aria-label={`Year ${i + 1}, ${academicYearLabel(year)}`}
-          >
-            <h2 className="emph-heading mb-1.5 flex items-baseline gap-2 text-base">
-              <span>Year {i + 1}</span>
-              <span className="emph-meta">{academicYearLabel(year)}</span>
-            </h2>
-            {/* A year's semesters side by side, or stacked in a narrow
-                canvas (a tablet, with the sidebar open). */}
-            <div className="grid gap-1.5 @xl:auto-cols-[minmax(0,1fr)] @xl:grid-flow-col">
-              {terms.map((term) => (
-                <TermColumn key={term} term={term} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {ordered.map(([year, terms], i) => {
+          const layout = yearLayout(terms.length);
+          return (
+            <section
+              key={year}
+              aria-label={`Year ${i + 1}, ${academicYearLabel(year)}`}
+              className={layout.year}
+            >
+              <h2 className="emph-heading mb-1.5 flex items-baseline gap-2 text-base">
+                <span>Year {i + 1}</span>
+                <span className="emph-meta">{academicYearLabel(year)}</span>
+              </h2>
+              <div className={cn("grid gap-1.5", layout.terms)}>
+                {terms.map((term) => (
+                  <TermColumn key={term} term={term} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

@@ -104,7 +104,10 @@ test("a reload with /data out of reach starts from what's saved", {
   test.skip(isMobile, "searches from the desktop sidebar");
   await overHttp(page);
   await page.goto("/schedule?demo=1");
-  await planOnScreen(page);
+  // "/" needs the scheduler with the demo in, which its plan's rows show,
+  // waited for as an action would (on a cold page that can take most of
+  // 5 s). The search below waits for the term's catalog.
+  await page.getByTestId("course-row-CMSC351").waitFor();
   const searchFor = async (text: string) => {
     await page.keyboard.press("/");
     await page.getByRole("combobox", { name: "Search courses" }).fill(text);

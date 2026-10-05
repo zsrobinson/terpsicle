@@ -205,10 +205,13 @@ test.describe("phone", () => {
   // Its first step needs the demo plan's rows in the drawer, not the
   // catalog's first paint on the calendar: on a cold WebKit page that paint
   // took 4.99 s of the assertion's 5 (CI, 2026-10-05), and once longer. The
-  // calendar's blocks are waited for where the test clicks them.
+  // calendar's blocks are waited for where the test clicks them. The rows
+  // come with the demo, which on a cold page can itself take most of 5 s
+  // (the app's modules, unbundled): they're waited for as the click on one
+  // will, not asserted.
   test.beforeEach(({ page }) =>
     open(page, undefined, (p) =>
-      expect(p.getByTestId("course-row-CMSC351")).toBeAttached(),
+      p.getByTestId("course-row-CMSC351").waitFor({ state: "attached" }),
     ),
   );
 
