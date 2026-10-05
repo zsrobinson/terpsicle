@@ -54,7 +54,10 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(watchHistory);
   await page.goto("/schedule");
   await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
-  // A first visit opens the drawer to half, on the first-visit guide.
+  // A first visit opens the drawer to half, on the first-visit guide. The
+  // guide comes with Plan A, which waits for the term list: on a cold page
+  // that can take most of 5 s, so it's waited for as an action would.
+  await page.getByTestId("first-visit").waitFor();
   await expect(drawer(page)).toHaveAttribute("data-snap", "half");
   await page.evaluate(() => {
     (window as unknown as HistoryWatch).__sameDocument = true;
@@ -150,7 +153,9 @@ async function searchResults(page: Page) {
   await tabs(page).getByRole("button", { name: "Search" }).tap();
   await page.getByRole("combobox", { name: "Search courses" }).fill("cmsc");
   const results = page.locator("#search-results");
-  await expect(results.locator("[data-course-result]").first()).toBeVisible();
+  // Results wait for the term's whole catalog, which a cold page may still
+  // be loading: waited for as the drags on them would.
+  await results.locator("[data-course-result]").first().waitFor();
   await expect(drawer(page)).toHaveAttribute("data-snap", "full");
   return results;
 }

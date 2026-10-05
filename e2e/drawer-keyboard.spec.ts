@@ -50,7 +50,9 @@ test("typing a search with the keyboard up shows the results above it", async ({
   await box.fill("cmsc");
   const results = page.locator("#search-results");
   const first = results.locator("[data-course-result]").first();
-  await expect(first).toBeVisible();
+  // Results wait for the term's whole catalog, which a cold page may still
+  // be loading: waited for, then measured.
+  await first.waitFor();
 
   // The drawer rises all the way, so the results get the room left over.
   await expect(drawer(page)).toHaveAttribute("data-snap", "full");

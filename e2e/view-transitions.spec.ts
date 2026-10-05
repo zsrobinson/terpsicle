@@ -59,7 +59,9 @@ const searchBox = (page: Page) =>
 
 async function openSearch(page: Page) {
   await page.goto("/schedule/search?demo=1&q=cmsc13");
-  await expect(result(page, "CMSC131")).toBeVisible({ timeout: 20_000 });
+  // Results wait for the term's whole catalog, after a cold page's modules:
+  // waited for as the click on one will.
+  await result(page, "CMSC131").waitFor();
 }
 
 const PHONE_ONLY = "the scheduler animates its own moves on phones only";

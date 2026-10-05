@@ -53,33 +53,61 @@ export function MobileDrawer() {
     useCurrentPlan()?.plan.courses.every((c) => c.sectionCode === null) ===
     true;
   const greeted = useRef(false);
+  // Raised to half and not yet measured: survives a remount (StrictMode's,
+  // in dev) that cancels the measurement's frame.
+  const rising = useRef(false);
   useEffect(() => {
-    if (!empty || greeted.current) return;
-    greeted.current = true;
-    const here = currentView();
-    if (
-      here.tab !== "courses" ||
-      here.drill ||
-      useUi.getState().drawerSnap !== "peek"
-    )
+    if (!empty) {
+      // Something placed before the guide came: nothing left to show.
+      rising.current = false;
       return;
-    setSnap("half");
-    // Measure once the half-height panel has laid out.
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        const body = document.querySelector(
-          `#${SIDEBAR_PANEL_ID} > [data-layer][data-active] [data-panel-body]`,
-        );
-        if (!body) return;
-        // Every way in (the guide's buttons) on screen; padding may overflow.
-        // Both move with the drawer's slide, so compare them to each other.
-        const bottom = body.getBoundingClientRect().bottom;
-        const cut = [...body.querySelectorAll("button")].some(
-          (b) => b.getBoundingClientRect().bottom > bottom + 1,
-        );
-        if (cut) setSnap("full");
-      }),
-    );
+    }
+    if (!greeted.current) {
+      greeted.current = true;
+      const here = currentView();
+      if (
+        here.tab !== "courses" ||
+        here.drill ||
+        useUi.getState().drawerSnap !== "peek"
+      )
+        return;
+      setSnap("half");
+      rising.current = true;
+    }
+    if (!rising.current) return;
+    // Measure once the half-height panel has laid out. On a cold page the
+    // plan can be ready before the Courses panel has drawn its guide, so
+    // wait for it, unless the student has moved on (another tab, or the
+    // drawer moved) before it came.
+    let frame = 0;
+    const measure = () => {
+      if (
+        currentView().tab !== "courses" ||
+        useUi.getState().drawerSnap !== "half"
+      ) {
+        rising.current = false;
+        return;
+      }
+      const body = document.querySelector(
+        `#${SIDEBAR_PANEL_ID} > [data-layer][data-active] [data-panel-body]`,
+      );
+      if (!body) {
+        frame = requestAnimationFrame(measure);
+        return;
+      }
+      rising.current = false;
+      // Every way in (the guide's buttons) on screen; padding may overflow.
+      // Both move with the drawer's slide, so compare them to each other.
+      const bottom = body.getBoundingClientRect().bottom;
+      const cut = [...body.querySelectorAll("button")].some(
+        (b) => b.getBoundingClientRect().bottom > bottom + 1,
+      );
+      if (cut) setSnap("full");
+    };
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(measure);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [empty, setSnap]);
 
   return (

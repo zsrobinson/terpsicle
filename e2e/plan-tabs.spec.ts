@@ -22,14 +22,30 @@ const sidebar = (page: Page) =>
 const calendar = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
 
-async function openDemo(page: Page) {
+/**
+ * Opens the demo and waits until it's ready for what the test does first:
+ * by default the calendar's CMSC351, which needs the term's catalog too.
+ */
+async function openDemo(
+  page: Page,
+  ready: (page: Page) => Promise<void> = (p) =>
+    expect(
+      calendar(p)
+        .getByRole("button", { name: /^CMSC351 0301/ })
+        .first(),
+    ).toBeVisible(),
+) {
   await page.goto("/schedule?demo=1");
-  await expect(
-    calendar(page)
-      .getByRole("button", { name: /^CMSC351 0301/ })
-      .first(),
-  ).toBeVisible();
+  await ready(page);
 }
+
+/**
+ * The demo plan's rows in Courses, which come before the term's catalog. On
+ * a cold page they can take most of 5 s (the app's modules, unbundled), so
+ * they're waited for as the test's first action would, not asserted.
+ */
+const demoRows = (page: Page) =>
+  page.getByTestId("course-row-CMSC351").waitFor();
 
 async function openTab(page: Page, name: string) {
   await page
@@ -72,8 +88,14 @@ test("first visit shows two equal ways to start", async ({ page }) => {
 test("remove a course from the plan, then undo", { tag: "@critical" }, async ({
   page,
 }) => {
-  await openDemo(page);
+  await openDemo(page, demoRows);
   const row = page.getByTestId("course-row-ENGL393");
+  // Its blocks are checked too, so they must be there first: they wait for
+  // the term's catalog, as a click on one would.
+  await calendar(page)
+    .getByRole("button", { name: /^ENGL393/ })
+    .first()
+    .waitFor();
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Remove from plan" }).click();
   await expect(row).toHaveCount(0);
@@ -91,12 +113,11 @@ test("remove a course from the plan, then undo", { tag: "@critical" }, async ({
 });
 
 test("fix a problem with one click", { tag: "@critical" }, async ({ page }) => {
-  await openDemo(page);
+  await openDemo(page, demoRows);
   await openTab(page, "Problems");
   const overlap = page.getByTestId("problem-overlap");
-  await expect(overlap).toBeVisible();
-  const fix = overlap.getByRole("button", { name: /^Switch / });
-  await fix.click();
+  // Problems needs the term's catalog: the click waits for the fix to show.
+  await overlap.getByRole("button", { name: /^Switch / }).click();
   await expect(overlap).toHaveCount(0);
   await expect(page.getByText(/^Switched ENGL393 to /)).toBeVisible();
   await expect(
@@ -179,10 +200,11 @@ test.describe("register", () => {
   });
 
   test("download the .ics", { tag: "@critical" }, async ({ page }) => {
-    await openDemo(page);
+    await openDemo(page, demoRows);
     await openTab(page, "Register");
     const button = page.getByRole("button", { name: /Add to your calendar/ });
-    await expect(button).not.toHaveAttribute("aria-disabled", "true");
+    // It's aria-disabled until the plan's sections are read from the term's
+    // catalog; the click waits for it to be enabled.
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       button.click(),
