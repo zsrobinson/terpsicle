@@ -29,6 +29,12 @@ const BATCH_STATEMENTS = 100;
 export async function createPlanetTerpReviewSink(
   db: D1Database,
   now: Date,
+  /**
+   * Each course's newest this many, while our Reviews pages are off: all
+   * Schedule's preview shows (docs/decisions.md, "Reviews link out to
+   * PlanetTerp"). Omitted keeps every review, for our pages.
+   */
+  perCourse?: number,
 ): Promise<ReviewKeeper> {
   const stored = await planetTerpReviewSets(db);
   let queue: D1PreparedStatement[] = [];
@@ -48,6 +54,7 @@ export async function createPlanetTerpReviewSink(
         const { records, hash } = await planetTerpReviewRecords(
           p.slug,
           p.reviews,
+          perCourse,
         );
         // An empty list where there were reviews is PlanetTerp leaving
         // `reviews` out, not every review deleted: keep what's shown. A

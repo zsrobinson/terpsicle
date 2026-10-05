@@ -105,6 +105,9 @@ export default defineConfig({
                   // would be (32 bytes, base64url): a fixed test value.
                   USER_DATA_KEY: "d29ya2VyLXRlc3QtdXNlci1kYXRhLWtleS1vbmUhISE",
                   USER_DATA_KEY_ID: "k1",
+                  // Our Reviews pages on, as mock mode has them; a test
+                  // turns them off where it's about that.
+                  REVIEWS_PAGES_ENABLED: "true",
                   TEST_CRONS: wrangler.triggers.crons ?? [],
                   // Which vars production and previews set (names only).
                   TEST_VAR_NAMES: {

@@ -65,6 +65,12 @@ export interface PlanetTerpReviewRecord {
 export async function planetTerpReviewRecords(
   slug: string,
   raw: readonly ReviewApi[],
+  /**
+   * Keep only each course's newest this many (none without a course): what
+   * Schedule's preview shows, while our Reviews pages are off. Omitted keeps
+   * every one.
+   */
+  perCourse?: number,
 ): Promise<{ records: PlanetTerpReviewRecord[]; hash: string }> {
   const records: PlanetTerpReviewRecord[] = [];
   const ids = new Set<string>();
@@ -84,7 +90,36 @@ export async function planetTerpReviewRecords(
       created: r.created,
     });
   }
-  return { records, hash: await contentHash(toJsonBytes(records)) };
+  const kept =
+    perCourse === undefined ? records : newestPerCourse(records, perCourse);
+  return { records: kept, hash: await contentHash(toJsonBytes(kept)) };
+}
+
+/**
+ * Each course's newest `perCourse` reviews, newest first; a review with no
+ * course is left out, since the preview always asks for one course.
+ */
+export function newestPerCourse(
+  records: readonly PlanetTerpReviewRecord[],
+  perCourse: number,
+): PlanetTerpReviewRecord[] {
+  const newest = [...records].sort((a, b) =>
+    a.created === b.created
+      ? a.id.localeCompare(b.id)
+      : a.created < b.created
+        ? 1
+        : -1,
+  );
+  const taken = new Map<string, number>();
+  const out: PlanetTerpReviewRecord[] = [];
+  for (const r of newest) {
+    if (r.course === null) continue;
+    const n = taken.get(r.course) ?? 0;
+    if (n >= perCourse) continue;
+    taken.set(r.course, n + 1);
+    out.push(r);
+  }
+  return out;
 }
 
 export interface ReviewKeeper {
