@@ -95,7 +95,7 @@ test("imports transfer and exam credit, and says what unmatched credit counts as
 
   // Problems asks what the GEOL credit counts as, and opens its drill-in.
   await page.goto("/plan/problems");
-  const problems = page.getByRole("list", { name: "Problems" });
+  const problems = page.getByRole("group", { name: "Problems", exact: true });
   const row = problems
     .getByRole("listitem")
     .filter({ hasText: "Physical Geology came in as GEOL1XX" });

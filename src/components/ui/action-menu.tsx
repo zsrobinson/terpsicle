@@ -107,6 +107,7 @@ const RadioContext = createContext<{
 function ActionMenu({
   trigger,
   tooltip,
+  tooltipCard,
   shortcut,
   title,
   description,
@@ -121,6 +122,8 @@ function ActionMenu({
   trigger: ReactElement;
   /** The trigger's tooltip (every control has one). */
   tooltip: ReactNode;
+  /** More for the tooltip to show: `WithTooltip`'s `card`. */
+  tooltipCard?: ReactNode;
   shortcut?: string;
   /** Names the menu, and heads the sheet on phones. */
   title: string;
@@ -158,7 +161,7 @@ function ActionMenu({
         // page from assistive tech while leaving it focusable.
         modal={false}
       >
-        <WithTooltip label={tooltip} shortcut={shortcut}>
+        <WithTooltip label={tooltip} shortcut={shortcut} card={tooltipCard}>
           <Menu.Trigger render={trigger} />
         </WithTooltip>
         <Menu.Portal>
@@ -198,7 +201,7 @@ function ActionMenu({
 
   return (
     <>
-      <WithTooltip label={tooltip} shortcut={shortcut}>
+      <WithTooltip label={tooltip} shortcut={shortcut} card={tooltipCard}>
         <SheetTrigger
           render={trigger}
           ref={triggerRef}

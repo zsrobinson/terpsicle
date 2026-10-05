@@ -2,12 +2,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
-  CloudAlert,
-  CloudCheck,
-  CloudOff,
-  CloudUpload,
+  CalendarCheck,
+  CalendarClock,
+  CalendarOff,
+  CalendarSync,
+  CalendarX,
   RefreshCw,
 } from "lucide-react";
+import { SYNC_SLOT_CLASS, SyncSlotFace } from "~/components/workbench/status";
 import { feedWords } from "~/core/todo";
 import { relativeWords } from "~/core/words";
 import { useIsMobile } from "~/hooks/use-media-query";
@@ -22,11 +24,13 @@ import { useElmsSync, useTodoList } from "./use-todo";
 import { openElmsSettings, useTodoWorkbench } from "./workbench-store";
 
 // Todo's sync, in the family bar (the owner, 2026-09-29): "ELMS synced 3
-// minutes ago" under the week's dates, and the app's sync cloud beside the
-// bell, as Schedule's plan sync is. Todo syncs two ways, with ELMS and with
-// our own server (your tasks and checks), so the cloud's popover (a sheet
-// on a phone) says when each last synced, has Sync now, and takes a new
-// ELMS link, or the first one.
+// minutes ago" under the week's dates, and the bar's sync slot
+// (~/components/workbench/status), where Schedule and Plan show plan sync.
+// Todo syncs two ways, with ELMS and with our own server (your tasks and
+// checks), so the slot's popover (a sheet on a phone) says when each last
+// synced, has Sync now, and takes a new ELMS link, or the first one. Its
+// glyph is a calendar, for the ELMS feed it shows the state of: the cloud
+// means your plans with your account, and nothing else.
 
 const TEXT_LINK =
   "text-fg underline decoration-hairline-strong underline-offset-2 hover:decoration-fg";
@@ -34,10 +38,10 @@ const TEXT_LINK =
 const TOO_SOON = "ELMS was synced in the last 5 minutes.";
 const NO_ANSWER = "ELMS didn't answer. We'll try again in 20 minutes.";
 
-/** The cloud's name, and its popover's. */
+/** The slot's name and word, and its popover's name. */
 export const SYNC_NAME = "Sync";
 
-/** How Todo's sync is doing, for the bar's line and its cloud. */
+/** How Todo's sync is doing, for the bar's line and its slot. */
 type SyncState = "loading" | "syncing" | "none" | "broken" | "stale" | "ok";
 
 function useSyncState(
@@ -66,13 +70,13 @@ export function SyncLine({ now, ready }: { now: number; ready: boolean }) {
   );
 }
 
-const ICONS: Record<SyncState, typeof CloudCheck> = {
-  loading: CloudUpload,
-  syncing: CloudUpload,
-  none: CloudOff,
-  broken: CloudAlert,
-  stale: CloudAlert,
-  ok: CloudCheck,
+const ICONS: Record<SyncState, typeof CalendarCheck> = {
+  loading: CalendarSync,
+  syncing: CalendarSync,
+  none: CalendarOff,
+  broken: CalendarX,
+  stale: CalendarClock,
+  ok: CalendarCheck,
 };
 
 /** Sync now, with what ELMS last said. */
@@ -202,9 +206,9 @@ function SyncSettings({
 }
 
 /**
- * The bar's sync cloud, beside the bell, drawn as Schedule's plan-sync
- * cloud is, and what it opens: a popover on a desktop; on a phone the
- * page's sheet (`SyncSheet`).
+ * The bar's sync slot, as Schedule's and Plan's (a glyph, then "Sync" from
+ * 1280px), and what it opens: a popover on a desktop; on a phone the page's
+ * sheet (`SyncSheet`).
  */
 export function TodoSyncButton({
   hasFileItems,
@@ -223,13 +227,15 @@ export function TodoSyncButton({
   const trigger = (
     <button
       type="button"
-      aria-label={SYNC_NAME}
       aria-expanded={open}
       data-todo-sync={state}
       onClick={mobile ? () => openElmsSettings(true) : undefined}
-      className="flex size-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-hover hover:text-muted aria-expanded:bg-hover aria-expanded:text-muted"
+      className={SYNC_SLOT_CLASS}
     >
-      <Icon size={15} strokeWidth={1.75} aria-hidden="true" />
+      <SyncSlotFace
+        icon={<Icon size={15} strokeWidth={1.75} aria-hidden="true" />}
+        word={SYNC_NAME}
+      />
     </button>
   );
   const tooltip = `${line}. Sync ELMS and your tasks, or change the ELMS link`;
@@ -259,7 +265,7 @@ export function TodoSyncButton({
 
 /**
  * The sync's settings on a phone: a sheet over the page, opened from the
- * bar's cloud or the first visit. It's the page's, outside the drawer, so
+ * bar's sync slot or the first visit. It's the page's, outside the drawer, so
  * it covers the tab bar as every sheet does.
  */
 export function SyncSheet({
