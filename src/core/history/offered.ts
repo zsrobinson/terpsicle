@@ -165,7 +165,11 @@ export type NotOfferedMatch = {
   readonly credits: Credits | null;
   readonly summary: OfferingSummary;
   readonly next: { termId: TermId; likely: boolean } | null;
-  /** "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027". */
+  /** "Not offered in Spring 2027": beside the code. */
+  readonly status: string;
+  /** "Usually fall only · Next likely Fall 2027": the row's third line. */
+  readonly when: string;
+  /** Both: "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027". */
   readonly words: string;
 };
 
@@ -211,19 +215,22 @@ export function notOfferedMatches(input: {
       summary.pattern.kind === "discontinued"
         ? null
         : nextOffering(summary, input.termId, input.listed, course.ran);
-    const words = [
-      `Not offered in ${termLabel(input.termId)}`,
+    const status = `Not offered in ${termLabel(input.termId)}`;
+    const when = [
       offeringPhrase(summary),
       ...(next
         ? [`${next.likely ? "Next likely" : "Next"} ${termLabel(next.termId)}`]
         : []),
     ].join(" · ");
+    const words = `${status} · ${when}`;
     out.push({
       code,
       title: course.title,
       credits: course.credits,
       summary,
       next,
+      status,
+      when,
       words,
     });
   }

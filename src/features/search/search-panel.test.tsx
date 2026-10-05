@@ -107,8 +107,11 @@ describe("Search tab", () => {
     expect(row).toHaveAttribute("data-not-offered", "CMSC473");
     expect(row).toHaveClass("text-muted");
     expect(row).toHaveTextContent("Capstone in Machine Learning");
-    expect(row).toHaveTextContent(
-      "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027",
+    // "Not offered" beside the code, when it runs on the third line.
+    expect(row).toHaveTextContent("Not offered in Spring 2027");
+    expect(row).toHaveTextContent("Usually fall only · Next likely Fall 2027");
+    expect(row).toHaveAccessibleName(
+      "CMSC473 Capstone in Machine Learning. Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027",
     );
     // Nothing to add: it isn't a result of this term.
     expect(within(row).queryByRole("button")).toBeNull();

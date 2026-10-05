@@ -465,6 +465,25 @@ function ResultList({
       onPointerLeave={() => setHoverCourse(null)}
     >
       <div style={{ height: total * ROW_HEIGHT }} className="relative">
+        {courses.slice(first, last).map((course, i) => {
+          const index = first + i;
+          return (
+            <ResultRow
+              key={course.code}
+              index={index}
+              course={course}
+              fit={fit}
+              inPlan={inPlan.get(course.code) ?? null}
+              sortNote={sortNote(course)}
+              active={index === active}
+              onOpen={() => onOpen(index)}
+              onHover={() => {
+                onHover(index);
+                setHoverCourse(course.code);
+              }}
+            />
+          );
+        })}
         {notOffered
           .slice(
             Math.max(0, first - courses.length),
@@ -486,25 +505,6 @@ function ResultList({
               />
             );
           })}
-        {courses.slice(first, last).map((course, i) => {
-          const index = first + i;
-          return (
-            <ResultRow
-              key={course.code}
-              index={index}
-              course={course}
-              fit={fit}
-              inPlan={inPlan.get(course.code) ?? null}
-              sortNote={sortNote(course)}
-              active={index === active}
-              onOpen={() => onOpen(index)}
-              onHover={() => {
-                onHover(index);
-                setHoverCourse(course.code);
-              }}
-            />
-          );
-        })}
       </div>
     </div>
   );
@@ -607,7 +607,9 @@ function NotOfferedRow({
         code={match.code}
         title={match.title ?? match.code}
         credits={match.credits ?? undefined}
-        meta={match.words}
+        note={match.status}
+        meta={match.when}
+        aria-label={`${match.code} ${match.title ?? ""}. ${match.words}`}
         id={`search-result-${index}`}
         role="option"
         aria-selected={active}

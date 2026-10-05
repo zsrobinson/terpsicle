@@ -77,9 +77,8 @@ test("searching a fall-only course while building a spring finds it, greyed, wit
   await expect(row).toBeVisible();
   await expect(row).toHaveAttribute("data-not-offered", "CMSC473");
   await expect(row).toContainText("Capstone in Machine Learning");
-  await expect(row).toContainText(
-    "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027",
-  );
+  await expect(row).toContainText("Not offered in Spring 2027");
+  await expect(row).toContainText("Usually fall only · Next likely Fall 2027");
   await row.click();
   await expect(
     page.getByText("CMSC473 isn't offered in Spring 2027."),
