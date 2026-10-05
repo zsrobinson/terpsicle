@@ -12,6 +12,7 @@ import type {
   PlanetTerpDept,
 } from "~/core/schema";
 import { formatFullDate, formatMonthYear } from "~/core/time/format";
+import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { clientConfig } from "~/lib/config";
 import { lazyComponent } from "~/lib/lazy-component";
@@ -24,12 +25,14 @@ import { Skeleton } from "~/ui/skeleton";
 import { Stars } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
-import { ReadThem, useCombinedRating } from "./reviews";
+import { instructorRating, ReadThem } from "./reviews";
 
 // A small Reviews, where you pick a section (owner, 2026-09-29: "a little
 // popover that's like a mini version/preview of the [reviews] tab, with the
 // option to open the full one up too"): their rating, their grades in the
-// course, the newest few reviews, and View reviews for the rest. A popover
+// course and the newest few reviews, all PlanetTerp's and credited to it
+// (docs/decisions.md, "Reviews link out to PlanetTerp"), then the way to
+// the rest: PlanetTerp, or View reviews while our pages are open. A popover
 // on a desktop, a sheet on a phone. It carries Reviews' mark, as every
 // product's part inside another does (docs/decisions.md). Nothing of
 // Reviews' pages loads with the scheduler: this asks `reviews/page` itself.
@@ -39,7 +42,7 @@ const SHOWN = 3;
 /** How long a preview's reviews count as current: they change nightly. */
 const PREVIEW_STALE_MS = 10 * 60_000;
 
-/** One instructor's newest reviews in a course, ours and PlanetTerp's. */
+/** One instructor's newest reviews in a course (the preview shows PlanetTerp's). */
 export function instructorReviewsQuery(
   slug: InstructorSlug,
   course: CourseCode,
@@ -157,7 +160,8 @@ export function ReviewsPreview({
   loading: boolean;
 }) {
   const pt = instructorFor(planetTerp, name);
-  const combined = useCombinedRating(name, course, planetTerp);
+  const combined = instructorRating(name, planetTerp);
+  const ours = useAccount((s) => s.flags.reviewsPages);
   const record = pt
     ? planetTerp?.courses[course.code]?.byInstructor[pt.slug]
     : undefined;
@@ -172,12 +176,9 @@ export function ReviewsPreview({
     ...instructorReviewsQuery(pt?.slug ?? "", course.code, pt?.name ?? name),
     enabled: pt !== null && !loading,
   });
+  // PlanetTerp's alone, as the rating above is: one source, credited.
   const shown = reviews.data
-    ? mergeReviews(
-        reviews.data.terpsicle ?? [],
-        reviews.data.planetTerp,
-        true,
-      ).slice(0, SHOWN)
+    ? mergeReviews([], reviews.data.planetTerp, true).slice(0, SHOWN)
     : [];
 
   return (
@@ -257,7 +258,6 @@ export function ReviewsPreview({
                     {formatMonthYear(r.review.createdMonth)}
                   </time>
                 )}
-                {r.source === "planetterp" ? <span>PlanetTerp</span> : null}
               </span>
               <p className="line-clamp-4 whitespace-pre-line break-words">
                 {r.review.body}
@@ -266,20 +266,31 @@ export function ReviewsPreview({
           ))}
         </ul>
       )}
-      {pt && pt.reviewCount > 0 && !loading ? (
+      {pt && pt.reviewCount > 0 && !loading && ours ? (
         <p className="text-muted text-xs">
           {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on
           PlanetTerp.
         </p>
       ) : null}
-      {freshness && !loading ? (
-        <p className="text-faint text-xs" data-testid="pt-freshness">
-          {freshness}
-        </p>
+      {pt && !loading ? (
+        <ReadThem
+          slug={pt.slug}
+          course={course.code}
+          name={name}
+          reviewCount={pt.reviewCount}
+        />
       ) : null}
       {pt && !loading ? (
-        <p>
-          <ReadThem slug={pt.slug} course={course.code} name={name} />
+        <p
+          className="border-hairline border-t pt-2 text-faint text-xs"
+          data-testid="pt-credit"
+        >
+          From PlanetTerp: ratings, reviews and grades.
+          {freshness ? (
+            <span className="block text-faint" data-testid="pt-freshness">
+              {freshness}
+            </span>
+          ) : null}
         </p>
       ) : null}
     </div>

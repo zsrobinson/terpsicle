@@ -6,6 +6,7 @@ import {
   instructorNameKey,
   type MainPlans,
   type Plan,
+  type SyncedPrefs,
   type TermId,
 } from "../schema";
 import { reviewTermChoices } from "./terms";
@@ -90,4 +91,29 @@ export function instructorsToReview(
       a.course.localeCompare(b.course) ||
       a.name.localeCompare(b.name),
   );
+}
+
+/** Longest list of closed rows kept: the oldest go first. */
+export const DISMISSED_TO_REVIEW_MAX = 100;
+
+/** The rows you've closed on Home, as `reviewedKey`s. */
+export function dismissedToReview(prefs: SyncedPrefs): ReadonlySet<string> {
+  return new Set(prefs.toReview?.dismissed ?? []);
+}
+
+/**
+ * The prefs with a row closed (or open again, for Undo); the same object
+ * when nothing changes.
+ */
+export function withToReviewDismissed(
+  prefs: SyncedPrefs,
+  key: string,
+  dismissed: boolean,
+): SyncedPrefs {
+  const had = prefs.toReview?.dismissed ?? [];
+  if (had.includes(key) === dismissed) return prefs;
+  const next = dismissed
+    ? [...had, key].slice(-DISMISSED_TO_REVIEW_MAX)
+    : had.filter((k) => k !== key);
+  return { ...prefs, toReview: { dismissed: next } };
 }

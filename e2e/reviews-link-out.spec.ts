@@ -1,11 +1,16 @@
 import { expect, type Page, test } from "@playwright/test";
+import { lowerPlanDrawer } from "./plan-drawer";
+import { liveToasts } from "./toasts";
 
 // Reviews as production has it once our pages are off (docs/decisions.md,
 // "Reviews link out to PlanetTerp"): the purple tab keeps its place among
 // the five and opens PlanetTerp in a new tab, with an arrow and a tooltip
 // saying so; the phone's tab bar, the product menu and the marketing page
-// do the same. Mock mode keeps our pages on so their code keeps running, so
-// this spec answers /api/me with them off.
+// do the same. Schedule's reviews preview is PlanetTerp's, credited, with
+// its ways out; Plan's course menu and Home's "Review your instructors"
+// rows open PlanetTerp, and a row has its own Dismiss. Mock mode keeps our
+// pages on so their code keeps running, so this spec answers /api/me with
+// them off.
 
 let errors: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -100,4 +105,110 @@ test("the marketing page's Reviews step says it's PlanetTerp's", async ({
   await linksOut(step.getByRole("link", { name: "Reviews on PlanetTerp" }));
   await expect(step).toContainText("PlanetTerp rating");
   await expect(step).not.toContainText("anonymous");
+});
+
+test("Schedule's preview is PlanetTerp's, credited, and leads there", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/schedule/course/CMSC351?demo=1");
+  const button = page
+    .getByRole("button", { name: "Reviews", exact: true })
+    .first();
+  // On a phone, course details sit in the workbench drawer, a sheet's opener.
+  if (isMobile) await button.tap();
+  else await button.click();
+  const preview = page.locator("[data-instructor]").first();
+  await expect(preview).toBeVisible();
+  await expect(preview.getByTestId("pt-credit")).toHaveText(
+    /^From PlanetTerp: ratings, reviews and grades\./,
+  );
+  const all = preview.getByRole("link", {
+    name: /^Read all [\d,]+ on PlanetTerp$/,
+  });
+  await expect(all).toHaveAttribute(
+    "href",
+    /^https:\/\/planetterp\.com\/professor\/[a-z_]+$/,
+  );
+  await expect(all).toHaveAttribute("target", "_blank");
+  await expect(all.locator("[data-outside-arrow]")).toBeVisible();
+  await expect(
+    preview.getByRole("link", { name: "Review on PlanetTerp" }),
+  ).toHaveAttribute("target", "_blank");
+  // Nothing in it leads to our own pages.
+  await expect(preview.getByRole("link", { name: "View reviews" })).toHaveCount(
+    0,
+  );
+});
+
+test("Plan's course menu opens the course on PlanetTerp", async ({
+  page,
+  isMobile,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-09-26T16:00:00Z"));
+  await page.goto("/plan");
+  await page.getByLabel("I started at UMD in").click();
+  await page.getByRole("option", { name: "Fall 2025" }).click();
+  await page.getByRole("button", { name: "or add courses yourself" }).click();
+  if (isMobile)
+    await page
+      .getByRole("navigation", { name: "Semesters" })
+      .getByRole("button", { name: "Fall 2026" })
+      .click();
+  const fall = page.getByRole("region", { name: "Fall 2026", exact: true });
+  await fall.getByRole("button", { name: "Add a course to Fall 2026" }).click();
+  await page.getByRole("searchbox", { name: "Search courses" }).fill("CMSC351");
+  await page
+    .getByRole("button", { name: "Add CMSC351 to Fall 2026", exact: true })
+    .click();
+  if (isMobile) await lowerPlanDrawer(page);
+  await fall.getByRole("button", { name: "CMSC351 options" }).click();
+  const item = page.getByRole("menuitem", { name: /Reviews on PlanetTerp/ });
+  await expect(item).toHaveAttribute(
+    "href",
+    "https://planetterp.com/course/CMSC351",
+  );
+  await expect(item).toHaveAttribute("target", "_blank");
+  await expect(
+    page.getByRole("menuitem", { name: "View reviews" }),
+  ).toHaveCount(0);
+});
+
+test("Home's instructors to review open PlanetTerp, and each can be dismissed", async ({
+  page,
+}) => {
+  // Late in Spring 2027, the demo's term: its instructors are reviewable.
+  await page.clock.setFixedTime(new Date("2027-05-10T13:00:00Z"));
+  await page.goto("/schedule/courses?demo=1");
+  await expect(
+    page.getByRole("banner").getByRole("button", { name: "Share" }),
+  ).toBeVisible();
+  // Saved to IndexedDB, which Home reads.
+  await page.waitForTimeout(1000);
+  await page.goto("/home");
+  const section = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Review your instructors" }),
+  });
+  await expect(section).toBeVisible();
+  await expect(
+    section.getByRole("link", { name: /^PlanetTerp/ }),
+  ).toHaveAttribute("href", "https://planetterp.com");
+  const rows = section.getByRole("listitem");
+  const first = rows.first().getByRole("link");
+  await expect(first).toHaveAttribute(
+    "href",
+    /^https:\/\/planetterp\.com\/(professor|course)\//,
+  );
+  await expect(first).toHaveAttribute("target", "_blank");
+  const dismiss = rows.first().getByRole("button", { name: /^Dismiss / });
+  const label = await dismiss.getAttribute("aria-label");
+  await dismiss.click();
+  await expect(section.getByRole("button", { name: label ?? "" })).toHaveCount(
+    0,
+  );
+  // Undo puts them back.
+  await liveToasts(page).getByRole("button", { name: "Undo" }).click();
+  await expect(
+    section.getByRole("button", { name: label ?? "" }),
+  ).toBeVisible();
 });
