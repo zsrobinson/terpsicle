@@ -5,6 +5,7 @@ import {
   generateKeyPair,
   toBase64url,
 } from "../src/core/push";
+import { NotificationSettingsResultSchema } from "../src/core/schema/notifications";
 import { payloadOf } from "./push-message";
 import { startPushService } from "./push-service";
 import { signInNewUser } from "./test-user";
@@ -75,6 +76,27 @@ async function syncPlan(page: Page, who: string, course: string) {
   expect(response.status()).toBe(200);
 }
 
+/** Turns quiet hours off for whoever `page` is signed in as, as /settings does. */
+async function quietHoursOff(page: Page) {
+  const current = await page.request.post("/api/notifications/settings", {
+    headers: sameOrigin(page),
+    data: {},
+  });
+  expect(current.status()).toBe(200);
+  const { settings } = NotificationSettingsResultSchema.parse(
+    await current.json(),
+  );
+  const saved = await page.request.post("/api/notifications/settings/set", {
+    headers: sameOrigin(page),
+    data: { settings: { ...settings, quietHours: { on: false } } },
+  });
+  expect(saved.status()).toBe(200);
+  expect(
+    NotificationSettingsResultSchema.parse(await saved.json()).settings
+      .quietHours,
+  ).toEqual({ on: false });
+}
+
 test(
   "an @-mention pushes to the classmate it names",
   { tag: "@critical" },
@@ -111,6 +133,11 @@ test(
         },
       });
       expect(await subscribed.json()).toEqual({ status: "ok" });
+      // Quiet hours (11pm to 8am New York) would hold the push until
+      // morning, so this test would fail whenever CI runs at night. The
+      // server's clock is the wall clock here; notifications.test.ts holds
+      // a mention through quiet hours with a set one.
+      await quietHoursOff(theirs);
       await classmate.close();
 
       // The sender mentions them from the room, with the autocomplete.

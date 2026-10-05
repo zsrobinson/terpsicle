@@ -29,33 +29,39 @@ const CLOUD_ALERT = [
 export const SYNC_STATUS_LOOK: SyncStatusLook = {
   saving: {
     icon: CLOUD_UPLOAD,
+    word: "Saving…",
     label: "Saving…",
     tooltip: "Saving your changes to your account",
   },
   saved: {
     icon: CLOUD_CHECK,
+    word: "Saved",
     label: "Saved",
     tooltip: "Your changes are saved to your account",
   },
   offline: {
     icon: CLOUD_OFF,
+    word: "Saves when online",
     label: "Offline, will save when you're back",
     tooltip:
       "Your changes are kept on this device and saved to your account once you're online",
   },
   error: {
     icon: CLOUD_ALERT,
+    word: "Not saved yet",
     label: "Couldn't save yet, trying again",
     tooltip:
       "Terpsicle couldn't reach your account. Your changes are kept on this device, and it'll keep trying.",
   },
   full: {
     icon: CLOUD_ALERT,
+    word: "Account full",
     label: "Account full",
     tooltip: `Your account holds ${SYNC_MAX_PLANS} plans. New plans stay on this device until you delete one.`,
   },
   "full-four-year": {
     icon: CLOUD_ALERT,
+    word: "Account full",
     label: "Account full",
     tooltip: `You have ${SYNC_MAX_FOUR_YEAR_DOCS} four-year plans. New ones stay on this device until you delete one.`,
   },

@@ -13,10 +13,11 @@ import {
   ActionMenuCheckboxItem,
   ActionMenuGroup,
 } from "./action-menu";
+import { CHIP_ROWS, chipClass } from "./chip";
 import { WithTooltip } from "./tooltip";
 
 // One line of chips under any course search box (SPEC §3.5): dropdowns and
-// toggles that fill in black (or white) while they're narrowing the
+// toggles, the kit's chips (./chip), selected while they're narrowing the
 // results. A product shows the ones its data can answer: Plan has no
 // sections, so no Fits my plan or Open seats.
 
@@ -43,17 +44,6 @@ export const TOKEN_CHIP: Record<FilterToken["kind"], FilterName> = {
 };
 
 const GEN_EDS = Object.keys(GEN_ED_LABELS) as GenEdCode[];
-
-/** A filter chip's look, for filters beyond a course search's (Generate's). */
-export const chipClass = (active: boolean) =>
-  cn(
-    "flex h-6 shrink-0 items-center gap-px rounded-md border px-1 text-xs transition-colors",
-    active
-      ? "border-fg bg-fg text-bg hover:bg-fg/85"
-      : // Open: a popover's or a menu's trigger says `aria-expanded`; a menu's
-        // says `data-popup-open` too.
-        "border-hairline text-muted hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg aria-expanded:bg-hover aria-expanded:text-fg",
-  );
 
 function toggle<T>(list: readonly T[], value: T): T[] {
   return list.includes(value)
@@ -88,7 +78,7 @@ export function FilterChips({
     // WCAG 1.4.10).
     <div
       data-testid="search-filters"
-      className="flex flex-wrap items-center gap-x-0.5 gap-y-1"
+      className={cn("flex flex-wrap items-center gap-x-0.5", CHIP_ROWS)}
     >
       {show.includes("gen-eds") ? (
         <MultiChip

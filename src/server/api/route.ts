@@ -36,6 +36,13 @@ export interface Route<S extends z.ZodType> {
   /** Requests per IP per hour; omitted for signed-in routes limited per user. */
   perIpPerHour?: number;
   /**
+   * Skips `perIpPerHour` for a local server's own requests (`isLocalRequest`
+   * in ./http.ts), where every test shares one IP: only for the test
+   * sign-in and /api/me, which each e2e test calls. Deployed Workers are
+   * limited as ever.
+   */
+  localUnlimited?: true;
+  /**
    * Requests per signed-in person per hour (V2.md §12), for `auth: "user" |
    * "admin"` routes. Checked after the session and before the body is read.
    */

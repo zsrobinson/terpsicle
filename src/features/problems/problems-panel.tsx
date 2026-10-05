@@ -1,42 +1,31 @@
-import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
-import type { ReactNode } from "react";
 import { MessageText } from "~/components/message-text";
+import { PanelBody, PanelHeader } from "~/components/panel";
 import {
-  ListRow,
-  PanelBody,
-  PanelHeader,
-  PanelNote,
-  SectionHeader,
-} from "~/components/panel";
+  ProblemFixButton,
+  ProblemList,
+  ProblemRow,
+  ProblemsClear,
+} from "~/components/problem-list";
 import { countBySeverity, problemCountWords } from "~/core/problems";
 import {
   type Problem,
   type ProblemFix,
   parseSectionKey,
-  SEVERITY_ORDER,
-  type Severity,
   type Subject,
   type TermId,
 } from "~/core/schema";
 import { SeatBell } from "~/features/course-details/seat-bell";
 import { planLabel } from "~/features/schedule/plan-label";
 import { useCurrentPlan, usePlanProblemsState } from "~/state/hooks";
-import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
-import { WithTooltip } from "~/ui/tooltip";
 import { applyFix, openProblem } from "./actions";
 import { LinkedMessage } from "./linked-message";
 
 // The Problems tab (SPEC §3.6): everything in the plan that needs a look,
-// most serious first. Calm on purpose: no banners, no red boxes. Someone
-// weighing two overlapping courses should be able to read this without
-// feeling scolded (DESIGN §5).
-
-const GROUP_LABEL: Record<Severity, string> = {
-  error: "Won't work as planned",
-  warning: "Worth a look",
-  info: "Good to know",
-};
+// most serious first, in the list Plan's Problems view shares
+// (~/components/problem-list). Calm on purpose: no banners, no red boxes.
+// Someone weighing two overlapping courses should be able to read this
+// without feeling scolded (DESIGN §5).
 
 export function ProblemsPanel() {
   const current = useCurrentPlan();
@@ -60,53 +49,28 @@ export function ProblemsPanel() {
         {(checking || !current) && hasPlaced !== false ? (
           <Checking />
         ) : problems.length === 0 ? (
-          <PanelNote className="py-6">
-            <span className="flex items-center gap-2">
-              <CircleCheck size={15} className="shrink-0 text-ok" aria-hidden />
-              {hasPlaced
-                ? "Nothing to fix. This plan works."
-                : "Nothing to check yet. Problems show up here as you add courses."}
-            </span>
-          </PanelNote>
+          <ProblemsClear>
+            {hasPlaced
+              ? "Nothing to fix. This plan works."
+              : "Nothing to check yet. Problems show up here as you add courses."}
+          </ProblemsClear>
         ) : (
-          SEVERITY_ORDER.map((severity) => {
-            const group = problems.filter((p) => p.severity === severity);
-            if (group.length === 0) return null;
-            return (
-              <section key={severity} aria-label={GROUP_LABEL[severity]}>
-                <SectionHeader
-                  sticky
-                  title={GROUP_LABEL[severity]}
-                  count={group.length}
-                />
-                <ul>
-                  {group.map((p) => (
-                    <ProblemRow
-                      key={p.id}
-                      problem={p}
-                      termId={current?.termId ?? null}
-                      readOnly={current?.readOnly ?? true}
-                    />
-                  ))}
-                </ul>
-              </section>
-            );
-          })
+          <ProblemList
+            problems={problems}
+            row={(p) => (
+              <Row
+                key={p.id}
+                problem={p}
+                termId={current?.termId ?? null}
+                readOnly={current?.readOnly ?? true}
+              />
+            )}
+          />
         )}
       </PanelBody>
     </div>
   );
 }
-
-const ICON = {
-  error: (
-    <CircleX size={15} className="mt-px shrink-0 text-error" aria-hidden />
-  ),
-  warning: (
-    <TriangleAlert size={15} className="mt-px shrink-0 text-warn" aria-hidden />
-  ),
-  info: <Info size={15} className="mt-px shrink-0 text-muted" aria-hidden />,
-} as const satisfies Record<Severity, ReactNode>;
 
 function openLabel(subject: Subject | undefined): string {
   switch (subject?.kind) {
@@ -123,7 +87,7 @@ function openLabel(subject: Subject | undefined): string {
   }
 }
 
-function ProblemRow({
+function Row({
   problem,
   termId,
   readOnly,
@@ -134,33 +98,23 @@ function ProblemRow({
 }) {
   const { fix } = problem;
   return (
-    <ListRow
-      as="li"
-      // The whole row opens the problem (the button's ::after covers it);
-      // links and the fix sit above that.
-      className="relative items-start py-3 hover:bg-hover"
-      data-testid={`problem-${problem.kind}`}
-      lead={ICON[problem.severity]}
-    >
-      <WithTooltip label={openLabel(problem.subjects[0])}>
-        <button
-          type="button"
-          onClick={() => openProblem(problem)}
-          className="block text-left font-medium text-base after:absolute after:inset-0"
-        >
-          <MessageText message={problem.title} />
-        </button>
-      </WithTooltip>
-      {problem.detail.length > 0 ? (
-        <LinkedMessage
-          message={problem.detail}
-          className="mt-0.5 block text-muted text-sm"
-        />
-      ) : null}
-      {fix && !readOnly ? (
-        <FixButton problem={problem} fix={fix} termId={termId} />
-      ) : null}
-    </ListRow>
+    <ProblemRow
+      severity={problem.severity}
+      testId={`problem-${problem.kind}`}
+      title={<MessageText message={problem.title} />}
+      openLabel={openLabel(problem.subjects[0])}
+      onOpen={() => openProblem(problem)}
+      detail={
+        problem.detail.length > 0 ? (
+          <LinkedMessage message={problem.detail} />
+        ) : null
+      }
+      actions={
+        fix && !readOnly ? (
+          <FixButton problem={problem} fix={fix} termId={termId} />
+        ) : null
+      }
+    />
   );
 }
 
@@ -180,25 +134,13 @@ function FixButton({
 }) {
   if (fix.kind === "watch")
     return termId ? (
-      <div className="relative z-10 mt-2 flex">
-        <SeatBell
-          termId={termId}
-          sectionKey={fix.sectionKey}
-          variant="button"
-        />
-      </div>
+      <SeatBell termId={termId} sectionKey={fix.sectionKey} variant="button" />
     ) : null;
   return (
-    <WithTooltip label={`${fix.label}. You can undo this.`}>
-      <Button
-        variant="outline"
-        size="row"
-        className="relative z-10 mt-2"
-        onClick={() => applyFix(problem, fix)}
-      >
-        {fix.label}
-      </Button>
-    </WithTooltip>
+    <ProblemFixButton
+      label={fix.label}
+      onApply={() => applyFix(problem, fix)}
+    />
   );
 }
 
