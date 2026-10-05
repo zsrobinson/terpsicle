@@ -829,6 +829,27 @@ describe("Course details", () => {
     expect(await screen.findByText(/isn't offered in/)).toBeInTheDocument();
   });
 
+  it("always says when a course is usually offered, as one of its facts", async () => {
+    // The mock history (fixtures/mock/history.ts): CMSC351 every fall and
+    // spring, CMSC452 spring only, CMSC498A twice, CMSC498E only now.
+    const cases: [string, string][] = [
+      ["CMSC351", "Usually offered Fall and spring"],
+      ["CMSC452", "Usually offered Spring only · Next likely Spring 2028"],
+      ["CMSC498A", "Usually offered Rarely"],
+      ["CMSC498E", "Usually offered Not enough history to tell"],
+    ];
+    await renderPlanTab([searchPanels, panels], "search");
+    for (const [code, words] of cases) {
+      act(() => openCourse(code));
+      // Drills stay mounted under the newest: the newest is last.
+      const newest = () => screen.getAllByTestId("usually-offered").at(-1);
+      await waitFor(() => expect(newest()).toHaveTextContent(words));
+      const row = newest();
+      if (!row) throw new Error(`no Usually offered for ${code}`);
+      expect(within(row).getByRole("img")).toBeInTheDocument();
+    }
+  });
+
   it("shows a course as soon as its department loads, while the rest of the term waits", async () => {
     const { queryClient } = await renderShell({
       routes: [searchPanels, panels],

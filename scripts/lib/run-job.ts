@@ -4,6 +4,7 @@ import { runCalendar } from "~/ingest/calendar";
 import { runCatalog } from "~/ingest/catalog";
 import { publishCourseIndex } from "~/ingest/course-index";
 import { snapshotHistory } from "~/ingest/history";
+import { publishHistoryOffered } from "~/ingest/history-offered";
 import { createHttpClient } from "~/ingest/http";
 import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { consoleLogger } from "~/ingest/publish";
@@ -16,6 +17,7 @@ export const PIPELINE_JOBS = [
   "catalog",
   "courses",
   "history",
+  "offered",
   "seats",
   "planetterp",
   "calendar",
@@ -65,12 +67,25 @@ export async function runPipelineJob(
       // The course index alone, from the catalog already in the store.
       result = { ...(await publishCourseIndex(common)) };
       break;
-    case "history":
-      // The instructor history, from the catalog already in the store.
-      // --force copies chunks held back for a sharp drop in sections.
+    case "history": {
+      // The instructor history, from the catalog already in the store,
+      // then the offered file from it, as the cron does. --force copies
+      // chunks held back for a sharp drop in sections.
+      const snapshot = await snapshotHistory({
+        ...common,
+        force: options.force,
+      });
+      const offered = await publishHistoryOffered(common);
       result = {
-        ...(await snapshotHistory({ ...common, force: options.force })),
+        ...snapshot,
+        offered,
+        errors: [...snapshot.errors, ...offered.errors],
       };
+      break;
+    }
+    case "offered":
+      // The offered file alone, from the history already in the store.
+      result = { ...(await publishHistoryOffered(common)) };
       break;
     case "seats":
       result = {

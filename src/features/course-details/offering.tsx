@@ -8,85 +8,103 @@ import {
   offeringStrip,
   offeringSummary,
 } from "~/core/history/offering-pattern";
-import type { Course, TermId } from "~/core/schema";
+import type { CourseCode, Term, TermId } from "~/core/schema";
 import { useCatalog } from "~/state/catalog-store";
 import { useOfferingHistory } from "~/state/offerings";
 import { WithTooltip } from "~/ui/tooltip";
 
 // "Usually offered" in course details (docs/decisions.md, "Offering
-// patterns from the history", the report's variant A): one line under the
-// title when the course keeps to a season, and its strip with the other
-// facts. A course that runs every fall and spring says nothing: the line
-// only appears when it's news.
+// patterns from the history"): a fact row like Prerequisite and
+// Restriction, always there once the history is in, for a course that runs
+// every semester too ("Fall and spring"), and plainly "Not enough history
+// to tell" when that's the case (the owner, 2026-10-05). Its strip shows
+// the eight years at a glance; its tooltip counts them.
 
-/** The course's offering pattern as course details shows it; null when it isn't news. */
-export function useCourseOffering(course: Course, termId: TermId) {
+/**
+ * A course's offering pattern as course details shows it, from its
+ * department's history and its cross-listings'; null until that's in.
+ * `inTerm` says the term's catalog has it, a fact the history may not
+ * have caught up with.
+ */
+export function useCourseOffering(
+  codes: readonly CourseCode[],
+  termId: TermId,
+  inTerm: boolean,
+) {
   const terms = useCatalog((s) => s.terms);
-  const codes = useMemo(
-    () => [course.code, ...course.crossListings],
-    [course.code, course.crossListings],
-  );
+  const key = codes.join(",");
+  const stableCodes = useMemo(() => key.split(","), [key]);
   const history = useOfferingHistory(
-    useMemo(() => codes.map((c) => c.slice(0, 4)), [codes]),
+    useMemo(() => stableCodes.map((c) => c.slice(0, 4)), [stableCodes]),
   );
   return useMemo(() => {
     if (!history || !terms || terms.length === 0) return null;
     const now = terms.reduce((a, t) => (t.id > a ? t.id : a), termId);
-    const listed = new Set(
-      terms.filter((t) => t.status === "active").map((t) => t.id),
-    );
-    // This term's catalog has it, whether or not the history has caught up.
-    const offered = offeredTermsIn(history.depts, codes).add(termId);
-    const recorded = new Set([...history.recorded, termId]);
+    const active = terms.filter((t) => t.status === "active");
+    const listed = new Set(active.map((t) => t.id));
+    const offered = offeredTermsIn(history.depts, stableCodes);
+    const recorded = new Set(history.recorded);
+    if (inTerm) {
+      offered.add(termId);
+      recorded.add(termId);
+    }
     const summary = offeringSummary({ offered, recorded, now });
     const line = offeringLine(summary, termId, listed, offered);
-    if (!line) return null;
     const cells = offeringStrip({ offered, recorded, now });
-    return { line, summary, cells, record: offeringRecord(summary) };
-  }, [history, terms, codes, termId]);
+    const title =
+      history.depts
+        .get(stableCodes[0]?.slice(0, 4) ?? "")
+        ?.courses.find((c) => c.code === stableCodes[0])?.title ?? null;
+    /** A later term Testudo lists that has it: where "Open" goes. */
+    const listedNext: Term | null =
+      line.next && !line.next.likely
+        ? (active.find((t) => t.id === line.next?.termId) ?? null)
+        : null;
+    return {
+      line,
+      summary,
+      cells,
+      record: offeringRecord(summary),
+      title,
+      listedNext,
+    };
+  }, [history, terms, stableCodes, termId, inTerm]);
 }
 
 export type CourseOffering = NonNullable<ReturnType<typeof useCourseOffering>>;
 
-/** "Usually offered: Every other fall · Next likely: Fall 2028". */
-export function OfferingLine({ offering }: { offering: CourseOffering }) {
-  const { line, record } = offering;
+/**
+ * "Usually offered  Spring only · Next likely Spring 2028", with the strip
+ * under it: the same weight as the other facts.
+ */
+export function UsuallyOffered({ offering }: { offering: CourseOffering }) {
+  const { line, record, cells } = offering;
+  const span = stripSpan(cells);
+  const tip = [
+    record ?? "Too few fall and spring semesters on record to tell.",
+    span ? `${span}: filled ran, hollow didn't, dashed isn't on record.` : "",
+    "A pattern from past semesters, not a promise.",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <WithTooltip
-      label={`${record ? `${record} ` : ""}A pattern from past semesters, not a promise.`}
-    >
-      <p className="mt-1 text-sm text-muted" data-testid="usually-offered">
-        Usually offered:{" "}
-        <span className="font-medium text-fg">{line.words}</span>
-        {line.next ? (
-          <>
-            {" · "}
-            {line.next.likely ? "Next likely" : "Next"}:{" "}
-            <span className="font-medium text-fg">
-              {termLabel(line.next.termId)}
-            </span>
-          </>
-        ) : null}
-      </p>
+    <WithTooltip label={tip}>
+      <div data-testid="usually-offered">
+        <p>
+          <span className="font-medium text-fg">Usually offered</span>{" "}
+          <span className="text-muted">
+            {line.words}
+            {line.next
+              ? ` · ${line.next.likely ? "Next likely" : "Next"} ${termLabel(line.next.termId)}`
+              : null}
+          </span>
+        </p>
+        <OfferingStrip
+          className="mt-1 flex"
+          cells={cells}
+          label={record ?? "When it was offered, fall and spring"}
+        />
+      </div>
     </WithTooltip>
-  );
-}
-
-/** "Offered  ▯▮▯▮…  Fall 2018 to Spring 2027 · in 5 of the 16 terms on record". */
-export function OfferingFact({ offering }: { offering: CourseOffering }) {
-  const { cells, record } = offering;
-  const onRecord = cells.filter((c) => c.state !== "not-on-record").length;
-  const ran = cells.filter((c) => c.state === "offered").length;
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
-      <span className="font-medium text-fg">Offered</span>
-      <OfferingStrip
-        cells={cells}
-        label={record ?? "When it was offered, fall and spring"}
-      />
-      <span className="text-muted text-xs">
-        {stripSpan(cells)} · in {ran} of the {onRecord} terms on record
-      </span>
-    </div>
   );
 }

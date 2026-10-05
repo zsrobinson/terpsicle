@@ -116,10 +116,13 @@ Whoever teaches a section, or "TBA" when Testudo hasn't named one. Copy says "in
 Our own record of who taught each course in each term, kept after Testudo stops listing the term (DATA.md §3.5). Older terms come from PlanetTerp's grades and are marked as theirs. Say "taught", as in "Taught CMSC351 in Fall 2026".
 
 **Offering pattern**:
-When a course usually runs, read from the instructor history: every fall and spring, once a year in a fixed season ("Spring only"), every other year ("Every other fall"), mostly one season, or no fixed season. Copy says "Usually offered: Spring only" and "Next likely: Spring 2028"; a course that runs every semester says nothing. A term the history has no record of is unknown, never "not offered". Never call it a schedule or a promise.
+When a course usually runs, read from the instructor history: every fall and spring, once a year in a fixed season ("Spring only"), every other year ("Every other fall"), mostly one season, or no fixed season. Copy says "Usually offered" with "Fall and spring", "Spring only" or "Every other fall", then "Next likely Spring 2028" (or "Next Spring 2027" when Testudo lists it); with too little history, plainly "Not enough history to tell" or "Too new to tell". It's always shown, every-semester courses included (the owner, 2026-10-05). A term the history has no record of is unknown, never "not offered". Never call it a schedule or a promise.
+
+**Not offered (search row)**:
+A course Schedule's search matches that the term doesn't have, after the term's own results, greyed and with nothing to add: "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027". From the offered file (DATA.md §3.5). Opening it shows its details, which offer "Open Fall 2026" when a term Testudo lists has it.
 
 **Offering strip**:
-A course's falls and springs over the last eight years in a row of small cells, a school year to a pair: filled where it ran, hollow where it didn't, dashed where the history has no record. In Schedule's course details ("Offered") and Plan's problem rows.
+A course's falls and springs over the last eight years in a row of small cells, a school year to a pair: filled where it ran, hollow where it didn't, dashed where the history has no record. Under course details' "Usually offered" fact, and in Plan's problem rows.
 
 **GenEd**:
 A UMD General Education code (DSHS, DSNL, FSAW, …). A course can count for one of several ("DSHS or DSHU"). The search chip reads "Gen-eds".

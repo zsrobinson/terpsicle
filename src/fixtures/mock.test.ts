@@ -33,6 +33,8 @@ import {
 import {
   HistoryDeptSchema,
   HistoryManifestSchema,
+  HistoryOfferedManifestSchema,
+  HistoryOfferedSchema,
   HistoryTermSchema,
 } from "~/core/schema/history";
 import {
@@ -114,6 +116,8 @@ describe("the mock bucket", () => {
       [/^history\/manifest\.json$/, HistoryManifestSchema],
       [/^history\/term\/\d{6}\.[0-9a-f]{16}\.json$/, HistoryTermSchema],
       [/^history\/dept\/[A-Z]{4}\.[0-9a-f]{16}\.json$/, HistoryDeptSchema],
+      [/^offered\/manifest\.json$/, HistoryOfferedManifestSchema],
+      [/^offered\/courses\.[0-9a-f]{16}\.json$/, HistoryOfferedSchema],
     ];
     expect(files.size).toBeGreaterThan(100);
     for (const [key, bytes] of files) {

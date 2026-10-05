@@ -88,10 +88,75 @@ describe("Search tab", () => {
   it("always says how many courses match", async () => {
     const { user, box } = await renderSearch();
     await user.type(box, "cmsc");
+    // And how many more it knows that the term doesn't have.
     expect(
-      screen.getByText(new RegExp(`^${matchCount()} courses$`)),
+      await screen.findByText(
+        new RegExp(
+          `^${matchCount()} courses · \\d not offered in Spring 2027$`,
+        ),
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+  });
+
+  it("shows a course the term doesn't have, greyed, with when it runs", async () => {
+    // The owner's flow: a fall-only course, while building a spring.
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc473");
+    const row = await screen.findByRole("option", { name: /^CMSC473/ });
+    expect(row).toHaveAttribute("data-not-offered", "CMSC473");
+    expect(row).toHaveClass("text-muted");
+    expect(row).toHaveTextContent("Capstone in Machine Learning");
+    expect(row).toHaveTextContent(
+      "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027",
+    );
+    // Nothing to add: it isn't a result of this term.
+    expect(within(row).queryByRole("button")).toBeNull();
+    expect(screen.getByRole("listbox")).toHaveAccessibleName(
+      "0 courses, 1 not offered this term",
+    );
+    // Opening it says what it is and when it's offered.
+    await user.click(row);
+    expect(
+      await screen.findByText(/isn't offered in Spring 2027/),
+    ).toBeInTheDocument();
+    expect(await screen.findByTestId("usually-offered")).toHaveTextContent(
+      "Usually offered Fall only · Next likely Fall 2027",
+    );
+  });
+
+  it("lists the term's own results first, then the ones it doesn't have", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc47");
+    await screen.findByRole("option", { name: /^CMSC473/ });
+    const rows = screen.getAllByRole("option").map((row) => ({
+      code:
+        row.getAttribute("data-course-result") ??
+        row.getAttribute("data-not-offered"),
+      greyed: row.hasAttribute("data-not-offered"),
+      top: Number.parseFloat(row.style.top),
+    }));
+    const ordered = [...rows].sort((a, b) => a.top - b.top);
+    const firstGrey = ordered.findIndex((r) => r.greyed);
+    expect(firstGrey).toBeGreaterThan(0);
+    expect(ordered.slice(firstGrey).every((r) => r.greyed)).toBe(true);
+    expect(ordered.filter((r) => r.greyed).map((r) => r.code)).toEqual([
+      "CMSC471",
+      "CMSC473",
+      "CMSC474",
+    ]);
+  });
+
+  it("shows none with a filter on: the file knows no sections", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc473");
+    await screen.findByRole("option", { name: /^CMSC473/ });
+    await user.click(screen.getByRole("button", { name: /Open seats/ }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("option", { name: /^CMSC473/ }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("hovering a result shows its sections; leaving hides them", async () => {

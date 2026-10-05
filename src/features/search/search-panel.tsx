@@ -9,6 +9,7 @@ import {
 } from "react";
 import { MetaSep, PanelNote } from "~/components/panel";
 import type { FitContext } from "~/core/fit";
+import type { NotOfferedMatch } from "~/core/history/offered";
 import type { Course, DeptCode, TermId } from "~/core/schema";
 // Not the ~/core/search barrel: it carries the text index, which loads
 // on its own (~/state/search-engine).
@@ -64,6 +65,7 @@ import {
   useSearchFromUrl,
 } from "./search-url";
 import { useCourseResults, useSearchInfo } from "./use-course-search";
+import { useNotOffered } from "./use-not-offered";
 
 // The Search tab (SPEC §3.5): a box, one line of filter chips, and a list of
 // courses (never sections). Hovering a result shows its sections on the
@@ -75,7 +77,7 @@ export const ROW_HEIGHT = 72;
 const OVERSCAN = 6;
 
 export function SearchPanel() {
-  const { termId } = useActiveTerm();
+  const { termId, term } = useActiveTerm();
   useSearchFromUrl(termId);
   const { query, filters, sort } = useTermSearch(termId);
   const setQuery = typeQuery;
@@ -85,6 +87,9 @@ export function SearchPanel() {
   const inputRef = useFocusRequest<HTMLInputElement>("search");
   const [active, setActive] = useState(-1);
   const courses = results.status === "ready" ? results.courses : NO_COURSES;
+  // Courses the term doesn't have, greyed after its own (./use-not-offered).
+  const notOffered = useNotOffered(termId, query, filters);
+  const rowCount = courses.length + notOffered.length;
 
   useSearchAnalytics(query, filters, results);
   // A new query starts the keyboard cursor over.
@@ -101,7 +106,7 @@ export function SearchPanel() {
   }, [courses]);
 
   const open = (index: number) => {
-    const course = courses[index];
+    const course = courses[index] ?? notOffered[index - courses.length];
     if (!course) return;
     useUi.getState().setHoverCourse(null);
     track("search_result_opened", { position: index });
@@ -154,7 +159,7 @@ export function SearchPanel() {
                 }
               : undefined
           }
-          count={courses.length}
+          count={rowCount}
           active={active}
           onActiveChange={(next) => {
             setActive(next);
@@ -191,7 +196,7 @@ export function SearchPanel() {
         />
       ) : results.status === "loading" ? (
         <ResultsSkeleton />
-      ) : courses.length === 0 ? (
+      ) : rowCount === 0 ? (
         <NoResults
           query={query}
           filters={filters}
@@ -203,6 +208,9 @@ export function SearchPanel() {
           <div className="flex h-7 shrink-0 items-center gap-2 border-hairline border-b px-4 text-muted text-xs">
             <span className="tnum mr-auto">
               {courses.length} {courses.length === 1 ? "course" : "courses"}
+              {notOffered.length > 0
+                ? ` · ${notOffered.length} not offered in ${term?.name ?? "this term"}`
+                : null}
             </span>
             {isFiltering(filters) ? (
               <WithTooltip label="Turn every filter off">
@@ -228,6 +236,7 @@ export function SearchPanel() {
           </div>
           <ResultList
             courses={courses}
+            notOffered={notOffered}
             sort={sort}
             active={active}
             onOpen={open}
@@ -364,12 +373,15 @@ function useSearchAnalytics(
 
 function ResultList({
   courses,
+  notOffered,
   sort,
   active,
   onOpen,
   onHover,
 }: {
   courses: readonly Course[];
+  /** After the term's own, greyed: courses it doesn't have. */
+  notOffered: readonly NotOfferedMatch[];
   sort: SearchSort;
   active: number;
   onOpen: (index: number) => void;
@@ -430,9 +442,10 @@ function ResultList({
       el.scrollTop = top + ROW_HEIGHT - el.clientHeight;
   }, [active]);
 
+  const total = courses.length + notOffered.length;
   const first = Math.max(0, Math.floor(view.top / ROW_HEIGHT) - OVERSCAN);
   const last = Math.min(
-    courses.length,
+    total,
     Math.ceil((view.top + view.height) / ROW_HEIGHT) + OVERSCAN,
   );
 
@@ -441,7 +454,7 @@ function ResultList({
       ref={ref}
       id="search-results"
       role="listbox"
-      aria-label={`${courses.length} ${courses.length === 1 ? "course" : "courses"}`}
+      aria-label={`${courses.length} ${courses.length === 1 ? "course" : "courses"}${notOffered.length > 0 ? `, ${notOffered.length} not offered this term` : ""}`}
       className="scroll-thin relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
       onScroll={(e) =>
         setView({
@@ -451,7 +464,28 @@ function ResultList({
       }
       onPointerLeave={() => setHoverCourse(null)}
     >
-      <div style={{ height: courses.length * ROW_HEIGHT }} className="relative">
+      <div style={{ height: total * ROW_HEIGHT }} className="relative">
+        {notOffered
+          .slice(
+            Math.max(0, first - courses.length),
+            Math.max(0, last - courses.length),
+          )
+          .map((match, i) => {
+            const index = Math.max(first, courses.length) + i;
+            return (
+              <NotOfferedRow
+                key={`not-offered-${match.code}`}
+                index={index}
+                match={match}
+                active={index === active}
+                onOpen={() => onOpen(index)}
+                onHover={() => {
+                  onHover(index);
+                  setHoverCourse(null);
+                }}
+              />
+            );
+          })}
         {courses.slice(first, last).map((course, i) => {
           const index = first + i;
           return (
@@ -545,6 +579,52 @@ function ResultRow({
         ) : undefined
       }
     />
+  );
+}
+
+/**
+ * A course the term doesn't have, after its own results: greyed, nothing
+ * to add, and when it does run ("Not offered in Spring 2027 · Usually fall
+ * only · Next likely Fall 2027"). Opening it shows its details, which
+ * offer the term that has it when Testudo lists one.
+ */
+function NotOfferedRow({
+  index,
+  match,
+  active,
+  onOpen,
+  onHover,
+}: {
+  index: number;
+  match: NotOfferedMatch;
+  active: boolean;
+  onOpen: () => void;
+  onHover: () => void;
+}) {
+  return (
+    <WithTooltip label={`When ${match.code} is offered, and where to find it`}>
+      <CourseResultRow
+        code={match.code}
+        title={match.title ?? match.code}
+        credits={match.credits ?? undefined}
+        meta={match.words}
+        id={`search-result-${index}`}
+        role="option"
+        aria-selected={active}
+        tabIndex={-1}
+        data-not-offered={match.code}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onOpen();
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType === "mouse" && !active) onHover();
+        }}
+        state={active ? "previewed" : undefined}
+        className="absolute inset-x-0 cursor-pointer text-muted hover:bg-hover"
+        style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
+      />
+    </WithTooltip>
   );
 }
 

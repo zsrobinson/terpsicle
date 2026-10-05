@@ -2,9 +2,10 @@ import { expect, type Page, test } from "@playwright/test";
 
 // Offering patterns (docs/decisions.md, "Offering patterns from the
 // history") on `pnpm dev:mock`, whose history has real records for a few
-// CMSC courses (src/fixtures/mock/history.ts): Schedule's "Usually offered"
-// line, and Plan's note on a spring-only course planned for a fall, with its
-// Move fix and Undo. On desktop and a phone.
+// CMSC courses (src/fixtures/mock/history.ts): course details' "Usually
+// offered" fact, Search's greyed row for a course the term doesn't have,
+// and Plan's note on a spring-only course planned for a fall, with its Move
+// fix. On desktop and a phone.
 
 let errors: string[] = [];
 
@@ -38,12 +39,17 @@ async function add(page: Page, isMobile: boolean, term: string, code: string) {
   await expect(column.getByText(code)).toBeVisible();
 }
 
-test("course details say when a course is usually offered, and only then", async ({
+test("course details always say when a course is usually offered", async ({
   page,
 }) => {
   await page.goto("/schedule/course/CMSC452");
-  await expect(page.getByTestId("usually-offered")).toHaveText(
-    "Usually offered: Spring only · Next likely: Spring 2028",
+  // A cold page loads the scheduler and its term first: waited for as an
+  // action would, as search.spec's demo rows are.
+  await page
+    .getByRole("heading", { name: "Elementary Theory of Computation" })
+    .waitFor();
+  await expect(page.getByTestId("usually-offered")).toContainText(
+    "Usually offered Spring only · Next likely Spring 2028",
   );
   await expect(
     page.getByRole("img", {
@@ -51,10 +57,36 @@ test("course details say when a course is usually offered, and only then", async
     }),
   ).toBeVisible();
 
-  // The CS core runs every fall and spring: nothing to say.
+  // The CS core runs every fall and spring, and says so.
   await page.goto("/schedule/course/CMSC351");
-  await expect(page.getByRole("heading", { name: "Algorithms" })).toBeVisible();
-  await expect(page.getByTestId("usually-offered")).toHaveCount(0);
+  await page.getByRole("heading", { name: "Algorithms" }).waitFor();
+  await expect(page.getByTestId("usually-offered")).toContainText(
+    "Usually offered Fall and spring",
+  );
+});
+
+test("searching a fall-only course while building a spring finds it, greyed, with when it runs", {
+  // The owner asked for this flow by name: it's in the merge gate.
+  tag: ["@critical", "@phone"],
+}, async ({ page }) => {
+  // The owner's flow (2026-10-05): CMSC473 runs only in falls; the
+  // scheduler is on Spring 2027.
+  await page.goto("/schedule/search");
+  await page.getByRole("combobox", { name: "Search courses" }).fill("CMSC473");
+  const row = page.getByRole("option", { name: /^CMSC473/ });
+  await expect(row).toBeVisible();
+  await expect(row).toHaveAttribute("data-not-offered", "CMSC473");
+  await expect(row).toContainText("Capstone in Machine Learning");
+  await expect(row).toContainText(
+    "Not offered in Spring 2027 · Usually fall only · Next likely Fall 2027",
+  );
+  await row.click();
+  await expect(
+    page.getByText("CMSC473 isn't offered in Spring 2027."),
+  ).toBeVisible();
+  await expect(page.getByTestId("usually-offered")).toContainText(
+    "Usually offered Fall only · Next likely Fall 2027",
+  );
 });
 
 test("Plan notes a spring-only course in a fall, and moves it", async ({
@@ -65,15 +97,10 @@ test("Plan notes a spring-only course in a fall, and moves it", async ({
   await page.getByLabel("I started at UMD in").click();
   await page.getByRole("option", { name: "Fall 2025" }).click();
   await page.getByRole("button", { name: "or add courses yourself" }).click();
+  // Both semesters are light already, so moving makes no new problem and
+  // the Move is offered.
   await add(page, isMobile, "Fall 2027", "CMSC452");
-  await add(page, isMobile, "Fall 2027", "CMSC420");
-  await add(page, isMobile, "Fall 2027", "CMSC421");
-  await add(page, isMobile, "Fall 2027", "CMSC451");
-  await add(page, isMobile, "Fall 2027", "CMSC433");
   await add(page, isMobile, "Spring 2028", "CMSC434");
-  await add(page, isMobile, "Spring 2028", "CMSC422");
-  await add(page, isMobile, "Spring 2028", "CMSC424");
-  await add(page, isMobile, "Spring 2028", "CMSC417");
 
   await page.goto("/plan/problems");
   const problems = page.getByRole("list", { name: "Problems" });

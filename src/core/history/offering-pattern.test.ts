@@ -8,10 +8,11 @@ import {
   offeredLikelihood,
   offeredTermsIn,
   offeringLine,
-  offeringNews,
+  offeringPhrase,
   offeringRecord,
   offeringStrip,
   offeringSummary,
+  offeringText,
   offeringWords,
 } from "./offering-pattern";
 
@@ -396,7 +397,7 @@ describe("offeringWords", () => {
   });
 });
 
-describe("offeringNews", () => {
+describe("offeringText and offeringPhrase", () => {
   const at = (
     pattern: OfferingSummary["pattern"],
     confidence: OfferingSummary["confidence"] = "high",
@@ -410,22 +411,60 @@ describe("offeringNews", () => {
     falls: { offered: 0, onRecord: 0 },
     springs: { offered: 0, onRecord: 0 },
   });
+  const both = (summary: OfferingSummary) => [
+    offeringText(summary),
+    offeringPhrase(summary),
+  ];
 
-  it("says a season only when it's news and the record backs it", () => {
-    expect(offeringNews(at({ kind: "every-semester" }))).toBeNull();
-    expect(offeringNews(at({ kind: "once-a-year", season: "spring" }))).toBe(
+  it("always says something, every-semester courses included", () => {
+    expect(both(summary(EVERY))).toEqual([
+      "Fall and spring",
+      "Usually fall and spring",
+    ]);
+    expect(both(summary(CMSC452))).toEqual([
       "Spring only",
-    );
-    expect(
-      offeringNews(at({ kind: "once-a-year", season: "spring" }, "low")),
-    ).toBeNull();
-    expect(offeringNews(at({ kind: "irregular", lean: "fall" }))).toBe(
-      "Mostly fall",
-    );
-    // No season to tell: special topics and the like say nothing.
-    expect(offeringNews(at({ kind: "irregular", lean: null }))).toBeNull();
-    expect(offeringNews(at({ kind: "rare" }))).toBeNull();
-    expect(offeringNews(at({ kind: "new" }, "medium"))).toBeNull();
+      "Usually spring only",
+    ]);
+    expect(both(summary(CCJS453))).toEqual([
+      "Every other fall",
+      "Usually every other fall",
+    ]);
+    expect(both(summary(CMSC416))).toEqual([
+      "Every fall, some springs",
+      "Usually every fall, some springs",
+    ]);
+    expect(both(summary(CMSC454))).toEqual(["Mostly spring", "Mostly spring"]);
+    expect(both(at({ kind: "irregular", lean: null }))).toEqual([
+      "No fixed season",
+      "No fixed season",
+    ]);
+    expect(both(summary("00100000000000--10"))).toEqual([
+      "Rarely",
+      "Rarely offered",
+    ]);
+  });
+
+  it("says plainly when the record is too thin to tell", () => {
+    expect(both(summary("00000000000000--10"))).toEqual([
+      "Not enough history to tell",
+      "Not enough history to tell",
+    ]);
+    expect(both(summary("00000000000010--10"))).toEqual([
+      "Too new to tell",
+      "Too new to tell",
+    ]);
+    // A pattern on too few terms on record isn't one yet.
+    expect(both(summary("11--------------11"))).toEqual([
+      "Not enough history to tell",
+      "Not enough history to tell",
+    ]);
+  });
+
+  it("says when a discontinued course last ran", () => {
+    expect(both(summary("11111111000000--00"))).toEqual([
+      "Not since Spring 2022",
+      "Last offered Spring 2022",
+    ]);
   });
 });
 
@@ -497,9 +536,12 @@ describe("offeringLine", () => {
     });
   });
 
-  it("says nothing for a course that runs every semester", () => {
+  it("says every semester too, with no next to point out", () => {
     const { offered } = strip(EVERY);
-    expect(offeringLine(summary(EVERY), "202701", listed, offered)).toBeNull();
+    expect(offeringLine(summary(EVERY), "202701", listed, offered)).toEqual({
+      words: "Fall and spring",
+      next: null,
+    });
   });
 });
 

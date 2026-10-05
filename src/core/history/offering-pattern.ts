@@ -1,5 +1,6 @@
 import type { TermId } from "~/core/schema";
 import type { HistoryDept } from "~/core/schema/history";
+import { termLabel } from "../catalog/terms";
 
 // Offering patterns (docs/decisions.md, "Offering patterns from the
 // history"): which courses run every fall and spring, which once a year in a
@@ -405,25 +406,53 @@ export function offeringWords(pattern: OfferingPattern): string | null {
   }
 }
 
+/** Whether the record can say anything about the course's season. */
+function tellable(summary: OfferingSummary): boolean {
+  const { kind } = summary.pattern;
+  return (
+    kind !== "no-history" &&
+    kind !== "new" &&
+    kind !== "discontinued" &&
+    summary.confidence !== "low"
+  );
+}
+
 /**
- * The words worth showing beside a course: a season it keeps to, when the
- * record backs it. Null for every-semester courses and for ones with no
- * season to tell (rare, irregular with no lean, special topics), so the
- * line only appears when it's news.
+ * The course's offering pattern as a fact, always something: "Fall and
+ * spring", "Spring only", "Every other fall", "Not enough history to
+ * tell", "Too new to tell", "Not since Spring 2021". For course details'
+ * "Usually offered" row.
  */
-export function offeringNews(summary: OfferingSummary): string | null {
-  if (summary.confidence === "low") return null;
+export function offeringText(summary: OfferingSummary): string {
   const { pattern } = summary;
-  if (pattern.kind === "irregular" && pattern.lean === null) return null;
-  if (
-    pattern.kind === "leans" ||
-    pattern.kind === "once-a-year" ||
-    pattern.kind === "alternate-years" ||
-    pattern.kind === "summer-or-winter" ||
-    pattern.kind === "irregular"
-  )
-    return offeringWords(pattern);
-  return null;
+  if (pattern.kind === "discontinued")
+    return `Not since ${termLabel(pattern.last)}`;
+  if (pattern.kind === "new") return "Too new to tell";
+  if (!tellable(summary)) return "Not enough history to tell";
+  if (pattern.kind === "every-semester") return "Fall and spring";
+  return offeringWords(pattern) ?? "Not enough history to tell";
+}
+
+/**
+ * The same as a phrase that stands alone, for a search row ("Not offered
+ * in Spring 2027 · Usually fall only"): "Usually fall and spring", "Usually
+ * every other fall", "Mostly spring", "Rarely offered", "Last offered
+ * Spring 2021", "Not enough history to tell".
+ */
+export function offeringPhrase(summary: OfferingSummary): string {
+  const { pattern } = summary;
+  if (pattern.kind === "discontinued")
+    return `Last offered ${termLabel(pattern.last)}`;
+  const text = offeringText(summary);
+  if (!tellable(summary)) return text;
+  switch (pattern.kind) {
+    case "irregular":
+      return text;
+    case "rare":
+      return "Rarely offered";
+    default:
+      return `Usually ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+  }
 }
 
 /** "7 of the 8 springs", "no fall". */
@@ -457,18 +486,18 @@ export function offeringRecord(summary: OfferingSummary): string | null {
 }
 
 /**
- * The line beside a course: its pattern's words and when it runs next
- * after `after` ("Every other fall", Fall 2028, likely). Null when the
- * pattern isn't news (`offeringNews`).
+ * Course details' "Usually offered" row: the pattern's words, always, and
+ * when it runs next after `after` ("Every other fall", Fall 2028, likely).
+ * A course that runs every fall and spring has no "next" to point out.
  */
 export function offeringLine(
   summary: OfferingSummary,
   after: TermId,
   listed: ReadonlySet<TermId>,
   offered: ReadonlySet<TermId>,
-): { words: string; next: { termId: TermId; likely: boolean } | null } | null {
-  const words = offeringNews(summary);
-  if (!words) return null;
+): { words: string; next: { termId: TermId; likely: boolean } | null } {
+  const words = offeringText(summary);
+  if (summary.pattern.kind === "every-semester") return { words, next: null };
   return { words, next: nextOffering(summary, after, listed, offered) };
 }
 

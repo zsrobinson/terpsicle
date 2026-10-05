@@ -1,20 +1,35 @@
 import { snapshotHistory } from "~/ingest/history";
+import { publishHistoryOffered } from "~/ingest/history-offered";
 import { type Job, jobLog, runJob } from "./job";
 import { createR2BlobStore } from "./r2-blob-store";
 
 /**
  * Instructor history (DATA.md §3.5): copies each term's changed department
  * chunks into our own record of who taught what, so a term isn't lost when
- * Testudo stops listing it. Every 6 hours, 41 minutes after the catalog
+ * Testudo stops listing it, then brings the offered file (when each course
+ * runs) up to date with it. Every 6 hours, 41 minutes after the catalog
  * crawl, so it has 15 min of CPU. Reads only R2.
  */
 export const runHistoryJob: Job = async (context) => {
   await runJob("history", context, async () => {
+    const store = createR2BlobStore(context.env.DATA);
     const { errors, ...counts } = await snapshotHistory({
-      store: createR2BlobStore(context.env.DATA),
+      store,
       now: context.now,
       log: jobLog,
     });
-    return { counts, errors };
+    const offered = await publishHistoryOffered({
+      store,
+      now: context.now,
+      log: jobLog,
+    });
+    return {
+      counts: {
+        ...counts,
+        offeredTerms: offered.terms,
+        offeredCourses: offered.courses,
+      },
+      errors: [...errors, ...offered.errors],
+    };
   });
 };

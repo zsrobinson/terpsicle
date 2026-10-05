@@ -13,6 +13,7 @@ import {
   historySourceCounts,
   mergeHistoryTerm,
   patchHistoryDept,
+  patchHistoryOffered,
 } from "~/core/history";
 import { buildReviewsDepts } from "~/core/reviews";
 import { buildPlanetTerpIndex } from "~/core/reviews/planetterp-index";
@@ -34,6 +35,8 @@ import {
   historyTermKey,
   type Manifest,
   manifestKey,
+  OFFERED_MANIFEST_KEY,
+  offeredKey,
   PLANETTERP_MANIFEST_KEY,
   type PlanetTerpDept,
   type PlanetTerpManifest,
@@ -49,7 +52,12 @@ import {
   type TermId,
   TRAVEL_MODES,
 } from "~/core/schema";
-import type { HistoryDept, HistoryManifest } from "~/core/schema/history";
+import type {
+  HistoryCourse,
+  HistoryDept,
+  HistoryManifest,
+  HistoryOfferedManifest,
+} from "~/core/schema/history";
 import { FIXTURE_NOW, fixtureTermId } from "../builders";
 import { mockCatalog, mockDepartmentNames } from "./catalog";
 import { mockChanges } from "./changes";
@@ -208,6 +216,7 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
   const historyDepts = new Map<string, HistoryDept | null>();
   // Older terms (./history.ts) give offering patterns years to read.
   const backfill = mockHistoryBackfill();
+  const offeredTerms = new Map<TermId, HistoryCourse[]>();
   const historyTermIds = [
     ...new Set([...Object.keys(mockCatalog), ...backfill.keys()]),
   ].sort();
@@ -217,6 +226,7 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
       ...chunks.flatMap((chunk) => historyCoursesFromChunk(chunk.courses)),
       ...(backfill.get(termId) ?? []),
     ]);
+    offeredTerms.set(termId, term.courses);
     historyTerms.unshift({
       termId,
       hash: await putHashed((h) => historyTermKey(termId, h), term),
@@ -249,6 +259,19 @@ async function build(): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
         hash: await putHashed((h) => historyDeptKey(code, h), file),
       });
   put(HISTORY_MANIFEST_KEY, jsonBytes(historyManifest));
+
+  // The offered file, as the history job derives it (src/ingest/history-offered.ts).
+  const offered = patchHistoryOffered(null, {
+    recorded: offeredTerms.keys(),
+    reread: offeredTerms,
+  });
+  const offeredManifest: HistoryOfferedManifest = {
+    schemaVersion: 1,
+    generatedAt: "2026-09-25T06:41:00.000Z",
+    hash: await putHashed(offeredKey, offered),
+    built: Object.fromEntries(historyTerms.map((t) => [t.termId, t.hash])),
+  };
+  put(OFFERED_MANIFEST_KEY, jsonBytes(offeredManifest));
 
   const ptDepartments: PlanetTerpManifest["departments"] = [];
   for (const dept of mockPlanetTerpDepts)
