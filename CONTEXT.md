@@ -187,7 +187,7 @@ Keeping a signed-in person's plans and four-year plans the same on every device.
 _Avoid_: the cloud (for Todo's sync)
 
 **Account key**:
-The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. Deleting the account destroys it first. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
+The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. It lives apart from that data (in R2), and deleting the account destroys it, so nothing it encrypted can be read again, even from a backup. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
 _Avoid_: end-to-end (encryption), zero-knowledge, sync key
 
 **Delete account**:

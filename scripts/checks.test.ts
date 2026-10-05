@@ -169,6 +169,14 @@ describe("the sealed tables rule", () => {
     expect(problems[0]).toContain(
       "read synced docs through src/server/sync/store.ts",
     );
+    // The bucket that holds the keys, too.
+    const bucket = 'await env.USER_KEYS.get("keys/x");';
+    expect(findImportProblems("src/server/chat/store.ts", bucket)).toEqual([
+      expect.stringContaining('"USER_KEYS"'),
+    ]);
+    expect(
+      findImportProblems("src/server/security/user-keys.ts", bucket),
+    ).toEqual([]);
   });
 
   it("allows each in its own files, tests and comments", () => {
