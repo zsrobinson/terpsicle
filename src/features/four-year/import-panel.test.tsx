@@ -20,7 +20,7 @@ import { connectPublished } from "~/state/query/published";
 import { TooltipProvider } from "~/ui/tooltip";
 import { removeGrades } from "./actions";
 import { PlanFirstVisit } from "./first-visit";
-import { ImportPanel } from "./import-panel";
+import { ImportView } from "./import-panel";
 import { resetTranscriptImport, useTranscriptImport } from "./import-state";
 import {
   PlanModelProvider,
@@ -76,9 +76,10 @@ function renderPanel(docOverrides: Parameters<typeof aFourYear>[0] = {}) {
   const user = userEvent.setup();
   render(
     <Harness go={go}>
-      <ImportPanel />
+      <ImportView />
     </Harness>,
   );
+  // Named by the view's header line, its one header.
   const box = screen.getByLabelText("Paste your unofficial transcript");
   return {
     user,
