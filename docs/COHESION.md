@@ -162,7 +162,7 @@ The most visible items:
    - the product menu as Schedule's `h1`.
 3. **First visits.** They look like four different products: three keylined cards, two hairline cards, a 440px column with a mark, a 560px column without one.
 4. **Chrome.** SiteHeader's border and the footer appear on some pages only. Marketing has its own header (admin had one until `v3/cohesion-admin`).
-5. **Selected states.** Nine selected-state looks across sub-navigation and chips.
+5. **Selected states.** Nine selected-state looks across sub-navigation and chips. (Chips: one, the kit's `chipClass`, selected in the soft gray, since `v3/cohesion-status`. The same PR gave Schedule and Plan one problem list, `ProblemList`, and Schedule, Plan and Todo one sync slot in the bar, `SyncSlot`.)
 6. **Cards.** Cards are keylined, hairlined or hairline-strong on the same kind of surface.
 7. **List rows.** Only Schedule uses `ListRow`. Chat retypes it, Todo and Reviews hand-roll theirs, and Plan boxes every block.
 8. **Widths.** Page widths: 440, 560, 720, 1040, 1120, 1600 and full bleed.
