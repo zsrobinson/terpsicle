@@ -1,16 +1,23 @@
 import { cn } from "cn";
 import { ArrowDownWideNarrow, ChevronDown, Funnel } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import {
   nextLevel,
   type PreferenceLevel,
   preferenceLevels,
+  preferenceMark,
   rankByFromLevels,
 } from "~/core/generate/preferences";
 import { RANK_FACTORS } from "~/core/generate/score";
+import {
+  filterRemoval,
+  planSpread,
+  type SpreadMeasure,
+} from "~/core/generate/spread";
 import type {
   Day,
   FilterCount,
+  GeneratedPlan,
   MustHaves,
   RankBy,
   RankFactor,
@@ -30,10 +37,11 @@ import {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
 } from "~/ui/action-menu";
-import { chipClass } from "~/ui/chip";
+import { CHIP_ROWS, chipClass } from "~/ui/chip";
 import { Input } from "~/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
+import { RemovalBar, SpreadChart } from "./chip-card";
 
 // Generate's chips (SPEC §3.9). Two kinds that must never be mistaken for
 // each other (the owner, 2026-09-28), both the kit's one chip (~/ui/chip,
@@ -42,6 +50,9 @@ import { WithTooltip } from "~/ui/tooltip";
 //   the number of plans each one took out, and they say "No…" or "Only…".
 // - Preferences put plans in order. A click cycles them off → on → counted
 //   double (an ink outline and "2×") → off. No funnel, no count.
+// Hovering or focusing a chip (or holding it, on a phone) opens a card with
+// more: how the plans on screen spread out on what it looks at, the top
+// plan marked, or what a filter that's on took out (./chip-card).
 
 /** Short, so the six fit two lines of the sidebar. The tooltip says more. */
 export const PREFERENCE_LABELS: Record<RankFactor, string> = {
@@ -60,6 +71,23 @@ const PREFERENCE_TIPS: Record<RankFactor, string> = {
   "best-rated": "Highest PlanetTerp instructor ratings",
   "higher-gpa": "Highest average GPA in past sections",
   "safest-seats": "Most open seats in the tightest section",
+};
+
+/** What a preference's card charts. */
+const PREFERENCE_AXES: Record<RankFactor, string> = {
+  compact: "Gaps between classes, a week",
+  "fewer-days": "Days on campus",
+  "later-starts": "Average start of a class day",
+  "best-rated": "Average instructor rating",
+  "higher-gpa": "Average GPA in past sections",
+  "safest-seats": "Open seats in the tightest section",
+};
+
+/** Plans a preference's card can't place. */
+const PREFERENCE_UNKNOWN: Partial<Record<RankFactor, string>> = {
+  "best-rated": "with no ratings",
+  "higher-gpa": "with no past grades",
+  "safest-seats": "with no seat counts",
 };
 
 const LEVEL_WORDS: Record<PreferenceLevel, string> = {
@@ -85,16 +113,41 @@ const preferenceClass = (level: PreferenceLevel) =>
 export function PreferenceChips({
   rankBy,
   onChange,
+  plans = null,
 }: {
   rankBy: RankBy;
   onChange: (next: RankBy) => void;
+  /** The plans on screen, best first, for each chip's card. */
+  plans?: readonly GeneratedPlan[] | null;
 }) {
   const levels = preferenceLevels(rankBy);
+  const spreads = useMemo(
+    () => new Map(RANK_FACTORS.map((f) => [f, plans && planSpread(f, plans)])),
+    [plans],
+  );
+  const best = plans?.[0];
+  const cardFor = (f: RankFactor) => {
+    const spread = spreads.get(f);
+    return spread ? (
+      <SpreadChart
+        spread={spread}
+        axis={PREFERENCE_AXES[f]}
+        topWords={
+          best ? preferenceMark(f, best.breakdown, best.stats).words : null
+        }
+        unknownWords={PREFERENCE_UNKNOWN[f]}
+        ranks
+      />
+    ) : undefined;
+  };
   return (
     <fieldset
       aria-label="Preferences"
       data-testid="gen-preferences"
-      className="m-0 flex min-w-0 flex-wrap items-center gap-1 border-0 p-0"
+      className={cn(
+        "m-0 flex min-w-0 flex-wrap items-center gap-x-1 border-0 p-0",
+        CHIP_ROWS,
+      )}
     >
       {RANK_FACTORS.map((f) => {
         const level = levels[f];
@@ -102,6 +155,7 @@ export function PreferenceChips({
           <WithTooltip
             key={f}
             label={`${PREFERENCE_TIPS[f]}. ${LEVEL_TIPS[level]}`}
+            card={cardFor(f)}
           >
             <button
               type="button"
@@ -187,6 +241,7 @@ function ToggleFilter({
   label,
   tip,
   count,
+  card,
   disabled = false,
   onToggle,
 }: {
@@ -194,11 +249,13 @@ function ToggleFilter({
   label: string;
   tip: string;
   count: FilterCount | undefined;
+  /** Its tooltip's card (`FilterChipsForGenerate`'s `cardFor`). */
+  card: ReactNode;
   disabled?: boolean;
   onToggle: () => void;
 }) {
   return (
-    <WithTooltip label={on ? `${countTip(count)}${tip}` : tip}>
+    <WithTooltip label={on ? `${countTip(count)}${tip}` : tip} card={card}>
       {/* A disabled button gets no pointer events; the span keeps the tooltip. */}
       <span className="flex">
         <button
@@ -223,6 +280,7 @@ function TimeFilter({
   onLabel,
   tip,
   count,
+  card,
   onChange,
 }: {
   name: string;
@@ -232,6 +290,7 @@ function TimeFilter({
   onLabel: (time: string) => string;
   tip: string;
   count: FilterCount | undefined;
+  card: ReactNode;
   onChange: (value: number | null) => void;
 }) {
   const on = value !== null;
@@ -240,6 +299,7 @@ function TimeFilter({
     <ActionMenu
       title={name}
       tooltip={on ? `${countTip(count)}${tip}` : tip}
+      tooltipCard={card}
       className="min-w-[160px]"
       trigger={
         <button
@@ -279,10 +339,12 @@ function daysOffLabel(days: readonly Day[]): string {
 function DaysOffFilter({
   days,
   count,
+  card,
   onChange,
 }: {
   days: readonly Day[];
   count: FilterCount | undefined;
+  card: ReactNode;
   onChange: (days: Day[]) => void;
 }) {
   const on = days.length > 0;
@@ -296,6 +358,7 @@ function DaysOffFilter({
     <ActionMenu
       title="No classes on"
       tooltip={on ? `${countTip(count)}${tip}` : tip}
+      tooltipCard={card}
       className="min-w-[160px]"
       trigger={
         <button
@@ -344,10 +407,12 @@ function creditsLabel({ min, max }: MustHaves["credits"]): string | null {
 function CreditsFilter({
   credits,
   count,
+  card,
   onChange,
 }: {
   credits: MustHaves["credits"];
   count: FilterCount | undefined;
+  card: ReactNode;
   onChange: (credits: MustHaves["credits"]) => void;
 }) {
   const label = creditsLabel(credits);
@@ -357,7 +422,7 @@ function CreditsFilter({
     : "Only plans with a number of credits you set";
   return (
     <Popover>
-      <WithTooltip label={on ? `${countTip(count)}${tip}` : tip}>
+      <WithTooltip label={on ? `${countTip(count)}${tip}` : tip} card={card}>
         <PopoverTrigger
           render={
             <button
@@ -416,6 +481,8 @@ export function FilterChipsForGenerate({
   onChange,
   blockCount,
   counts,
+  found = null,
+  plans = null,
 }: {
   mustHaves: MustHaves;
   onChange: (next: MustHaves, filter: Relaxable, on: boolean) => void;
@@ -423,15 +490,43 @@ export function FilterChipsForGenerate({
   blockCount: number;
   /** What each filter took out of the results on screen, when they match. */
   counts: Counts;
+  /** The plans the run with these filters found, when `counts` is theirs. */
+  found?: number | null;
+  /** The plans on screen, best first, for the cards of filters that are off. */
+  plans?: readonly GeneratedPlan[] | null;
 }) {
   const set = (patch: Partial<MustHaves>, filter: Relaxable, on: boolean) =>
     onChange({ ...mustHaves, ...patch }, filter, on);
   const count = (c: Relaxable) => counts?.get(c);
+  /**
+   * A filter's card. On: what it took out of the run. Off: how the plans on
+   * screen spread out on what it would look at, when it looks at a number
+   * the plans have.
+   */
+  const cardFor = (
+    filter: Relaxable,
+    on: boolean,
+    off?: { measure: SpreadMeasure; axis: string; unknown?: string },
+  ): ReactNode => {
+    if (on) {
+      const n = count(filter);
+      return n && found !== null ? (
+        <RemovalBar removal={filterRemoval(n, found)} />
+      ) : undefined;
+    }
+    const spread = off && plans ? planSpread(off.measure, plans) : null;
+    return off && spread ? (
+      <SpreadChart spread={spread} axis={off.axis} unknownWords={off.unknown} />
+    ) : undefined;
+  };
   return (
     <fieldset
       aria-label="Filters"
       data-testid="gen-filters"
-      className="m-0 flex min-w-0 flex-wrap items-center gap-1 border-0 p-0"
+      className={cn(
+        "m-0 flex min-w-0 flex-wrap items-center gap-x-1 border-0 p-0",
+        CHIP_ROWS,
+      )}
     >
       <TimeFilter
         name="No classes before"
@@ -445,6 +540,11 @@ export function FilterChipsForGenerate({
             : `Only plans with no class before ${formatTime(mustHaves.earliestStart)}`
         }
         count={count("earliest-start")}
+        card={cardFor("earliest-start", mustHaves.earliestStart !== null, {
+          measure: "first-class",
+          axis: "First class of the week",
+          unknown: "with nothing at a set time",
+        })}
         onChange={(earliestStart) =>
           set({ earliestStart }, "earliest-start", earliestStart !== null)
         }
@@ -461,6 +561,11 @@ export function FilterChipsForGenerate({
             : `Only plans with no class after ${formatTime(mustHaves.latestEnd)}`
         }
         count={count("latest-end")}
+        card={cardFor("latest-end", mustHaves.latestEnd !== null, {
+          measure: "last-class",
+          axis: "Last class of the week ends",
+          unknown: "with nothing at a set time",
+        })}
         onChange={(latestEnd) =>
           set({ latestEnd }, "latest-end", latestEnd !== null)
         }
@@ -468,6 +573,10 @@ export function FilterChipsForGenerate({
       <DaysOffFilter
         days={mustHaves.daysOff}
         count={count("days-off")}
+        card={cardFor("days-off", mustHaves.daysOff.length > 0, {
+          measure: "fewer-days",
+          axis: "Days on campus",
+        })}
         onChange={(daysOff) => set({ daysOff }, "days-off", daysOff.length > 0)}
       />
       <ToggleFilter
@@ -475,6 +584,11 @@ export function FilterChipsForGenerate({
         label="Only open seats"
         tip="Only plans where every section has a seat open"
         count={count("open-seats-only")}
+        card={cardFor("open-seats-only", mustHaves.openSeatsOnly, {
+          measure: "safest-seats",
+          axis: "Open seats in the tightest section",
+          unknown: "with no seat counts",
+        })}
         onToggle={() =>
           set(
             { openSeatsOnly: !mustHaves.openSeatsOnly },
@@ -488,6 +602,7 @@ export function FilterChipsForGenerate({
         label="Time to walk"
         tip="Only plans with time to get between classes, at your pace in Travel"
         count={count("enough-travel-time")}
+        card={cardFor("enough-travel-time", mustHaves.enoughTravelTime)}
         onToggle={() =>
           set(
             { enoughTravelTime: !mustHaves.enoughTravelTime },
@@ -510,6 +625,10 @@ export function FilterChipsForGenerate({
             : "You have no blocks this term. Add them in Blocks."
         }
         count={count("respect-blocks")}
+        card={cardFor(
+          "respect-blocks",
+          mustHaves.respectBlocks && blockCount > 0,
+        )}
         onToggle={() =>
           set(
             { respectBlocks: !mustHaves.respectBlocks },
@@ -521,6 +640,11 @@ export function FilterChipsForGenerate({
       <CreditsFilter
         credits={mustHaves.credits}
         count={count("credits")}
+        card={cardFor(
+          "credits",
+          mustHaves.credits.min !== null || mustHaves.credits.max !== null,
+          { measure: "credits", axis: "Credits" },
+        )}
         onChange={(credits) =>
           set(
             { credits },
@@ -545,10 +669,10 @@ export function ChipBar({
   preferences: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 pointer-coarse:gap-3">
       <div className="flex items-start gap-2">
         <WithTooltip label="Filters take out plans that don't match">
-          <span className="flex h-6 shrink-0 items-center text-faint">
+          <span className="flex h-6 shrink-0 items-center text-faint pointer-coarse:h-8">
             <Funnel size={12} aria-label="Filters" />
           </span>
         </WithTooltip>
@@ -556,7 +680,7 @@ export function ChipBar({
       </div>
       <div className="flex items-start gap-2">
         <WithTooltip label="Preferences put the plans in order">
-          <span className="flex h-6 shrink-0 items-center text-faint">
+          <span className="flex h-6 shrink-0 items-center text-faint pointer-coarse:h-8">
             <ArrowDownWideNarrow size={12} aria-label="Preferences" />
           </span>
         </WithTooltip>

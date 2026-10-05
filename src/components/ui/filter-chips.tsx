@@ -13,7 +13,7 @@ import {
   ActionMenuCheckboxItem,
   ActionMenuGroup,
 } from "./action-menu";
-import { chipClass } from "./chip";
+import { CHIP_ROWS, chipClass } from "./chip";
 import { WithTooltip } from "./tooltip";
 
 // One line of chips under any course search box (SPEC §3.5): dropdowns and
@@ -78,7 +78,7 @@ export function FilterChips({
     // WCAG 1.4.10).
     <div
       data-testid="search-filters"
-      className="flex flex-wrap items-center gap-x-0.5 gap-y-1"
+      className={cn("flex flex-wrap items-center gap-x-0.5", CHIP_ROWS)}
     >
       {show.includes("gen-eds") ? (
         <MultiChip

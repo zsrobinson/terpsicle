@@ -193,11 +193,16 @@ export function GeneratePanel() {
   );
   const termName = term?.name ?? "this term";
 
+  // The plans the chips' cards chart: the last run's, while it's for these
+  // courses.
+  const cardPlans = done && !stale ? done.result.results : null;
   const filterChips = (
     <FilterChipsForGenerate
       mustHaves={draft.mustHaves}
       blockCount={blockCount}
       counts={counts}
+      found={counts && done ? done.result.totalFound : null}
+      plans={cardPlans}
       onChange={(mustHaves, filter, on) => {
         chips({ mustHaves });
         track("generate_filter_changed", { filter, on });
@@ -207,6 +212,7 @@ export function GeneratePanel() {
   const preferenceChips = (
     <PreferenceChips
       rankBy={draft.rankBy}
+      plans={cardPlans}
       onChange={(rankBy) => chips({ rankBy })}
     />
   );

@@ -19,9 +19,26 @@ export const CHIP_SELECTED =
 export const CHIP_UNSELECTED =
   "border-hairline text-muted hover:bg-hover hover:text-fg data-popup-open:bg-hover data-popup-open:text-fg aria-expanded:bg-hover aria-expanded:text-fg";
 
-/** A chip's look: 24px, square corners, selected or not. */
+/**
+ * A chip under a finger (a coarse pointer): 32px to see, 44px to hit, the
+ * size Apple and WCAG 2.5.5 ask for. The rest is an invisible margin above
+ * and below, so a row of chips stays compact; rows of them leave room for
+ * it (`CHIP_ROWS`). A mouse keeps the 24px chip.
+ */
+export const CHIP_TOUCH =
+  "relative pointer-coarse:h-8 pointer-coarse:min-w-11 pointer-coarse:justify-center pointer-coarse:text-sm pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1.5";
+
+/**
+ * The space between the lines of a wrapping row of chips: 4px, and 12px
+ * under a finger, which two chips' 6px margins (`CHIP_TOUCH`) fill without
+ * overlapping.
+ */
+export const CHIP_ROWS = "gap-y-1 pointer-coarse:gap-y-3";
+
+/** A chip's look: 24px (32px under a finger), square corners, selected or not. */
 export const chipClass = (selected: boolean) =>
   cn(
     "flex h-6 shrink-0 items-center gap-px rounded-md border px-1 text-xs transition-colors",
+    CHIP_TOUCH,
     selected ? CHIP_SELECTED : CHIP_UNSELECTED,
   );

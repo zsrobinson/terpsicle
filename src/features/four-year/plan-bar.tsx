@@ -380,7 +380,8 @@ export function PlanBar({
         <>
           <SavedState compact={compact} />
           {compact ? null : (
-            // The sidebar starts with them; a tablet's bar has no room.
+            // From 1024px. A tablet's bar has no room, so there the
+            // sidebar says them.
             <span className="max-lg:hidden">
               <CreditsStatus label={creditsHeadline(totals)} />
             </span>

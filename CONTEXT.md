@@ -306,6 +306,10 @@ _Avoid_: must-have (in UI copy), constraint
 A chip that ranks Generate's results without taking any out: Compact days, Fewer days, Later starts, Best-rated, Higher GPAs, Safest seats. A click cycles it off → on → 2× (counts double) → off.
 _Avoid_: weight, sort, rank by (in UI copy)
 
+**Chip card**:
+What hovering, focusing or (on a phone) holding a Generate chip opens under its words: a histogram of the plans on screen on what the chip looks at, with **your top plan** marked, or for a filter that's on, what it took out ("Kept 52 · Took out 568"). Code: `WithTooltip`'s `card`, `SpreadChart` and `RemovalBar`, from `planSpread` and `filterRemoval`.
+_Avoid_: hover card, popover (for this)
+
 **Share**:
 The outlined "Share" button at the top left of the canvas bar, in Schedule and Plan. It opens a popover with the plan's share link, "Copy link" ("Copied link") and a note that the link is a copy held in the URL, which won't follow later edits. On a phone or tablet it opens the system's **share sheet** with the link instead (Messages, AirDrop), and the popover only where there's none.
 _Avoid_: export, publish, send

@@ -3,7 +3,7 @@ import { type FormEvent, useId, useState } from "react";
 import { BlockLabelSchema, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 import { Button } from "~/ui/button";
-import { CHIP_SELECTED, chipClass } from "~/ui/chip";
+import { CHIP_ROWS, CHIP_SELECTED, CHIP_TOUCH, chipClass } from "~/ui/chip";
 import { Input } from "~/ui/input";
 import {
   Select,
@@ -85,7 +85,10 @@ export function BlockForm({
       className="flex flex-col gap-2"
       aria-label={submitLabel}
     >
-      <fieldset className="flex flex-wrap gap-1" aria-label="Presets">
+      <fieldset
+        className={cn("flex flex-wrap gap-x-1", CHIP_ROWS)}
+        aria-label="Presets"
+      >
         {BLOCK_PRESETS.map((preset) => (
           <WithTooltip key={preset} label={`Label it "${preset}"`}>
             <button
@@ -131,6 +134,7 @@ export function BlockForm({
                 }
                 className={cn(
                   "h-7 flex-1 rounded-md border text-sm transition-colors",
+                  CHIP_TOUCH,
                   on
                     ? CHIP_SELECTED
                     : "border-hairline-strong text-muted hover:bg-hover",

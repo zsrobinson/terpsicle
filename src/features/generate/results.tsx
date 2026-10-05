@@ -29,7 +29,7 @@ import type {
 import { openDrill } from "~/features/schedule/schedule-nav";
 import { type PlanPreview, useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
-import { chipClass } from "~/ui/chip";
+import { CHIP_ROWS, chipClass } from "~/ui/chip";
 import { WithTooltip } from "~/ui/tooltip";
 import { PREFERENCE_LABELS } from "./chips";
 import {
@@ -175,7 +175,10 @@ export function Results({
         <div
           role="toolbar"
           aria-label="Filter by included courses"
-          className="flex flex-wrap items-center gap-1 px-4 pt-2 pb-2"
+          className={cn(
+            "flex flex-wrap items-center gap-x-1 px-4 pt-2 pb-2",
+            CHIP_ROWS,
+          )}
         >
           <span className="mr-0.5 text-xs text-faint">Includes</span>
           <FilterChip
