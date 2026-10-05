@@ -18,6 +18,7 @@ import {
   SIGNED_IN_PAGE_CACHE_CONTROL,
 } from "./pages/shared-pages";
 import { POSTHOG_PROXY_PREFIX, proxyPostHog } from "./posthog-proxy";
+import { reviewsLinkOut } from "./reviews/link-out";
 import { landingRedirect } from "./routing";
 import { handleCspReport } from "./security/csp-report";
 import { cspNonce, withSecurityHeaders } from "./security/headers";
@@ -223,6 +224,9 @@ export function createWorker(
     }
     const seo = await serveSeoFile(request, env);
     if (seo) return seo;
+    // Our Reviews pages while they're off: PlanetTerp's twin, before render.
+    const reviews = await reviewsLinkOut(request, env);
+    if (reviews) return reviews;
     const landing = landingRedirect(request);
     if (landing) return landing;
     // Every page (`/`, `/schedule`, `/privacy`, …) is a TanStack route; an
