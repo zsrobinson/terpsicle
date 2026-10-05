@@ -48,6 +48,7 @@ import {
   readSidebarWidth,
   writeSidebarWidth,
 } from "~/state/sidebar-width-pref";
+import { burstConfetti, flashDone } from "~/ui/confetti";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { Composer } from "./composer";
@@ -63,6 +64,14 @@ import { setTodoClient, type TodoClient } from "./todo-queries";
 vi.mock("~/lib/analytics", async (original) => ({
   ...(await original<typeof import("~/lib/analytics")>()),
   track: vi.fn(),
+}));
+
+// The canvas itself is the kit's (~/ui/confetti.test.ts); here, only when
+// the bars send it.
+vi.mock("~/ui/confetti", async (original) => ({
+  ...(await original<typeof import("~/ui/confetti")>()),
+  burstConfetti: vi.fn(),
+  flashDone: vi.fn(),
 }));
 
 const NOW = "2026-09-28T16:00:00.000Z";
@@ -230,6 +239,8 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(NOW));
   vi.mocked(track).mockClear();
+  vi.mocked(burstConfetti).mockClear();
+  vi.mocked(flashDone).mockClear();
   window.localStorage.clear();
   showSyncedPrefs({});
   resetTodoMutations();
@@ -1010,6 +1021,117 @@ describe("the week's progress in the sidebar", () => {
       "transition-[width]",
       "motion-reduce:transition-none",
     );
+  });
+
+  it("sends confetti off a course's bar as its last check fills it, and the week's as the week's does", async () => {
+    fakeClient({ items: week, done: ["cmsc-a", "club"] });
+    signedIn();
+    renderTodo();
+    const section = await screen.findByRole("region", { name: "This week" });
+    const cmsc = await within(section).findByRole("progressbar", {
+      name: "CMSC216 this week",
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("checkbox", { name: "Done: Lab 5" }));
+    // As the fill gets to the end: a course's few, in its colors.
+    await waitFor(() => expect(burstConfetti).toHaveBeenCalledTimes(1));
+    expect(burstConfetti).toHaveBeenCalledWith(
+      cmsc,
+      expect.arrayContaining([
+        expect.objectContaining({ token: expect.stringMatching(/-dot$/) }),
+      ]),
+      "small",
+    );
+    // The last of the week: one burst, the week's, from the week's bar,
+    // in every course's color by its share of the week.
+    await user.click(
+      screen.getByRole("checkbox", { name: "Done: WebAssign 5" }),
+    );
+    const all = within(section).getByRole("progressbar", {
+      name: "This week, every course",
+    });
+    await waitFor(() => expect(burstConfetti).toHaveBeenCalledTimes(2));
+    expect(burstConfetti).toHaveBeenLastCalledWith(
+      all,
+      expect.arrayContaining([
+        expect.objectContaining({ weight: 2 }),
+        expect.objectContaining({ weight: 1 }),
+      ]),
+      "large",
+    );
+    await new Promise((r) => setTimeout(r, 600));
+    expect(burstConfetti).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends no confetti for a week that opens done, or a total that shrinks to meet it", async () => {
+    fakeClient({
+      items: week,
+      done: ["cmsc-a", "cmsc-b", "math-a", "club"],
+    });
+    signedIn();
+    renderTodo();
+    const section = await screen.findByRole("region", { name: "This week" });
+    expect(
+      await within(section).findByRole("progressbar", {
+        name: "This week, every course",
+      }),
+    ).toHaveAttribute("aria-valuetext", "All 4 done");
+    await new Promise((r) => setTimeout(r, 600));
+    expect(burstConfetti).not.toHaveBeenCalled();
+    // Hiding the one course with something left finishes nothing.
+    fakeClient({ items: week, done: ["cmsc-a", "cmsc-b", "club"] });
+    await act(() => queries.invalidateQueries());
+    await waitFor(() =>
+      expect(
+        within(section).getByRole("progressbar", {
+          name: "This week, every course",
+        }),
+      ).toHaveAttribute("aria-valuetext", "3 of 4 done"),
+    );
+    const user = userEvent.setup();
+    await user.click(
+      within(section).getByRole("button", { name: "Hide MATH240" }),
+    );
+    expect(
+      within(section).getByRole("progressbar", {
+        name: "This week, every course",
+      }),
+    ).toHaveAttribute("aria-valuetext", "All 3 done");
+    await new Promise((r) => setTimeout(r, 600));
+    expect(burstConfetti).not.toHaveBeenCalled();
+  });
+
+  it("flashes the week's row instead of confetti under Reduce Motion", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+      })),
+    );
+    try {
+      fakeClient({ items: week, done: ["cmsc-a", "cmsc-b", "club"] });
+      signedIn();
+      renderTodo();
+      const section = await screen.findByRole("region", { name: "This week" });
+      const all = await within(section).findByRole("progressbar", {
+        name: "This week, every course",
+      });
+      await waitFor(() => expect(all).toHaveAttribute("aria-valuenow", "3"));
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole("checkbox", { name: "Done: WebAssign 5" }),
+      );
+      expect(flashDone).toHaveBeenCalledWith(all.parentElement);
+      await new Promise((r) => setTimeout(r, 600));
+      expect(burstConfetti).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("follows the week on screen", async () => {

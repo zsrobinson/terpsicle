@@ -16,6 +16,7 @@ import {
   courseChatTerm,
   courseKey,
   courseWeek,
+  finishesCourseWeek,
   isHiddenItem,
   isThisWeek,
   itemCourse,
@@ -358,6 +359,17 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
     [done, client],
   );
 
+  const finishes = useMemo(() => {
+    const byKey = new Map(rows.filter((r) => !r.hidden).map((r) => [r.key, r]));
+    return (item: TodoItem) =>
+      finishesCourseWeek(
+        item,
+        done,
+        weekFirst,
+        byKey.get(courseKey(item, scheduler.planCourses)),
+      );
+  }, [rows, done, weekFirst, scheduler]);
+
   const props: ViewProps = {
     items: shown,
     done,
@@ -365,6 +377,7 @@ function useTodoWeek(anchor: IsoDate, day: IsoDate | undefined, on: boolean) {
     now,
     look,
     onToggle,
+    finishes,
     taskCourses,
     onDeleteTask,
   };

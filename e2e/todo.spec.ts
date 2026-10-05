@@ -446,6 +446,48 @@ test("add tasks in plain words, change one, delete it with Undo", async ({
   await expect(noDate.getByText("Office hours, bring Project 2")).toBeVisible();
 });
 
+test("the check that finishes the week sends confetti off its bar, once", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await signInNewUser(page, "/todo");
+  // Two of your own tasks today, one already done.
+  const day = today();
+  for (const [uid, title] of [
+    ["own-confetti-aaaa1", "Lab 5"],
+    ["own-confetti-aaaa2", "Quiz 3"],
+  ])
+    expect(
+      await post(page, "todo/save-task", {
+        uid,
+        title,
+        courseCode: "CMSC216",
+        dueDate: day,
+        dueTime: null,
+      }),
+    ).toBe(200);
+  expect(
+    await post(page, "todo/done", { uid: "own-confetti-aaaa1", done: true }),
+  ).toBe(200);
+  await page.goto("/todo");
+  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "1 of 2 done");
+
+  const confetti = page.locator("canvas[data-confetti]");
+  await page.getByRole("checkbox", { name: "Done: Quiz 3" }).first().click();
+  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "All 2 done");
+  // Off the week's bar, over the page without taking a click, then gone.
+  await expect(confetti).toHaveCount(1);
+  await expect(confetti).toHaveAttribute("aria-hidden", "true");
+  await expect(confetti).toHaveCSS("pointer-events", "none");
+  await expect(confetti).toHaveCount(0, { timeout: 5_000 });
+
+  // A week that opens done sends none.
+  await page.reload();
+  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "All 2 done");
+  await page.waitForTimeout(1_000);
+  await expect(confetti).toHaveCount(0);
+});
+
 test("weeks start on Monday, whatever an account saved before", async ({
   page,
 }) => {

@@ -554,6 +554,9 @@ _Avoid_: quick add, natural-language input (in the UI)
 A course the student hid in Todo (the eye on its row in This week, "Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. Its row stays, struck through, to show it again.
 _Avoid_: muted, archived
 
+**Confetti** (Todo's):
+What leaves a bar's filling end in Todo's sidebar when a check finishes it: a few in the course's color for a course, the most for the whole week. Only a check sends it; under Reduce Motion the row flashes instead. Code says `burstConfetti`, `useCelebrate`.
+
 **This week**:
 Todo's completion chart in the side panel: what's done of what's due in the week shown ("7 of 12 done"), then each course's "3 of 5 done this week" and its last four weeks as small columns.
 

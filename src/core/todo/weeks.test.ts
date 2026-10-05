@@ -3,6 +3,7 @@ import { anOwnTask, aTodoItem } from "~/fixtures";
 import { courseKey, itemCourse } from "./list";
 import {
   courseWeek,
+  finishesCourseWeek,
   isThisWeek,
   isWeekend,
   shiftWeek,
@@ -132,5 +133,49 @@ describe("courseWeek", () => {
       "Robotics Club",
       "Other",
     ]);
+  });
+});
+
+describe("finishesCourseWeek", () => {
+  const first = "2026-09-28";
+  const item = aTodoItem({ uid: "lab", dueDate: "2026-10-01" });
+
+  it("is true for the last thing left in its course's week", () => {
+    expect(
+      finishesCourseWeek(item, new Set(), first, { done: 2, total: 3 }),
+    ).toBe(true);
+  });
+
+  it("is false with more than one left, or once it's done", () => {
+    expect(
+      finishesCourseWeek(item, new Set(), first, { done: 1, total: 3 }),
+    ).toBe(false);
+    expect(
+      finishesCourseWeek(item, new Set(["lab"]), first, {
+        done: 3,
+        total: 3,
+      }),
+    ).toBe(false);
+  });
+
+  it("is false for anything outside the week, or with no date", () => {
+    const row = { done: 2, total: 3 };
+    for (const dueDate of ["2026-09-27", "2026-10-05", null])
+      expect(
+        finishesCourseWeek({ ...item, dueDate }, new Set(), first, row),
+      ).toBe(false);
+    // Sunday night is still the week.
+    expect(
+      finishesCourseWeek(
+        { ...item, dueDate: "2026-10-04" },
+        new Set(),
+        first,
+        row,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for a course with no row (hidden)", () => {
+    expect(finishesCourseWeek(item, new Set(), first, undefined)).toBe(false);
   });
 });

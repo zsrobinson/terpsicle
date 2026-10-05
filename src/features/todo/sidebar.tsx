@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { Check, Eye, EyeOff } from "lucide-react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useRef } from "react";
 import { IntegrationLabel } from "~/components/brand/integration-label";
 import { PanelBody, SectionHeader } from "~/components/panel";
 import { EVERYONE_SLUG } from "~/core/chat/room-paths";
@@ -19,6 +19,8 @@ import {
 import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { crossLinkClicked } from "~/lib/cross-link";
 import { Button } from "~/ui/button";
+import { useCelebrate } from "~/ui/celebrate";
+import type { ConfettiColor, ConfettiSize } from "~/ui/confetti";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 import { ScheduleLink } from "./calendar";
@@ -30,7 +32,9 @@ import { Rows, type ViewProps } from "./todo-lists";
 // Add a task, what has no date, and the week on screen: how much of it is
 // done, then each course, with a bar in its color that fills as you check
 // things off (the owner, 2026-09-29: "it feels rewarding to check things
-// off that way"). On a phone it's the drawer (./todo-drawer).
+// off that way"), and confetti off its end when a check fills it
+// (docs/decisions.md, "Confetti when a check finishes the week"). On a
+// phone it's the drawer (./todo-drawer).
 
 /**
  * The sidebar's panel, in the desktop's sidebar or the phone's drawer: the
@@ -53,23 +57,69 @@ export function doneOfWords({ done, total }: Progress): string {
   return `${done} of ${total} done`;
 }
 
+/** Confetti for a bar as it finishes (`~/ui/celebrate`). */
+export interface BarConfetti {
+  /** The week, or a course in the week: `2026-09-28` or `2026-09-28 CMSC216`. */
+  identity: string;
+  colors: readonly ConfettiColor[];
+  size: ConfettiSize;
+  /** Held back: a course's bar as the week's finishes with it. */
+  quiet?: boolean;
+}
+
+/**
+ * The week's confetti: each course's color (Todo's yellow for a course
+ * without one) as much as it has due.
+ */
+export function weekConfetti(rows: readonly CourseRow[]): ConfettiColor[] {
+  return rows
+    .filter((r) => !r.hidden && r.total > 0)
+    .map((r) => ({
+      token: r.color ? courseColorTokens(r.color).dot : "product-todo",
+      weight: r.total,
+    }));
+}
+
+/** A course's confetti: its color, or Todo's yellow for one without. */
+function courseConfetti(color: CourseColor | null): ConfettiColor[] {
+  return [
+    {
+      token: color ? courseColorTokens(color).dot : "product-todo",
+      weight: 1,
+    },
+  ];
+}
+
 /**
  * A bar that fills as things are checked off: the week's in ink, a
  * course's in its color over its tint. The fill slides on the sheets'
  * curve, and jumps under Reduce Motion. It's a `progressbar` with the
- * words as its value, so the words are never only in the picture.
+ * words as its value, so the words are never only in the picture. With
+ * `confetti`, a check that fills it sends confetti off its end (the owner,
+ * 2026-10-05: "shooting out the side that the bar is progressing into").
  */
 export function ProgressBar({
   progress,
   label,
   color,
+  confetti,
   className,
 }: {
   progress: Progress;
   label: string;
   color?: CourseColor | null;
+  confetti?: BarConfetti;
   className?: string;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useCelebrate(ref, {
+    identity: confetti?.identity ?? "",
+    done: progress.done,
+    total: progress.total,
+    colors: confetti?.colors ?? [],
+    size: confetti?.size ?? "small",
+    quiet: !confetti || confetti.quiet,
+  });
   const share = progress.total === 0 ? 0 : progress.done / progress.total;
   const tokens = color ? courseColorTokens(color) : null;
   const track: CSSProperties | undefined = tokens
@@ -81,6 +131,7 @@ export function ProgressBar({
   };
   return (
     <div
+      ref={ref}
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
@@ -102,19 +153,34 @@ export function ProgressBar({
   );
 }
 
-/** "2 of 5 done", with a check once it's all done. */
-function DoneCount({ progress }: { progress: Progress }) {
+/**
+ * "2 of 5 done", with a check once it's all done. Finishing moves nothing
+ * (the owner saw "a bit of layout shift when everything for a week is
+ * checked"): both wordings share one grid cell, the one not showing
+ * invisible, so the cell is always the wider of the two and one height.
+ */
+export function DoneCount({
+  progress,
+  line = "h-5",
+}: {
+  progress: Progress;
+  /** Its line's height: a row's 20px, or the drawer strip's 16px. */
+  line?: "h-5" | "h-4";
+}) {
   const all = progress.total > 0 && progress.done === progress.total;
+  const cell = cn(
+    "col-start-1 row-start-1 flex items-center justify-end gap-1",
+    line,
+  );
   return (
-    <span
-      className={cn(
-        // One height, check or not, so finishing the week moves nothing.
-        "tnum flex h-5 shrink-0 items-center gap-1 text-sm",
-        all ? "emph-label" : "emph-meta",
-      )}
-    >
-      {all ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : null}
-      {doneOfWords(progress)}
+    <span className="tnum grid shrink-0 text-sm">
+      <span className={cn(cell, "emph-label", !all && "invisible")}>
+        <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+        {doneOfWords({ done: progress.total, total: progress.total })}
+      </span>
+      <span className={cn(cell, "emph-meta", all && "invisible")}>
+        {`${progress.done} of ${progress.total} done`}
+      </span>
     </span>
   );
 }
@@ -122,9 +188,14 @@ function DoneCount({ progress }: { progress: Progress }) {
 function CourseLine({
   row,
   onHide,
+  weekFirst,
+  weekDone,
 }: {
   row: CourseRow;
   onHide: (row: CourseRow, hide: boolean) => void;
+  weekFirst: IsoDate;
+  /** The whole week's done: its bar has the confetti. */
+  weekDone: boolean;
 }) {
   const name = row.code ?? row.key;
   const dot = row.color ? courseColorTokens(row.color).dot : null;
@@ -216,6 +287,12 @@ function CourseLine({
           progress={row}
           color={row.color}
           label={`${name} this week`}
+          confetti={{
+            identity: `${weekFirst} ${row.key}`,
+            colors: courseConfetti(row.color),
+            size: "small",
+            quiet: weekDone,
+          }}
           className="mt-1 mb-1.5 ml-6"
         />
       ) : null}
@@ -284,12 +361,23 @@ function WeekSection({
             <ProgressBar
               progress={total}
               label={`${title}, every course`}
+              confetti={{
+                identity: weekFirst,
+                colors: weekConfetti(rows),
+                size: "large",
+              }}
               className="h-2"
             />
           </div>
           <ul aria-label="Courses">
             {rows.map((row) => (
-              <CourseLine key={row.key} row={row} onHide={onHide} />
+              <CourseLine
+                key={row.key}
+                row={row}
+                onHide={onHide}
+                weekFirst={weekFirst}
+                weekDone={total.total > 0 && total.done === total.total}
+              />
             ))}
           </ul>
         </>
