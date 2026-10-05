@@ -213,7 +213,7 @@ test("our Reviews pages go to PlanetTerp, as previews have them off", async ({
   for (const [path, to] of [
     ["/reviews", "https://planetterp.com"],
     ["/reviews/cmsc351", "https://planetterp.com/course/CMSC351"],
-  ]) {
+  ] as const) {
     const response = await page.request.get(path, { maxRedirects: 0 });
     expect(response.status(), path).toBe(302);
     expect(response.headers().location, path).toBe(to);
