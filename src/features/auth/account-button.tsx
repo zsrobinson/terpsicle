@@ -114,7 +114,7 @@ function AccountMenu({
       title={user ? "Account" : "Sign in"}
       tooltip={user ? "Your account and theme" : signInPitch(pagePathname())}
       align="end"
-      className="w-[260px]"
+      className="w-[336px]"
       trigger={
         user ? (
           <button

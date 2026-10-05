@@ -147,3 +147,90 @@ test("pastes a transcript, checks it, imports in one step, undoes, redoes and re
   await page.keyboard.press("ControlOrMeta+z");
   await expect(fallAgain.getByText("A-", { exact: true })).toBeVisible();
 });
+
+/**
+ * What spills out of a semester column (or Before UMD): any header or block
+ * text whose box runs past the column's edges. Text inside an element that
+ * clips (an ellipsis) counts by the clipping box, which is what shows.
+ */
+async function spills(page: Page) {
+  return page.evaluate(() => {
+    const out: string[] = [];
+    for (const column of document.querySelectorAll<HTMLElement>(
+      "section[data-term]",
+    )) {
+      const edge = column.getBoundingClientRect();
+      if (edge.width === 0) continue;
+      for (const el of column.querySelectorAll<HTMLElement>("header *, li *")) {
+        let shown: HTMLElement = el;
+        for (
+          let up = el.parentElement;
+          up && up !== column;
+          up = up.parentElement
+        )
+          if (getComputedStyle(up).overflowX !== "visible") shown = up;
+        const box = shown.getBoundingClientRect();
+        if (box.width === 0) continue;
+        if (box.right > edge.right + 0.5 || box.left < edge.left - 0.5)
+          out.push(`${column.dataset.term}: "${el.textContent?.slice(0, 30)}"`);
+      }
+    }
+    return out;
+  });
+}
+
+test("a year with a winter and a summer keeps every semester's text inside its column", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/plan/import");
+  await page.getByLabel("Paste your unofficial transcript").fill(PASTE);
+  await page
+    .getByRole("radiogroup", { name: /PSYC100/ })
+    .getByText("DSNS", { exact: true })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: /AASP100/ })
+    .getByText("DSHU", { exact: true })
+    .click();
+  await page.getByRole("button", { name: "Import 21 courses" }).click();
+  await expect(
+    page.getByText("Imported 21 courses from 4 semesters and Before UMD"),
+  ).toBeVisible();
+  const terms = ["Fall 2024", "Winter 2025", "Spring 2025", "Summer 2025"];
+
+  if (isMobile) {
+    for (const name of terms) {
+      const column = await semester(page, isMobile, name);
+      await expect(column.getByRole("listitem").first()).toBeVisible();
+      expect(await spills(page), name).toEqual([]);
+    }
+    return;
+  }
+
+  // The bug: squeezed into half a row beside Year 2, Year 1's four columns
+  // were ~120px wide and their counts ran into the next column.
+  const sizes = [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 800 },
+    { width: 1024, height: 768 },
+  ];
+  for (const { width, height } of sizes) {
+    await page.setViewportSize({ width, height });
+    const fall = page.getByRole("region", { name: "Fall 2024", exact: true });
+    await expect(fall.getByText("Object-Oriented Programming I")).toBeVisible();
+    expect(await spills(page), `${width}×${height}`).toEqual([]);
+    if (width >= 1280) {
+      const boxes = await Promise.all(
+        terms.map((name) =>
+          page.getByRole("region", { name, exact: true }).boundingBox(),
+        ),
+      );
+      for (const box of boxes) {
+        // One line of four, each wide enough for a block's code and title.
+        expect(box?.y).toBe(boxes[0]?.y);
+        expect(box?.width).toBeGreaterThanOrEqual(200);
+      }
+    }
+  }
+});

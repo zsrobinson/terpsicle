@@ -10,7 +10,7 @@ import {
   feedPlanFor,
   feedTermIds,
 } from "~/core/ics";
-import { sectionKey, type TermId } from "~/core/schema";
+import { sectionKey, type TermId, type UserDataKeyVars } from "~/core/schema";
 import type {
   CalendarFeedResetResult,
   CalendarFeedResult,
@@ -21,14 +21,14 @@ import type { RouteContext } from "../api/route";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import { findSection, memoJson, readCalendar } from "../published";
+import { type UserData, userDataForRequest } from "../security/user-keys";
+import { livePlans, mainPlansOf } from "../sync/store";
 import { doneAmong, hiddenCourses, listItems, listTasks } from "../todo/store";
 import {
   createFeed,
   feedOwner,
   getFeed,
-  mainPlansOf,
   markFetched,
-  plansInTerms,
   replaceFeed,
 } from "./store";
 import {
@@ -39,7 +39,8 @@ import {
   tokenFromPath,
 } from "./token";
 
-export interface CalendarFeedEnv {
+/** Plans and own tasks are sealed with the account's key (../security/user-keys.ts). */
+export interface CalendarFeedEnv extends UserDataKeyVars {
   DB: D1Database;
   /** The published catalog and calendars, and the HMAC key (under _jobs/). */
   DATA: R2Bucket;
@@ -120,12 +121,13 @@ const notFound = () => plain(404, "Not found");
 /** Each term's classes, from its main plan's placed sections as the catalog has them now. */
 async function feedTerms(
   env: CalendarFeedEnv,
+  data: UserData,
   userId: string,
   termIds: readonly TermId[],
 ): Promise<FeedTerm[]> {
   const [plans, mainPlans] = await Promise.all([
-    plansInTerms(env.DB, userId, termIds),
-    mainPlansOf(env.DB, userId),
+    livePlans(data, userId, termIds),
+    mainPlansOf(data, userId),
   ]);
   const catalog = memoJson(env.DATA);
   const terms: FeedTerm[] = [];
@@ -152,14 +154,15 @@ async function feedTerms(
 
 async function feedBody(
   env: CalendarFeedEnv,
+  data: UserData,
   userId: string,
   now: Date,
 ): Promise<string> {
   const today = newYorkDateOf(now.getTime());
   const [terms, items, tasks, hiddenKeys] = await Promise.all([
-    feedTerms(env, userId, feedTermIds(today)),
+    feedTerms(env, data, userId, feedTermIds(today)),
     listItems(env.DB, userId, null),
-    listTasks(env.DB, userId, null, { undated: false }),
+    listTasks(data, userId, null, { undated: false }),
     hiddenCourses(env.DB, userId),
   ]);
   const hidden = new Set(hiddenKeys);
@@ -222,7 +225,8 @@ export async function serveCalendarFeed(
 
   let body: string;
   try {
-    body = await feedBody(env, userId, now);
+    // One account key for the plans and the tasks.
+    body = await feedBody(env, userDataForRequest(env, request), userId, now);
   } catch (error) {
     // The error's name only: never the token, the path or the person.
     console.error({

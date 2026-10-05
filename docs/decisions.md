@@ -111,7 +111,7 @@ Revisit if: the framework can't do something; say what in the PR.
 
 ### TanStack Query for server data and its caching
 2026-09-28 · owner · app-wide
-"we should *absolutely* be relying on tanstack query as its the standard thing for all of this… tanstack is our friend." Every copy of server data (published `/data` files, `/api` answers) goes through a `queryOptions` factory and the one `QueryClient` in router context: its stale times, refetch on focus, polling (`refetchInterval`), retries, optimistic mutations and persister, not hand-rolled ones. Local-first data (plans, four-year docs, synced prefs in Dexie, and the sync engine), URL state and UI state stay out. Areas move over one PR at a time, review numbers first.
+"we should *absolutely* be relying on tanstack query as its the standard thing for all of this… tanstack is our friend." Every copy of server data (published `/data` files, `/api` answers) goes through a `queryOptions` factory and the one `QueryClient` in router context: its stale times, refetch on focus, polling (`refetchInterval`), retries, optimistic mutations and persister, not hand-rolled ones. Local-first data (plans, four-year docs, synced prefs in Dexie, and the sync engine), URL state and UI state stay out. Areas move over one PR at a time, review numbers first. (changed 2026-10-04: every area has moved, the admin pages and pins last; what stays out on purpose is that local-first data and the sync engine's pull timer, Chat's live socket (which writes into the cache), the calendar feed's secret link, writes with nothing cached to read, URL and UI state, and Reviews' own reads while Reviews is on hold.)
 Revisit if: never on its own.
 
 ### The query cache persists published data only, per query
@@ -164,6 +164,11 @@ Revisit if: the owner redraws a mark; change its rows in `src/lib/brand/marks.ts
 An "Early access" chip sits beside the wordmark ("Terpsicle's still in active development, so things may change."). A coffee button beside Feedback opens a short note and links to https://buymeacoffee.com/zsrobinson ("figured it couldn't help"). It never opens by itself and never asks twice. (changed 2026-09-30, owner: "let's also rework the text of the support thing to be a little less focused on 'the developer' and more about just supporting terpsicle, remove 'me'." It's "Support Terpsicle", its note reads "Does Terpsicle help you out? A coffee helps keep it running and growing." and its link "Buy Terpsicle a coffee".)
 Revisit if: Terpsicle leaves early access, or the owner drops the coffee link.
 
+### Free, with no billing
+2026-10-04 · owner · app-wide
+Terpsicle is free: no paid plans, no billing and nothing held back for paying. The coffee link ("Early access, and a coffee link") is the only money it asks for.
+Revisit if: hosting costs outgrow what tips cover.
+
 ### Crowded bars give their context the room below 1536px
 2026-09-28 · agent · one feature
 On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The Early access chip hides below 1536px on every bar, not only these two (changed 2026-09-28, QA round 4, the orchestrator): hidden on two bars alone, it moved the five product tabs about 78px whenever you went between Schedule or Plan and another product. From 1536px it sits beside the wordmark on every bar, as the owner placed it; narrower, the product menu and `/`'s header say it (e2e/brand-bar.spec.ts checks the tabs don't move).
@@ -179,6 +184,21 @@ Revisit if: UMD changes its Google domains. (changed 2026-09-28: no pictures)
 2026-09-28 · owner · app-wide
 "it doesn't seem like profile pictures sync from google at all, but i actually think that's a good thing and we actually shouldn't do that. because of that, we can just remove any need to support or store them at all." Terpsicle doesn't fetch, store or show Google's picture; everyone is an ink monogram of their initials. Migration 0021_no_pictures nulls `users.picture_url` and `picture_key`, and 0022_drop_unused_columns drops them once no older build reads them, and the daily job empties R2's `avatars/`. `CHAT_PROTOCOL_VERSION` went to 2, since message authors lost `picture`.
 Revisit if: never on its own.
+
+### Sync is on whenever you're signed in, grades included
+2026-10-04 · owner · app-wide
+Signed in, everything you make syncs to your account: plans, settings, four-year plans with their grades, and Todo's tasks. There's no switch to sync less. Signed out, it all stays in the browser ("Schedule works signed out"). This closes the flagged "plain server-side storage" call (V2.md §5.1) and V3.md §2.5's "Confirm grades sync"; how it's stored is the next entry.
+Revisit if: never on its own.
+
+### Synced data is encrypted on the server, with a key per account
+2026-10-04 · owner · app-wide
+Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so nothing it sealed can be opened afterward; D1's Time Travel can still restore the whole database, key included, for 30 days. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
+Revisit if: a feature needs the server to read synced data in bulk, or the owner wants end-to-end encryption and gives up server-side reads.
+
+### Privacy and terms in plain words; open source is the proof
+2026-10-04 · owner · app-wide
+`/privacy` says what we collect, why, where it lives, who else touches it, how long we keep it and how to delete it; `/terms` gives the rules for using Terpsicle and its protections (we can remove posts and pause accounts, course data may be wrong, no guarantees, not affiliated with UMD). Both are short and in plain words, and "it's open source" is how people check what they claim: they point at the code rather than asking for trust. They're written last in the privacy work, so they describe what was built.
+Revisit if: a lawyer or UMD's Student Legal Aid Office asks for different wording.
 
 ### Schedule works signed out
 2026-09-26 · owner · app-wide
@@ -425,7 +445,7 @@ Revisit if: links get too long for email or chat, or the server needs to read a 
 
 ### Plan sync saves whole docs
 2026-09-26 · agent · one feature
-Plain server-side storage, one JSON doc per plan with a rev and compare-and-swap. A conflict never merges: the server's copy stays and the local one becomes "<name> (copy)".
+One JSON doc per plan with a rev and compare-and-swap. A conflict never merges: the server's copy stays and the local one becomes "<name> (copy)". (changed 2026-10-04: it said "plain server-side storage"; the owner chose encryption with a key per account, "Synced data is encrypted on the server, with a key per account".)
 Revisit if: people hit conflicts often.
 
 ### Four-year plans sync through the scheduler's engine
@@ -437,6 +457,11 @@ Revisit if: a third product needs sync, or loading the whole engine on Plan cost
 2026-09-27 · agent · one feature
 Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `prefs` object in the settings doc and one `prefs` row on the device. It's loose, so every build carries keys it doesn't know, and a conflict settles it per product key, like a course's color. Schedule never edits it but always pushes it whole. Every page reads a localStorage copy (Reviews loads no IndexedDB up front), which whatever writes the row keeps current.
 Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
+
+### Account keys live in D1, beside what they seal
+2026-10-04 · agent · one feature
+Each account's data key is a `user_keys` row, sealed under the Worker secret `USER_DATA_KEY`, as the owner's plan laid out (DATA.md §7.7). Deleting the account deletes the row first, so nothing it sealed opens afterward. But D1's Time Travel can restore the whole database, keys and all, to any minute of the last 30 days, so for those 30 days a full restore would bring a deleted account's data back; after them nothing can. Keeping the wrapped keys in R2 instead, which has no point-in-time restore, would make deleting final at once, for an R2 read on each sync request.
+Revisit if: `/privacy` is to promise that deleted data can't come back even from a backup.
 
 ## Reviews
 

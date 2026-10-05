@@ -16,6 +16,7 @@ import type {
   StoredVerdict,
 } from "~/core/schema";
 import { stopEndWords } from "~/core/time/format";
+import { ApiCallError } from "~/server/fns/api";
 
 export const KIND_WORDS: Readonly<Record<ModerationKind, string>> = {
   review: "Review",
@@ -147,4 +148,22 @@ export function reviewContextWords(review: ReviewQueueContext): string {
   ]
     .filter((part) => part !== null)
     .join(" · ");
+}
+
+/** What went wrong, specifically (SPEC §3.13). */
+export function failureWords(error: unknown): string {
+  if (!(error instanceof ApiCallError))
+    return "Something went wrong. Try again.";
+  switch (error.reason) {
+    case "network":
+      return "Couldn't reach Terpsicle. Check your connection and try again.";
+    case "unauthorized":
+      return "You've been signed out. Sign in again to keep going.";
+    case "forbidden":
+      return "This account can't use the admin panel.";
+    case "rate-limited":
+      return "That's a lot of requests. Wait a minute, then try again.";
+    default:
+      return "Terpsicle didn't answer the way it should. Try again.";
+  }
 }

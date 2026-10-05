@@ -1,5 +1,6 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { HELD_SHARE_TARGET, heldShare } from "~/core/moderation/admin";
 import { REASON_WORDS } from "~/core/moderation/policy-text";
 import {
@@ -27,10 +28,11 @@ import {
 import { RowSkeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import { AdminNav, PAGE_ROW } from "./admin-frame";
-import { failureWords, useLoad } from "./use-load";
+import { ADMIN_PAGE, decisionsQuery, loadFailure } from "./admin-queries";
 import {
   ADMIN_REASON_WORDS,
   count,
+  failureWords,
   KIND_PLURAL,
   KIND_WORDS,
   percent,
@@ -51,8 +53,6 @@ export interface DecisionFilters {
 
 export type DecisionsClient = Pick<typeof adminApi, "decisions">;
 
-const PAGE = 50;
-
 export function DecisionsPage({
   filters,
   onFilters,
@@ -62,51 +62,21 @@ export function DecisionsPage({
   onFilters: (next: DecisionFilters) => void;
   client?: DecisionsClient;
 }) {
-  const key = JSON.stringify([filters.surface, filters.stage, filters.verdict]);
-  const first = useLoad(
-    (signal) => client.decisions({ ...filters, limit: PAGE }, { signal }),
-    key,
+  const log = useInfiniteQuery(
+    decisionsQuery(client, {
+      surface: filters.surface,
+      stage: filters.stage,
+      verdict: filters.verdict,
+    }),
   );
-  const [more, setMore] = useState<{
-    decisions: DecisionEntry[];
-    cursor: string | null;
-  } | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreFailed, setMoreFailed] = useState<string | null>(null);
-
-  // A new filter starts over from the first page.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the filter
-  useEffect(() => {
-    setMore(null);
-    setMoreFailed(null);
-  }, [key]);
-
-  const decisions = [
-    ...(first.data?.decisions ?? []),
-    ...(more?.decisions ?? []),
-  ];
-  const cursor = more ? more.cursor : (first.data?.cursor ?? null);
-
-  const loadMore = async () => {
-    if (!cursor) return;
-    setLoadingMore(true);
-    setMoreFailed(null);
-    try {
-      const page = await client.decisions({ ...filters, cursor, limit: PAGE });
-      setMore((prev) => ({
-        decisions: [...(prev?.decisions ?? []), ...page.decisions],
-        cursor: page.cursor,
-      }));
-    } catch (error) {
-      setMoreFailed(failureWords(error));
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  const first = log.data?.pages[0] ?? null;
+  const decisions = log.data?.pages.flatMap((p) => p.decisions) ?? [];
+  const failed = loadFailure(log);
+  const loadMore = () => void log.fetchNextPage();
 
   const set = (patch: DecisionFilters) => onFilters({ ...filters, ...patch });
 
-  const days = first.data?.days;
+  const days = first?.days;
   return (
     <>
       <PageHeader
@@ -151,23 +121,23 @@ export function DecisionsPage({
         />
       </Filters>
 
-      {first.state === "failed" ? (
+      {failed ? (
         <InlineError
-          message={`Couldn't load decisions. ${first.message}`}
-          onRetry={first.reload}
+          message={`Couldn't load decisions. ${failed}`}
+          onRetry={() => void log.refetch()}
         />
       ) : null}
 
       {days ? (
         <DayCounts days={days} surface={filters.surface} />
-      ) : first.state === "loading" ? (
+      ) : log.isPending ? (
         <RowSkeleton rows={4} inset={false} label="Loading the day counts" />
       ) : null}
 
       <PageSection title="Log">
-        {first.data === null && first.state === "loading" ? (
+        {log.isPending ? (
           <RowSkeleton rows={3} inset={false} label="Loading decisions" />
-        ) : decisions.length === 0 && first.data ? (
+        ) : decisions.length === 0 && first ? (
           <p className="py-2 text-muted">No decisions match these filters.</p>
         ) : (
           <ol aria-label="Decision log">
@@ -177,21 +147,21 @@ export function DecisionsPage({
           </ol>
         )}
 
-        {moreFailed ? (
+        {log.isFetchNextPageError && !log.isFetching ? (
           <InlineError
-            message={`Couldn't load older decisions. ${moreFailed}`}
-            onRetry={() => void loadMore()}
+            message={`Couldn't load older decisions. ${failureWords(log.error)}`}
+            onRetry={loadMore}
           />
-        ) : cursor ? (
-          <WithTooltip label={`Show the next ${PAGE} decisions`}>
+        ) : log.hasNextPage ? (
+          <WithTooltip label={`Show the next ${ADMIN_PAGE} decisions`}>
             <Button
               variant="outline"
               size="sm"
               className="w-fit"
-              disabled={loadingMore}
-              onClick={() => void loadMore()}
+              disabled={log.isFetchingNextPage}
+              onClick={loadMore}
             >
-              {loadingMore ? "Loading…" : "Show older"}
+              {log.isFetchingNextPage ? "Loading…" : "Show older"}
             </Button>
           </WithTooltip>
         ) : null}

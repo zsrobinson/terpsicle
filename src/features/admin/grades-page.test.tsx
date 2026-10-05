@@ -8,6 +8,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { AdminGrades } from "~/core/schema/admin";
+import { ApiCallError } from "~/server/fns/api";
 import { Toaster } from "~/ui/sonner";
 import { TooltipProvider } from "~/ui/tooltip";
 import { type GradesClient, GradesPage } from "./grades-page";
@@ -20,9 +21,9 @@ const GRADES: AdminGrades = {
   ],
 };
 
-function renderPage() {
+function renderPage(grades = vi.fn(async (): Promise<AdminGrades> => GRADES)) {
   const client = {
-    grades: vi.fn(async () => GRADES),
+    grades,
     gradesSave: vi.fn(async (input: AdminGrades["missing"][number]) => ({
       saved: input,
     })),
@@ -87,5 +88,21 @@ describe("the Grade data page", () => {
     );
     // It reads the list again, so the row shows what's stored.
     await waitFor(() => expect(client.grades).toHaveBeenCalledTimes(2));
+  });
+
+  it("says why the semesters didn't load, and Try again loads them", async () => {
+    const grades = vi
+      .fn(async (): Promise<AdminGrades> => GRADES)
+      .mockRejectedValueOnce(new ApiCallError("rate-limited"));
+    renderPage(grades);
+    const user = userEvent.setup();
+    expect(
+      await screen.findByText(
+        "Couldn't load the semesters. That's a lot of requests. Wait a minute, then try again.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Try again/ }));
+    expect(await screen.findByText("Spring 2026")).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't load the semesters/)).toBeNull();
   });
 });

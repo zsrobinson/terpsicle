@@ -20,6 +20,7 @@ import {
 import { useAccount } from "~/features/auth/account-store";
 import { requestInstallPrompt } from "~/features/pwa/install-store";
 import { track } from "~/lib/analytics";
+import { refetchWhenRunSettles } from "~/lib/settle-run";
 import { ApiCallError } from "~/server/fns/api";
 import {
   cachedSeatWatches,
@@ -162,8 +163,9 @@ async function holdList(client: QueryClient): Promise<void> {
  * over a later one still on its way, so it waits for the last.
  */
 function settleList(client: QueryClient): void {
-  if (client.isMutating({ mutationKey: seatWatchesKey }) <= 1)
+  refetchWhenRunSettles(client, seatWatchesKey, () => {
     void client.invalidateQueries({ queryKey: seatWatchesKey });
+  });
 }
 
 interface WatchVariables {

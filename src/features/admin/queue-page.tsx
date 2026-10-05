@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, RotateCw, Trash2, Undo2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import {
@@ -12,6 +13,7 @@ import type {
   ModerationReason,
   PolicyLabel,
   QueueItem,
+  QueueListResult,
 } from "~/core/schema";
 import { relativeWords } from "~/core/words";
 import { useAccount } from "~/features/auth/account-store";
@@ -26,14 +28,21 @@ import { noteToast, undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import { type View, ViewSwitch } from "~/ui/view-switch";
 import { AdminNav, PAGE_ROW } from "./admin-frame";
+import {
+  adminKeys,
+  healthQuery,
+  loadFailure,
+  queueQuery,
+  withoutQueueItem,
+} from "./admin-queries";
 import { ChatRemoveForm } from "./chat-remove";
 import { HealthSection } from "./health-section";
 import { StopAuthor } from "./stop-author";
-import { failureWords, useLoad } from "./use-load";
 import {
   ADMIN_REASON_WORDS,
   CROSS_ROOM_WORDS,
   count,
+  failureWords,
   KIND_WORDS,
   percent,
   REMOVE_REASONS,
@@ -70,36 +79,16 @@ export function QueuePage({
   now?: () => Date;
 }) {
   const testMode = useAccount((s) => s.flags.authTestMode);
-  const health = useLoad((signal) => client.health({ signal }), "health");
-  const queue = useLoad(
-    (signal) =>
-      client.queue(
-        { status: view === "waiting" ? "open" : "closed", limit: 50 },
-        { signal },
-      ),
-    view,
-  );
-  // Decided here since the list loaded: hidden at once, before a reload,
-  // but only from the list it was decided in (on "Decided" it belongs).
-  const [goneFrom, setGoneFrom] = useState<{
-    view: QueueView;
-    ids: ReadonlySet<string>;
-  }>({ view, ids: new Set() });
-  const gone: ReadonlySet<string> =
-    goneFrom.view === view ? goneFrom.ids : new Set();
-  const setGone = (next: (prev: ReadonlySet<string>) => ReadonlySet<string>) =>
-    setGoneFrom((prev) => ({
-      view,
-      ids: next(prev.view === view ? prev.ids : new Set()),
-    }));
+  const queryClient = useQueryClient();
+  const health = useQuery(healthQuery(client));
+  const queue = useQuery(queueQuery(client, view));
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
   const refresh = () => {
-    setGone(() => new Set());
-    health.reload();
-    queue.reload();
+    void queryClient.invalidateQueries({ queryKey: adminKeys.health });
+    void queryClient.invalidateQueries({ queryKey: adminKeys.queues });
   };
 
   const undo = async (item: QueueItem) => {
@@ -162,8 +151,17 @@ export function QueuePage({
         refresh();
         return;
       }
-      setGone((prev) => new Set(prev).add(item.id));
-      health.reload();
+      // Gone from this list at once, without asking for it again; the
+      // decided list and the numbers have changed too.
+      await queryClient.cancelQueries({ queryKey: adminKeys.queue(view) });
+      queryClient.setQueryData<QueueListResult>(
+        adminKeys.queue(view),
+        (list) => list && withoutQueueItem(list, item.id),
+      );
+      void queryClient.invalidateQueries({ queryKey: adminKeys.health });
+      void queryClient.invalidateQueries({
+        queryKey: adminKeys.queue("decided"),
+      });
       announce(result.item, action, reason, stop && action === "remove");
     } catch (error) {
       noteToast(
@@ -191,15 +189,14 @@ export function QueuePage({
     }
   };
 
-  const items = (queue.data?.items ?? []).filter((i) => !gone.has(i.id));
+  const items = queue.data?.items ?? [];
+  const queueFailed = loadFailure(queue);
   const at = now();
   const views: readonly View[] = [
     {
       id: "waiting",
       label: `Waiting${
-        queue.data && view === "waiting"
-          ? ` (${count(Math.max(0, queue.data.open - gone.size))})`
-          : ""
+        queue.data && view === "waiting" ? ` (${count(queue.data.open)})` : ""
       }`,
       hint: "Held posts waiting for you, urgent first",
       to: ADMIN_PATH,
@@ -233,7 +230,12 @@ export function QueuePage({
           </WithTooltip>
         }
       />
-      <HealthSection health={health} now={at} />
+      <HealthSection
+        health={health.data}
+        failed={loadFailure(health)}
+        onRetry={() => void health.refetch()}
+        now={at}
+      />
       <PageSection title="Posts">
         <div className="flex flex-wrap items-center gap-2">
           <ViewSwitch label="Queue" views={views} current={view} />
@@ -275,14 +277,14 @@ export function QueuePage({
           />
         ) : null}
 
-        {queue.state === "failed" ? (
+        {queueFailed ? (
           <InlineError
-            message={`Couldn't load the queue. ${queue.message}`}
-            onRetry={queue.reload}
+            message={`Couldn't load the queue. ${queueFailed}`}
+            onRetry={() => void queue.refetch()}
           />
         ) : null}
 
-        {queue.data === null && queue.state === "loading" ? (
+        {queue.isPending ? (
           <RowSkeleton rows={3} inset={false} label="Loading the queue" />
         ) : items.length === 0 && queue.data ? (
           <p className="py-2 text-muted">

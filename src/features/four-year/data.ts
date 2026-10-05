@@ -217,7 +217,7 @@ export function useIndexDepts(depts: readonly DeptCode[]): IndexDepts {
   );
   return useQueries({
     queries: depts.map((dept) =>
-      courseIndexDeptQuery(source, manifestDept(manifest.data, dept)),
+      courseIndexDeptQuery(source, manifestDept(manifest.data, dept), dept),
     ),
     combine,
   });

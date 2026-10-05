@@ -1,4 +1,8 @@
-import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from "@tanstack/react-query";
 import {
   act,
   render,
@@ -17,6 +21,7 @@ import { track } from "~/lib/analytics";
 import { ApiCallError } from "~/server/fns/api";
 import {
   cachedSeatWatches,
+  seatWatchesQuery,
   useWatchedSections,
 } from "~/state/query/seat-watches";
 import { createTestQueryClient } from "~/state/query/testing";
@@ -28,12 +33,14 @@ import {
   seatWatchState,
   takePendingWatch,
   useSeatWatchesSync,
+  watchSeat,
 } from "./seat-watches";
 import { SeatWatchesSection } from "./settings-section";
 import {
   fakeSeatWatchesClient,
   resetSeatWatches,
   seatAlertsAccount,
+  watching,
 } from "./testing";
 
 vi.mock("~/lib/analytics", () => ({ track: vi.fn() }));
@@ -348,5 +355,36 @@ describe("the Watching list on Settings", () => {
     expect(await screen.findByTestId(`seat-watch-${KEY}`)).toBeVisible();
     expect(screen.queryByText(/We couldn't load/)).toBeNull();
     expect(bell()).toHaveAttribute("data-alert", "watching");
+  });
+});
+
+describe("a run of changes", () => {
+  it("asks for the list once when two changes settle in the same tick", async () => {
+    const api = fakeSeatWatchesClient();
+    const client = createTestQueryClient();
+    watching(client, aMeUser());
+    // Something on screen reads the list.
+    const unsubscribe = new QueryObserver(client, seatWatchesQuery()).subscribe(
+      () => {},
+    );
+    const answer = gate();
+    const server = api.watch.getMockImplementation();
+    if (!server) throw new Error("no fake");
+    api.watch.mockImplementation(async (input) => {
+      await answer.promise;
+      return server(input);
+    });
+    const asked = api.list.mock.calls.length;
+
+    const both = Promise.all([
+      watchSeat(client, fixtureTermId, KEY),
+      watchSeat(client, fixtureTermId, "CMSC351-0201"),
+    ]);
+    answer.open();
+    expect(await both).toEqual([true, true]);
+    await waitFor(() => expect(api.list).toHaveBeenCalledTimes(asked + 1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(api.list).toHaveBeenCalledTimes(asked + 1);
+    unsubscribe();
   });
 });

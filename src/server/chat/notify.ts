@@ -20,6 +20,7 @@ import {
 import { chatMentionTag, chatReplyTag } from "~/core/notifications";
 import { parseRoomId } from "~/core/schema";
 import { type NotifyEnv, notify } from "../notifications/notify";
+import { type UserData, userDataForJob } from "../security/user-keys";
 import type { ChatCourse } from "./catalog";
 import type { MessageRow } from "./object-store";
 import {
@@ -68,7 +69,7 @@ async function mentionsIn(
 
 /** Whether the thread's author can still read the room (plans change). */
 async function stillReads(
-  db: D1Database,
+  data: UserData,
   userId: string,
   row: MessageRow,
   course: ChatCourse,
@@ -77,7 +78,7 @@ async function stillReads(
   if (!parsed) return false;
   if (parsed.kind === "course") return true;
   const sections = await planSections(
-    db,
+    data,
     userId,
     parsed.termId,
     parsed.courseCode,
@@ -111,7 +112,7 @@ export async function notifyChatMessage(
     input.threadAuthor !== null &&
     input.threadAuthor !== row.author_id &&
     !mentioned.includes(input.threadAuthor) &&
-    (await stillReads(env.DB, input.threadAuthor, row, course))
+    (await stillReads(userDataForJob(env), input.threadAuthor, row, course))
       ? input.threadAuthor
       : null;
   if (mentioned.length === 0 && threadAuthor === null) return [];

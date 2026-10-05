@@ -14,7 +14,11 @@ export function demoRequested(search: string): boolean {
   return new URLSearchParams(search).has(DEMO_PARAM);
 }
 
-/** Replaces the workspace with the demo state. Call after hydrating. */
+/**
+ * Replaces the workspace with the demo state, and marks it loaded. Call
+ * after `hydrate(db, { hold: true })` and `startPersisting`, so the demo is
+ * saved and nothing takes the empty workspace before it for a first visit.
+ */
 export async function loadDemoState(): Promise<void> {
   if (import.meta.env.MODE !== "mock") return;
   const { demoBlocks, demoCourseColors, demoPlan, demoPlans } = await import(
@@ -29,6 +33,7 @@ export async function loadDemoState(): Promise<void> {
     activePlanByTerm: { [demoPlan.termId]: demoPlan.id },
     past: [],
     future: [],
+    hydrated: true,
   });
   useUi.setState({ lastTermId: null, lastTab: "courses", lastDrill: null });
 }

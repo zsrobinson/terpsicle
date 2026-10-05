@@ -1,6 +1,8 @@
 import {
+  MutationObserver,
   type QueryClient,
   QueryClientProvider,
+  QueryObserver,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -131,6 +133,38 @@ describe("the settings beside the bell", () => {
     expect(client.getQueryData(notificationsKeys.unread)).toBe(1);
     for (const key of [notificationsKeys.unread, notificationsKeys.inbox])
       expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+  });
+});
+
+describe("saveSettingsMutation", () => {
+  it("asks for the settings once after a run of saves", async () => {
+    await client.prefetchQuery(notificationSettingsQuery());
+    // Something on screen reads the settings.
+    const unsubscribe = new QueryObserver(
+      client,
+      notificationSettingsQuery(),
+    ).subscribe(() => {});
+    let answer: () => void = () => {};
+    const sent = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    api.setSettings.mockImplementation(async () => {
+      await sent;
+      return { settings: DEFAULT_NOTIFICATION_SETTINGS };
+    });
+    const save = (showText: boolean) =>
+      new MutationObserver(client, saveSettingsMutation()).mutate({
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        showText,
+      });
+
+    const both = Promise.all([save(false), save(true)]);
+    answer();
+    await both;
+    await waitFor(() => expect(api.settings).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(api.settings).toHaveBeenCalledTimes(2);
+    unsubscribe();
   });
 });
 

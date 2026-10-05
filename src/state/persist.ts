@@ -20,8 +20,15 @@ import { useWorkspace } from "./workspace-store";
 // changed. The undo stack, hover state and search text aren't persisted
 // (DATA.md §5).
 
-/** Reads everything into the stores. Invalid rows are skipped, never fatal. */
-export async function hydrate(db: TerpsicleDb): Promise<void> {
+/**
+ * Reads everything into the stores. Invalid rows are skipped, never fatal.
+ * `hold` leaves the workspace's `hydrated` false, for a caller that has
+ * more to put in first (`?demo=1`, ./demo.ts) and sets it then.
+ */
+export async function hydrate(
+  db: TerpsicleDb,
+  { hold = false }: { hold?: boolean } = {},
+): Promise<void> {
   const [plans, blocks, colors, settings] = await db.transaction(
     "r",
     [db.plans, db.blocks, db.courseColors, db.settings],
@@ -54,7 +61,7 @@ export async function hydrate(db: TerpsicleDb): Promise<void> {
     activePlanByTerm: ui.activePlanByTerm,
     mainPlans,
     travel,
-    hydrated: true,
+    hydrated: !hold,
     past: [],
     future: [],
     // Loading isn't a change: a notice left from an earlier visit to the

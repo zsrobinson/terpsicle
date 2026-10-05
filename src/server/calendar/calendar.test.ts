@@ -41,6 +41,8 @@ import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { markDeleting, upsertUser } from "../auth/store";
 import { keyedHash } from "../crypto";
+import { sealedBodyFor } from "../sync/testing";
+import { sealedTitleFor } from "../todo/testing";
 import { createWorker } from "../worker";
 import {
   FEED_CACHE_CONTROL,
@@ -194,7 +196,7 @@ async function savePlan(userId: string, plan: ReturnType<typeof aPlan>) {
       plan.id,
       plan.termId,
       rev,
-      JSON.stringify(plan),
+      await sealedBodyFor(env, userId, "plan", plan.id, plan),
       now().toISOString(),
     )
     .run();
@@ -418,9 +420,12 @@ describe("GET /cal/<token>.ics", () => {
       .run();
     await env.DB.prepare(
       `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
-       VALUES ('tstudent', 'own-study-group', 'Study group', NULL, NULL, '2026-10-03', ?1, ?1)`,
+       VALUES ('tstudent', 'own-study-group', ?2, NULL, NULL, '2026-10-03', ?1, ?1)`,
     )
-      .bind(now().toISOString())
+      .bind(
+        now().toISOString(),
+        await sealedTitleFor(env, "tstudent", "own-study-group", "Study group"),
+      )
       .run();
     // A course hidden in Todo, by its code.
     await addItem(
@@ -496,7 +501,11 @@ describe("GET /cal/<token>.ics", () => {
     )
       .bind(
         rev,
-        JSON.stringify(
+        await sealedBodyFor(
+          env,
+          "tstudent",
+          "settings",
+          "settings",
           aSettingsDoc({ mainPlans: { [fixtureTermId]: "plan_second" } }),
         ),
         now().toISOString(),

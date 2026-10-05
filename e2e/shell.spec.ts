@@ -288,7 +288,9 @@ test.describe("desktop", () => {
     );
 
     await page.getByRole("button", { name: "Save a copy" }).click();
-    await expect(page).toHaveURL((url) => !url.searchParams.has("plan"));
+    // Saving takes fresh snapshots from the plan's departments, which a cold
+    // page may still be loading: waited for as a navigation would.
+    await page.waitForURL((url) => !url.searchParams.has("plan"));
     // The pill and the heading, not the toast ("Saved a copy of the shared plan").
     await expect(page.getByText("Shared plan", { exact: true })).toHaveCount(0);
     await expect(planTabs(page)).toHaveText(["Alex's summer"]);
@@ -350,6 +352,9 @@ test.describe("phone", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("no viewport");
     const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
+    // The drawer comes with the demo, which on a cold page can take most of
+    // 5 s (the app's modules, unbundled): waited for as an action would.
+    await drawer(page).waitFor();
     await expect(drawer(page)).toHaveAttribute("data-snap", "peek");
 
     await tabs.getByRole("button", { name: "Search" }).tap();
@@ -373,9 +378,12 @@ test.describe("phone", () => {
     await page.getByRole("combobox", { name: "Search courses" }).tap();
     await expect(drawer(page)).toHaveAttribute("data-snap", "full");
     await page.keyboard.type("cmsc 401");
-    await expect(
-      page.locator('[data-course-result="CMSC401"]'),
-    ).toBeInViewport();
+    // Results wait for the term's whole catalog, which a cold page may still
+    // be loading (PR #250): wait for this one as a tap on it would, then
+    // see where it is.
+    const result = page.locator('[data-course-result="CMSC401"]');
+    await result.waitFor();
+    await expect(result).toBeInViewport();
   });
 
   test("a shorter phone first visit shows both ways to start", {
@@ -383,7 +391,9 @@ test.describe("phone", () => {
   }, async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 659 });
     await open(page);
-    await expect(page.getByTestId("first-visit")).toBeVisible();
+    // The guide comes with Plan A, which waits for the term list: on a cold
+    // page that can take most of 5 s, so it's waited for as an action would.
+    await page.getByTestId("first-visit").waitFor();
     // The guide cannot fit at half; this is intentional, not a tab's rise.
     await expect(drawer(page)).toHaveAttribute("data-snap", "full");
     await expect(

@@ -678,16 +678,18 @@ function EditBox({
       <label htmlFor={id} className="sr-only">
         Edit your message
       </label>
-      <Textarea
-        id={id}
-        autoFocus
-        value={draft}
-        maxLength={CHAT_TEXT_MAX}
-        rows={Math.min(6, draft.split("\n").length + 1)}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={onKeyDown}
-        className="resize-none"
-      />
+      <WithTooltip label="Shift+Enter starts a new line. Esc stops editing.">
+        <Textarea
+          id={id}
+          autoFocus
+          value={draft}
+          maxLength={CHAT_TEXT_MAX}
+          rows={Math.min(6, draft.split("\n").length + 1)}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+          className="resize-none"
+        />
+      </WithTooltip>
       <div className="flex gap-2">
         <WithTooltip label="Save the edit" shortcut="↵">
           <Button
