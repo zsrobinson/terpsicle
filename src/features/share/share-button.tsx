@@ -102,14 +102,19 @@ export function ShareButton({
           <label htmlFor={fieldId} className="sr-only">
             Share link
           </label>
-          <Input
-            id={fieldId}
-            readOnly
-            value={url}
-            // The whole link at once, ready for ⌘C, if the button can't.
-            onFocus={(e) => e.currentTarget.select()}
-            className="ident flex-1 md:text-sm"
-          />
+          <WithTooltip
+            label="The link, selected when you click it"
+            side="bottom"
+          >
+            <Input
+              id={fieldId}
+              readOnly
+              value={url}
+              // The whole link at once, ready for ⌘C, if the button can't.
+              onFocus={(e) => e.currentTarget.select()}
+              className="ident flex-1 md:text-sm"
+            />
+          </WithTooltip>
           <WithTooltip label="Copy the link">
             <Button onClick={() => void copy()}>
               <Copy aria-hidden="true" />

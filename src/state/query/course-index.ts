@@ -59,14 +59,21 @@ export function courseSearchQuery(
   );
 }
 
-/** A department's full entries, at the hash the manifest lists (none: nothing to read). */
+/**
+ * A department's full entries, at the hash the manifest lists (none:
+ * nothing to read). `dept` keeps the query of a department the manifest
+ * doesn't name (yet) apart from another's, as `useQueries` needs.
+ */
 export function courseIndexDeptQuery(
   source: DataSource | null,
   entry: { code: DeptCode; hash: ContentHash } | undefined,
+  dept?: DeptCode,
 ) {
   return publishedFile(
     entry ? source : null,
-    entry ? courseIndexDeptKey(entry.code, entry.hash) : "courses/dept/none",
+    entry
+      ? courseIndexDeptKey(entry.code, entry.hash)
+      : `courses/dept/${dept ? `${dept}.` : ""}none`,
     CourseIndexDeptSchema,
     "courses",
   );

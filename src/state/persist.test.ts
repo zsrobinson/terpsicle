@@ -232,3 +232,18 @@ describe("diffById", () => {
     });
   });
 });
+
+describe("hydrate, held", () => {
+  it("loads the stores but leaves them unhydrated until the caller adds the rest", async () => {
+    // The demo (`?demo=1`) replaces what's saved: nothing may take the saved
+    // state for loaded first, or a first visit's Plan A and its guide start.
+    const held = new TerpsicleDb(`test-held-${++dbCount}`);
+    resetStores();
+    const block = aBlock({ termId: SPRING });
+    await held.blocks.put(block);
+    await hydrate(held, { hold: true });
+    expect(useWorkspace.getState().blocks).toEqual([block]);
+    expect(useWorkspace.getState().hydrated).toBe(false);
+    held.close();
+  });
+});

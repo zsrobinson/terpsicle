@@ -19,7 +19,11 @@ import {
   DataError,
   type DataSource,
 } from "../data-source";
-import { ensureCourseSearch, ensureIndexDepts } from "./course-index";
+import {
+  courseIndexDeptQuery,
+  ensureCourseSearch,
+  ensureIndexDepts,
+} from "./course-index";
 import {
   createMemoryQueryStorage,
   flushQueryStorage,
@@ -278,5 +282,17 @@ describe("the course index with the persister", () => {
       /schema version 99/,
     );
     expect(server.take()).toEqual([COURSE_INDEX_MANIFEST_KEY]);
+  });
+});
+
+describe("a department the manifest doesn't name (yet)", () => {
+  it("has a query key of its own, so asking for several never doubles one up", () => {
+    // Plan asks for its doc's departments together (useQueries, which
+    // warns on duplicates) before the manifest is in.
+    const source = createBucketDataSource(mockDataSource);
+    const keys = ["CMSC", "MATH"].map((dept) =>
+      JSON.stringify(courseIndexDeptQuery(source, undefined, dept).queryKey),
+    );
+    expect(new Set(keys).size).toBe(2);
   });
 });

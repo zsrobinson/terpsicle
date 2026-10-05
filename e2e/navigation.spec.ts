@@ -7,11 +7,20 @@ import { OPEN_VIEW } from "./sidebar";
 // entry that keeps Back in the app. The same on a phone, in the drawer.
 
 let errors: string[] = [];
-async function open(page: Page, path = "/schedule?demo=1") {
+/**
+ * Opens the demo and waits until it's ready for what the test does first:
+ * by default the calendar's CMSC351, which needs the term's catalog too.
+ */
+async function open(
+  page: Page,
+  path = "/schedule?demo=1",
+  ready: (page: Page) => Promise<void> = (p) =>
+    expect(block(p, "CMSC351")).toBeVisible(),
+) {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(path);
-  await expect(block(page, "CMSC351")).toBeVisible();
+  await ready(page);
 }
 test.afterEach(() => {
   expect(errors).toEqual([]);
@@ -193,7 +202,15 @@ test.describe("desktop", () => {
 
 test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout");
-  test.beforeEach(({ page }) => open(page));
+  // Its first step needs the demo plan's rows in the drawer, not the
+  // catalog's first paint on the calendar: on a cold WebKit page that paint
+  // took 4.99 s of the assertion's 5 (CI, 2026-10-05), and once longer. The
+  // calendar's blocks are waited for where the test clicks them.
+  test.beforeEach(({ page }) =>
+    open(page, undefined, (p) =>
+      expect(p.getByTestId("course-row-CMSC351")).toBeAttached(),
+    ),
+  );
 
   test("course to course in the drawer, with its Back and the browser's", {
     tag: "@phone",

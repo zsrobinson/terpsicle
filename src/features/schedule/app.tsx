@@ -95,8 +95,12 @@ function useBootstrap(config: ClientConfig, client: QueryClient) {
       .catch(() => {});
 
     void (async () => {
+      // The demo replaces what's saved. Until it's in, the workspace isn't
+      // loaded: React runs effects in between, and a first visit's empty
+      // Plan A (and on a phone its guide, raising the drawer) would start.
+      const demo = demoRequested(window.location.search);
       try {
-        await hydrate(db);
+        await hydrate(db, { hold: demo });
         if (cancelled) return;
         persistence = startPersisting(db, (error) => {
           console.error(error);
@@ -149,7 +153,7 @@ function useBootstrap(config: ClientConfig, client: QueryClient) {
           if (next.status !== prev.status || next.user?.id !== prev.user?.id)
             follow();
         });
-        if (demoRequested(window.location.search)) await loadDemoState();
+        if (demo) await loadDemoState();
       } catch (error) {
         // Closed by our own cleanup (a remount): not a storage problem.
         if (cancelled) return;
