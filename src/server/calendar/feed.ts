@@ -21,7 +21,11 @@ import type { RouteContext } from "../api/route";
 import { hit, secondsLeft } from "../counters";
 import { keyedHash } from "../crypto";
 import { findSection, memoJson, readCalendar } from "../published";
-import { type UserData, userDataForRequest } from "../security/user-keys";
+import {
+  type AccountKeyBucket,
+  type UserData,
+  userDataForRequest,
+} from "../security/user-keys";
 import { livePlans, mainPlansOf } from "../sync/store";
 import { doneAmong, hiddenCourses, listItems, listTasks } from "../todo/store";
 import {
@@ -40,7 +44,7 @@ import {
 } from "./token";
 
 /** Plans and own tasks are sealed with the account's key (../security/user-keys.ts). */
-export interface CalendarFeedEnv extends UserDataKeyVars {
+export interface CalendarFeedEnv extends UserDataKeyVars, AccountKeyBucket {
   DB: D1Database;
   /** The published catalog and calendars, and the HMAC key (under _jobs/). */
   DATA: R2Bucket;
