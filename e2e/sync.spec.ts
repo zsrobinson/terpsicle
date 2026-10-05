@@ -38,8 +38,6 @@ function newUser(): string {
   return `e2e${Math.random().toString(36).slice(2, 12)}`;
 }
 
-const calendar = (page: Page) =>
-  page.getByRole("region", { name: "Week calendar" });
 const planTabs = (page: Page) =>
   page.getByRole("navigation", { name: "Plans" }).getByRole("listitem");
 const syncStatus = (page: Page) =>
@@ -52,14 +50,15 @@ async function openScheduler(page: Page, path = "/schedule") {
   await expect(page.locator('[data-slot="app-bar"]')).toBeVisible();
 }
 
-/** The demo's plans, saved in this browser while signed out. */
+/**
+ * The demo's plans, saved in this browser while signed out: their rows in
+ * Courses, not the calendar's blocks, which wait for the term's catalog too.
+ * On a cold page the demo can take most of 5 s, so it's waited for as an
+ * action would, not asserted.
+ */
 async function openDemo(page: Page) {
   await openScheduler(page, "/schedule?demo=1");
-  await expect(
-    calendar(page)
-      .getByRole("button", { name: /^CMSC351 0301/ })
-      .first(),
-  ).toBeVisible();
+  await page.getByTestId("course-row-CMSC351").waitFor();
 }
 
 /** Test sign-in, as /auth/test's button does it, then back to the scheduler. */

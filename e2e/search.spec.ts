@@ -7,17 +7,25 @@ import { OPEN_VIEW } from "./sidebar";
 // and the same on a phone, inside the drawer.
 
 let errors: string[] = [];
-// Called from each group's beforeEach, after its skip, so a skipped test
-// never loads the page.
-async function open(page: Page) {
+/**
+ * Opens the demo and waits until it's ready for what the group does first:
+ * by default the calendar's CMSC351, which needs the term's catalog too.
+ * Called from each group's beforeEach, after its skip, so a skipped test
+ * never loads the page.
+ */
+async function open(
+  page: Page,
+  ready: (page: Page) => Promise<void> = (p) =>
+    expect(
+      calendar(p)
+        .getByRole("button", { name: /^CMSC351 0301/ })
+        .first(),
+    ).toBeVisible(),
+) {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/schedule?demo=1");
-  await expect(
-    calendar(page)
-      .getByRole("button", { name: /^CMSC351 0301/ })
-      .first(),
-  ).toBeVisible();
+  await ready(page);
 }
 test.afterEach(() => {
   expect(errors).toEqual([]);
@@ -27,13 +35,29 @@ const calendar = (page: Page) =>
   page.getByRole("region", { name: "Week calendar" });
 const searchBox = (page: Page) =>
   page.getByRole("combobox", { name: "Search courses" });
+/** The phone drawer's Search tab. */
+const searchTab = (page: Page) =>
+  page
+    .getByRole("navigation", { name: "Tabs", exact: true })
+    .getByRole("button", { name: "Search" });
+/**
+ * The demo plan's rows: the scheduler is up with the demo in. On a cold page
+ * that alone can take most of 5 s (the app's modules, unbundled), so it's
+ * waited for as an action would, not asserted.
+ */
+const demoRows = (page: Page) =>
+  page.getByTestId("course-row-CMSC351").waitFor();
 const results = (page: Page) => page.getByRole("listbox");
 const matchCount = async (page: Page) =>
   Number((await results(page).getAttribute("aria-label"))?.split(" ")[0]);
 
-test.describe("desktop", () => {
+test.describe("desktop, from the demo's arrival", () => {
   test.skip(({ isMobile }) => isMobile, "desktop interactions");
-  test.beforeEach(({ page }) => open(page));
+  // "/" needs the scheduler with the demo in, which its plan's rows show;
+  // they come before the term's catalog. The calendar's first paint waits
+  // for the catalog (PR #250), as do Search's results, which the hover
+  // waits for.
+  test.beforeEach(({ page }) => open(page, demoRows));
 
   test("search, hover for ghosts, open, and switch from the list", {
     tag: "@critical",
@@ -42,9 +66,8 @@ test.describe("desktop", () => {
     await expect(searchBox(page)).toBeFocused();
     await searchBox(page).fill("cmsc 351");
     const result = page.locator('[data-course-result="CMSC351"]');
-    await expect(result).toContainText("4 sections · 1 fit");
-
     await result.hover();
+    await expect(result).toContainText("4 sections · 1 fit");
     await expect(
       page.getByText("Showing every section of CMSC351. Open it to pick one."),
     ).toBeVisible();
@@ -67,6 +90,11 @@ test.describe("desktop", () => {
     ).toBeVisible();
     await expect(row).toContainText("In Plan A");
   });
+});
+
+test.describe("desktop", () => {
+  test.skip(({ isMobile }) => isMobile, "desktop interactions");
+  test.beforeEach(({ page }) => open(page));
 
   test("hovering results never moves the calendar", async ({ page }) => {
     await page.keyboard.press("/");
@@ -262,13 +290,17 @@ test.describe("desktop", () => {
 
 test.describe("phone", () => {
   test.skip(({ isMobile }) => !isMobile, "phone layout");
-  test.beforeEach(({ page }) => open(page));
+  // Each test starts by tapping the drawer's Search tab, which comes with
+  // the demo, before the term's catalog: waited for as the tap will. The
+  // calendar's first paint waits for the catalog, and on a cold WebKit page
+  // that took most of an assertion's 5 s (PR #250). Search's results wait
+  // for it too, and the taps on them wait for them.
+  test.beforeEach(({ page }) => open(page, (p) => searchTab(p).waitFor()));
 
   test("search and open a course in the drawer", { tag: "@phone" }, async ({
     page,
   }) => {
-    const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
-    await tabs.getByRole("button", { name: "Search" }).tap();
+    await searchTab(page).tap();
     // A finger taps to open; only a mouse hovers to preview.
     await expect(page.getByTestId("search-hint-tap")).toBeVisible();
     await expect(page.getByTestId("search-hint-hover")).toBeHidden();
@@ -296,8 +328,7 @@ test.describe("phone", () => {
   });
 
   test("a section added off-screen scrolls into view", async ({ page }) => {
-    const tabs = page.getByRole("navigation", { name: "Tabs", exact: true });
-    await tabs.getByRole("button", { name: "Search" }).tap();
+    await searchTab(page).tap();
     await searchBox(page).fill("cmsc131");
     await page.locator('[data-course-result="CMSC131"]').tap();
     const drawer = page.locator("[data-workbench-drawer]");

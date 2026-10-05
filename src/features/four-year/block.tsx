@@ -399,7 +399,9 @@ export function EntryBlock({
     entry.kind === "course" ? (
       <>
         <span className="flex items-baseline gap-2">
-          <span className="ident font-semibold">{entry.code}</span>
+          <span className="ident min-w-0 truncate font-semibold">
+            {entry.code}
+          </span>
           <span className="ml-auto flex shrink-0 items-baseline gap-1.5 text-sm">
             {grade ? (
               <span data-private className="font-semibold">
