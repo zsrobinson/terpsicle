@@ -102,19 +102,23 @@ test("Plan notes a spring-only course in a fall, and moves it", async ({
   await add(page, isMobile, "Spring 2028", "CMSC434");
 
   await page.goto("/plan/problems");
-  const problems = page.getByRole("list", { name: "Problems" });
-  const note = problems.getByRole("listitem").filter({
+  // The shared problem list's row (~/components/problem-list).
+  const note = page.getByTestId("problem-unlikely-term").filter({
     hasText: "CMSC452 is usually spring only",
   });
   await expect(note).toContainText(
     "Offered in 7 of the 8 springs on record since 2019, and in no fall. Last offered Spring 2027.",
   );
+  // Its offering strip, in the row's extra slot.
+  await expect(
+    note.getByRole("img", {
+      name: "Offered in 7 of the 8 springs on record since 2019, and in no fall.",
+    }),
+  ).toBeVisible();
   await note
     .getByRole("button", { name: "Move CMSC452 to Spring 2028" })
     .click();
-  await expect(
-    problems.getByText("CMSC452 is usually spring only"),
-  ).toHaveCount(0);
+  await expect(page.getByText("CMSC452 is usually spring only")).toHaveCount(0);
   const spring = await semester(page, isMobile, "Spring 2028");
   await expect(spring.getByText("CMSC452")).toBeVisible();
 });
