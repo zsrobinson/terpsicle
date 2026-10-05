@@ -246,6 +246,13 @@ export function PrivacyPage() {
             attached; delete them first if you want them gone. Plans saved in
             your browser stay until you remove them.
           </p>
+          <p>
+            Your synced plans, settings and four-year plans, and what your Todo
+            tasks say, are encrypted with a key of your account's own. Deleting
+            your account destroys that key, so nobody can read them again, not
+            even from a backup. Cloudflare keeps backups of everything else
+            listed above for up to 30 days after it's deleted.
+          </p>
         </Section>
 
         <Section title="Contact">

@@ -1,39 +1,57 @@
 // Each account's data key (docs/DATA.md §7.7): 32 random bytes made on the
-// account's first sync, kept in `user_keys` wrapped (sealed) by the Worker
-// secret USER_DATA_KEY. Synced docs and Todo's own tasks are sealed with it,
-// each bound to its row. Deleting the account deletes the key first
-// (src/server/auth/purge.ts), and without it nothing of theirs opens.
+// account's first sync, wrapped (sealed) by the Worker secret USER_DATA_KEY
+// and kept as one object, `keys/<userId>`, in the private R2 bucket
+// USER_KEYS. Synced docs and Todo's own tasks are sealed with it, each bound
+// to its row. Deleting the account deletes the object (src/server/auth/
+// purge.ts), and without it nothing of theirs opens.
+//
+// Why R2 and not D1, beside what it seals: D1's Time Travel can put the
+// whole database back as it was at any minute of the last 30 days, and R2
+// keeps no earlier versions of an object, so a deleted key stays deleted
+// even when the rows it sealed come back (docs/decisions.md, "Account keys
+// live in R2, apart from what they seal").
 //
 // The server can still open what it stores (Chat reads your main plan, the
 // calendar feed your plans), so this is never "end-to-end" encryption.
 //
-// No plaintext fallback: without the secret every read and write throws
-// UserDataKeyMissing, which the API answers as "unavailable". Nothing here
-// logs a key or anything it opens.
+// No plaintext fallback: without the secret or the bucket every read and
+// write throws UserDataKeyMissing, which the API answers as "unavailable".
+// Nothing here logs a key or anything it opens.
 import { z } from "zod";
-import { type UserDataKeyVars, UserDataKeyVarsSchema } from "~/core/schema";
+import {
+  DirectoryIdSchema,
+  type UserDataKeyVars,
+  UserDataKeyVarsSchema,
+} from "~/core/schema";
 import { isTestMode } from "../auth/config";
 import {
   importSealKey,
   loadSealKeys,
   openBytes,
   openText,
+  SEAL_KEY_ID,
   type SealKeys,
   type SealSecrets,
   sealBytes,
+  sealedKeyId,
   sealText,
 } from "./seal";
 
-export interface UserDataEnv extends UserDataKeyVars {
+/** The private bucket that holds every account's wrapped key. */
+export interface AccountKeyBucket {
+  USER_KEYS?: R2Bucket;
+}
+
+export interface UserDataEnv extends UserDataKeyVars, AccountKeyBucket {
   DB: D1Database;
 }
 
 /**
  * Test mode's fixed key (previews, `pnpm dev:mock`, e2e): public, and its id
- * `test` never names a production row. Like Todo's test feed key, it's what
+ * `test` never names a production key. Like Todo's test feed key, it's what
  * test mode always uses, so previews (unreviewed code, test sign-ins, their
- * own D1) never touch USER_DATA_KEY even if they could read it. Test mode
- * on a request needs a preview or localhost host (V2.md §4.6), so
+ * own D1 and bucket) never touch USER_DATA_KEY even if they could read it.
+ * Test mode on a request needs a preview or localhost host (V2.md §4.6), so
  * terpsicle.com never gets it whatever its vars say.
  */
 export const TEST_USER_DATA_KEY: SealSecrets = {
@@ -41,11 +59,14 @@ export const TEST_USER_DATA_KEY: SealSecrets = {
   id: "test",
 };
 
-/** USER_DATA_KEY is missing or malformed: synced data can't be read or written. */
+/**
+ * USER_DATA_KEY is missing or malformed, or the USER_KEYS bucket isn't
+ * bound: synced data can't be read or written.
+ */
 export class UserDataKeyMissing extends Error {
   override name = "UserDataKeyMissing";
-  constructor() {
-    super("USER_DATA_KEY isn't set");
+  constructor(what = "USER_DATA_KEY isn't set") {
+    super(what);
   }
 }
 
@@ -57,7 +78,7 @@ export class SealedDataError extends Error {
   }
 }
 
-const warned = { missing: false, previous: false };
+const warned = { missing: false, previous: false, bucket: false };
 
 /** Logs a misconfigured var once per isolate: names only, never a value. */
 function warnOnce(which: keyof typeof warned, message: string): void {
@@ -105,6 +126,25 @@ export async function userDataKeys(
   return keys;
 }
 
+/** The bucket, or UserDataKeyMissing: never a key kept anywhere else. */
+export function keyBucket(env: AccountKeyBucket): R2Bucket {
+  if (env.USER_KEYS) return env.USER_KEYS;
+  warnOnce("bucket", "the R2 bucket USER_KEYS isn't bound");
+  throw new UserDataKeyMissing("USER_KEYS isn't bound");
+}
+
+/** Where every account's key lives in the bucket. */
+const KEY_PREFIX = "keys/";
+
+/**
+ * The object an account's wrapped key is: `keys/<directory ID>`. An id that
+ * isn't a directory ID throws, so no key lands outside `keys/` or beside
+ * another's.
+ */
+export function accountKeyPath(userId: string): string {
+  return `${KEY_PREFIX}${DirectoryIdSchema.parse(userId)}`;
+}
+
 /** One account's data key, unwrapped for this request only. */
 export interface AccountKey {
   readonly userId: string;
@@ -136,46 +176,144 @@ const ACCOUNT_KEY_ID = "acct";
 const context = (parts: readonly string[]) => JSON.stringify(parts);
 const wrapContext = (userId: string) => context(["user-key", userId]);
 
-const KeyRowSchema = z.object({
-  wrapped_key: z.string().min(1),
-  master_key_id: z.string(),
+/** A wrapped key as stored: the sealed text, and its version's etag. */
+interface StoredKey {
+  wrapped: string;
+  etag: string;
+}
+
+async function readStoredKey(
+  bucket: R2Bucket,
+  userId: string,
+): Promise<StoredKey | null> {
+  const object = await bucket.get(accountKeyPath(userId));
+  if (!object) return null;
+  return { wrapped: await object.text(), etag: object.etag };
+}
+
+/**
+ * Stores a wrapped key only where the account has none (`If-None-Match:
+ * *`), so a key is never replaced by another: true when this one was.
+ */
+async function storeIfAbsent(
+  bucket: R2Bucket,
+  userId: string,
+  wrapped: string,
+): Promise<boolean> {
+  const put = await bucket.put(accountKeyPath(userId), wrapped, {
+    onlyIf: { etagDoesNotMatch: "*" },
+    customMetadata: masterKeyMetadata(wrapped),
+  });
+  return put !== null;
+}
+
+/** The wrapping key's id, kept beside the object for listing. */
+const masterKeyMetadata = (wrapped: string) => ({
+  masterKeyId: sealedKeyId(wrapped) ?? "",
 });
 
-async function loadAccountKey(
+// ---------- Keys kept in D1 before 2026-10-05 ----------
+// Builds before then kept wrapped keys in D1's `user_keys`. A key still
+// there is moved into the bucket the first time it's needed, and the daily
+// job moves the rest (`moveLegacyAccountKeys`). Once no row is left, a
+// migration drops the table and this goes with it.
+
+const LegacyRowSchema = z.object({
+  user_id: z.string(),
+  wrapped_key: z.string().min(1),
+});
+
+/**
+ * Moves one account's key from `user_keys` into the bucket, verbatim (it
+ * stays wrapped the same way). The row goes only once the bucket holds that
+ * same key; if the bucket already has another, the row stays and is
+ * counted, never lost. What the bucket holds after is the account's key.
+ */
+async function moveLegacyKey(
+  bucket: R2Bucket,
   db: D1Database,
+  row: z.infer<typeof LegacyRowSchema>,
+): Promise<{ stored: StoredKey | null; moved: boolean }> {
+  await storeIfAbsent(bucket, row.user_id, row.wrapped_key);
+  const stored = await readStoredKey(bucket, row.user_id);
+  if (stored?.wrapped !== row.wrapped_key) return { stored, moved: false };
+  await db
+    .prepare("DELETE FROM user_keys WHERE user_id = ?1 AND wrapped_key = ?2")
+    .bind(row.user_id, row.wrapped_key)
+    .run();
+  return { stored, moved: true };
+}
+
+async function legacyKey(
+  bucket: R2Bucket,
+  db: D1Database,
+  userId: string,
+): Promise<StoredKey | null> {
+  const row = await db
+    .prepare("SELECT user_id, wrapped_key FROM user_keys WHERE user_id = ?1")
+    .bind(userId)
+    .first();
+  if (!row) return null;
+  return (await moveLegacyKey(bucket, db, LegacyRowSchema.parse(row))).stored;
+}
+
+/**
+ * The daily job's move of keys still in `user_keys` into the bucket, up to
+ * `limit` a run. `left` counts the rows still there after it.
+ */
+export async function moveLegacyAccountKeys(
+  env: UserDataEnv,
+  limit = 1_000,
+): Promise<{ moved: number; left: number }> {
+  const bucket = keyBucket(env);
+  const { results } = await env.DB.prepare(
+    "SELECT user_id, wrapped_key FROM user_keys ORDER BY user_id LIMIT ?1",
+  )
+    .bind(limit)
+    .all();
+  let moved = 0;
+  for (const r of results) {
+    const result = await moveLegacyKey(
+      bucket,
+      env.DB,
+      LegacyRowSchema.parse(r),
+    );
+    if (result.moved) moved += 1;
+  }
+  const left = z
+    .number()
+    .int()
+    .parse(
+      await env.DB.prepare("SELECT count(*) AS n FROM user_keys").first("n"),
+    );
+  return { moved, left };
+}
+
+// ---------- Reading and making keys ----------
+
+async function loadAccountKey(
+  env: UserDataEnv,
   master: SealKeys,
   userId: string,
   create: boolean,
 ): Promise<AccountKey | null> {
-  const select = db
-    .prepare(
-      "SELECT wrapped_key, master_key_id FROM user_keys WHERE user_id = ?1",
-    )
-    .bind(userId);
-  let row: unknown = await select.first();
-  if (!row && create) {
+  const bucket = keyBucket(env);
+  let stored =
+    (await readStoredKey(bucket, userId)) ??
+    (await legacyKey(bucket, env.DB, userId));
+  if (!stored && create) {
     const raw = crypto.getRandomValues(new Uint8Array(32));
     const wrapped = await sealBytes(master, wrapContext(userId), raw);
     raw.fill(0);
-    // A first save racing this one may insert between the read above and
-    // this batch: DO NOTHING keeps theirs, and the select reads it back.
-    const [, stored] = await db.batch([
-      db
-        .prepare(
-          `INSERT INTO user_keys (user_id, wrapped_key, master_key_id)
-           VALUES (?1, ?2, ?3) ON CONFLICT (user_id) DO NOTHING`,
-        )
-        .bind(userId, wrapped, master.current.id),
-      select,
-    ]);
-    row = stored?.results[0] ?? null;
+    // A first save racing this one may store its key between the read
+    // above and this put: the put then stores nothing, and theirs is read
+    // back, so both seal with the one key.
+    stored = (await storeIfAbsent(bucket, userId, wrapped))
+      ? { wrapped, etag: "" }
+      : await readStoredKey(bucket, userId);
   }
-  if (!row) return null;
-  const raw = await openBytes(
-    master,
-    wrapContext(userId),
-    KeyRowSchema.parse(row).wrapped_key,
-  );
+  if (!stored) return null;
+  const raw = await openBytes(master, wrapContext(userId), stored.wrapped);
   if (raw?.length !== 32) throw new SealedDataError();
   const key = await importSealKey(raw);
   raw.fill(0);
@@ -191,14 +329,14 @@ export function userData(
   { testMode }: { testMode: boolean },
 ): UserData {
   let master: Promise<SealKeys> | null = null;
+  // One read of the bucket per account per request or run, once it has a
+  // key.
   const known = new Map<string, Promise<AccountKey | null>>();
   const load = (userId: string, create: boolean) => {
     master ??= userDataKeys(env, testMode);
-    const loading = master.then((m) =>
-      loadAccountKey(env.DB, m, userId, create),
-    );
+    const loading = master.then((m) => loadAccountKey(env, m, userId, create));
     known.set(userId, loading);
-    // No key yet, or a failure: ask D1 again next time.
+    // No key yet, or a failure: ask the bucket again next time.
     loading.then(
       (key) => key ?? known.delete(userId),
       () => known.delete(userId),
@@ -212,6 +350,27 @@ export function userData(
       return key || !create ? key : load(userId, true);
     },
   };
+}
+
+/**
+ * Deletes the account's key for good: R2 keeps no earlier version, so from
+ * here on nothing it sealed opens, wherever a copy of the rows turns up.
+ * Only the purge calls this, after the rows it sealed are gone
+ * (src/server/auth/purge.ts).
+ */
+export async function deleteAccountKey(
+  env: AccountKeyBucket,
+  userId: string,
+): Promise<void> {
+  await keyBucket(env).delete(accountKeyPath(userId));
+}
+
+/** Whether the bucket holds a key for the account (for the worker tests). */
+export async function hasAccountKey(
+  env: AccountKeyBucket,
+  userId: string,
+): Promise<boolean> {
+  return (await keyBucket(env).head(accountKeyPath(userId))) !== null;
 }
 
 /** For a request: test mode needs the flag and a preview or localhost host. */
@@ -268,11 +427,7 @@ export async function openForAccount(
   return text;
 }
 
-const RewrapRowSchema = z.object({
-  user_id: z.string(),
-  wrapped_key: z.string(),
-});
-const CountSchema = z.object({ n: z.number().int().min(0) });
+const KeyMetadataSchema = z.object({ masterKeyId: z.string() });
 
 export interface RewrapResult {
   /** Wrapped again under the current key this run. */
@@ -283,53 +438,80 @@ export interface RewrapResult {
   stuck: number;
 }
 
+/** Every key object in the bucket, a page at a time, with its metadata. */
+async function* keyObjects(bucket: R2Bucket): AsyncGenerator<R2Object> {
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({
+      prefix: KEY_PREFIX,
+      include: ["customMetadata"],
+      ...(cursor ? { cursor } : {}),
+    });
+    yield* page.objects;
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+}
+
+/** The id of the key that wrapped an object, from its metadata or its text. */
+async function wrappedUnder(
+  bucket: R2Bucket,
+  object: R2Object,
+): Promise<string | null> {
+  const meta = KeyMetadataSchema.safeParse(object.customMetadata);
+  if (meta.success && SEAL_KEY_ID.test(meta.data.masterKeyId))
+    return meta.data.masterKeyId;
+  const stored = await bucket.get(object.key);
+  return stored ? sealedKeyId(await stored.text()) : null;
+}
+
+/**
+ * Wraps one account's key again under the current key. The put holds only
+ * while the object is the version read (`If-Match`), so a key the purge
+ * deleted meanwhile is never put back. True when it moved.
+ */
+async function rewrapOne(
+  bucket: R2Bucket,
+  master: SealKeys,
+  userId: string,
+): Promise<boolean> {
+  const stored = await readStoredKey(bucket, userId);
+  if (!stored) return false;
+  const raw = await openBytes(master, wrapContext(userId), stored.wrapped);
+  // Doesn't open under the key it names: left as it is, and counted.
+  if (raw?.length !== 32) return false;
+  const wrapped = await sealBytes(master, wrapContext(userId), raw);
+  raw.fill(0);
+  const put = await bucket.put(accountKeyPath(userId), wrapped, {
+    onlyIf: { etagMatches: stored.etag },
+    customMetadata: masterKeyMetadata(wrapped),
+  });
+  return put !== null;
+}
+
 /**
  * The daily job's half of a rotation: account keys still wrapped by
- * USER_DATA_KEY_PREVIOUS wrapped again by USER_DATA_KEY, so the previous
- * can be removed once `left` is 0.
+ * USER_DATA_KEY_PREVIOUS wrapped again by USER_DATA_KEY, up to `limit` a
+ * run, so the previous can be removed once `left` is 0. It reads the whole
+ * bucket's listing to count.
  */
 export async function rewrapAccountKeys(
   env: UserDataEnv,
   limit = 1_000,
 ): Promise<RewrapResult> {
   const master = await userDataKeys(env, jobTestMode(env));
-  const count = async (where: string, ...ids: (string | null)[]) =>
-    CountSchema.parse(
-      await env.DB.prepare(`SELECT count(*) AS n FROM user_keys WHERE ${where}`)
-        .bind(...ids)
-        .first(),
-    ).n;
-  const stuck = await count(
-    "master_key_id != ?1 AND master_key_id IS NOT ?2",
-    master.current.id,
-    master.previous?.id ?? null,
-  );
-  if (!master.previous) return { moved: 0, left: 0, stuck };
-  const { results } = await env.DB.prepare(
-    "SELECT user_id, wrapped_key FROM user_keys WHERE master_key_id = ?1 LIMIT ?2",
-  )
-    .bind(master.previous.id, limit)
-    .all();
-  let moved = 0;
-  for (const r of results) {
-    const row = RewrapRowSchema.parse(r);
-    const raw = await openBytes(
-      master,
-      wrapContext(row.user_id),
-      row.wrapped_key,
-    );
-    // Doesn't open under the key it names: left as it is, and counted.
-    if (raw?.length !== 32) continue;
-    const wrapped = await sealBytes(master, wrapContext(row.user_id), raw);
-    raw.fill(0);
-    const result = await env.DB.prepare(
-      `UPDATE user_keys SET wrapped_key = ?2, master_key_id = ?3
-       WHERE user_id = ?1 AND wrapped_key = ?4`,
-    )
-      .bind(row.user_id, wrapped, master.current.id, row.wrapped_key)
-      .run();
-    moved += result.meta.changes ?? 0;
+  const bucket = keyBucket(env);
+  const result: RewrapResult = { moved: 0, left: 0, stuck: 0 };
+  for await (const object of keyObjects(bucket)) {
+    const under = await wrappedUnder(bucket, object);
+    if (under === master.current.id) continue;
+    if (!master.previous || under !== master.previous.id) {
+      result.stuck += 1;
+      continue;
+    }
+    const userId = object.key.slice(KEY_PREFIX.length);
+    if (result.moved < limit && (await rewrapOne(bucket, master, userId)))
+      result.moved += 1;
+    else result.left += 1;
   }
-  const left = await count("master_key_id = ?1", master.previous.id);
-  return { moved, left, stuck };
+  return result;
 }

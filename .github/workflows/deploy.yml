@@ -55,6 +55,16 @@ jobs:
             exit 1
           fi
 
+      # Account keys live in this bucket (docs/DATA.md §7.7): stop before the
+      # migrations, with a clear message, when it hasn't been made yet.
+      - name: Check the USER_KEYS bucket exists
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          if ! pnpm exec wrangler r2 bucket info terpsicle-user-keys > /dev/null; then
+            echo "::error::Create the private R2 bucket terpsicle-user-keys before deploying (docs/DATA.md §7.7)."
+            exit 1
+          fi
+
       # Production. The previews database is migrated by ci.yml's preview job
       # (wrangler.preview-d1.jsonc).
       - name: Apply D1 migrations

@@ -8,13 +8,23 @@
 //   1. Chat: `purgeAuthor` on every course object in `chat_author_courses`,
 //      each row deleted only once its object has answered. A run that dies
 //      midway leaves the rest for tomorrow.
-//   2. One D1 batch (a transaction): every row below, the `users` row last.
-// Until step 2 commits, the account is still `deleting` and past its date,
+//   2. The account's key: one D1 batch deletes what it sealed (synced docs,
+//      own tasks) while the account is still due, then the key's object in
+//      R2 goes for good (docs/DATA.md §7.7). From here on nothing it sealed
+//      opens, even from a copy of D1.
+//   3. One D1 batch (a transaction): every row below, the `users` row last.
+// Until step 3 commits, the account is still `deleting` and past its date,
 // so the next run picks it up again and finishes.
+import { z } from "zod";
 import { courseRoomId } from "~/core/schema";
 import type { CourseChatNamespace } from "../chat/course-chat";
 import { forgetReporterStatement } from "../moderation/store";
 import { forgetAuthorStatement } from "../reviews/store";
+import {
+  type AccountKeyBucket,
+  deleteAccountKey,
+  keyBucket,
+} from "../security/user-keys";
 
 /**
  * Every table in `migrations/`, and what the purge does to a person's rows
@@ -37,8 +47,9 @@ export const PURGE_LEDGER = {
   reports:
     "kept for moderation, each reporter_id swapped for a random stand-in",
   // 0005_sync, 0010_four_year_sync
-  sync_docs: "deleted: plans, settings and four-year docs",
-  sync_heads: "deleted",
+  sync_docs:
+    "deleted in step 2, before the key: plans, settings and four-year docs",
+  sync_heads: "deleted in step 2",
   // 0008_reviews
   instructors: "untouched: no user data",
   instructor_names: "untouched: no user data",
@@ -78,7 +89,7 @@ export const PURGE_LEDGER = {
   // 0014_chat_spam_guard (pruned after an hour anyway)
   chat_send_hashes: "deleted",
   // 0015_todo_tasks
-  todo_tasks: "deleted: the person's own tasks",
+  todo_tasks: "deleted in step 2, before the key: the person's own tasks",
   // 0016_todo_hidden
   todo_hidden: "deleted: the courses the person hid in Todo",
   // 0018_calendar_feeds (it stops serving once the account is deleting)
@@ -88,9 +99,22 @@ export const PURGE_LEDGER = {
   planetterp_reviews: "untouched: PlanetTerp's words, no user data",
   planetterp_review_sets: "untouched: no user data",
   grade_requests: "untouched: the owner's notes, no user id",
-  // 0025_sync_encryption
+  // 0025_sync_encryption (keys live in R2 USER_KEYS since 2026-10-05; see
+  // PURGE_BUCKETS)
   user_keys:
-    "deleted first: the account's data key, without which nothing it sealed (synced docs, own tasks' titles) can be opened",
+    "deleted in step 2: an account's data key from before keys moved to R2, if it hasn't been moved yet",
+} as const satisfies Record<string, string>;
+
+/**
+ * Every R2 bucket the Worker binds, and what the purge does to a person's
+ * objects in it. A worker test checks this against wrangler.jsonc.
+ */
+export const PURGE_BUCKETS = {
+  DATA: "untouched: public course data, no user data",
+  USER_CONTENT:
+    "feedback screenshots stay with their feedback, which keeps no user id (above); nothing else of the person's is there",
+  USER_KEYS:
+    "`keys/<id>` deleted in step 2, once what it sealed is gone from D1: R2 keeps no earlier version, so nothing it sealed opens again, even from a D1 backup",
 } as const satisfies Record<string, string>;
 
 /**
@@ -99,7 +123,7 @@ export const PURGE_LEDGER = {
  */
 export const SYSTEM_TABLES = ["d1_migrations", "_cf_KV", "_cf_METADATA"];
 
-export interface PurgeEnv {
+export interface PurgeEnv extends AccountKeyBucket {
   DB: D1Database;
   COURSE_CHAT: CourseChatNamespace;
 }
@@ -170,6 +194,8 @@ export async function purgeDueAccounts(
       report.chatMessages += chat.messages;
       // Signed in since the run started: the account stays.
       if (!chat.due) continue;
+      step = "key";
+      if (!(await purgeKey(env, userId, now))) continue;
       step = "rows";
       const results = await env.DB.batch(
         accountStatements(env.DB, userId, now),
@@ -231,6 +257,66 @@ export async function purgeChat(
 }
 
 /**
+ * Step 2: what the account's key sealed, then the key. The rows go first,
+ * in one transaction that also reads whether the account was still due as
+ * it committed; only then is the key deleted. So someone who signs in just
+ * as the run reaches them keeps their account with nothing sealed under a
+ * key that's gone: their devices see their cursors past the server's head
+ * and put back what they have (sync's `reset`). A failure leaves the
+ * account due, and tomorrow's run does it again. False when the account
+ * isn't due any more.
+ */
+export async function purgeKey(
+  env: PurgeEnv,
+  userId: string,
+  now: Date,
+): Promise<boolean> {
+  // No bucket bound: stop before anything goes, rather than leave a key.
+  keyBucket(env);
+  const results = await env.DB.batch(sealedStatements(env.DB, userId, now));
+  const due = DueSchema.safeParse(results.at(-1)?.results[0]);
+  if (!due.success || due.data.due !== 1) return false;
+  await deleteAccountKey(env, userId);
+  return true;
+}
+
+const DueSchema = z.object({ due: z.number() });
+
+/**
+ * Step 2's transaction: every row the account's key sealed, and a key left
+ * in D1 from before keys moved to R2, each only while the account is still
+ * due; then whether it was.
+ */
+export function sealedStatements(
+  db: D1Database,
+  userId: string,
+  now: Date,
+): D1PreparedStatement[] {
+  const at = now.toISOString();
+  const byUser = (table: string) =>
+    db
+      .prepare(`DELETE FROM ${table} WHERE user_id = ?1 AND ${STILL_DUE}`)
+      .bind(userId, at);
+  return [
+    byUser("user_keys"),
+    // Synced docs, and the head, so a device that kept its cursor starts
+    // over rather than missing them.
+    byUser("sync_docs"),
+    byUser("sync_heads"),
+    // Own tasks, with their done marks (a feed item's stay for step 3).
+    db
+      .prepare(
+        `DELETE FROM todo_done WHERE user_id = ?1
+         AND uid IN (SELECT uid FROM todo_tasks WHERE user_id = ?1)
+         AND ${STILL_DUE}`,
+      )
+      .bind(userId, at),
+    byUser("todo_tasks"),
+    db.prepare(`SELECT ${STILL_DUE} AS due`).bind(userId, at),
+  ];
+}
+
+/**
  * Step 3, one transaction. Dependent rows are deleted explicitly as well as
  * by ON DELETE CASCADE, so nothing outlives the account even where foreign
  * keys are off. Every statement holds only while the account is still due
@@ -248,9 +334,6 @@ export function accountStatements(
       .prepare(`DELETE FROM ${table} WHERE user_id = ?1 AND ${STILL_DUE}`)
       .bind(userId, at);
   return [
-    // The account's data key first: from here on nothing it sealed (synced
-    // docs, own tasks) can be opened, whatever else survives.
-    byUser("user_keys"),
     // Rate limits: userLimitKey (api/router.ts) and chat/socket.ts. A
     // directory ID is [a-z0-9], so it can't carry a LIKE wildcard.
     db
@@ -261,9 +344,6 @@ export function accountStatements(
     // Reviews and reports stay, linked to nobody.
     forgetAuthorStatement(db, userId, { onlyIf: STILL_DUE, at }),
     forgetReporterStatement(db, userId, { onlyIf: STILL_DUE, at }),
-    // Sync: plans, settings and four-year docs.
-    byUser("sync_docs"),
-    byUser("sync_heads"),
     // Chat's D1 side (the messages went in step 1).
     byUser("chat_members"),
     byUser("chat_follows"),
@@ -299,9 +379,9 @@ export function accountStatements(
         `UPDATE feedback SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,
       )
       .bind(userId, at),
-    // Todo: the feed (its sealed link), its items, own tasks, done marks and hidden courses.
+    // Todo: the feed (its sealed link), its items, done marks and hidden
+    // courses (own tasks went in step 2).
     byUser("todo_items"),
-    byUser("todo_tasks"),
     byUser("todo_done"),
     byUser("todo_hidden"),
     byUser("todo_feeds"),

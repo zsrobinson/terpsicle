@@ -95,7 +95,7 @@ export default defineConfig({
               miniflare: {
                 compatibilityDate: wrangler.compatibility_date,
                 compatibilityFlags: wrangler.compatibility_flags,
-                r2Buckets: ["DATA", "USER_CONTENT"],
+                r2Buckets: ["DATA", "USER_CONTENT", "USER_KEYS"],
                 d1Databases: ["DB"],
                 durableObjects: {
                   COURSE_CHAT: { className: "CourseChat", useSQLite: true },
@@ -111,6 +111,10 @@ export default defineConfig({
                     production: Object.keys(wrangler.vars ?? {}),
                     previews: Object.keys(wrangler.previews?.vars ?? {}),
                   },
+                  // The R2 bindings production has (names only).
+                  TEST_R2_BINDINGS: wrangler.r2_buckets.map(
+                    (b: { binding: string }) => b.binding,
+                  ),
                   TEST_MIGRATIONS: await readD1Migrations("migrations"),
                 },
               },
