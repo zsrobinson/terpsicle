@@ -98,7 +98,7 @@ Terpsicle stays free with no billing; sync is on whenever you're signed in, grad
 | PR | What | State |
 |---|---|---|
 | `docs/privacy-direction` | The owner's direction in `docs/decisions.md` and CLAUDE.md | In review |
-| `v2/sync-encryption` | `src/server/security/seal.ts` from Todo's crypto; per-account keys in `user_keys`, wrapped by `USER_DATA_KEY`; `sync_docs.body` and Todo's task text sealed and bound to their rows; deleting an account destroys its key first; existing synced data cleared and re-uploaded | Planned |
+| `v2/sync-encryption` | `src/server/security/seal.ts` from Todo's crypto; per-account keys in `user_keys`, wrapped by `USER_DATA_KEY`; `sync_docs.body` and Todo's task text sealed and bound to their rows; deleting an account destroys its key first; existing synced data cleared and re-uploaded. Keys moved to R2 `USER_KEYS` in `v2/keys-in-r2`, so a D1 restore can't bring a deleted account's key back | Planned |
 | Reviews' anonymity | Not needed: Reviews links out to PlanetTerp and nobody writes reviews here (owner, 2026-10-05; `docs/decisions.md`, "No anonymous-reviews change while our pages are off"). `/privacy` and `/terms` lose their reviews sections | Dropped |
 | `v2/privacy-and-terms` | `/privacy` rewritten from what was built, and a new `/terms`, linked from the footer, the account menu and sign-in | Planned, last |
 
@@ -113,7 +113,7 @@ Terpsicle stays free with no billing; sync is on whenever you're signed in, grad
 | `v3/planetterp-preview` (#260) | Schedule's preview PlanetTerp's alone, credited, linking out; Plan's link; Home's rows with Dismiss | In review |
 | `v3/planetterp-crawl-only` (#261) | No page-visit fetch; the job keeps only what the preview shows | In review |
 | `v3/planetterp-switch` (#262) | Production: `REVIEWS_ENABLED=off`, pages unset | In review, last |
-| `v3/planetterp-docs` | V2 §7.8, DATA, SPEC, STATUS | In review |
+| `v3/planetterp-docs` (#263) | V2 §7.8, DATA, SPEC, STATUS | In review |
 
 ## UX redesign (owner request, 2026-09-25)
 

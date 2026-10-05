@@ -27,13 +27,16 @@ import {
 } from "~/core/schema";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
-import { userDataForRequest } from "../security/user-keys";
+import {
+  type AccountKeyBucket,
+  userDataForRequest,
+} from "../security/user-keys";
 import { loadChatCourse, loadChatTerm } from "./catalog";
 import type { CourseChatNamespace } from "./course-chat";
 import { planSections, roomJoins, roomMembers, unreadRooms } from "./store";
 
 /** Plans are read through sealed sync docs (../security/user-keys.ts). */
-export interface ChatApiEnv extends UserDataKeyVars {
+export interface ChatApiEnv extends UserDataKeyVars, AccountKeyBucket {
   DB: D1Database;
   DATA: R2Bucket;
   CHAT_ENABLED?: string;
