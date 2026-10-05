@@ -28,6 +28,7 @@ import {
   type DeptChunk,
   type FeedItem,
   type FourYearSyncDoc,
+  type GeneratedPlan,
   type GenerateRequest,
   GRADE_KEYS,
   type GradeCounts,
@@ -884,6 +885,48 @@ export function aGenerateRequest(
     travel: DEFAULT_TRAVEL_SETTINGS,
     limits: DEFAULT_GENERATE_LIMITS,
     ...overrides,
+  };
+}
+
+/**
+ * One of Generate's results: CMSC351 and CMSC330, three days, a 10am start.
+ * `stats` and `breakdown` merge over the defaults, so a test sets only the
+ * number it's about.
+ */
+export function aGeneratedPlan(
+  overrides: Omit<Partial<GeneratedPlan>, "stats" | "breakdown"> & {
+    stats?: Partial<GeneratedPlan["stats"]>;
+    breakdown?: Partial<GeneratedPlan["breakdown"]>;
+  } = {},
+): GeneratedPlan {
+  const { stats, breakdown, ...rest } = overrides;
+  return {
+    id: "CMSC330-0101,CMSC351-0101",
+    sections: ["CMSC330-0101", "CMSC351-0101"],
+    skipped: [],
+    filled: [],
+    score: 0.5,
+    breakdown: {
+      compact: 1,
+      "fewer-days": 0.5,
+      "later-starts": 0.5,
+      "best-rated": 0.5,
+      "higher-gpa": 0.5,
+      "safest-seats": 0.5,
+      ...breakdown,
+    },
+    stats: {
+      credits: 6,
+      daysOnCampus: 3,
+      firstClass: 600,
+      lastClass: 900,
+      avgRating: null,
+      avgGpa: null,
+      fewestOpenSeats: null,
+      ...stats,
+    },
+    equivalents: { count: 1, byCourse: [] },
+    ...rest,
   };
 }
 

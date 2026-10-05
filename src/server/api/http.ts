@@ -63,3 +63,20 @@ export async function readInput<S extends z.ZodType>(
 export function clientIp(request: Request): string {
   return request.headers.get("CF-Connecting-IP") ?? "unknown";
 }
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const LOOPBACK_IPS = new Set(["127.0.0.1", "::1"]);
+
+/**
+ * Whether a request is a local server talking to itself: sent to a loopback
+ * host, from a loopback client or none (`vite dev` sets CF-Connecting-IP
+ * from the socket). A deployed Worker's host is never loopback, and
+ * Cloudflare overwrites CF-Connecting-IP, so this never holds there.
+ */
+export function isLocalRequest(request: Request): boolean {
+  const ip = request.headers.get("CF-Connecting-IP");
+  return (
+    LOOPBACK_HOSTS.has(new URL(request.url).hostname) &&
+    (ip === null || LOOPBACK_IPS.has(ip))
+  );
+}

@@ -29,6 +29,7 @@ import type {
 import { openDrill } from "~/features/schedule/schedule-nav";
 import { type PlanPreview, useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
+import { CHIP_ROWS, chipClass } from "~/ui/chip";
 import { WithTooltip } from "~/ui/tooltip";
 import { PREFERENCE_LABELS } from "./chips";
 import {
@@ -174,7 +175,10 @@ export function Results({
         <div
           role="toolbar"
           aria-label="Filter by included courses"
-          className="flex flex-wrap items-center gap-1 px-4 pt-2 pb-2"
+          className={cn(
+            "flex flex-wrap items-center gap-x-1 px-4 pt-2 pb-2",
+            CHIP_ROWS,
+          )}
         >
           <span className="mr-0.5 text-xs text-faint">Includes</span>
           <FilterChip
@@ -297,15 +301,10 @@ function FilterChip({
         type="button"
         aria-pressed={active}
         onClick={onClick}
-        className={cn(
-          "flex h-6 items-center gap-1.5 rounded-md border px-2 text-sm",
-          active
-            ? "border-transparent bg-accent text-accent-fg"
-            : "border-hairline-strong text-muted hover:bg-hover hover:text-fg",
-        )}
+        className={cn(chipClass(active), "gap-1.5 px-2 text-sm")}
       >
         <span className={cn(mono && "ident")}>{label}</span>
-        <span className={cn("tnum", active ? "opacity-70" : "text-faint")}>
+        <span className={cn("tnum", active ? "text-muted" : "text-faint")}>
           {count}
         </span>
       </button>

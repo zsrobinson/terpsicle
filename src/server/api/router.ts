@@ -42,6 +42,7 @@ import {
   apiError,
   clientIp,
   DEFAULT_MAX_INPUT_BYTES,
+  isLocalRequest,
   json,
   readInput,
 } from "./http";
@@ -169,7 +170,10 @@ export async function handleApi(
     const retryAfterSeconds = secondsLeft(window, now);
     return apiError("rate-limited", retryAfterSeconds);
   };
-  if (r.perIpPerHour !== undefined) {
+  if (
+    r.perIpPerHour !== undefined &&
+    !(r.localUnlimited && isLocalRequest(request))
+  ) {
     const ipHash = await keyedHash(env.DATA, clientIp(request));
     if ((await hit(env.DB, `${name}:${ipHash}`, window, now)) > r.perIpPerHour)
       return limited();

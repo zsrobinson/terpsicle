@@ -220,7 +220,7 @@
  *   text-xs    11/14  meta: counts, freshness, footnotes, chips
  *   text-sm    12/16  secondary lines in rows, labels, row buttons
  *   text-base  13/18  primary text, codes, body, panel titles, buttons
- *   text-lg    15/20  the drill-in title
+ *   text-lg    15/20  the drill-in title, a page's section titles (PageSection)
  *   text-xl    18/24  titles: a page's h1 (PageHeader) and the first-visit headline (EmptyState)
  *
  * Public reading pages (Reviews, "a public facing website rather than a

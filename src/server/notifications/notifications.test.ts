@@ -1193,6 +1193,35 @@ describe("quiet hours (V2.md §6.7)", () => {
     env.DB.prepare(
       "SELECT id FROM notifications WHERE push_held_at IS NOT NULL ORDER BY id",
     ).all<{ id: string }>();
+  /** Test Classmate mentions tstudent in CMSC131's room, message `id`. */
+  const mention = (id: string, seq = 1) => ({
+    type: "chat-mention" as const,
+    key: `chat-mention:tstudent:${id}`,
+    inbox: [
+      {
+        id: `chat:tstudent:${id}`,
+        groupKey: "chat-mention:202701:CMSC131",
+        termId: "202701",
+        courseCode: "CMSC131",
+        chat: {
+          roomId: "202701:CMSC131",
+          threadId: null,
+          seq,
+          messageId: id,
+          actorId: "tclassmate",
+        },
+      },
+    ],
+    push: {
+      event: {
+        type: "chat-mention" as const,
+        actor: "Test Classmate",
+        place: "CMSC131",
+        text: "@Test Student are you in the 2pm lab?",
+      },
+      url: "/chat?term=202701&course=CMSC131",
+    },
+  });
 
   it("holds pushes at night and sends each group once at 8am", async () => {
     const phone = await device();
@@ -1308,42 +1337,32 @@ describe("quiet hours (V2.md §6.7)", () => {
     expect(service.received).toHaveLength(2);
   });
 
+  it("holds a chat mention at night, and sends it at once with quiet hours off", async () => {
+    // e2e/chat-notify.spec.ts turns quiet hours off, since its server runs
+    // on the wall clock; this is the night it can't count on.
+    const phone = await device();
+    await subscribe(phone, await aSubscription(1));
+    at("23:30");
+    expect(
+      (await notify(testEnv, "tstudent", mention("m1"), options())).push,
+    ).toBe("held");
+    expect(service.received).toHaveLength(0);
+    expect((await held()).results).toEqual([{ id: "chat:tstudent:m1" }]);
+    await settle(phone, { quietHours: { on: false } });
+    expect(
+      (await notify(testEnv, "tstudent", mention("m2", 2), options())).push,
+    ).toBe("sent");
+    expect(service.received).toHaveLength(1);
+  });
+
   it("keeps who and what off the lock screen with showText off", async () => {
     const phone = await device();
     const sub = await aSubscription(1);
     await subscribe(phone, sub);
     await settle(phone, { showText: false });
-    const mention = {
-      type: "chat-mention" as const,
-      key: "chat-mention:tstudent:m1",
-      inbox: [
-        {
-          id: "chat:tstudent:m1",
-          groupKey: "chat-mention:202701:CMSC131",
-          termId: "202701",
-          courseCode: "CMSC131",
-          chat: {
-            roomId: "202701:CMSC131",
-            threadId: null,
-            seq: 1,
-            messageId: "m1",
-            actorId: "tclassmate",
-          },
-        },
-      ],
-      push: {
-        event: {
-          type: "chat-mention" as const,
-          actor: "Test Classmate",
-          place: "CMSC131",
-          text: "@Test Student are you in the 2pm lab?",
-        },
-        url: "/chat?term=202701&course=CMSC131",
-      },
-    };
-    expect((await notify(testEnv, "tstudent", mention, options())).push).toBe(
-      "sent",
-    );
+    expect(
+      (await notify(testEnv, "tstudent", mention("m1"), options())).push,
+    ).toBe("sent");
     const [request] = service.received;
     expect(await sub.read(request?.body ?? new Uint8Array())).toMatchObject({
       title: "New mention in CMSC131",
