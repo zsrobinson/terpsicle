@@ -36,6 +36,7 @@ Sign-in with Google is on only when **all** of these are set. Until then `POST /
 | `GOOGLE_CLIENT_SECRET` | secret | The OAuth client's secret |
 | `AUTH_SECRET` | secret | 32 random bytes, base64url. Signs the `__Host-oauth` cookie. |
 | `USER_CONTENT` | R2 binding | `terpsicle-user-content` (previews: `terpsicle-user-content-preview`) |
+| `USER_KEYS` | R2 binding | `terpsicle-user-keys`: each account's wrapped data key (DATA.md §7.7). Previews: `terpsicle-user-content-preview`, under `keys/` |
 | `AUTH_TEST_MODE` | var, previews only | `"true"` (see "Test mode") |
 
 Admins are not configuration: see "Admins".

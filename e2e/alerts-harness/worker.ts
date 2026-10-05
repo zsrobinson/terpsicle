@@ -10,6 +10,8 @@ import { type ApiEnv, handleApi } from "~/server/api/router";
 interface HarnessEnv {
   DB: D1Database;
   DATA: R2Bucket;
+  /** Account keys: sync needs them (docs/DATA.md §7.7). */
+  USER_KEYS: R2Bucket;
   /** This checkout's id (scripts/e2e-checkout.ts), set by the launcher. */
   CHECKOUT_ID?: string;
 }
@@ -36,6 +38,7 @@ function apiEnv(env: HarnessEnv): ApiEnv {
   return {
     DB: env.DB,
     DATA: env.DATA,
+    USER_KEYS: env.USER_KEYS,
     EMAIL: email,
     SEAT_ALERTS_ENABLED: "true",
     // Sign in as a test person (loopback hosts only, docs/AUTH.md).
