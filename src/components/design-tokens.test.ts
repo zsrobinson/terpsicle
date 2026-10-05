@@ -4,6 +4,8 @@ import { DAY_SHADES, type Shade } from "~/features/todo/day-shade";
 import { readTokens, type Theme } from "~/lib/brand/css-tokens";
 import { hasKeyline, MARK_IDS } from "~/lib/brand/marks";
 import { PEEK_HEIGHT, snapHeights, TAB_BAR_HEIGHT } from "~/lib/drawer-heights";
+import { PAGE_TITLE } from "~/ui/page-header";
+import { PAGE_SECTION_TITLE } from "~/ui/page-section";
 
 // The design system as a test (docs/UX-REVIEW.md §2): every UI file uses the
 // type scale, the spacing rhythm and the color tokens, so a panel built next
@@ -708,5 +710,76 @@ describe("the palette", () => {
         expect(s.hover.alpha, at).toBeLessThanOrEqual(0.5);
       }
     }
+  });
+});
+
+// A reading page's hierarchy is its type (docs/DESIGN.md §7.8): the page's
+// title is larger than its sections' titles, and those are larger than their
+// content. Sizes come straight from styles.css's type scale.
+
+/** Each `--text-*` step in styles.css, in px: `{ base: 13, lg: 15, … }`. */
+const TYPE_SCALE: Record<string, number> = Object.fromEntries(
+  [...STYLES.matchAll(/--text-([a-z0-9]+):\s*(\d+(?:\.\d+)?)px;/g)].map((m) => [
+    m[1],
+    Number(m[2]),
+  ]),
+);
+
+/** The px size a class list sets with the type scale (`text-lg` → 15). */
+function typeSize(classes: string): number {
+  const step = /\btext-(2xs|xs|sm|base|lg|xl|2xl|3xl|prose)\b/.exec(
+    classes,
+  )?.[1];
+  const px = step === undefined ? undefined : TYPE_SCALE[step];
+  if (px === undefined) throw new Error(`No type-scale size in "${classes}"`);
+  return px;
+}
+
+/**
+ * What a section's content is set in: 13px body on Settings, Home and the
+ * other note pages; 16px prose on a public reading page (`display`).
+ */
+const BODY = TYPE_SCALE.base ?? 0;
+const PROSE = TYPE_SCALE.prose ?? 0;
+
+describe("a reading page's hierarchy", () => {
+  it("reads the type scale from styles.css", () => {
+    expect(BODY).toBe(13);
+    expect(PROSE).toBe(16);
+    expect(typeSize("emph-heading text-lg")).toBe(15);
+  });
+
+  it("sets a section's title larger than its content", () => {
+    expect(typeSize(PAGE_SECTION_TITLE.page)).toBeGreaterThan(BODY);
+    expect(typeSize(PAGE_SECTION_TITLE.side)).toBeGreaterThan(BODY);
+    expect(typeSize(PAGE_SECTION_TITLE.display)).toBeGreaterThan(PROSE);
+  });
+
+  it("sets a page's title larger than its sections' titles", () => {
+    expect(typeSize(PAGE_TITLE.page)).toBeGreaterThan(
+      typeSize(PAGE_SECTION_TITLE.page),
+    );
+    expect(typeSize(PAGE_TITLE.display)).toBeGreaterThan(
+      typeSize(PAGE_SECTION_TITLE.display),
+    );
+  });
+
+  it("steps a narrow column's sections between a page's and a display page's", () => {
+    expect(typeSize(PAGE_SECTION_TITLE.side)).toBeGreaterThan(
+      typeSize(PAGE_SECTION_TITLE.page),
+    );
+    expect(typeSize(PAGE_SECTION_TITLE.side)).toBeLessThan(
+      typeSize(PAGE_SECTION_TITLE.display),
+    );
+  });
+
+  it("keeps a nested section's title under its parent's, never under its content", () => {
+    // Its content's size, so weight alone sets it apart: on the ladder, at 600.
+    expect(typeSize(PAGE_SECTION_TITLE.nested)).toBeLessThan(
+      typeSize(PAGE_SECTION_TITLE.page),
+    );
+    expect(typeSize(PAGE_SECTION_TITLE.nested)).toBeGreaterThanOrEqual(BODY);
+    for (const classes of Object.values(PAGE_SECTION_TITLE))
+      expect(classes).toMatch(/\bemph-(?:title|heading)\b/);
   });
 });

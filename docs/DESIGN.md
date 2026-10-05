@@ -246,7 +246,7 @@ Every page has the family bar (docs/COHESION.md §4): from 1100px, the five prod
 - **Rows** sit on the page. Nothing in a row is darker or bolder than the band over it: a row's name is at most 600 (a code that names a row, like CMSC351, is 600 in `ident`), and its supporting lines are muted.
 - In dark mode, `band` is a step past `panel` and `raised`, so a band shows in a sheet or a popover too.
 
-**Reading pages (Home, Reviews, Settings): larger type carries the hierarchy.** There are no bands. A page's title is larger than its sections' titles, and those are larger than their content, all on the page's paper. A section is a `PageSection` (a hairline and a heading), never a box. A raised, keylined box is a `Card`, for one thing you press or that floats.
+**Reading pages (Home, Reviews, Settings): larger type carries the hierarchy.** There are no bands. A page's title is larger than its sections' titles, and those are larger than their content, all on the page's paper: 18px, 15px and 13px on Settings, Home and the other note pages; 32px, 22px and 16px prose on Reviews' display pages (`PAGE_TITLE` and `PAGE_SECTION_TITLE` in the kit, which `src/components/design-tokens.test.ts` checks). A section is a `PageSection` (a hairline and a heading), never a box. A raised, keylined box is a `Card`, for one thing you press or that floats.
 
 **The levels, in both languages:** the kit's own slots (`PageHeader`, `PageSection`, `SectionHeader`, `GroupHeader`, `ListRow`, `EmptyState`, `PanelNote`) set ink and weight. Where a feature has no slot, it uses one of five utilities in `src/styles.css`. These set ink and weight; the size stays the caller's, except Meta.
 

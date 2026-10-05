@@ -1,3 +1,4 @@
+import { SyncSlot } from "~/components/workbench/status";
 import { ActionMenuText } from "~/ui/action-menu";
 import { WithTooltip } from "~/ui/tooltip";
 import { useSyncStatus } from "./status";
@@ -24,31 +25,41 @@ function Glyph({ paths, size }: { paths: readonly string[]; size: number }) {
   );
 }
 
-// Plan sync's state, quietly (DESIGN §5): a small icon in the top bar and a
+// Plan sync's state, quietly (DESIGN §5): the family bar's sync slot
+// (~/components/workbench/status, the same in Schedule, Plan and Todo) and a
 // line in the account menu. Muted tokens only, no banner. The icons and words
 // come with the engine (view.ts), so nothing here shows until it's loaded.
 
 /**
- * The top bar's icon; nothing while signed out. Pressing it checks with the
- * account right away (a pull, then a push), the same as coming back online.
+ * The bar's sync slot while signed in: a cloud and a word. Pressing it
+ * checks with the account right away (a pull, then a push), the same as
+ * coming back online. A phone's bar has no room: there it's words for
+ * screen readers, and the account menu has the line.
  */
-export function SyncStatusIcon() {
+export function SyncStatusSlot({ compact = false }: { compact?: boolean }) {
   const { status, look, syncNow } = useSyncStatus();
   if (status === "off" || !look) return null;
-  const { icon, label, tooltip } = look[status];
+  const { icon, word, tooltip } = look[status];
+  if (compact)
+    return (
+      <span role="status" data-sync-status={status} className="sr-only">
+        {word}
+      </span>
+    );
   return (
-    <WithTooltip label={tooltip} side="bottom">
-      <button
-        type="button"
-        aria-label={label}
-        data-sync-status={status}
-        onClick={() => syncNow?.()}
-        className="flex size-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-hover hover:text-muted"
-      >
-        <Glyph paths={icon} size={15} />
-      </button>
-    </WithTooltip>
+    <SyncSlot
+      icon={<Glyph paths={icon} size={15} />}
+      word={word}
+      tooltip={tooltip}
+      data-sync-status={status}
+      onPress={() => syncNow?.()}
+    />
   );
+}
+
+/** Whether the bar's sync slot has anything to show. */
+export function useSyncSlotShown(): boolean {
+  return useSyncStatus((s) => s.status !== "off" && s.look !== null);
 }
 
 /** The account menu's line: the icon and the words. */
@@ -65,31 +76,5 @@ export function SyncStatusLine() {
         </p>
       </WithTooltip>
     </ActionMenuText>
-  );
-}
-
-/**
- * The line beside a page's title (Plan's header): the icon and the words,
- * pressable like the top bar's icon. Nothing while signed out, so the page
- * can say where things are saved instead.
- */
-export function SyncStatusLabel({ className = "" }: { className?: string }) {
-  const { status, look, syncNow } = useSyncStatus();
-  if (status === "off" || !look) return null;
-  const { icon, label, tooltip } = look[status];
-  return (
-    <span role="status" className={`flex items-center ${className}`}>
-      <WithTooltip label={tooltip}>
-        <button
-          type="button"
-          data-sync-status={status}
-          onClick={() => syncNow?.()}
-          className="flex h-full items-center gap-1.5 rounded-md px-1 text-muted text-sm transition-colors hover:bg-hover hover:text-fg"
-        >
-          <Glyph paths={icon} size={14} />
-          {label}
-        </button>
-      </WithTooltip>
-    </span>
   );
 }

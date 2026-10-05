@@ -234,12 +234,24 @@ test("/privacy shows the contact address in words, never whole", async ({
   expect(await page.content()).not.toContain(address);
 });
 
-test("an unknown path says so and offers the scheduler", async ({ page }) => {
+test("an unknown path says so and offers the scheduler", async ({
+  page,
+  isMobile,
+}) => {
   const response = await page.goto("/schedule/nowhere");
   expect(response?.status()).toBe(404);
   await expect(
     page.getByRole("heading", { name: "Page not found", level: 1 }),
   ).toBeVisible();
+  // A broken link is what people report: the bar keeps Feedback and Support
+  // (in the account menu on a phone).
+  if (!isMobile) {
+    const bar = page.getByRole("banner");
+    await expect(bar.getByTestId("feedback-button")).toBeVisible();
+    await expect(
+      bar.getByRole("button", { name: "Support Terpsicle" }),
+    ).toBeVisible();
+  }
   await page.getByRole("link", { name: "View schedule" }).click();
   await expect(page).toHaveURL(/\/schedule$/);
 });

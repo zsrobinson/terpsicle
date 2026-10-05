@@ -60,13 +60,15 @@ export function SiteHeader({
   // The Worker renders a 404 at its own path (NOT_FOUND_PATH) and the page
   // hydrates at the address asked for (`/admin` for a non-admin), so a 404's
   // bar reads nothing from the path: server and client draw the same one.
+  // It keeps Feedback and Support, filed as the site's: a broken link is
+  // just what people report (the sheet sends the address they asked for).
   const current = notFound
     ? null
     : (PRODUCTS.find((p) => path.startsWith(p.to))?.id ?? null);
   return (
     <AppBar
       current={current}
-      feedback={notFound ? null : feedbackProduct(path)}
+      feedback={notFound ? "site" : feedbackProduct(path)}
       pathname={path}
       context={notFound ? null : (context ?? pageContext(path))}
       status={status}

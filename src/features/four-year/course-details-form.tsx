@@ -16,6 +16,7 @@ import type {
   FourYearCreditEntry,
 } from "~/core/schema/four-year";
 import { Button } from "~/ui/button";
+import { CHIP_SELECTED } from "~/ui/chip";
 import { Input } from "~/ui/input";
 import { WithTooltip } from "~/ui/tooltip";
 import { setCreditInfo, setDetails } from "./actions";
@@ -146,9 +147,7 @@ function GenEdToggles({
                 onClick={() => toggle(c)}
                 className={cn(
                   "flex min-h-7 items-baseline gap-1.5 border px-2 py-1 text-left text-sm transition-colors max-md:min-h-11 max-md:items-center",
-                  on
-                    ? "border-fg bg-fg text-bg hover:bg-fg/85"
-                    : "border-hairline-strong hover:bg-hover",
+                  on ? CHIP_SELECTED : "border-hairline-strong hover:bg-hover",
                 )}
               >
                 <span className="ident shrink-0">{c}</span>

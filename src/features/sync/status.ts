@@ -21,10 +21,13 @@ export type SyncStatus =
 
 export type ShownSyncStatus = Exclude<SyncStatus, "off">;
 
-/** How each status looks: its icon (a 24×24 stroke icon's paths), words and tooltip. */
+/**
+ * How each status looks: its icon (a 24×24 stroke icon's paths), the bar's
+ * word, the account menu's words and the tooltip.
+ */
 export type SyncStatusLook = Record<
   ShownSyncStatus,
-  { icon: readonly string[]; label: string; tooltip: string }
+  { icon: readonly string[]; word: string; label: string; tooltip: string }
 >;
 
 export interface SyncStatusState {

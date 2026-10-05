@@ -2,7 +2,7 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "cn";
 import * as React from "react";
 import { Kbd } from "./kbd";
-import { POPUP_LAYER, POSITIONER } from "./popup";
+import { POPUP_CARD, POPUP_LAYER, POSITIONER } from "./popup";
 import { TooltipProvider } from "./tooltip-provider";
 
 // The kit's tooltip, on Base UI, in Ink: an inverted fg/bg chip that fades
@@ -23,13 +23,17 @@ function TooltipContent({
   align,
   sideOffset = 6,
   collisionPadding = 8,
+  card = false,
   children,
   ...props
 }: TooltipPrimitive.Popup.Props &
   Pick<
     TooltipPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "collisionPadding"
-  >) {
+  > & {
+    /** A tooltip with more to say (`WithTooltip`'s `card`): a popover's card. */
+    card?: boolean;
+  }) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
@@ -46,7 +50,12 @@ function TooltipContent({
           // describes its trigger (WithTooltip), and screen readers read it.
           role="tooltip"
           className={cn(
-            "flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
+            card
+              ? cn(
+                  POPUP_CARD,
+                  "w-72 max-w-(--available-width) rounded-lg p-3 text-sm",
+                )
+              : "flex w-fit items-center gap-1.5 rounded-md bg-fg px-2 py-1 text-bg text-sm",
             // A fade in only (the `--dur-pop` motion token). No exit: a
             // closing tooltip would stay on screen over what comes next.
             "transition-opacity duration-(--dur-pop) ease-pop data-starting-style:opacity-0 data-instant:transition-none",
@@ -142,16 +151,23 @@ function WithTooltip({
   label,
   shortcut,
   side,
+  card,
   children,
 }: {
   label: React.ReactNode;
   shortcut?: string;
   side?: TooltipPrimitive.Positioner.Props["side"];
+  /**
+   * More than words: a chart or a few numbers under the label, in a
+   * popover's card. A finger opens it by pressing and holding the control.
+   */
+  card?: React.ReactNode;
   children: React.ReactElement;
 }) {
   const [open, setOpen] = React.useState(false);
   const id = React.useId();
   React.useEffect(listenForInput, []);
+  const hold = useLongPress(card ? () => setOpen(true) : null);
   return (
     <Tooltip
       open={open}
@@ -182,14 +198,87 @@ function WithTooltip({
         onKeyDown={(e) => {
           if (isTyping(e)) setOpen(false);
         }}
+        {...hold}
         render={children}
       />
-      <TooltipContent id={id} side={side}>
-        {label}
-        {shortcut ? <Kbd>{shortcut}</Kbd> : null}
+      <TooltipContent
+        id={id}
+        // A card is tall: under its control, where a list or a panel has
+        // room, rather than over the bar above.
+        side={side ?? (card === undefined ? undefined : "bottom")}
+        card={card !== undefined}
+      >
+        {card === undefined ? (
+          <>
+            {label}
+            {shortcut ? <Kbd>{shortcut}</Kbd> : null}
+          </>
+        ) : (
+          <>
+            <p className="flex items-center gap-1.5">
+              <span>{label}</span>
+              {shortcut ? <Kbd>{shortcut}</Kbd> : null}
+            </p>
+            {card}
+          </>
+        )}
       </TooltipContent>
     </Tooltip>
   );
+}
+
+const HOLD_MS = 450;
+/** A finger that moves this far is scrolling, not holding. */
+const HOLD_SLOP_PX = 10;
+
+/**
+ * Press and hold with a finger: `onHold` after a moment, and the tap that
+ * lifting would make doesn't count, so holding a chip shows its card
+ * without toggling it. Null for no hold (and no handlers).
+ */
+function useLongPress(onHold: (() => void) | null) {
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const start = React.useRef<{ x: number; y: number } | null>(null);
+  const held = React.useRef(false);
+  const cancel = React.useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    start.current = null;
+  }, []);
+  React.useEffect(() => cancel, [cancel]);
+  if (!onHold) return {};
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      held.current = false;
+      if (e.pointerType !== "touch") return;
+      start.current = { x: e.clientX, y: e.clientY };
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        held.current = true;
+        onHold();
+      }, HOLD_MS);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const from = start.current;
+      if (
+        from &&
+        Math.hypot(e.clientX - from.x, e.clientY - from.y) > HOLD_SLOP_PX
+      )
+        cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    // iOS and Android offer their own press-and-hold menu otherwise.
+    onContextMenu: (e: React.MouseEvent) => {
+      if (start.current || held.current) e.preventDefault();
+    },
+    onClickCapture: (e: React.MouseEvent) => {
+      if (!held.current) return;
+      held.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+  };
 }
 
 export {
