@@ -31,7 +31,10 @@ export const PLAN_SIDEBAR_ID = "plan-sidebar-panel";
 /**
  * The plan's credits: a headline, a bar and what's earned, in progress and
  * planned. `page` heads a shared plan's page; `foot` sits quietly under the
- * sidebar's view, a step under its panel header (docs/DESIGN.md §7.8).
+ * sidebar's view, a step under its panel header (docs/DESIGN.md §7.8). From
+ * 1024px the family bar says the headline ("104 of 120 credits"), so the
+ * foot leaves it to the bar and keeps what only it has: the bar and the
+ * breakdown. A tablet's bar has no room for it, so there the foot says it.
  */
 export function CreditsSummary({ size = "page" }: { size?: "page" | "foot" }) {
   const { totals } = useModel();
@@ -50,7 +53,8 @@ export function CreditsSummary({ size = "page" }: { size?: "page" | "foot" }) {
   ];
   const scale = Math.max(CREDITS_GOAL, totals.total);
   return (
-    <div className="space-y-1.5">
+    // Gaps, not margins: a hidden headline leaves no space above the bar.
+    <div className="flex flex-col gap-1.5">
       <WithTooltip label={CREDITS_GOAL_TOOLTIP}>
         {/* A tooltip on a heading: keyboard people reach it by its tabIndex. */}
         <p
@@ -58,7 +62,10 @@ export function CreditsSummary({ size = "page" }: { size?: "page" | "foot" }) {
           tabIndex={0}
           className={cn(
             "tnum w-fit",
-            size === "page" ? "font-semibold text-lg" : "emph-label text-sm",
+            size === "page"
+              ? "font-semibold text-lg"
+              : // The bar's status shows it from 1024px (plan-bar.tsx).
+                "emph-label text-sm lg:hidden",
           )}
         >
           {creditsHeadline(totals)}

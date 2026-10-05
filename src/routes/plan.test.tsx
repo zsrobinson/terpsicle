@@ -897,6 +897,22 @@ describe("the sidebar", () => {
       ).toBeTruthy();
     },
   );
+
+  it("leaves the credits' headline to the bar from 1024px, and keeps the breakdown", async () => {
+    // The bar's status says "6 of 120 credits" from 1024px (plan-bar.tsx's
+    // `max-lg:hidden`); under that, a tablet's bar has no room, so the
+    // foot says it. The bar and "earned · in progress · planned" are only
+    // the foot's, so they stay at every width.
+    await seed(PLAN);
+    renderPlan("/plan");
+    await screen.findByRole("heading", { level: 2, name: "GenEd" });
+    const sidebar = document.getElementById(PLAN_SIDEBAR_ID);
+    if (!sidebar) throw new Error("No sidebar");
+    const headline = await within(sidebar).findByText("6 of 120 credits");
+    expect(headline).toHaveClass("lg:hidden");
+    const breakdown = within(sidebar).getByText(/ earned · .* planned$/);
+    expect(breakdown.closest(".lg\\:hidden")).toBeNull();
+  });
 });
 
 describe("the Samples view", () => {

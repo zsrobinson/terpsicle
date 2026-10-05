@@ -438,6 +438,11 @@ Revisit if: people want Registered per term rather than per plan.
 While a course's sections show on the calendar, a click or tap on empty time closes the course, as Esc does, and doesn't start a block ("clicking on a blank part of the schedule should exit the view instead of trying to draw a block"). Blocks are drawn only with no course open.
 Revisit if: people want to block time while comparing sections.
 
+### Plan's credits: the bar says the number, the sidebar's foot the rest
+2026-10-05 · owner · one feature
+The owner left it to us ("do whatever makes sense"). From 1024px the family bar's status says Plan's credits ("104 of 120 credits"), so the sidebar's foot drops that headline there and keeps what only it has: the progress bar and "52 earned · 12 in progress · 40 planned", over the degree-audit line. From 769 to 1023px the bar has no room for the credits, so the foot says the headline too. Dropping the whole foot at 1024px would have lost the breakdown, which nothing else on the page shows; keeping it whole said the same number twice on one screen.
+Revisit if: the bar's credits move or get a breakdown of their own.
+
 ### Four-year plans share by link, versioned
 2026-09-28 · owner · one feature
 Plan gets the same Share, for advisors: the plan is in the URL (the owner: "continue storing the data in the URL … think about versioning"), opening read-only at `/plan/shared` without an account, with Save a copy. Grades never go in a link. The version is a prefix outside the compressed JSON, with a wire schema and decoder per version kept for good (agent), so a newer link is recognized unread and an old one always opens. Compression is fflate's raw deflate, as the scheduler's links use, since it's synchronous and runs in core's tests (CompressionStream would make the codec async for no gain).
