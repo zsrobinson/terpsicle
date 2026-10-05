@@ -49,7 +49,8 @@ export const PURGE_LEDGER = {
   // 0005_sync, 0010_four_year_sync
   sync_docs:
     "deleted in step 2, before the key: plans, settings and four-year docs",
-  sync_heads: "deleted in step 2",
+  sync_heads:
+    "fenced in step 2 (head and pruned_through moved on, so a kept account's devices start over), deleted in step 3",
   // 0008_reviews
   instructors: "untouched: no user data",
   instructor_names: "untouched: no user data",
@@ -299,10 +300,18 @@ export function sealedStatements(
       .bind(userId, at);
   return [
     byUser("user_keys"),
-    // Synced docs, and the head, so a device that kept its cursor starts
-    // over rather than missing them.
     byUser("sync_docs"),
-    byUser("sync_heads"),
+    // The head moves on one and every rev up to it counts as pruned, as
+    // 0025_sync_encryption does: if the account is kept after all, a device
+    // with any cursor from before starts over, and revs never start again
+    // from 0 (one would pass for current once another device's uploads got
+    // past it). Step 3 deletes the row.
+    db
+      .prepare(
+        `UPDATE sync_heads SET head = head + 1, pruned_through = head + 1
+         WHERE user_id = ?1 AND ${STILL_DUE}`,
+      )
+      .bind(userId, at),
     // Own tasks, with their done marks (a feed item's stay for step 3).
     db
       .prepare(
@@ -334,6 +343,8 @@ export function accountStatements(
       .prepare(`DELETE FROM ${table} WHERE user_id = ?1 AND ${STILL_DUE}`)
       .bind(userId, at);
   return [
+    // Sync's head (step 2 fenced it; the docs went then).
+    byUser("sync_heads"),
     // Rate limits: userLimitKey (api/router.ts) and chat/socket.ts. A
     // directory ID is [a-z0-9], so it can't carry a LIKE wildcard.
     db

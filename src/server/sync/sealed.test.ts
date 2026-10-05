@@ -35,6 +35,7 @@ import {
   userDataForJob,
 } from "../security/user-keys";
 import { testBindings } from "../test-bindings";
+import { listTasks, upsertTask } from "../todo/store";
 import { livePlans, pullDocs, pushDocs } from "./store";
 import { openedBodyFor } from "./testing";
 
@@ -85,6 +86,8 @@ beforeEach(async () => {
     [
       "sync_docs",
       "sync_heads",
+      "todo_done",
+      "todo_tasks",
       "user_keys",
       "chat_members",
       "counters",
@@ -431,10 +434,12 @@ describe("sealed sync bodies", () => {
        VALUES ('tstudent', 'plan', ?1, ?2, 1000, 0, ?3, ?4)`,
     ).bind(plan.id, plan.termId, kept.body, now().toISOString());
     await putBack.run();
-    await expect(pullDocs(keyed(k1Env()), "tstudent", 0)).rejects.toThrow(
-      SealedDataError,
-    );
-    await env.DB.prepare("DELETE FROM sync_docs").run();
+    // Nothing can open it: it's deleted on sight, unread, and the device
+    // starts over.
+    expect(await pullDocs(keyed(k1Env()), "tstudent", 0)).toEqual({
+      status: "reset",
+    });
+    expect(await storedBodies()).toEqual([]);
 
     // Signing up again makes a new key, which doesn't open the old body.
     await (await signIn("tstudent")).push(
@@ -847,5 +852,122 @@ describe("the purge and the account's key", () => {
     expect(await back.pull(0)).toMatchObject({ status: "ok", docs: [] });
     expect((await back.push(savePlan())).results[0]?.status).toBe("ok");
     expect(await back.pull(0)).toMatchObject({ docs: [{ body: plan }] });
+  });
+});
+
+describe("an account revived after the purge deleted its key", () => {
+  const due = () => new Date(now().getTime() + 7 * DAY);
+
+  /** Purge step 2 runs, then a sign-in (another device) keeps the account. */
+  async function purgeKeyThenRevive() {
+    await markDeleting(env.DB, "tstudent", now());
+    expect(await purgeKey(k1Env(), "tstudent", due())).toBe(true);
+    await signIn("tstudent");
+  }
+
+  it("starts every device over, even after another has uploaded and edited past its cursor", async () => {
+    const phone = await signIn("tstudent");
+    const laptop = await signIn("tstudent");
+    const plans = [1, 2, 3, 4, 5].map((n) =>
+      aPlan({ id: `plan_revived_${n}`, name: `Plan ${n}` }),
+    );
+    await phone.push(...plans.map((p) => savePlan(p))); // revs 1–5
+    expect(await laptop.pull(0)).toMatchObject({ status: "ok", cursor: 5 });
+
+    await purgeKeyThenRevive();
+
+    // The phone comes back first: it starts over, uploads its five plans
+    // again and edits two, all before the laptop pulls.
+    expect(await phone.pull(5)).toEqual({ status: "reset" });
+    const again = await phone.push(...plans.map((p) => savePlan(p)));
+    const revs = again.results.map((r) => (r.status === "ok" ? r.rev : 0));
+    await phone.push(
+      ...plans
+        .slice(0, 2)
+        .map((p, i) => savePlan({ ...p, name: `${p.name} again` }, revs[i])),
+    );
+
+    // Revs never start over, so the laptop's cursor can't pass for current:
+    // a page from 5 would skip what was uploaded again.
+    expect(await laptop.pull(5)).toEqual({ status: "reset" });
+    const all = await laptop.pull(0);
+    expect(all.status === "ok" && all.docs.map((d) => d.id).sort()).toEqual(
+      plans.map((p) => p.id).sort(),
+    );
+  });
+
+  it("deletes rows sealed under the key that's gone, and starts over, rather than failing for good", async () => {
+    const phone = await signIn("tstudent");
+    await phone.push(savePlan());
+    // A push that read the key just before the purge deleted it saved this
+    // row under it: the account is kept, the key is gone.
+    await env.USER_KEYS.delete(accountKeyPath("tstudent"));
+
+    // Chat's and the calendar's reads leave it out, and delete it.
+    expect(await livePlans(keyed(k1Env()), "tstudent", [plan.termId])).toEqual(
+      [],
+    );
+    expect(await storedBodies()).toEqual([]);
+
+    // So does a pull, which starts the device over.
+    await phone.push(savePlan(aPlan({ id: "plan_lost_1" })));
+    await env.USER_KEYS.delete(accountKeyPath("tstudent"));
+    expect(await phone.pull(0)).toEqual({ status: "reset" });
+    expect(await storedBodies()).toEqual([]);
+
+    // A push makes a new key, after deleting what the old one sealed.
+    await phone.push(savePlan(aPlan({ id: "plan_lost_2" })));
+    await env.USER_KEYS.delete(accountKeyPath("tstudent"));
+    const saved = await phone.push(savePlan(aPlan({ id: "plan_new_2" })));
+    expect(saved.results[0]?.status).toBe("ok");
+    expect((await storedBodies()).map((r) => r.doc_id)).toEqual(["plan_new_2"]);
+    expect(await phone.pull(1)).toEqual({ status: "reset" });
+    expect(await phone.pull(0)).toMatchObject({
+      status: "ok",
+      docs: [{ id: "plan_new_2" }],
+    });
+  });
+
+  it("does the same for own tasks", async () => {
+    await signIn("tstudent");
+    const data = () => keyed(k1Env());
+    const task = (uid: string) => ({
+      uid,
+      title: "Read chapter 4",
+      courseCode: null,
+      dueAt: null,
+      dueDate: null,
+    });
+    await upsertTask(data(), "tstudent", task("own-lost-task-01"), now(), 500);
+    await env.USER_KEYS.delete(accountKeyPath("tstudent"));
+    const tasks = () =>
+      env.DB.prepare("SELECT uid FROM todo_tasks").all<{ uid: string }>();
+    expect(
+      await listTasks(data(), "tstudent", null, { undated: true }),
+    ).toEqual([]);
+    expect((await tasks()).results).toEqual([]);
+
+    await upsertTask(data(), "tstudent", task("own-lost-task-02"), now(), 500);
+    await env.USER_KEYS.delete(accountKeyPath("tstudent"));
+    await upsertTask(data(), "tstudent", task("own-new-task-01"), now(), 500);
+    expect((await tasks()).results).toEqual([{ uid: "own-new-task-01" }]);
+    expect(
+      await listTasks(data(), "tstudent", null, { undated: true }),
+    ).toMatchObject([{ title: "Read chapter 4" }]);
+  });
+
+  it("still fails, deleting nothing, when the key is there and a row won't open", async () => {
+    const phone = await signIn("tstudent");
+    await phone.push(savePlan());
+    const [row] = await storedBodies();
+    await env.DB.prepare(
+      "UPDATE sync_docs SET body = ?1 WHERE user_id = 'tstudent'",
+    )
+      .bind(`${row?.body.slice(0, -4)}AAAA`)
+      .run();
+    await expect(pullDocs(keyed(k1Env()), "tstudent", 0)).rejects.toThrow(
+      SealedDataError,
+    );
+    expect(await storedBodies()).toHaveLength(1);
   });
 });
