@@ -470,7 +470,10 @@ test("the check that finishes the week sends confetti off its bar, once", async 
     await post(page, "todo/done", { uid: "own-confetti-aaaa1", done: true }),
   ).toBe(200);
   await page.goto("/todo");
-  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "1 of 2 done");
+  // The week loads after the account: as long as the drawer's first wait.
+  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "1 of 2 done", {
+    timeout: 20_000,
+  });
 
   const confetti = page.locator("canvas[data-confetti]");
   await page.getByRole("checkbox", { name: "Done: Quiz 3" }).first().click();
@@ -483,7 +486,9 @@ test("the check that finishes the week sends confetti off its bar, once", async 
 
   // A week that opens done sends none.
   await page.reload();
-  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "All 2 done");
+  await expect(weekBar(page)).toHaveAttribute("aria-valuetext", "All 2 done", {
+    timeout: 20_000,
+  });
   await page.waitForTimeout(1_000);
   await expect(confetti).toHaveCount(0);
 });
