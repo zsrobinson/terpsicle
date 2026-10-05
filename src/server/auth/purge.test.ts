@@ -19,6 +19,8 @@ import type { CourseChat } from "../chat/course-chat";
 import { chatTargetId } from "../chat/moderation-handler";
 import { ObjectStore } from "../chat/object-store";
 import { PURGED_REPORTER_PREFIX } from "../moderation/store";
+import { sealedBodyFor } from "../sync/testing";
+import { sealedTitleFor } from "../todo/testing";
 import {
   accountStatements,
   PURGE_LEDGER,
@@ -182,11 +184,11 @@ async function seedAccount(id: string, n: number) {
         id,
         plan.id,
         TERM,
-        JSON.stringify(plan),
-        JSON.stringify(aSettingsDoc()),
+        await sealedBodyFor(env, id, "plan", plan.id, plan),
+        await sealedBodyFor(env, id, "settings", "settings", aSettingsDoc()),
         fourYear.id,
         at,
-        JSON.stringify(fourYear),
+        await sealedBodyFor(env, id, "four-year", fourYear.id, fourYear),
       ],
       ["INSERT INTO sync_heads (user_id, head) VALUES (?1, 4)", id],
       [
@@ -264,10 +266,16 @@ async function seedAccount(id: string, n: number) {
       ],
       [
         `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
-         VALUES (?1, 'own-reading-group-0001', 'Read chapter 4 with the study group', 'CMSC351', NULL, ?2, ?3, ?3)`,
+         VALUES (?1, 'own-reading-group-0001', ?4, 'CMSC351', NULL, ?2, ?3, ?3)`,
         id,
         item.dueDate,
         at,
+        await sealedTitleFor(
+          env,
+          id,
+          "own-reading-group-0001",
+          "Read chapter 4 with the study group",
+        ),
       ],
       [
         "INSERT INTO todo_hidden (user_id, course_key, hidden_at) VALUES (?1, 'Terps Robotics Club', ?2)",

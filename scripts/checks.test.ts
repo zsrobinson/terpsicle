@@ -154,6 +154,61 @@ describe("the sealed feed link rule", () => {
   });
 });
 
+describe("the sealed tables rule", () => {
+  const text =
+    'db.prepare("SELECT body FROM sync_docs");\ndb.prepare("SELECT wrapped_key FROM user_keys");\ndb.prepare("SELECT title FROM todo_tasks");';
+
+  it("flags the sealed tables outside their files", () => {
+    const problems = findImportProblems("src/server/chat/store.ts", text);
+    expect(problems.map((p) => p.split("  ")[1]?.split(":")[0])).toEqual([
+      '"sync_docs"',
+      '"wrapped_key"',
+      '"user_keys"',
+      '"todo_tasks"',
+    ]);
+    expect(problems[0]).toContain(
+      "read synced docs through src/server/sync/store.ts",
+    );
+  });
+
+  it("allows each in its own files, tests and comments", () => {
+    const only = (rel: string) =>
+      findImportProblems(rel, text).map((p) => p.split("  ")[1]);
+    expect(only("src/server/sync/store.ts")).toHaveLength(3);
+    expect(only("src/server/security/user-keys.ts")).toHaveLength(2);
+    expect(only("src/server/todo/store.ts")).toHaveLength(3);
+    expect(findImportProblems("src/server/auth/purge.ts", text)).toEqual([]);
+    expect(findImportProblems("src/server/sync/sync.test.ts", text)).toEqual(
+      [],
+    );
+    expect(
+      findImportProblems(
+        "src/server/chat/store.ts",
+        "/** A `sync_docs` row */\n// todo_tasks\n/*\n * user_keys\n */\nconst url = 'http://x'; // sync_docs",
+      ),
+    ).toEqual([]);
+  });
+
+  it("skips only what's really inside a comment", () => {
+    const flagged = (code: string) =>
+      findImportProblems("src/server/chat/store.ts", code).map(
+        (p) => p.split("  ")[1]?.split(":")[0],
+      );
+    // Code after a closed comment on the same line.
+    expect(
+      flagged('/* x */ db.prepare("SELECT body FROM sync_docs");'),
+    ).toEqual(['"sync_docs"']);
+    // A line of SQL in a template literal that starts with `*` or `//`.
+    expect(
+      flagged("db.prepare(`SELECT\n  * FROM sync_docs\n  // todo_tasks`);"),
+    ).toEqual(['"sync_docs"', '"todo_tasks"']);
+    // A comment opener inside a string isn't one.
+    expect(flagged('const a = "/*"; db.prepare("FROM user_keys");')).toEqual([
+      '"user_keys"',
+    ]);
+  });
+});
+
 describe("findTrackedFileProblems", () => {
   it("allows ordinary files, fixtures and screenshots under the limit", () => {
     expect(

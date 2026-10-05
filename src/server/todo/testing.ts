@@ -1,12 +1,20 @@
 // Worker-test helpers for Todo (imported only by *.test.ts): a signed-in
 // device on the real router and D1, and a fake ELMS that serves the parser's
-// synthetic feeds (src/core/todo/__fixtures__).
+// synthetic feeds (src/core/todo/__fixtures__), and own tasks' titles sealed
+// and opened as ./store.ts does, for tests that write or read rows directly.
 import { env } from "cloudflare:workers";
 import { findTestUser } from "~/core/auth";
 import { FEEDS } from "~/core/todo/__fixtures__/feeds";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { upsertUser } from "../auth/store";
+import {
+  openForAccount,
+  SealedDataError,
+  type UserDataEnv,
+  userData,
+} from "../security/user-keys";
+import { sealTaskTitle, titleWhere } from "./store";
 
 export const ORIGIN = "https://terpsicle.com";
 
@@ -149,4 +157,32 @@ export class Device {
       throw new Error(`${path} answered ${response.status}`);
     return (await response.json()) as T;
   }
+}
+
+/** A task title sealed as `upsertTask` seals it (making the account's key if it has none). */
+export async function sealedTitleFor(
+  userDataEnv: UserDataEnv,
+  userId: string,
+  uid: string,
+  title: string,
+): Promise<string> {
+  const account = await userData(userDataEnv, {
+    testMode: false,
+  }).accountKey(userId, { create: true });
+  if (!account) throw new SealedDataError();
+  return sealTaskTitle(account, uid, title);
+}
+
+/** A task title as `listTasks` opens it; throws if it won't. */
+export async function openedTitleFor(
+  userDataEnv: UserDataEnv,
+  userId: string,
+  uid: string,
+  sealed: string,
+): Promise<string> {
+  const account = await userData(userDataEnv, { testMode: false }).accountKey(
+    userId,
+  );
+  if (!account) throw new SealedDataError();
+  return openForAccount(account, titleWhere(uid), sealed);
 }

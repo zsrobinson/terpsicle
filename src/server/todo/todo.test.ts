@@ -15,7 +15,9 @@ import {
 } from "~/core/schema";
 import { parseIcs, TEST_FEED_TOKENS, testFeedLink } from "~/core/todo";
 import { type ApiEnv, handleApi } from "../api/router";
+import { SealedDataError } from "../security/user-keys";
 import { CONNECT_TIMEOUT_MS, FEED_TIMEOUT_MS } from "./fetch";
+import { sweepUnsealedTasks } from "./store";
 import {
   clearTodo,
   type Device,
@@ -25,6 +27,7 @@ import {
   FEED_URL,
   FILE_FEED,
   ORIGIN,
+  openedTitleFor,
   signIn,
   todoEnv,
 } from "./testing";
@@ -669,15 +672,62 @@ describe("own tasks", () => {
     await save(phone, { title: "Office hours", dueDate: null, dueTime: null });
     const rows = await env.DB.prepare(
       "SELECT title, due_at, due_date FROM todo_tasks",
-    ).all();
+    ).all<{ title: string }>();
     expect(rows.results).toEqual([
-      { title: "Office hours", due_at: null, due_date: null },
+      {
+        title: expect.stringMatching(/^v1\.acct\./),
+        due_at: null,
+        due_date: null,
+      },
     ]);
+    // What was typed is sealed with the account's key, bound to the task.
+    const sealed = rows.results[0]?.title ?? "";
+    expect(sealed).not.toContain("Office");
+    expect(await openedTitleFor(testEnv, "tstudent", task().uid, sealed)).toBe(
+      "Office hours",
+    );
+    await expect(
+      openedTitleFor(testEnv, "tstudent", "own-another-task", sealed),
+    ).rejects.toThrow(SealedDataError);
     // No date: listed whatever the range asks for.
     const later = await list(phone, "2026-12-01", "2026-12-31");
     expect(later.items.map((i) => [i.title, i.dueDate])).toEqual([
       ["Office hours", null],
     ]);
+  });
+
+  it("deletes a task saved in plain text (between the migration and the deploy) on sight", async () => {
+    const phone = await device();
+    await save(phone);
+    // The Worker from before 0025_sync_encryption saved this one.
+    await env.DB.prepare(
+      `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
+       VALUES ('tstudent', 'own-plain-task-01', 'Typed during deploy', NULL, NULL, '2026-09-29', ?1, ?1)`,
+    )
+      .bind(now().toISOString())
+      .run();
+    await phone.call("/api/todo/done", {
+      uid: "own-plain-task-01",
+      done: true,
+    });
+    // Nothing throws: the plain one is gone, with its mark; the rest stay.
+    const week = await list(phone, "2026-09-28", "2026-10-04");
+    expect(
+      week.items.flatMap((i) => (i.source === "own" ? [i.title] : [])),
+    ).toEqual(["Office hours with Dr. Kim"]);
+    const rows = await env.DB.prepare(
+      "SELECT uid FROM todo_tasks UNION ALL SELECT uid FROM todo_done",
+    ).all<{ uid: string }>();
+    expect(rows.results.map((r) => r.uid)).toEqual([task().uid]);
+    // One nobody lists (out of every range asked for) goes with the daily sweep.
+    await env.DB.prepare(
+      `INSERT INTO todo_tasks (user_id, uid, title, course_code, due_at, due_date, created_at, updated_at)
+       VALUES ('tstudent', 'own-plain-task-02', 'Also typed during deploy', NULL, NULL, '2027-01-04', ?1, ?1)`,
+    )
+      .bind(now().toISOString())
+      .run();
+    expect(await sweepUnsealedTasks(env.DB)).toBe(1);
+    expect(await sweepUnsealedTasks(env.DB)).toBe(0);
   });
 
   it("works without ELMS, takes done marks, and deletes a task with its mark", async () => {

@@ -42,6 +42,9 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 /** This project's PR previews: `pr-<n>-terpsicle.zsrobinson.workers.dev`. */
 const PREVIEW_HOST = /^pr-[1-9][0-9]{0,5}-terpsicle\.zsrobinson\.workers\.dev$/;
 
+/** Only the flag, for code that has nothing else of auth's env (synced data's keys). */
+const TEST_MODE_VAR = AuthVarsSchema.pick({ AUTH_TEST_MODE: true });
+
 export function authVars(env: AuthEnv): AuthVars {
   // Only the named vars are read; a malformed one reads as unset.
   return AuthVarsSchema.parse(env);
@@ -52,11 +55,14 @@ export function authVars(env: AuthEnv): AuthVars {
  * a preview or loopback host, so it fails closed: terpsicle.com (and any
  * host we don't know) never gets it, whatever the vars say.
  */
-export function isTestMode(env: AuthEnv, url: URL): boolean {
+export function isTestMode(
+  env: Pick<AuthEnv, "AUTH_TEST_MODE">,
+  url: URL,
+): boolean {
   const host = url.hostname;
   if (host === APEX_HOST || host === `www.${APEX_HOST}`) return false;
   return (
-    authVars(env).AUTH_TEST_MODE === "true" &&
+    TEST_MODE_VAR.parse(env).AUTH_TEST_MODE === "true" &&
     (LOOPBACK.has(host) || PREVIEW_HOST.test(host))
   );
 }

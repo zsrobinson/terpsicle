@@ -178,6 +178,10 @@ A browser with notifications on, listed in Settings by what it is ("iPhone · Sa
 **Sync**:
 Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (the **room rules** you've closed, Home's closed callouts) beside Schedule's. In Todo, the bar's sync cloud means Todo's sync: with ELMS, and with our own server for your tasks and checks.
 
+**Account key**:
+The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. Deleting the account destroys it first. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
+_Avoid_: end-to-end (encryption), zero-knowledge, sync key
+
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
 _Avoid_: close account, deactivate

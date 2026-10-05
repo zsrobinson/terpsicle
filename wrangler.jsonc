@@ -107,7 +107,17 @@
     // docs; otherwise a push carrying one answers "unavailable". On with the
     // Plan UI (#98): tabs that skip unknown doc kinds shipped in #87, and the
     // Dexie v3 upgrade resets a device's pull cursor so nothing is missed.
-    "PLAN_ENABLED": "true"
+    "PLAN_ENABLED": "true",
+    // Synced data is sealed with a key per account, each wrapped by the
+    // secret USER_DATA_KEY (32 random bytes, base64url) on this Worker
+    // (docs/DATA.md §7.7). Without it sync, Chat's plan reads, the calendar
+    // feed and own tasks answer "unavailable": there's no plain-text
+    // fallback. To rotate: set the new key as USER_DATA_KEY with a new
+    // USER_DATA_KEY_ID, and the old one as USER_DATA_KEY_PREVIOUS with
+    // USER_DATA_KEY_PREVIOUS_ID (a var); once the daily job has rewrapped
+    // every account's key (no `user_keys` row names the old id), remove both.
+    // Previews and mock mode use test mode's fixed key instead.
+    "USER_DATA_KEY_ID": "k1"
   },
   "ai": { "binding": "AI" },
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.

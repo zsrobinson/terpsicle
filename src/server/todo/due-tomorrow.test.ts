@@ -125,6 +125,14 @@ async function runAt(iso: string) {
   await runTodoFeedsJob({ env: testEnv(), now: now(), fetch: phone.fetch });
 }
 
+/** tstudent's inbox rows as D1 holds them. */
+const storedInbox = async () =>
+  (
+    await env.DB.prepare(
+      "SELECT title, body FROM notifications WHERE user_id = 'tstudent' ORDER BY id",
+    ).all<{ title: string | null; body: string | null }>()
+  ).results;
+
 const settingsOf = (device: Device) =>
   device.call<NotificationSettingsResult>("/api/notifications/settings");
 
@@ -322,6 +330,44 @@ describe("the 6pm send", () => {
     expect(phone.received.map((p) => [p.title, p.body])).toEqual([
       ["Office hours is due tomorrow", "2pm"],
     ]);
+    // The inbox row is stored in plain text, so it doesn't say what you typed.
+    expect(await storedInbox()).toEqual([
+      { title: "Your task is due tomorrow", body: "2pm" },
+    ]);
+  });
+
+  it("keeps your own tasks' words out of the inbox row; only the push names them", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    const device = await connected(
+      feedOf([{ id: "2", title: "Project 2", due: "2026-09-30T03:59:00Z" }]),
+    );
+    for (const [uid, title] of [
+      ["own-surprise-0001", "Plan Sam's surprise party"],
+      ["own-surprise-0002", "Buy Sam's present"],
+    ] as const)
+      await device.call("/api/todo/save-task", {
+        uid,
+        title,
+        courseCode: "CMSC351",
+        dueDate: "2026-09-29",
+        dueTime: null,
+      });
+    await runAt("2026-09-28T22:03:00Z");
+    // A push is encrypted to the device and never stored: it may name them.
+    expect(phone.received.map((p) => [p.title, p.body])).toEqual([
+      [
+        "3 things due tomorrow",
+        "Buy Sam's present (CMSC351), Plan Sam's surprise party (CMSC351) and 1 more",
+      ],
+    ]);
+    const stored = await storedInbox();
+    expect(stored).toEqual([
+      {
+        title: "3 things due tomorrow",
+        body: "Project 2 (CMSC216) 11:59pm and 2 of your tasks (CMSC351)",
+      },
+    ]);
+    expect(JSON.stringify(stored)).not.toContain("Sam");
   });
 
   it("says nothing when everything due tomorrow is done", async () => {
@@ -375,7 +421,42 @@ describe("who's picked", () => {
         fetch: phone.fetch,
         batch: 1,
       }),
-    ).toEqual({ due: 1, sent: 1, unsent: 0 });
+    ).toEqual({ due: 1, sent: 1, unsent: 0, failed: 0, errors: [] });
+    expect(phone.received.map((p) => p.title)).toEqual([
+      "Project 2 is due tomorrow",
+    ]);
+  });
+
+  it("goes on past someone whose tasks won't open, and says why by name", async () => {
+    clock = Date.parse("2026-09-28T20:00:00Z");
+    const feed = feedOf([
+      { id: "1", title: "Project 2", due: "2026-09-30T03:59:00Z" },
+    ]);
+    elms.serve(feed);
+    const laptop = await signIn("tadmin", { now, env: testEnv, elms });
+    await laptop.call("/api/todo/connect", { url: FEED_URL });
+    await laptop.call("/api/todo/save-task", {
+      uid: "own-admin-task-01",
+      title: "Grade quizzes",
+      courseCode: null,
+      dueDate: "2026-09-29",
+      dueTime: null,
+    });
+    // Changed in D1: it no longer opens.
+    await env.DB.prepare(
+      "UPDATE todo_tasks SET title = substr(title, 1, length(title) - 4) || 'AAAA' WHERE user_id = 'tadmin'",
+    ).run();
+    await connected(feed);
+    clock = Date.parse("2026-09-28T22:03:00Z");
+    expect(
+      await sendDueTomorrow(testEnv(), { now: now(), fetch: phone.fetch }),
+    ).toEqual({
+      due: 1,
+      sent: 1,
+      unsent: 0,
+      failed: 1,
+      errors: ["SealedDataError"],
+    });
     expect(phone.received.map((p) => p.title)).toEqual([
       "Project 2 is due tomorrow",
     ]);

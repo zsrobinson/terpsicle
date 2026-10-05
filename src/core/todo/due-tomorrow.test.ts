@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { aTodoItem } from "~/fixtures";
+import { anOwnTask, aTodoItem } from "~/fixtures";
+import type { TodoItem } from "../schema";
 import {
+  dueTomorrowInbox,
   dueTomorrowKey,
   dueTomorrowPush,
   dueTomorrowRun,
@@ -107,6 +109,46 @@ describe("dueTomorrowPush", () => {
     expect(dueTomorrowPush([webassign, project], "2026-09-29").body).toBe(
       "Project 2 (CMSC216) 11:59pm and WebAssign 5 (MATH240) 11:59pm",
     );
+  });
+
+  it("keeps your own tasks' words out of the inbox row, and names ELMS's", () => {
+    const own = (
+      uid: string,
+      title: string,
+      courseCode: TodoItem["courseCode"],
+    ) =>
+      anOwnTask({
+        uid,
+        title,
+        courseCode,
+        dueAt: null,
+        dueDate: "2026-09-29",
+      });
+    const secret = own("own-a", "Sam's surprise", "CMSC351");
+    // No task of yours: the push's words.
+    expect(dueTomorrowInbox([project, reading], "2026-09-29")).toEqual({
+      title: "2 things due tomorrow",
+      body: "Reading response and Project 2 (CMSC216) 11:59pm",
+    });
+    expect(dueTomorrowInbox([secret], "2026-09-29")).toEqual({
+      title: "Your task is due tomorrow",
+      body: "CMSC351",
+    });
+    expect(
+      dueTomorrowInbox(
+        [secret, own("own-b", "Gift", "MATH240"), own("own-c", "Call", null)],
+        "2026-09-29",
+      ),
+    ).toEqual({
+      title: "3 things due tomorrow",
+      body: "3 of your tasks (CMSC351 and MATH240)",
+    });
+    expect(
+      dueTomorrowInbox([webassign, reading, project, secret], "2026-09-29"),
+    ).toEqual({
+      title: "4 things due tomorrow",
+      body: "Reading response, Project 2 (CMSC216) 11:59pm, 1 more from ELMS and your task (CMSC351)",
+    });
   });
 
   it("cuts long titles to 60 characters", () => {

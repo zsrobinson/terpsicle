@@ -1,13 +1,6 @@
-// `calendar_feeds` (migrations/0018_calendar_feeds.sql) and the reads a feed
-// is built from: the person's plans (sync_docs) and Todo's list.
+// `calendar_feeds` (migrations/0018_calendar_feeds.sql). A feed is built from
+// the person's plans, read through ../sync/store.ts, and Todo's list.
 import { z } from "zod";
-import {
-  type MainPlans,
-  type Plan,
-  PlanDocSchema,
-  SettingsDocSchema,
-  type TermId,
-} from "~/core/schema";
 
 const FeedRowSchema = z.object({
   nonce: z.string().min(1),
@@ -110,48 +103,4 @@ export async function markFetched(
       new Date(now.getTime() - FETCH_MARK_MS).toISOString(),
     )
     .run();
-}
-
-const PlanBodySchema = z.object({ body: z.string() });
-
-/** The person's live plans in these terms, from their sync docs. */
-export async function plansInTerms(
-  db: D1Database,
-  userId: string,
-  termIds: readonly TermId[],
-): Promise<Plan[]> {
-  if (termIds.length === 0) return [];
-  const { results } = await db
-    .prepare(
-      `SELECT body FROM sync_docs
-       WHERE user_id = ?1 AND kind = 'plan' AND deleted = 0
-         AND term_id IN (SELECT value FROM json_each(?2))`,
-    )
-    .bind(userId, JSON.stringify(termIds))
-    .all();
-  return results.flatMap((r) => {
-    const doc = PlanDocSchema.safeParse(
-      JSON.parse(PlanBodySchema.parse(r).body),
-    );
-    return doc.success ? [doc.data] : [];
-  });
-}
-
-/** Each term's main plan, from the person's settings doc; none before its first save. */
-export async function mainPlansOf(
-  db: D1Database,
-  userId: string,
-): Promise<MainPlans> {
-  const row = await db
-    .prepare(
-      `SELECT body FROM sync_docs
-       WHERE user_id = ?1 AND kind = 'settings' AND deleted = 0`,
-    )
-    .bind(userId)
-    .first();
-  if (!row) return {};
-  const doc = SettingsDocSchema.safeParse(
-    JSON.parse(PlanBodySchema.parse(row).body),
-  );
-  return doc.success ? doc.data.mainPlans : {};
 }

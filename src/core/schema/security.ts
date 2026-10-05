@@ -70,3 +70,40 @@ export interface CspViolation {
   column: number | null;
   disposition: "enforce" | "report" | null;
 }
+
+// ---------- Synced data's keys (docs/DATA.md §7.7) ----------
+
+/** Blank means unset, so an empty var reads as missing and fails closed. */
+const keyVar = z
+  .string()
+  .optional()
+  .catch(undefined)
+  .transform((value) => value?.trim() || undefined);
+
+/**
+ * The Worker's settings for sealing synced data, read from its `env`; other
+ * bindings are ignored. Each account's data key is wrapped by
+ * USER_DATA_KEY, which production must set: there's no plaintext fallback.
+ */
+export const UserDataKeyVarsSchema = z.object({
+  /** Wraps every account's key (a secret: 32 random bytes, base64url). */
+  USER_DATA_KEY: keyVar,
+  /** The id keys wrapped by USER_DATA_KEY name (a var, `k1` at first). */
+  USER_DATA_KEY_ID: keyVar,
+  /** During a rotation, the key before (a secret). */
+  USER_DATA_KEY_PREVIOUS: keyVar,
+  /** During a rotation, the previous key's id (a var). */
+  USER_DATA_KEY_PREVIOUS_ID: keyVar,
+});
+/** The same names as the Worker's env has them, every one optional. */
+export interface UserDataKeyVars {
+  USER_DATA_KEY?: string;
+  USER_DATA_KEY_ID?: string;
+  USER_DATA_KEY_PREVIOUS?: string;
+  USER_DATA_KEY_PREVIOUS_ID?: string;
+  /**
+   * A cron's or Durable Object's test mode (they have no host); a request's
+   * is auth's `isTestMode`, which needs a preview or localhost host too.
+   */
+  AUTH_TEST_MODE?: string;
+}

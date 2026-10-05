@@ -578,6 +578,122 @@ describe("the first sign-in on a device", () => {
     expect(b.names()).toEqual(["Later", "Plan B"]);
     expect(server.plans().has(planB.id)).toBe(true);
   });
+
+  /**
+   * What migrations/0025_sync_encryption.sql does to an account: its docs
+   * go, and its head moves on one with every older rev counted as pruned,
+   * so any cursor from before gets `reset` however far new revs go.
+   */
+  const clearLike0025 = () => {
+    server.docs.clear();
+    server.head += 1;
+    server.prunedThrough = server.head;
+  };
+
+  it("uploads everything again, with no copies, after the server is emptied", async () => {
+    // migrations/0025_sync_encryption.sql empties sync_docs rather than
+    // sealing plain rows in place: every device's next pull answers
+    // `reset`, and first sign-in's merge has to put it all back.
+    const cs = aFourYear({ id: "fouryear_cs_0001", name: "CS major" });
+    const a = track(await syncedDevice("a", server));
+    const b = track(await syncedDevice("b", server));
+    a.edit((t) => ({
+      ...t,
+      plans: [planA, planB],
+      fourYear: [cs],
+      blocks: [aBlock()],
+      colors: { CMSC351: "teal" },
+    }));
+    await a.settle();
+    await b.engine.sync();
+    // a's next sync pulls its own saves: every device is past cursor 0.
+    await a.engine.sync();
+    const before = {
+      plans: server.plans(),
+      fourYear: server.docs.get(`four-year:${cs.id}`)?.body,
+      settings: server.docs.get("settings:settings")?.body,
+    };
+    expect(b.tables.plans).toEqual(a.tables.plans);
+
+    clearLike0025();
+    const calls = server.calls.length;
+
+    await a.engine.sync();
+    await b.engine.sync();
+    // Each device was told to start over, and pulled from 0.
+    const pulls = server.calls
+      .slice(calls)
+      .flatMap((c) => (c.kind === "pull" ? [c.input.since] : []));
+    expect(pulls.filter((since) => since === 0).length).toBeGreaterThan(1);
+    for (const device of [a, b]) {
+      expect(device.names()).toEqual(["Plan A", "Plan B"]);
+      expect(device.tables.fourYear).toEqual([cs]);
+      // Nothing was copied or renamed: a reset with no copies says nothing.
+      for (const notice of device.notices)
+        expect(notice).toMatchObject({
+          kind: "first-sign-in",
+          reset: true,
+          copies: [],
+          renamed: [],
+        });
+    }
+    expect(server.plans()).toEqual(before.plans);
+    expect(server.docs.get(`four-year:${cs.id}`)?.body).toEqual(
+      before.fourYear,
+    );
+    expect(server.docs.get("settings:settings")?.body).toEqual(before.settings);
+    // Both devices are in step again: an edit flows as before.
+    a.editPlan(planA.id, { name: "After" });
+    await a.settle();
+    await b.engine.sync();
+    expect(b.plan(planA.id)?.name).toBe("After");
+  });
+
+  it("starts a device over even when another has uploaded and edited past its cursor", async () => {
+    const a = track(await syncedDevice("a", server));
+    const b = track(await syncedDevice("b", server));
+    a.edit((t) => ({
+      ...t,
+      plans: [planA, planB],
+      colors: { CMSC351: "teal" },
+    }));
+    await a.settle();
+    for (const name of ["Plan B 1", "Plan B 2", "Plan B"]) {
+      a.editPlan(planB.id, { name });
+      await a.settle();
+    }
+    await b.engine.sync();
+    await a.engine.sync();
+    const cursor = b.storage.snapshot.sync.cursor;
+    expect(cursor).toBeGreaterThan(0);
+
+    clearLike0025();
+    // a comes back first with a plan made meanwhile, uploads everything
+    // again and edits, so the new revs pass b's cursor (had revs started
+    // over at 1, b's next page would skip what went up again).
+    const planC = aPlan({
+      id: "plan_c_0001",
+      name: "Plan C",
+      order: 2,
+      courses: [aSavedCourse()],
+    });
+    a.edit((t) => ({ ...t, plans: [...t.plans, planC] }));
+    await a.settle();
+    await a.engine.sync();
+    for (let n = 1; n <= 2 || server.head <= cursor + 2; n++) {
+      a.editPlan(planA.id, { name: `Plan A ${n}` });
+      await a.settle();
+    }
+    await b.engine.sync();
+    expect(b.names()).toEqual(a.names());
+    expect(b.names().some((name) => name.includes("(copy)"))).toBe(false);
+    // An edit on b flows back without a conflict.
+    b.editPlan(planB.id, { name: "From b" });
+    await b.settle();
+    await a.engine.sync();
+    expect(a.names()).toEqual(b.names());
+    expect(a.names().some((name) => name.includes("(copy)"))).toBe(false);
+  });
 });
 
 describe("staying calm", () => {

@@ -2,6 +2,7 @@
 // §3.8). `TODO_ENABLED` is the switch; production also needs the secret
 // TODO_FEED_KEY. Test mode (previews, `pnpm dev:mock`, e2e) uses a fixed key
 // and answers feed links from the fixture feed instead of the network.
+import type { UserDataKeyVars } from "~/core/schema";
 import { newYorkDateOf, TEST_FEED_TOKENS, testFeedIcs } from "~/core/todo";
 import {
   type FeedKeys,
@@ -10,7 +11,8 @@ import {
   TEST_FEED_KEY_VARS,
 } from "./crypto";
 
-export interface TodoEnv extends FeedKeyVars {
+/** Own tasks' titles are sealed with the account's key (../security/user-keys.ts). */
+export interface TodoEnv extends FeedKeyVars, UserDataKeyVars {
   DB: D1Database;
   /** `on` | `off` (anything else is off). */
   TODO_ENABLED?: string;

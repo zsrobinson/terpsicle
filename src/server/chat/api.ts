@@ -23,14 +23,17 @@ import {
   courseRoomId,
   FeatureVarsSchema,
   parseRoomId,
+  type UserDataKeyVars,
 } from "~/core/schema";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
+import { userDataForRequest } from "../security/user-keys";
 import { loadChatCourse, loadChatTerm } from "./catalog";
 import type { CourseChatNamespace } from "./course-chat";
 import { planSections, roomJoins, roomMembers, unreadRooms } from "./store";
 
-export interface ChatApiEnv {
+/** Plans are read through sealed sync docs (../security/user-keys.ts). */
+export interface ChatApiEnv extends UserDataKeyVars {
   DB: D1Database;
   DATA: R2Bucket;
   CHAT_ENABLED?: string;
@@ -141,7 +144,12 @@ export async function members(
   if (user instanceof Response) return user;
   const [course, sections] = await Promise.all([
     loadChatCourse(env.DATA, input.termId, input.courseCode),
-    planSections(env.DB, user.id, input.termId, input.courseCode),
+    planSections(
+      userDataForRequest(env, ctx.request),
+      user.id,
+      input.termId,
+      input.courseCode,
+    ),
   ]);
   if (!course) return { status: "not-found" };
   if (!canReadRoom(course.tree, input.roomId, sections))
@@ -189,7 +197,12 @@ export async function joins(
   if (user instanceof Response) return user;
   const [course, sections] = await Promise.all([
     loadChatCourse(env.DATA, input.termId, input.courseCode),
-    planSections(env.DB, user.id, input.termId, input.courseCode),
+    planSections(
+      userDataForRequest(env, ctx.request),
+      user.id,
+      input.termId,
+      input.courseCode,
+    ),
   ]);
   if (!course) return { status: "not-found" };
   if (!canReadRoom(course.tree, input.roomId, sections))

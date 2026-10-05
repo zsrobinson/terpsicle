@@ -88,6 +88,9 @@ export const PURGE_LEDGER = {
   planetterp_reviews: "untouched: PlanetTerp's words, no user data",
   planetterp_review_sets: "untouched: no user data",
   grade_requests: "untouched: the owner's notes, no user id",
+  // 0025_sync_encryption
+  user_keys:
+    "deleted first: the account's data key, without which nothing it sealed (synced docs, own tasks' titles) can be opened",
 } as const satisfies Record<string, string>;
 
 /**
@@ -245,6 +248,9 @@ export function accountStatements(
       .prepare(`DELETE FROM ${table} WHERE user_id = ?1 AND ${STILL_DUE}`)
       .bind(userId, at);
   return [
+    // The account's data key first: from here on nothing it sealed (synced
+    // docs, own tasks) can be opened, whatever else survives.
+    byUser("user_keys"),
     // Rate limits: userLimitKey (api/router.ts) and chat/socket.ts. A
     // directory ID is [a-z0-9], so it can't carry a LIKE wildcard.
     db

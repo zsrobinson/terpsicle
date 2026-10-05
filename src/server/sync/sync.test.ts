@@ -31,6 +31,7 @@ import { runDailyJob } from "~/jobs/daily";
 import { type ApiEnv, handleApi } from "../api/router";
 import { startSession } from "../auth/session";
 import { markDeleting, upsertUser } from "../auth/store";
+import { sealedBodyFor } from "./testing";
 
 const ORIGIN = "https://terpsicle.com";
 const DAY = 86_400_000;
@@ -44,9 +45,14 @@ beforeEach(async () => {
   clock = Date.parse("2026-10-01T15:00:00.000Z");
   planEnabled = "true";
   await env.DB.batch(
-    ["sync_docs", "sync_heads", "counters", "sessions", "users"].map((t) =>
-      env.DB.prepare(`DELETE FROM ${t}`),
-    ),
+    [
+      "sync_docs",
+      "sync_heads",
+      "user_keys",
+      "counters",
+      "sessions",
+      "users",
+    ].map((t) => env.DB.prepare(`DELETE FROM ${t}`)),
   );
 });
 
@@ -253,7 +259,10 @@ describe("sync/push", () => {
       env.DB.prepare(
         `INSERT INTO sync_docs (user_id, kind, doc_id, rev, deleted, body, updated_at)
          VALUES ('tstudent', 'settings', 'settings', 1, 0, ?1, ?2)`,
-      ).bind(JSON.stringify(before), now().toISOString()),
+      ).bind(
+        await sealedBodyFor(env, "tstudent", "settings", "settings", before),
+        now().toISOString(),
+      ),
     ]);
     const { docs } = await phone.pullAll();
     expect(docs).toMatchObject([{ kind: "settings", body: { prefs: {} } }]);
