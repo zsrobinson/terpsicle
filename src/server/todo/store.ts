@@ -473,14 +473,15 @@ export function sealTaskTitle(
 }
 
 /**
- * Deletes these tasks, whose titles are in plain text, with their done
- * marks (each only while its title is still the one read). Logs how many,
- * never what.
+ * Deletes these tasks, whose titles no one can read (in plain text, or
+ * sealed under a key that's gone), with their done marks (each only while
+ * its title is still the one read). Logs how many, never what.
  */
-async function dropUnsealedTasks(
+async function dropUnreadableTasks(
   db: D1Database,
   userId: string,
   rows: readonly TodoTaskRow[],
+  why: "plain text" | "key gone" = "plain text",
 ): Promise<void> {
   const results = await db.batch(
     rows.flatMap((r) => [
@@ -500,7 +501,37 @@ async function dropUnsealedTasks(
   const dropped = results
     .filter((_, i) => i % 2 === 1)
     .reduce((n, r) => n + (r.meta.changes ?? 0), 0);
-  console.warn({ todo: "deleted tasks saved in plain text", dropped });
+  console.warn({ todo: `deleted tasks: ${why}`, dropped });
+}
+
+/**
+ * After a save made the account's first key: deletes the tasks whose
+ * titles don't open under it, sealed under a key that's gone (the purge
+ * deleted it after a save had read it; the account was kept). A first save
+ * racing this one stored its key before its task, so that task stays.
+ */
+async function dropOrphanedTasks(
+  db: D1Database,
+  account: AccountKey,
+): Promise<void> {
+  const { results } = await db
+    .prepare("SELECT * FROM todo_tasks WHERE user_id = ?1")
+    .bind(account.userId)
+    .all();
+  const lost: TodoTaskRow[] = [];
+  for (const r of results) {
+    const row = TodoTaskRowSchema.parse(r);
+    if (!isSealed(row.title)) continue;
+    const opened = await openTask(account, row)
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (error instanceof SealedDataError) return false;
+        throw error;
+      });
+    if (!opened) lost.push(row);
+  }
+  if (lost.length > 0)
+    await dropUnreadableTasks(db, account.userId, lost, "key gone");
 }
 
 /**
@@ -580,10 +611,15 @@ export async function listTasks(
     .all();
   const all = results.map((r) => TodoTaskRowSchema.parse(r));
   const plain = all.filter((r) => !isSealed(r.title));
-  if (plain.length > 0) await dropUnsealedTasks(data.db, userId, plain);
+  if (plain.length > 0) await dropUnreadableTasks(data.db, userId, plain);
   const sealed = all.filter((r) => isSealed(r.title));
   if (sealed.length === 0) return [];
   const account = await data.accountKey(userId);
+  // No key at all: they were sealed under one that's gone.
+  if (!account) {
+    await dropUnreadableTasks(data.db, userId, sealed, "key gone");
+    return [];
+  }
   const rows = await Promise.all(sealed.map((r) => openTask(account, r)));
   return rows.sort(compareTasks).map(toTaskItem);
 }
@@ -610,7 +646,11 @@ export async function upsertTask(
   max: number,
 ): Promise<TodoItem | null> {
   const at = now.toISOString();
-  const account = await data.accountKey(userId, { create: true });
+  let account = await data.accountKey(userId);
+  if (!account) {
+    account = await data.accountKey(userId, { create: true });
+    if (account) await dropOrphanedTasks(data.db, account);
+  }
   if (!account) throw new SealedDataError();
   const title = await sealTaskTitle(account, task.uid, task.title);
   const row = await data.db

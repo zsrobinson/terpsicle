@@ -4,6 +4,7 @@
 // and answers feed links from the fixture feed instead of the network.
 import type { UserDataKeyVars } from "~/core/schema";
 import { newYorkDateOf, TEST_FEED_TOKENS, testFeedIcs } from "~/core/todo";
+import type { AccountKeyBucket } from "../security/user-keys";
 import {
   type FeedKeys,
   type FeedKeyVars,
@@ -12,7 +13,10 @@ import {
 } from "./crypto";
 
 /** Own tasks' titles are sealed with the account's key (../security/user-keys.ts). */
-export interface TodoEnv extends FeedKeyVars, UserDataKeyVars {
+export interface TodoEnv
+  extends FeedKeyVars,
+    UserDataKeyVars,
+    AccountKeyBucket {
   DB: D1Database;
   /** `on` | `off` (anything else is off). */
   TODO_ENABLED?: string;

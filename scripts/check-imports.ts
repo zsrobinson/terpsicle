@@ -8,8 +8,8 @@
 //   link: its `url_enc` column and `openFeedLink` (docs/V3.md §5.1);
 // - only the files SEALED_TABLES lists name the tables holding what an
 //   account's key sealed (`sync_docs`, `todo_tasks`) or the keys themselves
-//   (`user_keys`), so every read goes through the code that opens them
-//   (docs/DATA.md §7.7);
+//   (R2 `USER_KEYS`, and D1's old `user_keys`), so every read goes through
+//   the code that opens them (docs/DATA.md §7.7);
 // - only the kit (src/components/ui) imports the haptic trick: controls
 //   tick through their `haptic` prop, never feature code (docs/decisions.md,
 //   "Haptics live in the kit");
@@ -59,7 +59,9 @@ export const SEALED_TABLES: readonly {
     use: "read synced docs through src/server/sync/store.ts, which opens their sealed bodies",
   },
   {
-    pattern: /\buser_keys\b|\bwrapped_key\b/g,
+    // purge.ts deletes the old table's rows, and the key through
+    // user-keys.ts's deleteAccountKey.
+    pattern: /\buser_keys\b|\bwrapped_key\b|\bUSER_KEYS\b/g,
     files: ["src/server/security/user-keys.ts", "src/server/auth/purge.ts"],
     use: "get an account's key from src/server/security/user-keys.ts",
   },
