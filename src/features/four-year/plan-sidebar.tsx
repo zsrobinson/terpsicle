@@ -13,10 +13,11 @@ import { CreditPanel } from "./credit-panel";
 import { CLOSE_DRILL, useModel, usePlanNav } from "./model";
 import { planView } from "./views";
 
-// Plan's sidebar (V3 §2.13), on the workbench: credits on top, then the
-// open view's panel (its route), and the note on what Plan doesn't do. A
-// course opened from a block or a search result is a drill-in over the
-// view, with one Back, as in the scheduler.
+// Plan's sidebar (V3 §2.13), on the workbench: the open view's panel (its
+// route), starting with its panel header as the scheduler's tabs do, then a
+// foot with the credits and the note on what Plan doesn't do. A course
+// opened from a block or a search result is a drill-in over the view, with
+// one Back, as in the scheduler.
 
 /** "What Terpsicle doesn't do", always and quietly (V3 §2.1). */
 export const UACHIEVE_URL = "https://uachieve.umd.edu/";
@@ -27,7 +28,12 @@ export const PLAN_SIDEBAR_FRAME_ID = "plan-sidebar";
 /** The sidebar's content, which the rail's open view controls. */
 export const PLAN_SIDEBAR_ID = "plan-sidebar-panel";
 
-export function CreditsSummary() {
+/**
+ * The plan's credits: a headline, a bar and what's earned, in progress and
+ * planned. `page` heads a shared plan's page; `foot` sits quietly under the
+ * sidebar's view, a step under its panel header (docs/DESIGN.md §7.8).
+ */
+export function CreditsSummary({ size = "page" }: { size?: "page" | "foot" }) {
   const { totals } = useModel();
   const segments = [
     { key: "earned", value: totals.earned, className: "bg-product-plan" },
@@ -50,7 +56,10 @@ export function CreditsSummary() {
         <p
           // biome-ignore lint/a11y/noNoninteractiveTabindex: the tooltip needs a focus stop
           tabIndex={0}
-          className="tnum w-fit font-semibold text-lg"
+          className={cn(
+            "tnum w-fit",
+            size === "page" ? "font-semibold text-lg" : "emph-label text-sm",
+          )}
         >
           {creditsHeadline(totals)}
         </p>
@@ -69,7 +78,12 @@ export function CreditsSummary() {
           ) : null,
         )}
       </div>
-      <p className="tnum text-muted text-sm">
+      <p
+        className={cn(
+          "tnum text-muted",
+          size === "page" ? "text-sm" : "text-xs",
+        )}
+      >
         {totals.earned} earned · {totals.inProgress} in progress ·{" "}
         {totals.planned} planned
       </p>
@@ -123,11 +137,6 @@ export function PlanSidebarContent({
       tabIndex={-1}
       className="flex min-h-0 flex-1 flex-col outline-none"
     >
-      {compact ? null : (
-        <div className="shrink-0 border-hairline border-b px-4 py-3">
-          <CreditsSummary />
-        </div>
-      )}
       {course ? (
         <section
           aria-label={`About ${course}`}
@@ -169,7 +178,12 @@ export function PlanSidebarContent({
         view
       )}
       {compact ? null : (
-        <DegreeAuditNote className="shrink-0 border-hairline border-t px-4 py-2" />
+        // Under the view, not over it: the view's panel header is the
+        // sidebar's one header (QA5: "104 of 120 credits" over "GenEd").
+        <div className="shrink-0 space-y-2 border-hairline border-t px-4 py-2">
+          <CreditsSummary size="foot" />
+          <DegreeAuditNote />
+        </div>
       )}
     </div>
   );

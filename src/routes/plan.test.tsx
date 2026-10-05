@@ -16,6 +16,7 @@ import { LOCAL_DB_NAME } from "~/core/schema";
 import type { FourYearDoc } from "~/core/schema/four-year";
 import { FLAGS_OFF, useAccount } from "~/features/auth/account-store";
 import { resetFourYearStart, startFourYear } from "~/features/four-year/data";
+import { PLAN_SIDEBAR_ID } from "~/features/four-year/plan-sidebar";
 import {
   INITIAL_FOUR_YEAR_STORE,
   useFourYear,
@@ -864,6 +865,38 @@ describe("on a phone", () => {
     const { content } = await drawer();
     expect(content).toHaveAttribute("data-snap", "full");
   });
+});
+
+describe("the sidebar", () => {
+  // One header per view, as the scheduler's tabs have (QA5: "Samples" over
+  // "Start from a sample plan", and "104 of 120 credits" over "GenEd").
+  it.each([
+    ["/plan", "GenEd", /covered/],
+    ["/plan/samples", "Samples", /^A major's courses, semester by semester$/],
+    ["/plan/import", "Import", /^Paste your unofficial transcript$/],
+  ])(
+    "starts %s with its view's one header, the credits under the view",
+    async (path, title, line) => {
+      await seed(PLAN);
+      renderPlan(path);
+      const heading = await screen.findByRole("heading", {
+        level: 2,
+        name: title,
+      });
+      const sidebar = document.getElementById(PLAN_SIDEBAR_ID);
+      if (!sidebar) throw new Error("No sidebar");
+      expect(within(sidebar).getAllByRole("heading", { level: 2 })).toEqual([
+        heading,
+      ]);
+      // The header's own line, right under its title.
+      expect(heading.nextElementSibling).toHaveTextContent(line);
+      const credits = await within(sidebar).findByText("6 of 120 credits");
+      expect(
+        heading.compareDocumentPosition(credits) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    },
+  );
 });
 
 describe("the Samples view", () => {
