@@ -4,6 +4,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SESSION_REFRESH_AFTER_MS } from "~/core/auth";
 import { windowStart } from "../counters";
+import { keyedHash } from "../crypto";
 import { type ApiEnv, handleApi, ROUTES, userLimitKey } from "./router";
 
 const ORIGIN = "http://localhost:3000";
@@ -142,5 +143,106 @@ describe("per-person limits", () => {
     expect(await (await student.post("/api/me")).json()).toMatchObject({
       status: "signed-in",
     });
+  });
+});
+
+describe("a local test server's own requests", () => {
+  /** An anonymous POST to `origin`, from `ip` as CF-Connecting-IP (none for null). */
+  const anonymous = (
+    route: "me" | "auth/test-sign-in",
+    origin: string,
+    ip: string | null,
+  ) =>
+    handleApi(
+      new Request(`${origin}/api/${route}`, {
+        method: "POST",
+        body: JSON.stringify(
+          route === "me" ? {} : { userId: "tstudent", return: "/" },
+        ),
+        headers: {
+          "Content-Type": "application/json",
+          Origin: origin,
+          "Sec-Fetch-Site": "same-origin",
+          ...(ip === null ? {} : { "CF-Connecting-IP": ip }),
+        },
+      }),
+      testEnv,
+      { waitUntil: () => {} },
+      now(),
+    );
+
+  /**
+   * Counts `used` of `route`'s hourly requests for `ip` (all of them by
+   * default), under the router's own key.
+   */
+  async function usedUp(
+    route: keyof typeof ROUTES,
+    ip: string | null,
+    used = ROUTES[route].perIpPerHour,
+  ) {
+    const ipHash = await keyedHash(env.DATA, ip ?? "unknown");
+    await env.DB.prepare(
+      "INSERT INTO counters (name, window_start, count) VALUES (?1, ?2, ?3)",
+    )
+      .bind(`${route}:${ipHash}`, windowStart(now(), 3_600).toISOString(), used)
+      .run();
+  }
+
+  const LOOPBACK_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://[::1]:3000",
+  ];
+  const LOOPBACK_IPS = [null, "127.0.0.1", "::1"];
+
+  it("never limits test sign-ins or /api/me there, from any loopback host or client", async () => {
+    for (const route of ["me", "auth/test-sign-in"] as const)
+      for (const ip of LOOPBACK_IPS) {
+        await usedUp(route, ip);
+        for (const origin of LOOPBACK_ORIGINS)
+          expect([
+            route,
+            ip,
+            origin,
+            (await anonymous(route, origin, ip)).status,
+          ]).toEqual([route, ip, origin, 200]);
+      }
+  });
+
+  it("still limits a real IP that reaches a local server", async () => {
+    const ip = "203.0.113.7";
+    await usedUp("auth/test-sign-in", ip, 59);
+    expect((await anonymous("auth/test-sign-in", ORIGIN, ip)).status).toBe(200);
+    const response = await anonymous("auth/test-sign-in", ORIGIN, ip);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ error: "rate-limited" });
+    await usedUp("me", ip);
+    expect((await anonymous("me", ORIGIN, ip)).status).toBe(429);
+  });
+
+  it("still limits terpsicle.com and previews, even with a loopback client", async () => {
+    for (const origin of [
+      "https://terpsicle.com",
+      "https://pr-12-terpsicle.zsrobinson.workers.dev",
+    ])
+      for (const route of ["me", "auth/test-sign-in"] as const)
+        for (const ip of LOOPBACK_IPS) {
+          await env.DB.exec("DELETE FROM counters;");
+          await usedUp(route, ip);
+          expect([
+            origin,
+            route,
+            ip,
+            (await anonymous(route, origin, ip)).status,
+          ]).toEqual([origin, route, ip, 429]);
+        }
+  });
+
+  it("is only on the test sign-in and /api/me", () => {
+    const local = Object.entries(ROUTES)
+      .filter(([, r]) => "localUnlimited" in r && r.localUnlimited)
+      .map(([name]) => name)
+      .sort();
+    expect(local).toEqual(["auth/test-sign-in", "me"]);
   });
 });

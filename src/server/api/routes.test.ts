@@ -14,6 +14,7 @@ const summary = () =>
         maxBytes?: number;
         reviews?: string;
         whenOff?: unknown;
+        localUnlimited?: true;
       } = r;
       return [
         name,
@@ -23,6 +24,8 @@ const summary = () =>
         `bytes=${route.maxBytes ?? "-"}`,
         `reviews=${route.reviews ?? "-"}`,
         `whenOff=${route.whenOff === undefined ? "-" : JSON.stringify(route.whenOff)}`,
+        // Only on the routes that have it, so adding it moved no other line.
+        ...(route.localUnlimited ? ["local=unlimited"] : []),
       ].join(" ");
     })
     .sort();
@@ -49,7 +52,7 @@ describe("the composed route table", () => {
         "alerts/unwatch auth=user ip=- user=120 bytes=- reviews=- whenOff=-",
         "alerts/watch auth=user ip=- user=120 bytes=- reviews=- whenOff={"status":"unavailable"}",
         "auth/sign-out auth=none ip=30 user=- bytes=- reviews=- whenOff=-",
-        "auth/test-sign-in auth=none ip=60 user=- bytes=- reviews=- whenOff=-",
+        "auth/test-sign-in auth=none ip=60 user=- bytes=- reviews=- whenOff=- local=unlimited",
         "calendar/feed auth=user ip=- user=120 bytes=- reviews=- whenOff=-",
         "calendar/feed/reset auth=user ip=- user=20 bytes=- reviews=- whenOff=-",
         "chat/follow auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
@@ -63,7 +66,7 @@ describe("the composed route table", () => {
         "feedback/pins auth=admin ip=2000 user=- bytes=- reviews=- whenOff=-",
         "feedback/send auth=optional ip=12 user=20 bytes=3000000 reviews=- whenOff=-",
         "feedback/undo auth=optional ip=30 user=- bytes=- reviews=- whenOff=-",
-        "me auth=none ip=600 user=- bytes=- reviews=- whenOff=-",
+        "me auth=none ip=600 user=- bytes=- reviews=- whenOff=- local=unlimited",
         "notifications/inbox auth=user ip=- user=600 bytes=- reviews=- whenOff=-",
         "notifications/read auth=user ip=- user=1200 bytes=- reviews=- whenOff=-",
         "notifications/settings auth=user ip=- user=300 bytes=- reviews=- whenOff=-",
