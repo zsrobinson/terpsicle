@@ -12,25 +12,26 @@ import {
   withToReviewDismissed,
 } from "~/core/reviews";
 import {
+  type CourseCode,
+  type DeptCode,
+  type InstructorSlug,
   type IsoDate,
+  instructorNameKey,
   PLANETTERP_HOME,
   planetTerpCourseUrl,
   planetTerpUrl,
 } from "~/core/schema";
-import { instructorFor } from "~/features/course-details/planetterp";
 import {
   saveSyncedPrefs,
   useAccountPrefsSettled,
   useSyncedPrefs,
 } from "~/features/prefs/synced-prefs";
-import { deptOf } from "~/state/catalog-store";
-import { useInstructors } from "~/state/data-hooks";
 import { ListRow } from "~/ui/list-row";
 import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
 import { undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
 import type { HomeLocal } from "./local";
-import { reviewedKeysQuery } from "./queries";
+import { planetTerpSlugsQuery, reviewedKeysQuery } from "./queries";
 import { HomeSection, homeLinkClicked, ROW_LINK } from "./section";
 
 // "Review your instructors" (owner, 2026-09-28: "encourage reviews of
@@ -72,6 +73,18 @@ export function ReviewsSection({
     );
   }, [local, today, reviewed, dismissed, outside]);
 
+  // Where each row goes on PlanetTerp: read once there are rows.
+  const people = useMemo(
+    () =>
+      outside && rows
+        ? rows.map((r) => ({ dept: deptOfCourse(r.course), name: r.name }))
+        : [],
+    [rows, outside],
+  );
+  const slugs =
+    useQuery({ ...planetTerpSlugsQuery(people), enabled: people.length > 0 })
+      .data ?? {};
+
   // Nothing to ask: no section at all, never an empty one.
   if (!rows || rows.length === 0) return null;
   return (
@@ -91,7 +104,13 @@ export function ReviewsSection({
       <ul aria-label="Instructors to review">
         {rows.map((r) =>
           outside ? (
-            <OutsideRow key={reviewedKey(r.course, r.name)} r={r} />
+            <OutsideRow
+              key={reviewedKey(r.course, r.name)}
+              r={r}
+              slug={
+                slugs[`${deptOfCourse(r.course)}:${instructorNameKey(r.name)}`]
+              }
+            />
           ) : (
             <ReviewRow key={reviewedKey(r.course, r.name)} r={r} />
           ),
@@ -145,9 +164,14 @@ function ReviewRow({ r }: { r: InstructorToReview }) {
 const DISMISS_TOAST_ID = "home-to-review";
 
 /** A row that opens their PlanetTerp page, with its own Dismiss. */
-function OutsideRow({ r }: { r: InstructorToReview }) {
-  const { data } = useInstructors(deptOf(r.course));
-  const pt = instructorFor(data, r.name);
+function OutsideRow({
+  r,
+  slug,
+}: {
+  r: InstructorToReview;
+  /** Their PlanetTerp slug; their course's page until it's known, or if never. */
+  slug: InstructorSlug | undefined;
+}) {
   const key = reviewedKey(r.course, r.name);
   const dismiss = () => {
     void saveSyncedPrefs((p) => withToReviewDismissed(p, key, true));
@@ -187,7 +211,7 @@ function OutsideRow({ r }: { r: InstructorToReview }) {
     >
       <WithTooltip label={`Review ${r.name} on PlanetTerp, in a new tab`}>
         <a
-          href={pt ? planetTerpUrl(pt.slug) : planetTerpCourseUrl(r.course)}
+          href={slug ? planetTerpUrl(slug) : planetTerpCourseUrl(r.course)}
           {...OUTSIDE_TAB}
           className={ROW_LINK}
         >
@@ -214,4 +238,9 @@ function useDismissedRows(outside: boolean): ReadonlySet<string> | null {
   const settled = useAccountPrefsSettled();
   if (!outside || prefs === null || !settled) return null;
   return dismissedToReview(prefs);
+}
+
+/** A course's department, its code's first four letters. */
+function deptOfCourse(course: CourseCode): DeptCode {
+  return course.slice(0, 4);
 }

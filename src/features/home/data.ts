@@ -10,10 +10,12 @@ import type {
   ChangesFile,
   Course,
   DeptCode,
+  InstructorSlug,
   IsoDate,
   SeatsFile,
   TermId,
 } from "~/core/schema";
+import { instructorNameKey } from "~/core/schema";
 import type { CampusMap } from "~/core/travel";
 import { pageSource } from "~/lib/published-source";
 import {
@@ -24,6 +26,9 @@ import {
   deptChunkQuery,
   geoManifestQuery,
   manifestQuery,
+  planetTerpDeptQuery,
+  planetTerpEntry,
+  planetTerpManifestQuery,
   routesQuery,
   seatsQuery,
   termsQuery,
@@ -99,6 +104,48 @@ export async function loadCampus(
   ]);
   if (!routes) return null;
   return campusFrom(buildings ?? undefined, routes);
+}
+
+/**
+ * PlanetTerp's slug for each instructor you could review (keyed by their
+ * `instructorNameKey`, per department), from the departments' PlanetTerp
+ * files: where Home's rows send you while reviews live on PlanetTerp.
+ * Someone PlanetTerp doesn't know is left out.
+ */
+export async function loadPlanetTerpSlugs(
+  client: QueryClient,
+  people: readonly { dept: DeptCode; name: string }[],
+): Promise<Record<string, InstructorSlug>> {
+  const out: Record<string, InstructorSlug> = {};
+  const source = await orNull(pageSource());
+  if (!source) return out;
+  const manifest = await orNull(
+    client.ensureQueryData({
+      ...planetTerpManifestQuery(source),
+      revalidateIfStale: true,
+    }),
+  );
+  if (!manifest) return out;
+  const depts = [...new Set(people.map((p) => p.dept))];
+  const files = await Promise.all(
+    depts.map(async (dept) => {
+      const entry = planetTerpEntry(manifest, dept);
+      if (!entry) return [dept, null] as const;
+      return [
+        dept,
+        await orNull(
+          client.ensureQueryData(planetTerpDeptQuery(source, entry)),
+        ),
+      ] as const;
+    }),
+  );
+  const byDept = new Map(files);
+  for (const { dept, name } of people) {
+    const key = instructorNameKey(name);
+    const slug = byDept.get(dept)?.names[key];
+    if (slug) out[`${dept}:${key}`] = slug;
+  }
+  return out;
 }
 
 /** A term's catalog, as far as one plan needs it. */

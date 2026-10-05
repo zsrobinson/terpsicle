@@ -82,6 +82,21 @@ export function planCatalogQuery(termId: TermId, depts: readonly DeptCode[]) {
   });
 }
 
+/**
+ * PlanetTerp's slugs for the instructors Home asks you to review, keyed
+ * `<DEPT>:<instructorNameKey>`; those PlanetTerp doesn't know are left out.
+ */
+export function planetTerpSlugsQuery(
+  people: readonly { dept: DeptCode; name: string }[],
+) {
+  return queryOptions({
+    queryKey: ["home", "planetterp-slugs", people],
+    queryFn: async ({ client }) =>
+      (await reads()).loadPlanetTerpSlugs(client, people),
+    ...publishedAnswer,
+  });
+}
+
 /** The course index's entries for these departments (`fourYearDepts`). */
 export function fourYearCoursesQuery(depts: readonly DeptCode[]) {
   return queryOptions({
