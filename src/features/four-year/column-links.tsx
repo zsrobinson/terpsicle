@@ -25,7 +25,7 @@ import { useModel } from "./model";
 // todos".
 
 const FOOT =
-  "flex min-h-9 items-center gap-2 border-hairline border-t px-2 py-1.5 text-xs";
+  "flex min-h-9 flex-wrap items-center gap-x-2 gap-y-0.5 border-hairline border-t px-2 py-1.5 text-xs";
 const LINK =
   "ml-auto inline-flex h-7 shrink-0 items-center gap-1 font-medium text-fg underline-offset-2 hover:underline max-md:h-11";
 
@@ -44,10 +44,12 @@ export function ViewSchedule({ termId }: { termId: TermId }) {
   return (
     <div className={FOOT}>
       {/* Wraps rather than truncating: "From Plan B: 0 of 2 pla…" hid the
-          words that say what it counts (QA P3). */}
+          words that say what it counts (QA P3). Where it and the link don't
+          fit side by side, the link goes under it rather than squeezing it
+          into three lines. */}
       <span
         data-testid="linked-plan-count"
-        className="tnum flex min-w-0 items-center gap-1.5 text-balance text-muted"
+        className="tnum flex max-w-full shrink-0 items-center gap-1.5 text-balance text-muted"
       >
         {main && linked && courses.length > 0 ? (
           <>

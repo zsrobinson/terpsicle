@@ -201,28 +201,36 @@ export function Composer({
         <label htmlFor={id} className="sr-only">
           {label}
         </label>
-        <Textarea
-          id={id}
-          ref={field}
-          value={draft}
-          placeholder={placeholder}
-          maxLength={CHAT_TEXT_MAX}
-          rows={Math.min(6, draft.split("\n").length)}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setCaret(e.target.selectionStart);
-            if (e.target.value.trim()) onTyping();
-          }}
-          onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
-          onKeyDown={onKeyDown}
-          aria-autocomplete={loadMembers ? "list" : undefined}
-          aria-controls={mentions.open ? listId : undefined}
-          aria-activedescendant={
-            mentions.open ? optionId(mentions.active) : undefined
+        <WithTooltip
+          label={
+            loadMembers
+              ? "Type @ to mention someone here. Shift+Enter starts a new line."
+              : "Shift+Enter starts a new line."
           }
-          // A phone's line sits in the middle of the 44px field, beside Send.
-          className="min-h-8 flex-1 resize-none max-md:min-h-11 max-md:py-2 max-md:leading-6"
-        />
+        >
+          <Textarea
+            id={id}
+            ref={field}
+            value={draft}
+            placeholder={placeholder}
+            maxLength={CHAT_TEXT_MAX}
+            rows={Math.min(6, draft.split("\n").length)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setCaret(e.target.selectionStart);
+              if (e.target.value.trim()) onTyping();
+            }}
+            onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
+            onKeyDown={onKeyDown}
+            aria-autocomplete={loadMembers ? "list" : undefined}
+            aria-controls={mentions.open ? listId : undefined}
+            aria-activedescendant={
+              mentions.open ? optionId(mentions.active) : undefined
+            }
+            // A phone's line sits in the middle of the 44px field, beside Send.
+            className="min-h-8 flex-1 resize-none max-md:min-h-11 max-md:py-2 max-md:leading-6"
+          />
+        </WithTooltip>
         <WithTooltip label="Send" shortcut="↵">
           <Button size="icon" aria-label="Send" disabled={!text} onClick={send}>
             <ArrowUp />
