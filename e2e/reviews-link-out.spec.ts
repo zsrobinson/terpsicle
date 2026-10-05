@@ -17,7 +17,8 @@ test.beforeEach(async ({ page }) => {
   errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/api/me", async (route) => {
-    const response = await route.fetch();
+    // A busy dev server can drop one: ask again once.
+    const response = await route.fetch().catch(() => route.fetch());
     const json = await response.json();
     json.flags.reviewsPages = false;
     await route.fulfill({ response, json });
@@ -180,9 +181,10 @@ test("Home's instructors to review open PlanetTerp, and each can be dismissed", 
   // Late in Spring 2027, the demo's term: its instructors are reviewable.
   await page.clock.setFixedTime(new Date("2027-05-10T13:00:00Z"));
   await page.goto("/schedule/courses?demo=1");
+  // The demo's plans load from the mock catalog, slowly on a busy machine.
   await expect(
     page.getByRole("banner").getByRole("button", { name: "Share" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
   // Saved to IndexedDB, which Home reads.
   await page.waitForTimeout(1000);
   await page.goto("/home");
