@@ -486,6 +486,16 @@ Revisit if: R2 gains versioning or point-in-time restore that we'd turn on, or t
 
 ## Reviews
 
+### Reviews link out to PlanetTerp
+2026-10-05 · owner · one feature
+"let's go with the first verison, linking out." From the day before: "i'd probably prefer that we don't have our own review pages if we're just displaying from planetterp, maybe just those little popover preview things… maybe the actual review pages and whatnot are hidden behind some sort of feature flag for now? i don't want to just delete all of that. and i kind of like the branding we have with the 'five tabs' even if the purple one is now just a link out to planetterp". The purple tab keeps its place among the five and opens planetterp.com in a new tab, with an arrow and the tooltip "Reviews on PlanetTerp. Opens in a new tab." (the phone's tab bar and the product menu too). Schedule keeps the reviews preview, credited to PlanetTerp and linking there. Our `/reviews` pages, writing and moderation stay in the code behind `REVIEWS_PAGES_ENABLED`, off in production and previews; their addresses answer a 302 to PlanetTerp's, and nothing of ours is written while they're off. Mock mode and e2e keep them on, so the code keeps running, plus one spec with them off. The report: "Reviews with PlanetTerp", version A (fb5).
+Revisit if: phone users leave from the purple tab and don't come back (then the report's version B, a thin page of our own), or PlanetTerp asks us to stop showing its reviews.
+
+### No anonymous-reviews change while our pages are off
+2026-10-05 · owner · one feature
+The privacy plan's "Anonymous reviews" PR (no author on a published review, no editing after) isn't needed: with "Reviews link out to PlanetTerp", nobody writes a review here. Production had no live review of ours (one deleted) when the pages went off. "Anonymous reviews, signed-in writers" still holds for the code behind the flag.
+Revisit if: our Reviews pages come back on.
+
 ### Anonymous reviews, signed-in writers
 2026-09-26 · owner · one feature
 Anyone reads; writing needs sign-in. Readers, moderation and the admin never see the author.
@@ -493,7 +503,7 @@ Revisit if: never on its own.
 
 ### Full reviews live at /reviews
 2026-09-26 · owner · one feature
-The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".)
+The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".) (changed 2026-10-05, owner: while our pages are off, full reviews live on PlanetTerp; see "Reviews link out to PlanetTerp".)
 Revisit if: people don't find reviews from the scheduler.
 
 ### No AI features in Reviews
@@ -509,6 +519,7 @@ Revisit if: a course's term list grows too long to scan (then fold the older ter
 ### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
 2026-09-29 · owner · one feature
 "the whole app is free... if you're on that page and not signed in you've already proved that point." The page's title is the product's name, with no "free, no sign-in" line. Like PlanetTerp's front page it has recent reviews (ours and PlanetTerp's, newest first), grades across every course, and a row of counts (courses, professors, reviews, course grades) that counts up from 0 once when it comes into view, and doesn't move with Reduce Motion. The counts are PlanetTerp's data (the index's `totals`).
+(changed 2026-10-05, owner: while our pages are off, `/reviews` goes to planetterp.com; see "Reviews link out to PlanetTerp".)
 Revisit if: our own reviews outnumber PlanetTerp's, so the counts should be ours.
 
 ### What Reviews knows you took
@@ -558,7 +569,7 @@ Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules chang
 
 ### PlanetTerp reviews are shown, marked as theirs
 2026-09-28 · owner · one feature
-"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.)
+"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.) (changed 2026-10-05, owner: while our pages are off, their reviews show only in Schedule's preview, credited "From PlanetTerp" and linking there; see "Reviews link out to PlanetTerp".)
 Revisit if: PlanetTerp asks us to stop.
 
 ### Reviews pages live one level under /reviews

@@ -123,26 +123,50 @@ export const FlagsSchema = z.object({
   todo: z.boolean(),
   /** Terpsicle Plan is listed with the products (PLAN_ENABLED, docs/V3.md §8). */
   plan: z.boolean(),
+  /**
+   * Our own Reviews pages are open (REVIEWS_PAGES_ENABLED). Off, the purple
+   * tab and every reviews link go to PlanetTerp (docs/decisions.md,
+   * "Reviews link out to PlanetTerp"). Off when a browser's remembered
+   * flags predate it, so they still show the other products.
+   */
+  reviewsPages: z.boolean().catch(false),
   /** Test mode: Sign in goes to /auth/test's fixture people, not Google. */
   authTestMode: z.boolean(),
 });
 export type Flags = z.infer<typeof FlagsSchema>;
 
 /** The product switches' vars (V2.md §13); each PR that adds one sets it. */
-export const FeatureVarsSchema = z.object({
-  CHAT_ENABLED: FeatureLevelSchema.catch("off"),
-  REVIEWS_ENABLED: FeatureLevelSchema.catch("off"),
-  PUSH_ENABLED: z
-    .string()
-    .optional()
-    .catch(undefined)
-    .transform((value) => value === "true"),
-  PLAN_ENABLED: z
-    .string()
-    .optional()
-    .catch(undefined)
-    .transform((value) => value === "true"),
-});
+export const FeatureVarsSchema = z
+  .object({
+    CHAT_ENABLED: FeatureLevelSchema.catch("off"),
+    REVIEWS_ENABLED: FeatureLevelSchema.catch("off"),
+    PUSH_ENABLED: z
+      .string()
+      .optional()
+      .catch(undefined)
+      .transform((value) => value === "true"),
+    PLAN_ENABLED: z
+      .string()
+      .optional()
+      .catch(undefined)
+      .transform((value) => value === "true"),
+    /** Our /reviews pages; unset is off, and they link out to PlanetTerp. */
+    REVIEWS_PAGES_ENABLED: z
+      .string()
+      .optional()
+      .catch(undefined)
+      .transform((value) => value === "true"),
+  })
+  // Writing happens on our Reviews pages, so with them hidden nobody writes
+  // (or is moderated): "on" reads as "read", which still lets an author
+  // see and delete what they wrote, at /reviews/mine.
+  .transform((vars) => ({
+    ...vars,
+    REVIEWS_ENABLED:
+      !vars.REVIEWS_PAGES_ENABLED && vars.REVIEWS_ENABLED === "on"
+        ? ("read" as const)
+        : vars.REVIEWS_ENABLED,
+  }));
 
 export const MeUserSchema = z.object({
   /** The directory ID. */

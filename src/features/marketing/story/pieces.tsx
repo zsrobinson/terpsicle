@@ -16,6 +16,7 @@ import { ListRow } from "~/ui/list-row";
 import { StarMark } from "~/ui/stars";
 import { undoToast } from "~/ui/toast";
 import { WithTooltip } from "~/ui/tooltip";
+import { useReviewsOutside } from "../products";
 import {
   CREDITS,
   type DemoState,
@@ -308,13 +309,20 @@ const GRADES: readonly [string, number][] = [
 const TALLEST = Math.max(...GRADES.map(([, pct]) => pct));
 
 function ReviewsPiece() {
+  const outside = useReviewsOutside();
   return (
     <Card
       product="reviews"
       title={<span className="ident">STAT400</span>}
       meta="Kemi Adeyemi"
       right={
-        <WithTooltip label="4.4 from 72 reviews: 12 on Terpsicle and 60 on PlanetTerp">
+        <WithTooltip
+          label={
+            outside
+              ? "4.4 from 72 reviews on PlanetTerp"
+              : "4.4 from 72 reviews: 12 on Terpsicle and 60 on PlanetTerp"
+          }
+        >
           <button
             type="button"
             aria-label="Rated 4.4 from 72 reviews"
@@ -334,7 +342,7 @@ function ReviewsPiece() {
             office hours early.&rdquo;
           </blockquote>
           <figcaption className="text-muted text-xs">
-            Spring 2026 · anonymous
+            {outside ? "Spring 2026 · PlanetTerp" : "Spring 2026 · anonymous"}
           </figcaption>
         </figure>
         <div>
