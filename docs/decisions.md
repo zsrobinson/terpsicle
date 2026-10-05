@@ -529,7 +529,7 @@ Revisit if: transcripts start carrying instructors.
 
 ### PlanetTerp's reviews fill on a page's first visit
 2026-09-29 · agent · one feature
-The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
+The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page. (changed 2026-10-05, owner, "Reviews link out to PlanetTerp": gone, so PlanetTerp sees our nightly crawler and never our visitors. The job has been through every instructor since; a preview, where crons don't run, shows no reviews in Schedule's preview. While our pages are off the job keeps only each course's newest three per instructor, what the preview shows.)
 Revisit if: PlanetTerp asks us not to call its API from page loads.
 
 ### Reviews pages: two columns from the top, no back link

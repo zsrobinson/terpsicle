@@ -1,3 +1,4 @@
+import { FeatureVarsSchema, PREVIEW_REVIEWS } from "~/core/schema";
 import { runPlanetTerp } from "~/ingest/planetterp/planetterp";
 import { type Job, jobHttp, jobLog, runJob } from "./job";
 import { createPlanetTerpReviewSink } from "./planetterp-reviews";
@@ -29,7 +30,14 @@ export const runPlanetTerpJob: Job = async (context) => {
       now: context.now,
       log: jobLog,
       gradeRequests: NIGHTLY_GRADE_REQUESTS,
-      reviewSink: await createPlanetTerpReviewSink(context.env.DB, context.now),
+      // While our Reviews pages are off, only what the preview shows.
+      reviewSink: await createPlanetTerpReviewSink(
+        context.env.DB,
+        context.now,
+        FeatureVarsSchema.parse(context.env).REVIEWS_PAGES_ENABLED
+          ? undefined
+          : PREVIEW_REVIEWS,
+      ),
     });
     const counts: Record<string, number> = {
       ...totals,

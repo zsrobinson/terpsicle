@@ -20,7 +20,6 @@ import {
   planetTerpReviewCount,
   planetTerpReviews,
 } from "./planetterp";
-import { fillPlanetTerpReviews } from "./planetterp-live";
 import {
   instructorNames,
   instructorWithDepts,
@@ -37,20 +36,10 @@ import {
 export async function pageReviews(
   env: { DB: D1Database; REVIEWS_ENABLED?: string },
   input: ReviewsPageInput,
-  fetcher: typeof fetch = fetch,
 ): Promise<PageReviews> {
   const off = FeatureVarsSchema.parse(env).REVIEWS_ENABLED === "off";
-  // An instructor the nightly job hasn't reached yet (it stores a share of
-  // PlanetTerp's 5,000 a night) would read as having no reviews: when the
-  // page says who they are, fetch theirs from PlanetTerp once, first.
-  if (input.instructorId !== null && input.planetTerpName)
-    await fillPlanetTerpReviews(
-      env.DB,
-      fetcher,
-      input.instructorId,
-      input.planetTerpName,
-      new Date(),
-    ).catch(() => false);
+  // PlanetTerp's come only from the nightly crawl (src/jobs/planetterp.ts):
+  // PlanetTerp sees our crawler, never our visitors.
   // A course's page rates the course from PlanetTerp's reviews of it; an
   // instructor's uses PlanetTerp's own numbers for them.
   const coursePage = input.instructorId === null ? input.course : null;

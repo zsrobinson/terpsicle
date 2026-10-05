@@ -388,6 +388,13 @@ export type PlanetTerpCursor = z.infer<typeof PlanetTerpCursorSchema>;
 /** PlanetTerp reviews per page. */
 export const PLANETTERP_PAGE_MAX = 20;
 
+/**
+ * PlanetTerp reviews Schedule's preview shows of one instructor in one
+ * course, and so, while our Reviews pages are off, all the nightly job
+ * keeps of theirs (docs/decisions.md, "Reviews link out to PlanetTerp").
+ */
+export const PREVIEW_REVIEWS = 3;
+
 /** Our reviews a page reads at once: its rating counts them all. */
 export const PAGE_REVIEWS_MAX = 200;
 
@@ -404,9 +411,9 @@ export const ReviewsPageInputSchema = z
   .strictObject({
     ...pageTarget,
     /**
-     * PlanetTerp's name for the instructor, when the page knows it. If the
-     * nightly job hasn't stored their reviews yet, the server fetches them
-     * from PlanetTerp once by this name and stores them.
+     * Ignored. Tabs opened before PlanetTerp's reviews came only from the
+     * nightly crawl send it; the server no longer fetches from PlanetTerp
+     * on a visit.
      */
     planetTerpName: z.string().min(1).max(120).optional(),
     /** Absent reads as `latest`. */
