@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listedProducts, PRODUCTS } from "./products";
+import { listedProducts, PRODUCTS, productLink } from "./products";
 
 describe("listedProducts", () => {
   const ids = (plan: boolean, current: Parameters<typeof listedProducts>[1]) =>
@@ -25,5 +25,37 @@ describe("listedProducts", () => {
     expect(ids(false, null)).not.toContain("plan");
     expect(ids(false, "plan")).toContain("plan");
     expect(ids(true, null)).toContain("plan");
+  });
+});
+
+describe("productLink", () => {
+  const reviews = PRODUCTS[1];
+
+  it("sends the purple tab to PlanetTerp while our Reviews pages are off", () => {
+    expect(productLink(reviews, { reviewsPages: false }, "schedule")).toEqual({
+      href: "https://planetterp.com",
+      outside: true,
+      hint: "On PlanetTerp",
+      tooltip: "Reviews on PlanetTerp. Opens in a new tab.",
+    });
+  });
+
+  it("keeps our own pages when they're on, and the page you're on", () => {
+    expect(productLink(reviews, { reviewsPages: true }, null)).toEqual({
+      href: "/reviews",
+      outside: false,
+    });
+    expect(productLink(reviews, { reviewsPages: false }, "reviews")).toEqual({
+      href: "/reviews",
+      outside: false,
+    });
+  });
+
+  it("never sends another product away", () => {
+    for (const p of PRODUCTS.filter((p) => p.id !== "reviews"))
+      expect(productLink(p, { reviewsPages: false }, null)).toEqual({
+        href: p.to,
+        outside: false,
+      });
   });
 });

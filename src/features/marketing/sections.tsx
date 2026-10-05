@@ -4,12 +4,19 @@ import { LazyTooltip } from "~/components/lazy-tooltip";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
 import { Button } from "~/ui/button";
-import { CLOSING, CONNECT } from "./copy";
-import { NAME, VIEW } from "./products";
+import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
+import { CLOSING, CONNECT, REVIEWS_OUTSIDE_LINK } from "./copy";
+import {
+  type MarketingProduct,
+  NAME,
+  useReviewsOutside,
+  useView,
+} from "./products";
 
 // After the story: how the five hand off to each other, then the way in.
 
 export function ConnectSection() {
+  const outside = useReviewsOutside();
   return (
     <section
       aria-labelledby="connect-title"
@@ -40,19 +47,35 @@ export function ConnectSection() {
                 <Mark id={link.to} size={14} />
                 {NAME[link.to]}
               </span>
-              <p className="flex-1 text-base">{link.text}</p>
+              <p className="flex-1 text-base">
+                {link.to === "reviews" && outside
+                  ? REVIEWS_OUTSIDE_LINK
+                  : link.text}
+              </p>
               <div>
-                <LazyTooltip label={`Open Terpsicle ${NAME[link.to]}`}>
-                  <a href={VIEW[link.to].to} className="mk-link text-sm">
-                    {VIEW[link.to].label}
-                  </a>
-                </LazyTooltip>
+                <ConnectLink to={link.to} />
               </div>
             </li>
           ))}
         </ul>
       </div>
     </section>
+  );
+}
+
+function ConnectLink({ to }: { to: MarketingProduct }) {
+  const view = useView(to);
+  return (
+    <LazyTooltip label={view.tooltip}>
+      <a
+        href={view.to}
+        {...(view.outside ? OUTSIDE_TAB : {})}
+        className="mk-link inline-flex items-center gap-0.5 text-sm"
+      >
+        {view.label}
+        {view.outside ? <OutsideArrow /> : null}
+      </a>
+    </LazyTooltip>
   );
 }
 

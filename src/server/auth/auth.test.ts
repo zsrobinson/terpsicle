@@ -530,6 +530,34 @@ describe("flags", () => {
     );
     expect(appFlags({} as never, url, others).plan).toBe(false);
   });
+
+  it("opens our Reviews pages only when REVIEWS_PAGES_ENABLED is true", () => {
+    const url = new URL("https://terpsicle.com/api/me");
+    const others = { seatAlerts: false, todo: false, push: false };
+    const flags = (vars: Record<string, string>) =>
+      appFlags(vars as never, url, others);
+    expect(flags({ REVIEWS_PAGES_ENABLED: "true" }).reviewsPages).toBe(true);
+    expect(flags({ REVIEWS_PAGES_ENABLED: "false" }).reviewsPages).toBe(false);
+    expect(flags({}).reviewsPages).toBe(false);
+  });
+
+  it("takes no new reviews while our Reviews pages are off", () => {
+    const url = new URL("https://terpsicle.com/api/me");
+    const others = { seatAlerts: false, todo: false, push: false };
+    const level = (vars: Record<string, string>) =>
+      appFlags(vars as never, url, others).reviews;
+    expect(level({ REVIEWS_ENABLED: "on" })).toBe("read");
+    expect(level({ REVIEWS_ENABLED: "read" })).toBe("read");
+    expect(level({ REVIEWS_ENABLED: "off" })).toBe("off");
+    expect(
+      level({ REVIEWS_ENABLED: "on", REVIEWS_PAGES_ENABLED: "true" }),
+    ).toBe("on");
+  });
+
+  it("keeps our Reviews pages off in previews, as in production after the switch", () => {
+    const { previews } = testBindings().varNames;
+    expect(previews).not.toContain("REVIEWS_PAGES_ENABLED");
+  });
 });
 
 describe("sessions", () => {
@@ -546,6 +574,7 @@ describe("sessions", () => {
         push: false,
         todo: false,
         plan: false,
+        reviewsPages: false,
         authTestMode: false,
       },
     });

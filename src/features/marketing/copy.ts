@@ -78,6 +78,26 @@ export const STEPS: Record<MarketingProduct, Step> = {
   },
 };
 
+/**
+ * Reviews while our pages are off (docs/decisions.md, "Reviews link out to
+ * PlanetTerp"): the ratings and reviews are PlanetTerp's, shown where you
+ * pick a section, and writing one happens there.
+ */
+export const REVIEWS_OUTSIDE: Step = {
+  title: "Pick sections by who's teaching them.",
+  one: "See what UMD students said on PlanetTerp about whoever's teaching a section, right where you pick it.",
+  facts: [
+    "Each instructor's PlanetTerp rating sits beside their name in the section list.",
+    "A preview opens their newest reviews and their grades in the course, without leaving your plan.",
+    "Grade distributions by instructor, plus, minus and W included, from PlanetTerp.",
+  ],
+  tryIt: "Try it: hover the 4.4 to see where it comes from.",
+};
+
+/** The Schedule-to-Reviews hand-off while Reviews is PlanetTerp's. */
+export const REVIEWS_OUTSIDE_LINK =
+  "Every instructor's PlanetTerp rating sits right in the section list, with their newest reviews a click away.";
+
 /** How the products hand off to each other: two products and one sentence. */
 export const CONNECT = {
   title: "They're one product, not five tabs.",

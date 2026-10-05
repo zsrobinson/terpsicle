@@ -69,6 +69,8 @@ export interface ReviewsEnv extends ModerationEnv {
   DATA: R2Bucket;
   /** off | read | on (V2 §7.4); the router checks it. */
   REVIEWS_ENABLED?: string;
+  /** Our /reviews pages; without them "on" reads as "read". */
+  REVIEWS_PAGES_ENABLED?: string;
 }
 
 type WriteContext = IdentityRouteContext;

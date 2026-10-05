@@ -119,6 +119,7 @@ export function appFlags(
     push: others.push,
     todo: others.todo,
     plan: features.PLAN_ENABLED,
+    reviewsPages: features.REVIEWS_PAGES_ENABLED,
     authTestMode: mode.kind === "test",
   };
 }
