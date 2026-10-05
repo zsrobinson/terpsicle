@@ -1,9 +1,10 @@
 import { useLocation } from "@tanstack/react-router";
-import { cn } from "cn";
 import {
   ChevronDown,
   Copy,
   Eraser,
+  MonitorCheck,
+  MonitorX,
   Pencil,
   Plus,
   Redo2,
@@ -12,13 +13,16 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { AppBar } from "~/components/app-bar";
-import { CreditsStatus, ProblemsStatus } from "~/components/workbench/status";
+import {
+  CreditsStatus,
+  ProblemsStatus,
+  SyncSlot,
+} from "~/components/workbench/status";
 import { creditsHeadline } from "~/core/four-year/credits";
 import { firstTermChoices, fourYearTermLabel } from "~/core/four-year/terms";
 import { canRedo, canUndo } from "~/core/plans/history";
 import type { FourYearDoc } from "~/core/schema/four-year";
-import { useSyncStatus } from "~/features/sync/status";
-import { SyncStatusLabel } from "~/features/sync/status-view";
+import { SyncStatusSlot, useSyncSlotShown } from "~/features/sync/status-view";
 import { modKey } from "~/lib/shortcuts";
 import {
   ActionMenu,
@@ -50,8 +54,9 @@ import { planView } from "./views";
 // Duplicate, New, the first semester, Delete with Undo), then undo and redo
 // (V3 §2.3); on a phone the menu is a sheet (the kit's ActionMenu), since
 // its submenu of first semesters has no room there. Its status is where the
-// plan is saved (this browser, or the account's sync icon while signed in),
-// the credits, and the problems, which open the Problems view; then Share.
+// plan is saved (this browser, or the account while signed in: the sync
+// slot, as in Schedule's and Todo's bars), the credits, and the problems,
+// which open the Problems view; then Share.
 
 function RenameField({
   doc,
@@ -193,40 +198,34 @@ function UndoRedo() {
 }
 
 /**
- * Where the plan is saved: while sync runs, the scheduler's status words
- * and icon, which check with the account when pressed (V3 §2.4); else a
- * quiet "Saved in this browser", from 1280px. A phone's bar has room for
- * neither, so there they're for screen readers.
+ * Where the plan is saved, in the bar's sync slot (~/components/workbench/
+ * status, as Schedule's and Todo's): while sync runs, plan sync's cloud and
+ * word, which check with the account when pressed (V3 §2.4); else a monitor
+ * and "Saved in this browser". A phone's bar has no room, so there the
+ * words are for screen readers.
  */
 function SavedState({ compact }: { compact: boolean }) {
   const storageFailed = useFourYear((s) => s.storageFailed);
-  const syncing = useSyncStatus((s) => s.status !== "off" && s.look !== null);
-  if (syncing && !storageFailed)
+  const syncing = useSyncSlotShown();
+  if (syncing && !storageFailed) return <SyncStatusSlot compact={compact} />;
+  const word = storageFailed ? "Not saved" : "Saved in this browser";
+  if (compact)
     return (
-      <SyncStatusLabel className={cn("h-7 shrink-0", compact && "sr-only")} />
+      <span role="status" className="sr-only">
+        {word}
+      </span>
     );
+  const Icon = storageFailed ? MonitorX : MonitorCheck;
   return (
-    <WithTooltip
-      label={
+    <SyncSlot
+      icon={<Icon size={15} strokeWidth={1.75} aria-hidden="true" />}
+      word={word}
+      tooltip={
         storageFailed
           ? "This browser won't let Terpsicle store it, so changes last until you close the tab."
           : "Your four-year plan is saved in this browser."
       }
-    >
-      <span
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: the tooltip needs a focus stop
-        tabIndex={0}
-        role="status"
-        className={cn(
-          "shrink-0 whitespace-nowrap text-muted text-sm",
-          // A tablet's bar needs the room for the plan's name; "Not saved"
-          // still shows there.
-          compact ? "sr-only" : !storageFailed && "max-xl:sr-only",
-        )}
-      >
-        {storageFailed ? "Not saved" : "Saved in this browser"}
-      </span>
-    </WithTooltip>
+    />
   );
 }
 

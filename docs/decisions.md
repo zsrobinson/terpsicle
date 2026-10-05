@@ -64,6 +64,11 @@ Revisit if: never on its own.
 Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.
 Revisit if: Base UI lacks a primitive we need; wrap it in the kit and say why.
 
+### One chip, selected in the soft gray
+2026-10-05 · agent · app-wide
+Every small toggle chip (Search's filters, Generate's filters, preferences and "Includes", course details' "Only fits", Blocks' presets and days, Plan's GenEd toggles) is the kit's chip (`~/ui/chip`): square corners, 24px, and selected in Ink's soft gray (`accent-soft` with a strong hairline), as the owner prefers ("i do prefer our soft gray instead of the inverted color"). Nothing selected is inverted any more. Filters and preferences stay told apart by what they say: a filter has its funnel and how many plans it took out, a preference doubles with an ink outline and "2×". This draws Generate's preferences as square chips, not pills (see "Generate's chips", which the owner reviews on this PR's preview).
+Revisit if: people take a preference for a filter, or the owner wants the pills back.
+
 ### Menus are ActionMenus
 2026-10-04 · agent · app-wide
 Following the iPhone plan the owner approved: feature code builds every menu from the kit's `ActionMenu` (a button's menu) or `ActionContextMenu` (a row's right click, a long press on a phone), a menu from 768px up and a sheet below; a submenu takes the sheet's list's place. A guard test (`src/components/ui/menus.test.ts`) fails on a raw dropdown or context menu outside the kit. Reviews keeps its `DropdownMenu` while its move to PlanetTerp is decided.
@@ -174,6 +179,11 @@ Revisit if: hosting costs outgrow what tips cover.
 On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the coffee button becomes "Buy me a coffee" in the account menu, Feedback shows just its icon and the product tabs' padding tightens, so three plan tabs show whole at 1440px and two at 1280px (e2e/shell.spec.ts). The Early access chip hides below 1536px on every bar, not only these two (changed 2026-09-28, QA round 4, the orchestrator): hidden on two bars alone, it moved the five product tabs about 78px whenever you went between Schedule or Plan and another product. From 1536px it sits beside the wordmark on every bar, as the owner placed it; narrower, the product menu and `/`'s header say it (e2e/brand-bar.spec.ts checks the tabs don't move).
 (changed 2026-09-29, `v3/shell-tab-bar`: Share joined the scheduler's bar as an icon, so its credits show from 1536px too, not 1280px; the Courses panel's header says them.) (changed 2026-09-30, `v3/family-bar`: the product tabs fold to their marks on every bar, which gives the room back, so `crowdedBelow2xl` is gone. Every desktop bar shows the coffee button and Feedback's label; three plan tabs still fit whole at 1440px and two at 1280px.)
 Revisit if: the scheduler's bar changes its context or status, or the owner wants the chip on every bar at every width.
+
+### One sync slot in the bar, and a glyph per kind of sync
+2026-10-05 · agent · one feature
+Schedule, Plan and Todo show where their data is in one place, the bar's sync slot (`SyncSlot`, first in the bar's status): a glyph, then a word from 1280px, with the whole sentence in its tooltip. A cloud means your plans with your account ("Saved", "Saving…"); a monitor means Plan's four-year plan in this browser ("Saved in this browser"); a calendar means Todo's sync, whose state is the ELMS feed's ("Sync", which opens it). The calendar and "Sync" replace Todo's cloud, so the same glyph never means two things. On a phone's bar, Schedule's and Plan's slot is words for screen readers only (the account menu has the line); Todo's stays, as an icon, since it's the only way into its sync.
+Revisit if: a fourth kind of sync arrives, or the bars run out of room at 1280px.
 
 ### Sign in with Google, UMD only
 2026-09-26 · owner · app-wide

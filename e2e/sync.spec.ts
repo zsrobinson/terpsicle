@@ -153,9 +153,8 @@ test("the same plan changed on two devices, one offline, keeps both", {
   await b.context().setOffline(true);
   await removeCourse(b, "CMSC351");
   await expect(syncStatus(b)).toHaveAttribute("data-sync-status", "offline");
-  await expect(syncStatus(b)).toHaveAccessibleName(
-    "Offline, will save when you're back",
-  );
+  // The bar says it in a word; its tooltip and the account menu, in full.
+  await expect(syncStatus(b)).toHaveAccessibleName("Saves when online");
 
   await removeCourse(a, "ENGL393");
   await saved(a);

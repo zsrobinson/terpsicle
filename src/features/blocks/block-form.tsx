@@ -3,6 +3,7 @@ import { type FormEvent, useId, useState } from "react";
 import { BlockLabelSchema, type Day } from "~/core/schema";
 import { DAY_SHORT_NAMES, formatTime, sortDays } from "~/core/time";
 import { Button } from "~/ui/button";
+import { CHIP_SELECTED, chipClass } from "~/ui/chip";
 import { Input } from "~/ui/input";
 import {
   Select,
@@ -91,12 +92,7 @@ export function BlockForm({
               type="button"
               aria-pressed={label === preset}
               onClick={() => setLabel(preset)}
-              className={cn(
-                "h-6 rounded-md border px-1.5 text-xs transition-colors",
-                label === preset
-                  ? "border-fg bg-fg text-bg hover:bg-fg/85"
-                  : "border-hairline text-muted hover:bg-hover hover:text-fg",
-              )}
+              className={cn(chipClass(label === preset), "px-1.5")}
             >
               {preset}
             </button>
@@ -136,7 +132,7 @@ export function BlockForm({
                 className={cn(
                   "h-7 flex-1 rounded-md border text-sm transition-colors",
                   on
-                    ? "border-transparent bg-accent text-accent-fg"
+                    ? CHIP_SELECTED
                     : "border-hairline-strong text-muted hover:bg-hover",
                 )}
               >

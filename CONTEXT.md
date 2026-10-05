@@ -176,7 +176,8 @@ _Avoid_: permission prompt, opt-in, enable push (in UI)
 A browser with notifications on, listed in Settings by what it is ("iPhone · Safari") and when it was added. "Turn on notifications on this device", "Turn off here", "Remove".
 
 **Sync**:
-Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (the **room rules** you've closed, Home's closed callouts) beside Schedule's. In Todo, the bar's sync cloud means Todo's sync: with ELMS, and with our own server for your tasks and checks.
+Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (the **room rules** you've closed, Home's closed callouts) beside Schedule's. Every workbench bar shows it in the same place, the **sync slot**: a cloud for your plans with your account ("Saved"), a monitor for Plan's four-year plan in this browser ("Saved in this browser"), and in Todo a calendar with "Sync", which means Todo's sync: with ELMS, and with our own server for your tasks and checks. Code says `SyncSlot`.
+_Avoid_: the cloud (for Todo's sync)
 
 **Account key**:
 The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. Deleting the account destroys it first. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
@@ -282,7 +283,7 @@ The travel setting for routes without stairs.
 _Avoid_: step-free
 
 **Problem**:
-Something about a plan worth knowing: an error (not enough time, a cancelled or changed section), a warning (overlap, tight connection, full, few seats, restricted) or info (no set time, TBA). Listed in the Problems tab, never in a banner.
+Something about a plan worth knowing: an error (not enough time, a cancelled or changed section), a warning (overlap, tight connection, full, few seats, restricted) or info (no set time, TBA). Listed in the Problems tab, never in a banner. Schedule's and Plan's Problems share one list (`ProblemList`): bands "Won't work as planned" (errors), "Worth a look" (warnings) and "Good to know" (info), each row led by its severity's mark, with its fix first among its buttons. Info items are **notes**: counts say "2 problems · 1 note", and notes never count as problems.
 
 **Fix**:
 The one-click remedy a problem offers: "Switch to 0205" when a section solves it without new problems, or "Watch for a seat" for a full section. The owner calls this **auto-resolution**.

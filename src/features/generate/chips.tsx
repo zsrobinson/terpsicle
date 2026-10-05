@@ -30,19 +30,18 @@ import {
   ActionMenuRadioGroup,
   ActionMenuRadioItem,
 } from "~/ui/action-menu";
-import { chipClass } from "~/ui/filter-chips";
+import { chipClass } from "~/ui/chip";
 import { Input } from "~/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "~/ui/popover";
 import { WithTooltip } from "~/ui/tooltip";
 
 // Generate's chips (SPEC §3.9). Two kinds that must never be mistaken for
-// each other (the owner, 2026-09-28):
-// - Filters take plans out. They're Search's filter chips (square, filled
-//   while on, one look for "only these" across the app) with a funnel and
+// each other (the owner, 2026-09-28), both the kit's one chip (~/ui/chip,
+// square, the soft gray while selected), told apart by what they say:
+// - Filters take plans out. They're Search's filter chips with a funnel and
 //   the number of plans each one took out, and they say "No…" or "Only…".
-// - Preferences put plans in order. They're pills that a click cycles
-//   off → on (a light fill) → counted double (outlined, with a dark "2×")
-//   → off. Black fill stays the filters', here as in Search.
+// - Preferences put plans in order. A click cycles them off → on → counted
+//   double (an ink outline and "2×") → off. No funnel, no count.
 
 /** Short, so the six fit two lines of the sidebar. The tooltip says more. */
 export const PREFERENCE_LABELS: Record<RankFactor, string> = {
@@ -77,12 +76,9 @@ const LEVEL_TIPS: Record<PreferenceLevel, string> = {
 
 const preferenceClass = (level: PreferenceLevel) =>
   cn(
-    "flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-xs transition-colors",
-    level === 0
-      ? "border-hairline text-muted hover:bg-hover hover:text-fg"
-      : level === 1
-        ? "border-hairline-strong bg-accent-soft text-fg hover:bg-hover"
-        : "border-fg bg-accent-soft pr-0.5 font-medium text-fg hover:bg-hover",
+    chipClass(level > 0),
+    "gap-1 px-1.5",
+    level === 2 && "border-fg font-medium",
   );
 
 /** What ranks the plans: a pill per factor, off, on or double. */
@@ -124,10 +120,7 @@ export function PreferenceChips({
             >
               {PREFERENCE_LABELS[f]}
               {level === 2 ? (
-                <span
-                  aria-hidden="true"
-                  className="tnum rounded-full bg-fg px-1 text-2xs text-bg leading-4"
-                >
+                <span aria-hidden="true" className="tnum font-semibold">
                   2×
                 </span>
               ) : null}
