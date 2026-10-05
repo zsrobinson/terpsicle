@@ -17,6 +17,7 @@ export const AUTH_ROUTES = {
   me: route({
     input: MeInputSchema,
     perIpPerHour: 600,
+    localUnlimited: true,
     handle: (env, _input, ctx) =>
       me(env, ctx, {
         seatAlerts: alertsEnabled(env),
@@ -39,6 +40,7 @@ export const AUTH_ROUTES = {
   "auth/test-sign-in": route({
     input: TestSignInInputSchema,
     perIpPerHour: 60,
+    localUnlimited: true,
     handle: (env, input, ctx) => testSignIn(env, input, ctx),
   }),
 } as const;
