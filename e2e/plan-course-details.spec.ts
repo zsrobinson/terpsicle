@@ -56,7 +56,7 @@ test("a course Testudo dropped gets its course info, from its base course or by 
   ).toBeVisible();
 
   await page.goto("/plan/problems");
-  const problems = page.getByRole("list", { name: "Problems" });
+  const problems = page.getByRole("group", { name: "Problems", exact: true });
   await expect(problems.getByText("MATH141H isn't in Testudo")).toBeVisible();
   await expect(problems.getByText("CMSC298X isn't in Testudo")).toBeVisible();
   await expect(problems.getByText(/HNUH278B/)).toHaveCount(0);

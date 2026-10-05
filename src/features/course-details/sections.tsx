@@ -48,6 +48,7 @@ import { track } from "~/lib/analytics";
 import { TEXT, TONE_TEXT } from "~/lib/emphasis";
 import { useUi } from "~/state/ui-store";
 import { Button } from "~/ui/button";
+import { chipClass } from "~/ui/chip";
 import { WithTooltip } from "~/ui/tooltip";
 import { hasReviews, InstructorLine, InstructorMeta } from "./reviews";
 import { ReviewsPreviewButton } from "./reviews-preview";
@@ -170,12 +171,7 @@ function SectionList(props: SectionsProps) {
                   type="button"
                   aria-pressed={onlyFits}
                   onClick={() => setOnlyFits(!onlyFits)}
-                  className={cn(
-                    "h-6 rounded-md border px-2 text-xs transition-colors",
-                    onlyFits
-                      ? "border-fg bg-fg text-bg hover:bg-fg/85"
-                      : "border-hairline text-muted hover:bg-hover hover:text-fg",
-                  )}
+                  className={cn(chipClass(onlyFits), "px-2")}
                 >
                   Only fits
                 </button>

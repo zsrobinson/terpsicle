@@ -86,6 +86,18 @@ test("generate from Plan A's courses, re-rank with a chip, and add one as Plan C
       .getByText(/ avg start$/),
   ).toBeVisible();
 
+  // Hovering a chip opens its card: how the plans spread out on what it
+  // ranks by, the top plan marked. (The pointer is still on the chip it
+  // clicked, and a click closes a tooltip until the pointer comes back.)
+  await page.getByRole("heading", { name: "Generate" }).first().hover();
+  await prefs.getByRole("button", { name: "Later starts: on" }).hover();
+  const card = page.getByRole("tooltip");
+  await expect(card).toContainText("Average start of a class day");
+  await expect(card.getByTestId("chip-spread")).toBeVisible();
+  await expect(card).toContainText(/Your top plan:.* avg start/);
+  await page.getByRole("heading", { name: "Generate" }).first().hover();
+  await expect(card).toHaveCount(0);
+
   // Hovering a result previews it, like Search; moving away ends it.
   await results.getByTestId("generated-plan").nth(1).hover();
   await expect(page.getByText("Previewing Option 2.")).toBeVisible();

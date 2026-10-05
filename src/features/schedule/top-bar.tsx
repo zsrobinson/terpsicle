@@ -4,7 +4,7 @@ import { AppBar } from "~/components/app-bar";
 import { CreditsStatus, ProblemsStatus } from "~/components/workbench/status";
 import { SCHEDULE_PATH } from "~/core/routing";
 import { ScheduleShare } from "~/features/share/schedule-share";
-import { SyncStatusIcon } from "~/features/sync/status-view";
+import { SyncStatusSlot } from "~/features/sync/status-view";
 import { useCatalog } from "~/state/catalog-store";
 import {
   useCreditsLabel,
@@ -14,10 +14,11 @@ import {
 import { openTab } from "./actions";
 import { tabById } from "./tabs";
 
-// The scheduler's bar (SPEC §2): the family bar (~/components/app-bar.tsx) with the term
-// and plans as its context, credits, the problem count and sync as its
-// status, and Share. The middle (tabs, the phone's plans control or the
-// shared pill) comes from the shell.
+// The scheduler's bar (SPEC §2): the family bar (~/components/app-bar.tsx)
+// with the term and plans as its context; sync (the sync slot, as in Plan's
+// and Todo's bars), credits and the problem count as its status; and Share.
+// The middle (tabs, the phone's plans control or the shared pill) comes from
+// the shell.
 
 export function TopBar({
   term,
@@ -46,10 +47,10 @@ export function TopBar({
       share={<ScheduleShare />}
       status={
         <>
+          <SyncStatusSlot compact={compact} />
           <OfflineNote compact={compact} />
           {compact ? null : <Credits />}
           <ProblemsButton compact={compact} />
-          {compact ? null : <SyncStatusIcon />}
         </>
       }
     />

@@ -17,7 +17,7 @@ import { WithTooltip } from "~/ui/tooltip";
 // Todo's controls in the family bar (docs/decisions.md, "One bar at the
 // top"): Back, Today and Ahead as one group, the kit's segments, and the
 // week they show, short ("Sep 28 – Oct 4"), which is the page's title, with
-// how ELMS is under it. The sync cloud sits by the bell (./elms). Adding a
+// how ELMS is under it. The sync slot sits by the bell (./elms). Adding a
 // task and the week's progress are the sidebar's (the owner, 2026-09-29:
 // "i'm not a big fan of everything being thrown into the top bar for
 // todos").

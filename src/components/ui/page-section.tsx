@@ -2,12 +2,26 @@ import { cn } from "cn";
 import type { ReactNode } from "react";
 
 // A group of things on a page, under the page's title (docs/COHESION.md §3,
-// Phase 2): a hairline on top and a small label, never a box. Settings'
+// Phase 2): a hairline on top and a heading, never a box. Settings'
 // Account, Reviews' Grades, Export's checklist. It's the weakest grouping
 // that works (UX-PRINCIPLES §2); a box is for a `Card`, which you press.
 //
 // Named PageSection, not Section: a section is a course's offering
 // (CONTEXT.md).
+
+/**
+ * Each size's title, a step up from what it heads: on a reading page, larger
+ * type carries the hierarchy (docs/DESIGN.md §7.8). A page's sections sit
+ * between its `h1` (`text-xl`) and their 13px content. One nested in another
+ * (`h3`) is its content's size, set apart by weight alone.
+ * `src/components/design-tokens.test.ts` holds these to the type scale.
+ */
+export const PAGE_SECTION_TITLE = {
+  page: "emph-heading text-lg",
+  nested: "emph-heading text-base",
+  side: "emph-title text-xl",
+  display: "emph-title text-2xl",
+} as const;
 
 export function PageSection({
   title,
@@ -57,11 +71,9 @@ export function PageSection({
       >
         <Heading
           className={
-            size === "display"
-              ? "emph-title text-2xl"
-              : size === "side"
-                ? "emph-title text-xl"
-                : "emph-heading text-base"
+            PAGE_SECTION_TITLE[
+              size === "page" && headingLevel === 3 ? "nested" : size
+            ]
           }
         >
           {title}

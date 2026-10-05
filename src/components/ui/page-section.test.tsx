@@ -4,13 +4,15 @@ import { PageHeader } from "./page-header";
 import { PageSection } from "./page-section";
 
 describe("PageSection", () => {
-  it("is a region under a hairline with a small heading, never a box", () => {
+  it("is a region under a hairline with a heading, never a box", () => {
     render(
       <PageSection title="Account" aside="Signed in with Google">
         <p>Test Student</p>
       </PageSection>,
     );
     const heading = screen.getByRole("heading", { level: 2, name: "Account" });
+    // A step over its 13px content (QA5: both were 13px on Notifications).
+    expect(heading).toHaveClass("emph-heading", "text-lg");
     const section = heading.closest("section");
     expect(section).toHaveClass("border-t", "border-hairline", "pt-3");
     expect(section).not.toHaveClass("border", "shadow-offset");
@@ -39,7 +41,7 @@ describe("PageSection", () => {
     );
   });
 
-  it("nests one level down", () => {
+  it("nests one level down, a step under its parent's title", () => {
     render(
       <PageSection title="Grades" headingLevel={3}>
         <p>A 41%</p>
@@ -47,7 +49,7 @@ describe("PageSection", () => {
     );
     expect(
       screen.getByRole("heading", { level: 3, name: "Grades" }),
-    ).toBeInTheDocument();
+    ).toHaveClass("emph-heading", "text-base");
   });
 });
 
