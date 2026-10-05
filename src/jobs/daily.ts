@@ -9,7 +9,10 @@ import {
 } from "~/server/notifications/digest";
 import { pruneDeliveries } from "~/server/notifications/store";
 import { pruneReviews } from "~/server/reviews/store";
-import { rewrapAccountKeys } from "~/server/security/user-keys";
+import {
+  moveLegacyAccountKeys,
+  rewrapAccountKeys,
+} from "~/server/security/user-keys";
 import { pruneTombstones, sweepUnsealedBodies } from "~/server/sync/store";
 import { pruneTodo, sweepUnsealedTasks } from "~/server/todo/store";
 import { type Job, runJob } from "./job";
@@ -30,9 +33,10 @@ import { type Job, runJob } from "./job";
  * mentions and replies after 30 days. It groups open feedback again with
  * Workers AI (src/server/feedback/group.ts). Until `avatars/` is empty, it
  * deletes the profile pictures kept before they were dropped
- * (src/server/auth/legacy-pictures.ts). After a USER_DATA_KEY rotation it
- * wraps account keys again under the new key (src/server/security/user-keys.ts),
- * and it deletes synced bodies and own tasks' titles still in plain text.
+ * (src/server/auth/legacy-pictures.ts). It moves account keys still in D1
+ * into R2 USER_KEYS, and after a USER_DATA_KEY rotation wraps them again
+ * under the new key (src/server/security/user-keys.ts), and it deletes
+ * synced bodies and own tasks' titles still in plain text.
  */
 export const runDailyJob: Job = async (context) => {
   await runJob("daily", context, async () => {
@@ -59,13 +63,23 @@ export const runDailyJob: Job = async (context) => {
     const watches = await endPastTermWatches(env);
     const feedback = await pruneFeedback(env.DB, env.USER_CONTENT, now);
     const legacyPicturesDeleted = await sweepLegacyPictures(env.USER_CONTENT);
-    // After a USER_DATA_KEY rotation, account keys move to the new one. A
-    // failure is reported by its error's name only, and the rest goes on.
+    // Account keys still in D1 move to R2; after a USER_DATA_KEY rotation,
+    // they're wrapped again under the new one. A failure is reported by its
+    // error's name only, and the rest goes on.
     const keyErrors: string[] = [];
-    const rewrap = await rewrapAccountKeys(env).catch((error: unknown) => {
+    const keyError = (error: unknown) => {
       keyErrors.push(
         `account keys: ${error instanceof Error ? error.name : "error"}`,
       );
+    };
+    const legacyKeys = await moveLegacyAccountKeys(env).catch(
+      (error: unknown) => {
+        keyError(error);
+        return { moved: 0, left: 0 };
+      },
+    );
+    const rewrap = await rewrapAccountKeys(env).catch((error: unknown) => {
+      keyError(error);
       return { moved: 0, left: 0, stuck: 0 };
     });
     // Anything saved in plain text by the build before sealing (between
@@ -96,6 +110,8 @@ export const runDailyJob: Job = async (context) => {
         feedbackShotsExpired: feedback.shotsExpired,
         feedbackRemoved: feedback.removed,
         legacyPicturesDeleted,
+        accountKeysMovedToR2: legacyKeys.moved,
+        accountKeysLeftInD1: legacyKeys.left,
         accountKeysRewrapped: rewrap.moved,
         accountKeysLeft: rewrap.left,
         accountKeysStuck: rewrap.stuck,

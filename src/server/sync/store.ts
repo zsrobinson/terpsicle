@@ -163,14 +163,16 @@ const unsealed = <T extends StoredBody>(rows: readonly T[]): T[] =>
   rows.filter((r) => r.body !== null && !isSealed(r.body));
 
 /**
- * Deletes plain-text bodies (each only while it's still the one read) and
- * starts the account's devices over: they'll put back what they have. Logs
- * how many, never what.
+ * Deletes bodies no one can read (each only while it's still the one read)
+ * and starts the account's devices over: they'll put back what they have.
+ * Either in plain text, or sealed under a key that's gone. Logs how many,
+ * never what.
  */
-async function dropUnsealed(
+async function dropUnreadable(
   db: D1Database,
   userId: string,
   rows: readonly StoredBody[],
+  why: "plain text" | "key gone",
 ): Promise<void> {
   const results = await db.batch([
     ...rows.map((r) =>
@@ -185,12 +187,54 @@ async function dropUnsealed(
   const dropped = results
     .slice(0, rows.length)
     .reduce((n, r) => n + (r.meta.changes ?? 0), 0);
-  console.warn({ sync: "deleted bodies saved in plain text", dropped });
+  console.warn({ sync: `deleted bodies: ${why}`, dropped });
+}
+
+/**
+ * Sealed bodies of an account that has no key. The purge deletes a key only
+ * after deleting what it sealed, so these are what a save that read the key
+ * just before the purge deleted it left behind, on an account kept after
+ * all: nothing can open them again.
+ */
+const orphaned = <T extends StoredBody>(
+  account: AccountKey | null,
+  rows: readonly T[],
+): T[] => (account ? [] : rows.filter((r) => r.body !== null));
+
+/**
+ * After a save made the account's first key: deletes the bodies that don't
+ * open under it, sealed under a key that's gone (`orphaned`). A first save
+ * racing this one stored its key before its bodies, so its bodies open and
+ * stay.
+ */
+async function dropOrphanedBodies(
+  db: D1Database,
+  account: AccountKey,
+): Promise<void> {
+  const { results } = await db
+    .prepare(
+      "SELECT kind, doc_id, body FROM sync_docs WHERE user_id = ?1 AND body IS NOT NULL",
+    )
+    .bind(account.userId)
+    .all();
+  const lost: StoredBody[] = [];
+  for (const r of results) {
+    const row = BodyRowSchema.parse(r);
+    const opened = await openBody(account, row.kind, row.doc_id, row.body)
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (error instanceof SealedDataError) return false;
+        throw error;
+      });
+    if (!opened) lost.push(row);
+  }
+  if (lost.length > 0)
+    await dropUnreadable(db, account.userId, lost, "key gone");
 }
 
 /**
  * The daily job's sweep for plain-text bodies nobody has read since: the
- * same as `dropUnsealed`, for every account. Returns how many went.
+ * same as `dropUnreadable` for plain text, for every account. Returns how many went.
  */
 export async function sweepUnsealedBodies(db: D1Database): Promise<number> {
   const plain = `body IS NOT NULL AND ${UNSEALED("body")}`;
@@ -216,9 +260,11 @@ export async function pushDocs(
 ): Promise<SyncPushDocResult[]> {
   const { db } = data;
   const at = now.toISOString();
-  const account = await data.accountKey(userId, {
-    create: docs.some((d) => d.body !== null),
-  });
+  let account = await data.accountKey(userId);
+  if (!account && docs.some((d) => d.body !== null)) {
+    account = await data.accountKey(userId, { create: true });
+    if (account) await dropOrphanedBodies(db, account);
+  }
   const statements: D1PreparedStatement[] = [
     db
       .prepare(
@@ -265,8 +311,12 @@ export async function pushDocs(
     }
     const stored = before ? SyncDocRowSchema.parse(before) : null;
     if ((stored?.rev ?? 0) !== doc.baseRev) {
-      // A plain-text body isn't an answer: it goes, as if pruned.
-      const readable = stored && unsealed([stored]).length === 0;
+      // A body in plain text, or under a key that's gone, isn't an answer:
+      // it goes, as if pruned.
+      const readable =
+        stored &&
+        unsealed([stored]).length === 0 &&
+        orphaned(account, [stored]).length === 0;
       if (stored && !readable) plain.push(stored);
       answers.push({
         ...ref,
@@ -278,7 +328,7 @@ export async function pushDocs(
     // The base matched, so only its kind's cap can have stopped it.
     answers.push({ ...ref, status: "too-many-plans" });
   }
-  if (plain.length > 0) await dropUnsealed(db, userId, plain);
+  if (plain.length > 0) await dropUnreadable(db, userId, plain, "plain text");
   return answers;
 }
 
@@ -318,12 +368,17 @@ export async function pullDocs(
   const shown = rows.slice(0, SYNC_PULL_PAGE);
   const plain = unsealed(shown);
   if (plain.length > 0) {
-    await dropUnsealed(db, userId, plain);
+    await dropUnreadable(db, userId, plain, "plain text");
     return { status: "reset" };
   }
   const account = shown.some((r) => r.body !== null)
     ? await data.accountKey(userId)
     : null;
+  const lost = orphaned(account, shown);
+  if (lost.length > 0) {
+    await dropUnreadable(db, userId, lost, "key gone");
+    return { status: "reset" };
+  }
   const docs = await Promise.all(
     shown.map(async (r) => syncDocFromRow(await openRow(account, r))),
   );
@@ -388,9 +443,13 @@ async function openLive(
 ): Promise<{ plans: Plan[]; settings: SettingsDoc | null }> {
   const all = results.map((r) => BodyRowSchema.parse(r));
   const plain = unsealed(all);
-  if (plain.length > 0) await dropUnsealed(data.db, userId, plain);
-  const rows = all.filter((r) => isSealed(r.body));
-  const account = rows.length > 0 ? await data.accountKey(userId) : null;
+  if (plain.length > 0)
+    await dropUnreadable(data.db, userId, plain, "plain text");
+  const sealed = all.filter((r) => isSealed(r.body));
+  const account = sealed.length > 0 ? await data.accountKey(userId) : null;
+  const lost = orphaned(account, sealed);
+  if (lost.length > 0) await dropUnreadable(data.db, userId, lost, "key gone");
+  const rows = lost.length > 0 ? [] : sealed;
   const plans: Plan[] = [];
   let settings: SettingsDoc | null = null;
   for (const row of rows) {
