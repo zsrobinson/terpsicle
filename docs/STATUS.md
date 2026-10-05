@@ -108,7 +108,7 @@ Terpsicle stays free with no billing; sync is on whenever you're signed in, grad
 
 | PR | What | State |
 |---|---|---|
-| `v3/planetterp-pages-flag` (#258) | `REVIEWS_PAGES_ENABLED`; the purple tab, tab bar, product menu and marketing step link out | In review |
+| `v3/planetterp-pages-flag` (#258) | `REVIEWS_PAGES_ENABLED`; the purple tab, tab bar, product menu and marketing step link out | Merged |
 | `v3/planetterp-redirects` (#259) | 302s from every `/reviews` address to PlanetTerp; sitemap without them | In review |
 | `v3/planetterp-preview` (#260) | Schedule's preview PlanetTerp's alone, credited, linking out; Plan's link; Home's rows with Dismiss | In review |
 | `v3/planetterp-crawl-only` (#261) | No page-visit fetch; the job keeps only what the preview shows | In review |
