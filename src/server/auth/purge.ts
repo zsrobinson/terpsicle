@@ -22,8 +22,8 @@ import { forgetReporterStatement } from "../moderation/store";
 import { forgetAuthorStatement } from "../reviews/store";
 import {
   type AccountKeyBucket,
+  assertAccountKeyBucket,
   deleteAccountKey,
-  keyBucket,
 } from "../security/user-keys";
 
 /**
@@ -113,7 +113,7 @@ export const PURGE_LEDGER = {
 export const PURGE_BUCKETS = {
   DATA: "untouched: public course data, no user data",
   USER_CONTENT:
-    "feedback screenshots stay with their feedback, which keeps no user id (above); nothing else of the person's is there",
+    "feedback screenshots stay with their feedback, which keeps no user id (above); nothing else of the person's is there. On previews it also holds test accounts' keys under keys/, as their USER_KEYS",
   USER_KEYS:
     "`keys/<id>` deleted in step 2, once what it sealed is gone from D1: R2 keeps no earlier version, so nothing it sealed opens again, even from a D1 backup",
 } as const satisfies Record<string, string>;
@@ -188,8 +188,12 @@ export async function purgeDueAccounts(
     errors: [],
   };
   for (const userId of await accountsDueForPurge(env.DB, now)) {
-    let step = "chat";
+    let step = "key";
     try {
+      // No key bucket: nothing is deleted, not even chat, so no account is
+      // left half purged with its key still there.
+      assertAccountKeyBucket(env);
+      step = "chat";
       const chat = await purgeChat(env, userId, now);
       report.chatCourses += chat.courses;
       report.chatMessages += chat.messages;
@@ -273,7 +277,7 @@ export async function purgeKey(
   now: Date,
 ): Promise<boolean> {
   // No bucket bound: stop before anything goes, rather than leave a key.
-  keyBucket(env);
+  assertAccountKeyBucket(env);
   const results = await env.DB.batch(sealedStatements(env.DB, userId, now));
   const due = DueSchema.safeParse(results.at(-1)?.results[0]);
   if (!due.success || due.data.due !== 1) return false;

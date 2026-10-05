@@ -7,6 +7,15 @@ import { inlineScripts } from "./scripts/inline-scripts.ts";
 // Vitest 4.1, not 5: @cloudflare/vitest-plugin supports ^4.1 only.
 // Tests live next to the code they test (`foo.ts` → `foo.test.ts`); the folder
 // decides the project. `pnpm vitest --project <name>` runs one.
+/** Binding name to bucket name, from wrangler.jsonc's r2_buckets. */
+function bucketsOf(
+  buckets: readonly { binding: string; bucket_name?: string }[],
+): Record<string, string> {
+  return Object.fromEntries(
+    buckets.map((b) => [b.binding, b.bucket_name ?? ""]),
+  );
+}
+
 export default defineConfig({
   envDir: "env",
   resolve: { tsconfigPaths: true },
@@ -111,10 +120,11 @@ export default defineConfig({
                     production: Object.keys(wrangler.vars ?? {}),
                     previews: Object.keys(wrangler.previews?.vars ?? {}),
                   },
-                  // The R2 bindings production has (names only).
-                  TEST_R2_BINDINGS: wrangler.r2_buckets.map(
-                    (b: { binding: string }) => b.binding,
-                  ),
+                  // Each R2 binding's bucket, in production and previews.
+                  TEST_R2_BUCKETS: {
+                    production: bucketsOf(wrangler.r2_buckets),
+                    previews: bucketsOf(wrangler.previews?.r2_buckets ?? []),
+                  },
                   TEST_MIGRATIONS: await readD1Migrations("migrations"),
                 },
               },

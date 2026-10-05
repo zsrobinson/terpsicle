@@ -127,10 +127,18 @@ export async function userDataKeys(
 }
 
 /** The bucket, or UserDataKeyMissing: never a key kept anywhere else. */
-export function keyBucket(env: AccountKeyBucket): R2Bucket {
+function keyBucket(env: AccountKeyBucket): R2Bucket {
   if (env.USER_KEYS) return env.USER_KEYS;
   warnOnce("bucket", "the R2 bucket USER_KEYS isn't bound");
   throw new UserDataKeyMissing("USER_KEYS isn't bound");
+}
+
+/**
+ * Throws UserDataKeyMissing unless the bucket is bound: the purge checks
+ * before it deletes anything, so it never deletes the rows and leaves a key.
+ */
+export function assertAccountKeyBucket(env: AccountKeyBucket): void {
+  keyBucket(env);
 }
 
 /** Where every account's key lives in the bucket. */
@@ -192,8 +200,12 @@ async function readStoredKey(
 }
 
 /**
- * Stores a wrapped key only where the account has none (`If-None-Match:
- * *`), so a key is never replaced by another: true when this one was.
+ * Stores a wrapped key only where the account has none, so a key is never
+ * replaced by another: true when this one was. `onlyIf` takes conditional
+ * request headers as well as an R2Conditional, and `If-None-Match: *` holds
+ * only when no object is there
+ * (https://developers.cloudflare.com/r2/api/workers/workers-api-reference/#conditional-operations;
+ * sealed.test.ts races two first saves through workerd's R2).
  */
 async function storeIfAbsent(
   bucket: R2Bucket,
@@ -201,7 +213,7 @@ async function storeIfAbsent(
   wrapped: string,
 ): Promise<boolean> {
   const put = await bucket.put(accountKeyPath(userId), wrapped, {
-    onlyIf: { etagDoesNotMatch: "*" },
+    onlyIf: new Headers({ "If-None-Match": "*" }),
     customMetadata: masterKeyMetadata(wrapped),
   });
   return put !== null;
@@ -228,13 +240,34 @@ const LegacyRowSchema = z.object({
  * stays wrapped the same way). The row goes only once the bucket holds that
  * same key; if the bucket already has another, the row stays and is
  * counted, never lost. What the bucket holds after is the account's key.
+ *
+ * If the purge deleted the row while this was storing it, and the account
+ * isn't active (it's being deleted, or gone), the copy just made is deleted
+ * again: a move never brings back a purged key.
  */
 async function moveLegacyKey(
   bucket: R2Bucket,
   db: D1Database,
   row: z.infer<typeof LegacyRowSchema>,
 ): Promise<{ stored: StoredKey | null; moved: boolean }> {
-  await storeIfAbsent(bucket, row.user_id, row.wrapped_key);
+  if (await storeIfAbsent(bucket, row.user_id, row.wrapped_key)) {
+    const [still, active] = await db.batch([
+      db
+        .prepare(
+          "SELECT 1 FROM user_keys WHERE user_id = ?1 AND wrapped_key = ?2",
+        )
+        .bind(row.user_id, row.wrapped_key),
+      db
+        .prepare("SELECT 1 FROM users WHERE id = ?1 AND status = 'active'")
+        .bind(row.user_id),
+    ]);
+    // Gone from D1 and the account isn't active: the purge took the row
+    // while this stored it. (Gone but active: another move got there.)
+    if (!still?.results.length && !active?.results.length) {
+      await bucket.delete(accountKeyPath(row.user_id));
+      return { stored: null, moved: false };
+    }
+  }
   const stored = await readStoredKey(bucket, row.user_id);
   if (stored?.wrapped !== row.wrapped_key) return { stored, moved: false };
   await db
@@ -365,14 +398,6 @@ export async function deleteAccountKey(
   await keyBucket(env).delete(accountKeyPath(userId));
 }
 
-/** Whether the bucket holds a key for the account (for the worker tests). */
-export async function hasAccountKey(
-  env: AccountKeyBucket,
-  userId: string,
-): Promise<boolean> {
-  return (await keyBucket(env).head(accountKeyPath(userId))) !== null;
-}
-
 /** For a request: test mode needs the flag and a preview or localhost host. */
 export function userDataForRequest(
   env: UserDataEnv,
@@ -467,25 +492,27 @@ async function wrappedUnder(
 /**
  * Wraps one account's key again under the current key. The put holds only
  * while the object is the version read (`If-Match`), so a key the purge
- * deleted meanwhile is never put back. True when it moved.
+ * deleted meanwhile is never put back.
  */
 async function rewrapOne(
   bucket: R2Bucket,
   master: SealKeys,
   userId: string,
-): Promise<boolean> {
+): Promise<"moved" | "left" | "gone"> {
   const stored = await readStoredKey(bucket, userId);
-  if (!stored) return false;
+  if (!stored) return "gone";
   const raw = await openBytes(master, wrapContext(userId), stored.wrapped);
   // Doesn't open under the key it names: left as it is, and counted.
-  if (raw?.length !== 32) return false;
+  if (raw?.length !== 32) return "left";
   const wrapped = await sealBytes(master, wrapContext(userId), raw);
   raw.fill(0);
   const put = await bucket.put(accountKeyPath(userId), wrapped, {
     onlyIf: { etagMatches: stored.etag },
     customMetadata: masterKeyMetadata(wrapped),
   });
-  return put !== null;
+  if (put) return "moved";
+  // Changed or deleted since the read: count it only if it's still there.
+  return (await bucket.head(accountKeyPath(userId))) ? "left" : "gone";
 }
 
 /**
@@ -502,16 +529,23 @@ export async function rewrapAccountKeys(
   const bucket = keyBucket(env);
   const result: RewrapResult = { moved: 0, left: 0, stuck: 0 };
   for await (const object of keyObjects(bucket)) {
-    const under = await wrappedUnder(bucket, object);
+    // An object whose name isn't an account's can't be a key we made.
+    const userId = DirectoryIdSchema.safeParse(
+      object.key.slice(KEY_PREFIX.length),
+    );
+    const under = userId.success ? await wrappedUnder(bucket, object) : null;
     if (under === master.current.id) continue;
-    if (!master.previous || under !== master.previous.id) {
+    if (!userId.success || !master.previous || under !== master.previous.id) {
       result.stuck += 1;
       continue;
     }
-    const userId = object.key.slice(KEY_PREFIX.length);
-    if (result.moved < limit && (await rewrapOne(bucket, master, userId)))
-      result.moved += 1;
-    else result.left += 1;
+    if (result.moved >= limit) {
+      result.left += 1;
+      continue;
+    }
+    const outcome = await rewrapOne(bucket, master, userId.data);
+    if (outcome === "moved") result.moved += 1;
+    else if (outcome === "left") result.left += 1;
   }
   return result;
 }

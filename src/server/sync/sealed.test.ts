@@ -22,7 +22,6 @@ import { startSession } from "../auth/session";
 import { markDeleting, upsertUser } from "../auth/store";
 import {
   accountKeyPath,
-  hasAccountKey,
   moveLegacyAccountKeys,
   openForAccount,
   rewrapAccountKeys,
@@ -65,6 +64,10 @@ function withKeys(vars: Record<string, string | undefined>): ApiEnv & Env {
 const k1Env = () => withKeys({ USER_DATA_KEY: K1, USER_DATA_KEY_ID: "k1" });
 /** Synced data's keys from this env, outside test mode. */
 const keyed = (vars: UserDataEnv) => userData(vars, { testMode: false });
+
+/** Whether R2 holds the account's key. */
+const hasKey = async (userId: string) =>
+  (await env.USER_KEYS.head(accountKeyPath(userId))) !== null;
 
 /** Every account key in the bucket: whose, its text and its wrapping key. */
 async function storedKeys() {
@@ -380,6 +383,16 @@ describe("sealed sync bodies", () => {
       left: 0,
       stuck: 1,
     });
+    // An object whose name isn't an account's is counted, never opened.
+    await env.USER_KEYS.put("keys/Not_An_Account", "v1.k1.x.y", {
+      customMetadata: { masterKeyId: "k1" },
+    });
+    expect(await rewrapAccountKeys(during)).toEqual({
+      moved: 0,
+      left: 0,
+      stuck: 2,
+    });
+    await env.USER_KEYS.delete("keys/Not_An_Account");
     // With no previous key there's nothing to move.
     expect(
       await rewrapAccountKeys(
@@ -405,10 +418,12 @@ describe("sealed sync bodies", () => {
         return object;
       },
       put: (...args: Parameters<R2Bucket["put"]>) => env.USER_KEYS.put(...args),
+      head: (key: string) => env.USER_KEYS.head(key),
     } as unknown as R2Bucket;
+    // Gone, so neither moved nor left.
     expect(await rewrapAccountKeys(during)).toEqual({
       moved: 0,
-      left: 1,
+      left: 0,
       stuck: 0,
     });
     expect(await storedKeys()).toEqual([]);
@@ -425,7 +440,7 @@ describe("sealed sync bodies", () => {
       now: new Date(now().getTime() + 7 * DAY),
     });
     expect(await storedKeys()).toEqual([]);
-    expect(await hasAccountKey(env, "tstudent")).toBe(false);
+    expect(await hasKey("tstudent")).toBe(false);
 
     // The row comes back (as from a copy of the table), the key doesn't.
     await signIn("tstudent");
@@ -487,7 +502,7 @@ describe("sealed sync bodies", () => {
       purgeKey(unbound(), "tstudent", new Date(now().getTime() + 7 * DAY)),
     ).rejects.toThrow(UserDataKeyMissing);
     expect(await storedBodies()).toEqual(before);
-    expect(await hasAccountKey(env, "tstudent")).toBe(true);
+    expect(await hasKey("tstudent")).toBe(true);
   });
 
   it("fails closed without USER_DATA_KEY: nothing stored, nothing read", async () => {
@@ -798,6 +813,29 @@ describe("keys kept in D1 before they moved to R2", () => {
       left: 1,
     });
     expect((await storedKeys())[0]?.wrapped).toBe(inBucket);
+  });
+
+  it("never brings back a key the purge deleted while it was moving it", async () => {
+    await (await signIn("tstudent")).push(savePlan());
+    await keepInD1("tstudent");
+    await markDeleting(env.DB, "tstudent", now());
+    // The purge's step 2 lands right after the move stores the key.
+    const racing = k1Env();
+    racing.USER_KEYS = {
+      async put(...args: Parameters<R2Bucket["put"]>) {
+        const put = await env.USER_KEYS.put(...args);
+        await purgeKey(
+          k1Env(),
+          "tstudent",
+          new Date(now().getTime() + 7 * DAY),
+        );
+        return put;
+      },
+      get: (key: string) => env.USER_KEYS.get(key),
+      delete: (key: string) => env.USER_KEYS.delete(key),
+    } as unknown as R2Bucket;
+    expect(await moveLegacyAccountKeys(racing)).toEqual({ moved: 0, left: 0 });
+    expect(await storedKeys()).toEqual([]);
   });
 
   it("is deleted by the purge with the rest", async () => {

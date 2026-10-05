@@ -19,7 +19,7 @@ import type { CourseChat } from "../chat/course-chat";
 import { chatTargetId } from "../chat/moderation-handler";
 import { ObjectStore } from "../chat/object-store";
 import { PURGED_REPORTER_PREFIX } from "../moderation/store";
-import { hasAccountKey } from "../security/user-keys";
+import { accountKeyPath } from "../security/user-keys";
 import { sealedBodyFor } from "../sync/testing";
 import { testBindings } from "../test-bindings";
 import { sealedTitleFor } from "../todo/testing";
@@ -51,6 +51,10 @@ const chat = (course: string) =>
   env.COURSE_CHAT.get(
     env.COURSE_CHAT.idFromName(courseRoomId(TERM, course)),
   ) as DurableObjectStub<CourseChat>;
+
+/** Whether R2 holds the account's key. */
+const hasKey = async (userId: string) =>
+  (await env.USER_KEYS.head(accountKeyPath(userId))) !== null;
 
 /** Every table of ours in D1, from the live schema. */
 async function ourTables(): Promise<string[]> {
@@ -390,8 +394,21 @@ describe("the ledger", () => {
 
   it("lists every R2 bucket in wrangler.jsonc, and only those", () => {
     expect(Object.keys(PURGE_BUCKETS).sort()).toEqual(
-      [...testBindings().r2Bindings].sort(),
+      Object.keys(testBindings().r2Buckets.production).sort(),
     );
+  });
+
+  it("gives previews buckets of their own, but the public data", () => {
+    // A preview runs unreviewed code with test sign-ins: it may read the
+    // public course data, never write where production keeps anyone's.
+    const { production, previews } = testBindings().r2Buckets;
+    expect(Object.keys(previews).sort()).toEqual(
+      Object.keys(production).sort(),
+    );
+    const shared = Object.entries(previews).filter(([, bucket]) =>
+      Object.values(production).includes(bucket),
+    );
+    expect(shared).toEqual([["DATA", production.DATA]]);
   });
 
   it("purges every table whose rows can name a person", async () => {
@@ -419,7 +436,7 @@ describe("the daily purge", () => {
     // No row in D1 names them, by directory ID or address, and their key
     // is gone from R2.
     expect(await rowsMentioning(GONE)).toEqual([]);
-    expect(await hasAccountKey(env, GONE)).toBe(false);
+    expect(await hasKey(GONE)).toBe(false);
     // Their chat messages, reactions and send log, in every course.
     for (const course of COURSES)
       expect(await chatRowsOf(course, GONE), course).toBe(0);
@@ -446,7 +463,7 @@ describe("the daily purge", () => {
     // Everyone else's data is untouched.
     for (const id of [KEEP, GRACE]) {
       expect(await rowsMentioning(id), id).toEqual(others.get(id));
-      expect(await hasAccountKey(env, id), id).toBe(true);
+      expect(await hasKey(id), id).toBe(true);
       for (const course of COURSES)
         expect(await chatRowsOf(course, id), `${id} ${course}`).toBeGreaterThan(
           0,
@@ -557,12 +574,26 @@ describe("the daily purge", () => {
     expect(await chatRowsOf("CMSC351", GONE)).toBeGreaterThan(0);
     // Every row is still there, but the finished course's chat record, and
     // so is the key.
-    expect(await hasAccountKey(env, GONE)).toBe(true);
+    expect(await hasKey(GONE)).toBe(true);
     expect(await rowsMentioning(GONE)).toEqual(
       before.map((r) =>
         r === "chat_author_courses: 2" ? "chat_author_courses: 1" : r,
       ),
     );
+  });
+
+  it("deletes nothing, not even chat, without the key bucket", async () => {
+    const before = await rowsMentioning(GONE);
+    const { USER_KEYS: _bucket, ...unbound } = env as Env;
+    expect(await purgeDueAccounts(unbound as PurgeEnv, NOW)).toMatchObject({
+      accounts: 0,
+      chatCourses: 0,
+      errors: ["purge key: UserDataKeyMissing"],
+    });
+    expect(await rowsMentioning(GONE)).toEqual(before);
+    for (const course of COURSES)
+      expect(await chatRowsOf(course, GONE)).toBeGreaterThan(0);
+    expect(await hasKey(GONE)).toBe(true);
   });
 
   it("changes nothing in the batch once the account is kept", async () => {

@@ -480,7 +480,7 @@ Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `pref
 Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
 
 ### Account keys live in R2, apart from what they seal
-2026-10-04 · owner · one feature
+2026-10-05 · owner · one feature
 Each account's data key, sealed under the Worker secret `USER_DATA_KEY`, is one object, `keys/<userId>`, in the private R2 bucket `terpsicle-user-keys` (binding `USER_KEYS`; DATA.md §7.7). D1's Time Travel can put the whole database back as it was at any minute of the last 30 days, but R2 keeps no earlier version of an object, so once the purge deletes the key, the rows it sealed stay unreadable even if a restore brings them back. The cost is one R2 read per request that opens synced data. "if that makes sense, go for it, it'd be good for privacy." (changed 2026-10-05, owner: the keys were `user_keys` rows in D1, which a Time Travel restore would bring back with the data for 30 days.)
 Revisit if: R2 gains versioning or point-in-time restore that we'd turn on, or the read on each request shows up in latency.
 

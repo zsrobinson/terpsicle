@@ -6,7 +6,10 @@ import { env } from "cloudflare:workers";
 interface TestBindings {
   TEST_CRONS: string[];
   TEST_VAR_NAMES: { production: string[]; previews: string[] };
-  TEST_R2_BINDINGS: string[];
+  TEST_R2_BUCKETS: {
+    production: Record<string, string>;
+    previews: Record<string, string>;
+  };
   TEST_MIGRATIONS: D1Migration[];
 }
 
@@ -16,6 +19,6 @@ export function testBindings() {
     crons: bindings.TEST_CRONS,
     migrations: bindings.TEST_MIGRATIONS,
     varNames: bindings.TEST_VAR_NAMES,
-    r2Bindings: bindings.TEST_R2_BINDINGS,
+    r2Buckets: bindings.TEST_R2_BUCKETS,
   };
 }
