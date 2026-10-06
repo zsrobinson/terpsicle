@@ -107,14 +107,27 @@ describe("useCelebrate", () => {
     expect(burstConfetti).not.toHaveBeenCalled();
   });
 
-  it("does it again for the next finish, after an Undo", () => {
+  it("sends nothing more after an Undo and a check again, but does for the next week", () => {
     const { rerender } = render(<Bar {...week(4)} />);
     rerender(<Bar {...week(5)} />);
     vi.advanceTimersByTime(400);
     rerender(<Bar {...week(4)} />);
     rerender(<Bar {...week(5)} />);
     vi.advanceTimersByTime(400);
+    expect(burstConfetti).toHaveBeenCalledTimes(1);
+    rerender(<Bar {...week(2, 3, "2026-10-05")} />);
+    rerender(<Bar {...week(3, 3, "2026-10-05")} />);
+    vi.advanceTimersByTime(400);
     expect(burstConfetti).toHaveBeenCalledTimes(2);
+  });
+
+  it("still sends it after a check comes off before the fill got there", () => {
+    const { rerender } = render(<Bar {...week(4)} />);
+    rerender(<Bar {...week(5)} />);
+    rerender(<Bar {...week(4)} />);
+    rerender(<Bar {...week(5)} />);
+    vi.advanceTimersByTime(400);
+    expect(burstConfetti).toHaveBeenCalledTimes(1);
   });
 
   it("holds back while quiet", () => {

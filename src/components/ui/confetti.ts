@@ -1,8 +1,10 @@
 // Confetti off the end of a bar as it fills (docs/decisions.md, "Confetti
 // when a check finishes the week"). The owner, 2026-10-05: "somewhat
 // shooting out the side that the bar is progressing into, but still
-// vertical, ~45ish degrees." So it leaves the bar's leading end aimed up and
-// out, about 45° from straight up, and is gone in about a second. Squares
+// vertical, ~45ish degrees." So it leaves the bar's leading end up and out,
+// rising at about 45° from straight up to the top of its arc (launched a
+// little steeper, since air and gravity bend it toward the side), and is
+// gone in about a second. Squares
 // and strips, square like everything else, in the colors it's given: theme
 // tokens, read in the theme that's on. One canvas over the page while it
 // flies, removed after; no package. `./celebrate` decides when.
@@ -38,6 +40,12 @@ const DRAG = 2.4;
 const LIFE: readonly [number, number] = [750, 1150];
 /** The last share of a life spent fading out. */
 const FADE = 0.35;
+/**
+ * The launch, degrees from straight up, with room to fly. Air and gravity
+ * flatten the climb, so 35° at launch reads as 45° from the bar's end to the
+ * top of the arc, the angle the eye takes (a launch at 45° reads nearer 58°).
+ */
+const AIM = 35;
 /** Degrees each side of the aim. */
 const SPREAD = 16;
 /** The least room, px, between where confetti starts and the screen's edge. */
@@ -66,11 +74,11 @@ export interface Particle {
 
 /**
  * The aim in degrees from straight up, leaning toward the bar's leading
- * side: 45°, and steeper as the screen's edge gets near (a phone's bar ends
- * 16px from it), so the confetti stays on screen long enough to see.
+ * side: `AIM`, and steeper as the screen's edge gets near (a phone's bar
+ * ends 16px from it), so the confetti stays on screen long enough to see.
  */
 export function confettiAim(room: number): number {
-  return Math.min(45, Math.max(10, room / 4));
+  return Math.min(AIM, Math.max(10, room / 4));
 }
 
 /** Picks a color by weight; `roll` is in [0, 1). */

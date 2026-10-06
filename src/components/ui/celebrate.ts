@@ -11,8 +11,9 @@ import {
 // done, out of the same total, for the same thing. Not when a page opens on
 // a week that's already done, not when another week comes up done, and not
 // when the total shrinks to meet what's done (a course hidden, a deadline
-// gone). Confetti waits for the fill to reach the end; under Reduce Motion
-// the fill jumps and the row flashes at once.
+// gone). And once: after an Undo, checking it again doesn't send it again.
+// Confetti waits for the fill to reach the end; under Reduce Motion the fill
+// jumps and the row flashes at once.
 
 /** The share of the fill's slide (`--dur-sheet`) to wait before bursting. */
 const FILL_LEAD = 0.7;
@@ -50,9 +51,10 @@ function fillDuration(): number {
 }
 
 /**
- * Confetti from `bar` the moment it finishes (`justFinished`), once. `quiet`
- * holds it back, read at the moment it would fire: a course's bar when the
- * week's own bar has the confetti.
+ * Confetti from `bar` the moment it finishes (`justFinished`), once for each
+ * `identity` while the bar is up: unchecking and checking again doesn't send
+ * more. `quiet` holds it back, read at the moment it would fire: a course's
+ * bar when the week's own bar has the confetti.
  */
 export function useCelebrate(
   bar: RefObject<HTMLElement | null>,
@@ -74,6 +76,8 @@ export function useCelebrate(
   // Read when it fires, so a new array each render restarts nothing.
   const latest = useRef({ colors, size, quiet });
   latest.current = { colors, size, quiet };
+  // What this bar has celebrated: a week, or a course's week.
+  const celebrated = useRef(new Set<string>());
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
@@ -90,7 +94,8 @@ export function useCelebrate(
     const fire = () => {
       const el = bar.current;
       const { colors, size, quiet } = latest.current;
-      if (!el || quiet) return;
+      if (!el || quiet || celebrated.current.has(identity)) return;
+      celebrated.current.add(identity);
       if (reducedMotion()) flashDone(el.parentElement ?? el);
       else burstConfetti(el, colors, size);
     };

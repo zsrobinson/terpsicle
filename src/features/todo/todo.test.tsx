@@ -1033,8 +1033,11 @@ describe("the week's progress in the sidebar", () => {
     });
     const user = userEvent.setup();
     await user.click(screen.getByRole("checkbox", { name: "Done: Lab 5" }));
-    // As the fill gets to the end: a course's few, in its colors.
-    await waitFor(() => expect(burstConfetti).toHaveBeenCalledTimes(1));
+    // As the fill gets to the end (about a third of a second; room for a
+    // slow run): a course's few, in its colors.
+    await waitFor(() => expect(burstConfetti).toHaveBeenCalledTimes(1), {
+      timeout: 3_000,
+    });
     expect(burstConfetti).toHaveBeenCalledWith(
       cmsc,
       expect.arrayContaining([
@@ -1050,7 +1053,9 @@ describe("the week's progress in the sidebar", () => {
     const all = within(section).getByRole("progressbar", {
       name: "This week, every course",
     });
-    await waitFor(() => expect(burstConfetti).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(burstConfetti).toHaveBeenCalledTimes(2), {
+      timeout: 3_000,
+    });
     expect(burstConfetti).toHaveBeenLastCalledWith(
       all,
       expect.arrayContaining([

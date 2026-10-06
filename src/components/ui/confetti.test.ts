@@ -25,9 +25,32 @@ const COLORS = [
 ];
 
 describe("confettiAim", () => {
-  it("leans 45° from straight up with room to fly", () => {
-    expect(confettiAim(600)).toBe(45);
-    expect(confettiAim(180)).toBe(45);
+  it("launches 35° from straight up with room to fly", () => {
+    expect(confettiAim(600)).toBe(35);
+    expect(confettiAim(140)).toBe(35);
+  });
+
+  // The owner: "still vertical, ~45ish degrees." What the eye takes is the
+  // climb from the bar's end to the top of the arc, which air and gravity
+  // lay over from the launch.
+  it("climbs at about 45° from straight up, the week's and a course's", () => {
+    for (const size of ["large", "small"] as const) {
+      const [p] = spawnConfetti({
+        x: 0,
+        y: 0,
+        side: 1,
+        aim: confettiAim(600),
+        size,
+        colors: COLORS,
+        // The middle of every range: no spread, the middle speed.
+        random: () => 0.5,
+      });
+      if (!p) throw new Error("no confetti");
+      while (p.vy < 0) stepParticle(p, 1 / 240);
+      const fromUp = (Math.atan2(p.x, -p.y) * 180) / Math.PI;
+      expect(fromUp).toBeGreaterThan(40);
+      expect(fromUp).toBeLessThan(50);
+    }
   });
 
   it("stands steeper near the screen's edge, never past 10°", () => {
