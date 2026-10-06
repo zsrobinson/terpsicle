@@ -87,16 +87,19 @@
     // (the owner, 2026-09-26: ship each product when its screens land).
     "CHAT_ENABLED": "on",
     // Terpsicle Reviews: off | read | on (docs/V2.md §7.4). "off" answers
-    // every reviews/* route with "unavailable"; "read" lists, deletes and
-    // reports but takes no new words. On since the Reviews UI (#85) shipped
-    // (the owner, 2026-09-26: ship each product when its screens land).
-    "REVIEWS_ENABLED": "on",
-    // Our own /reviews pages (docs/decisions.md, "Reviews link out to
-    // PlanetTerp"). Unset or anything but "true" hides them: their
-    // addresses answer a 302 to PlanetTerp's, the purple tab opens
-    // planetterp.com, and nobody writes ("on" above reads as "read"). On
-    // here until the switch PR turns Reviews over to PlanetTerp.
-    "REVIEWS_PAGES_ENABLED": "true",
+    // our reviews/* routes with "unavailable"; the ones that also serve
+    // PlanetTerp's (`reviews/page`, which Schedule's preview reads, and
+    // `reviews/latest`) send theirs alone. "read" lists, deletes and reports
+    // but takes no new words. Off since Reviews moved to PlanetTerp (the
+    // owner, 2026-10-05, "Reviews link out to PlanetTerp"): no writing, no
+    // reports, none of our numbers, and /reviews/mine can't list or delete
+    // (production had no live review of ours). The owner's moderation
+    // queue still works.
+    "REVIEWS_ENABLED": "off",
+    // REVIEWS_PAGES_ENABLED (our own /reviews pages) is unset here, so
+    // they're off: their addresses answer a 302 to PlanetTerp's and the
+    // purple tab opens planetterp.com. "true" brings them back, with
+    // REVIEWS_ENABLED above; reverting this PR does both.
     // Terpsicle Todo (docs/V3.md §3). "on" also needs the secret
     // TODO_FEED_KEY (32 random bytes, base64url) on this Worker; without it
     // every /api/todo/* answers "unavailable". To rotate the key: set the new

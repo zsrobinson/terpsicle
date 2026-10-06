@@ -235,6 +235,7 @@ function WeekCard({ item, props }: { item: TodoItem; props: ViewProps }) {
           title={item.title}
           done={done}
           onToggle={() => props.onToggle(item, "week")}
+          haptic={props.finishes(item)}
           className="md:size-7"
         />
         <WithDetails

@@ -1,8 +1,12 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, PenLine } from "lucide-react";
 import { IntegrationLabel } from "~/components/brand/integration-label";
 import { MetaSep } from "~/components/panel";
 import { formatGpa, formatRating, gradeSummary } from "~/core/grades";
-import { combinedRatingWords, combineRatings } from "~/core/reviews";
+import {
+  type CombinedRating,
+  combinedRatingWords,
+  combineRatings,
+} from "~/core/reviews";
 import { instructorPagePath } from "~/core/reviews/slugs";
 import {
   type Course,
@@ -13,9 +17,7 @@ import {
 } from "~/core/schema";
 import { useAccount } from "~/features/auth/account-store";
 import { crossLinkClicked } from "~/lib/cross-link";
-import { deptOf } from "~/state/catalog-store";
-import { useTerpsicleReviews } from "~/state/data-hooks";
-import { terpsicleInstructor } from "~/state/query/review-numbers";
+import { OutsideLink } from "~/ui/outside-link";
 import { StarMark } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
@@ -36,32 +38,22 @@ function courseGrades(
 }
 
 /**
- * One rating over PlanetTerp's reviews and Terpsicle's (V2 §7.6), once
- * Reviews is at least readable; PlanetTerp's alone before that.
+ * The instructor's rating, PlanetTerp's alone (V2 §7.6): the header and the
+ * preview say the same number, credited to PlanetTerp, and never mix in
+ * ours, which only our Reviews pages show (docs/decisions.md, "Reviews link
+ * out to PlanetTerp"; QA found 4.5 (97) here against 4.6 (88) there).
  */
-export function useCombinedRating(
+export function instructorRating(
   name: string,
-  course: Course,
   planetTerp: PlanetTerpDept | null,
-) {
-  const reviewsOn = useAccount((s) => s.flags.reviews !== "off");
-  const ours = useTerpsicleReviews(deptOf(course.code), reviewsOn);
+): CombinedRating | null {
   if (!name) return null;
-  const terpsicle = terpsicleInstructor(ours, planetTerp, name);
-  // The owner's fix can point a name at another PlanetTerp slug.
-  const pt = terpsicle
-    ? (planetTerp?.instructors[terpsicle.id] ?? null)
-    : instructorFor(planetTerp, name);
+  const pt = instructorFor(planetTerp, name);
   return combineRatings([
     {
       source: "planetterp",
       rating: pt?.rating ?? null,
       reviewCount: pt?.reviewCount ?? 0,
-    },
-    {
-      source: "terpsicle",
-      rating: terpsicle?.numbers?.rating ?? null,
-      reviewCount: terpsicle?.numbers?.reviewCount ?? 0,
     },
   ]);
 }
@@ -81,7 +73,7 @@ export function InstructorMeta({
   planetTerp: PlanetTerpDept | null;
 }) {
   const pt = name ? instructorFor(planetTerp, name) : null;
-  const combined = useCombinedRating(name, course, planetTerp);
+  const combined = instructorRating(name, planetTerp);
   const rating = combined
     ? formatRating(combined.rating, combined.reviewCount)
     : null;
@@ -147,47 +139,65 @@ export function hasReviews(
 
 /**
  * Where full reviews live, on a line of its own so it can't read as the
- * source note's (QA S3): Terpsicle Reviews once it's open here (V2 §7.1),
- * as a View link, else PlanetTerp, named. A plain link, like the product
- * menu's: none of Reviews' code loads with the scheduler.
+ * source note's (QA S3): Terpsicle Reviews while our pages are open here
+ * (V2 §7.1), as a View link; otherwise PlanetTerp, as ways out (all their
+ * reviews, and the professor's page, one button from PlanetTerp's form,
+ * which has no address of its own). A plain link, like the product menu's:
+ * none of Reviews' code loads with the scheduler.
  */
 export function ReadThem({
   slug,
   course,
   name,
+  reviewCount,
 }: {
   slug: string;
   course: CourseCode;
   name: string;
+  /** PlanetTerp's count of their reviews. */
+  reviewCount: number;
 }) {
-  const reviews = useAccount((s) => s.flags.reviews);
+  const ours = useAccount(
+    (s) => s.flags.reviewsPages && s.flags.reviews !== "off",
+  );
   const link =
     "inline-flex min-h-11 items-center gap-1 font-medium text-fg underline underline-offset-2 hover:no-underline md:min-h-0";
-  if (reviews !== "off")
+  if (ours)
     return (
-      <WithTooltip
-        label={`All of ${name}'s reviews and grades in ${course}, in Terpsicle Reviews`}
-      >
-        <a
-          href={`${instructorPagePath(slug)}?course=${course}`}
-          onClick={() => crossLinkClicked("schedule", "reviews")}
-          className={link}
+      <p>
+        <WithTooltip
+          label={`All of ${name}'s reviews and grades in ${course}, in Terpsicle Reviews`}
         >
-          <IntegrationLabel product="reviews" />
-          <ArrowRight size={12} aria-hidden="true" />
-        </a>
-      </WithTooltip>
+          <a
+            href={`${instructorPagePath(slug)}?course=${course}`}
+            onClick={() => crossLinkClicked("schedule", "reviews")}
+            className={link}
+          >
+            <IntegrationLabel product="reviews" />
+            <ArrowRight size={12} aria-hidden="true" />
+          </a>
+        </WithTooltip>
+      </p>
     );
   return (
-    <WithTooltip label="Opens PlanetTerp in a new tab">
-      <a
-        href={planetTerpUrl(slug)}
-        target="_blank"
-        rel="noreferrer"
-        className={link}
+    <p className="flex flex-wrap gap-x-4">
+      {reviewCount > 0 ? (
+        <WithTooltip label={`${name}'s reviews on PlanetTerp, in a new tab`}>
+          <OutsideLink href={planetTerpUrl(slug)} className={link}>
+            {reviewCount === 1
+              ? "Read it on PlanetTerp"
+              : `Read all ${reviewCount.toLocaleString("en-US")} on PlanetTerp`}
+          </OutsideLink>
+        </WithTooltip>
+      ) : null}
+      <WithTooltip
+        label={`Review ${name} on PlanetTerp: their page has "Review this professor"`}
       >
-        Read them on PlanetTerp
-      </a>
-    </WithTooltip>
+        <OutsideLink href={planetTerpUrl(slug)} className={link}>
+          <PenLine size={12} aria-hidden="true" />
+          Review on PlanetTerp
+        </OutsideLink>
+      </WithTooltip>
+    </p>
   );
 }

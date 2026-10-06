@@ -195,6 +195,10 @@ A browser with notifications on, listed in Settings by what it is ("iPhone · Sa
 Keeping a signed-in person's plans and four-year plans the same on every device. On a conflict, nothing merges: the server's copy stays and the local one is kept as "<name> (copy)". Settings follow the account too, each product's (the **room rules** you've closed, Home's closed callouts) beside Schedule's. Every workbench bar shows it in the same place, the **sync slot**: a cloud for your plans with your account ("Saved"), a monitor for Plan's four-year plan in this browser ("Saved in this browser"), and in Todo a calendar with "Sync", which means Todo's sync: with ELMS, and with our own server for your tasks and checks. Code says `SyncSlot`.
 _Avoid_: the cloud (for Todo's sync)
 
+**Data file**:
+The JSON file Settings' "Your data" downloads: your plans, four-year plans with grades, settings and, signed in, what only your account holds (Todo tasks, seat watches, notification settings, class chats and your messages, reviews). "Add a data file" brings one back without replacing anything. In copy: "Download your data", "Add a data file".
+_Avoid_: export (Schedule's Export tab is something else), backup, archive
+
 **Account key**:
 The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. It lives apart from that data (in R2), and deleting the account destroys it, so nothing it encrypted can be read again, even from a backup. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
 _Avoid_: end-to-end (encryption), zero-knowledge, sync key
@@ -384,7 +388,7 @@ A rating is 1 to 5 in halves, written with the rating slider (a star's left half
 The newest reviews anywhere, ours and PlanetTerp's, on `/reviews`, each saying who and which course it's about.
 
 **Reviews preview**:
-In Schedule's course details, the popover (a sheet on phones) an instructor's "Reviews" button opens, wearing Reviews' mark: their rating, the grades sentence, their three newest reviews and "View reviews". Code says `ReviewsPreview`.
+In Schedule's course details, the popover (a sheet on phones) an instructor's "Reviews" button opens, wearing Reviews' mark: their rating, the grades sentence and their three newest reviews, all PlanetTerp's and credited "From PlanetTerp", then "View reviews", or while our Reviews pages are off, "Read all 88 on PlanetTerp" and "Review on PlanetTerp". Code says `ReviewsPreview`.
 _Avoid_: reviews tab, summary
 
 **Folded tabs**:
@@ -574,6 +578,9 @@ _Avoid_: quick add, natural-language input (in the UI)
 **Hidden course**:
 A course the student hid in Todo (the eye on its row in This week, "Hide CMSC216"), for what the feed carries that they don't want, like a club. Its items show nowhere and count in nothing, "Due tomorrow" included. Its row stays, struck through, to show it again.
 _Avoid_: muted, archived
+
+**Confetti** (Todo's):
+What leaves a bar's filling end in Todo's sidebar when a check finishes it: a few in the course's color for a course, the most for the whole week. Only a check sends it; under Reduce Motion the row flashes instead. Code says `burstConfetti`, `useCelebrate`.
 
 **This week**:
 Todo's completion chart in the side panel: what's done of what's due in the week shown ("7 of 12 done"), then each course's "3 of 5 done this week" and its last four weeks as small columns.

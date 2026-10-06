@@ -77,6 +77,9 @@ Terpsicle uses [PostHog](https://posthog.com) to learn which parts of the app pe
   | `signed_out` | `removedLocal` | How often people sign out, and whether the shared-computer option ("Sign out and remove plans from this device") gets used. |
   | `sync_first_sign_in` | `uploaded`, `renamed`, `copies` (counts) | What a device's first sign-in does with the plans and four-year plans already on it: how many go up to the account, how many clash with a name there, and how many the account holds differently. Never plan names, courses or grades. |
   | `account_deletion_requested` | | How often people delete their account. |
+  | `data_downloaded` | `from`: `account` · `browser` | How often people download their data file from Settings, signed in or not (DATA.md §5.6). Never what's in it. |
+  | `data_file_added` | `plans`, `fourYear`, `tasks` (counts) | People adding a data file back, and how much it brought in. Never names, courses, titles or grades. |
+  | `data_file_undone` | none | How often adding a file is undone right away: often means the preview didn't say enough. |
   | `reviews_page_viewed` | `page`: `home` · `instructor` · `course` | Which Reviews pages people read. Never which instructor or course. |
   | `review_form_opened` | | How often people start a review. |
   | `review_submitted` | `outcome`: `published` · `held` · `rejected` | How many new reviews post on their own, and how many wait for a person (V2.md §9.2's under-5% target). Never the review, instructor or course. |

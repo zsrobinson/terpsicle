@@ -41,11 +41,13 @@ export {
   reviewTextKey,
 } from "./text";
 export {
+  dismissedToReview,
   type InstructorToReview,
   instructorsToReview,
   isNamedInstructor,
   isReviewableTerm,
   reviewedKey,
+  withToReviewDismissed,
 } from "./to-review";
 export {
   type ClassTaken,

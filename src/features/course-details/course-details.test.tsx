@@ -46,7 +46,7 @@ vi.mock("~/server/fns/api", async (importOriginal) => {
     ...actual,
     api: {
       ...actual.api,
-      reviews: { ...actual.api.reviews, page: vi.fn() },
+      reviews: { ...actual.api.reviews, page: vi.fn(), planetTerp: vi.fn() },
     },
   };
 });
@@ -110,6 +110,11 @@ describe("Course details", () => {
     vi.mocked(api.reviews.page).mockResolvedValue({
       terpsicle: null,
       planetTerp: [],
+      next: null,
+    });
+    vi.mocked(api.reviews.planetTerp).mockReset();
+    vi.mocked(api.reviews.planetTerp).mockResolvedValue({
+      reviews: [],
       next: null,
     });
     resetSeatWatches();
@@ -218,21 +223,23 @@ describe("Course details", () => {
       expect(rowCodes()).toEqual(["0101", "0201", "0301", "0401"]);
     });
 
-    it("combines PlanetTerp's rating with Terpsicle's once Reviews is readable", async () => {
+    it("shows PlanetTerp's rating alone, as the preview does, even with our Reviews open", async () => {
+      // One source (QA: 4.5 (97) here, 4.6 (88) on Reviews): ours, the
+      // mock's 9 at 3.33, are never mixed in.
       connectPublished(createBucketDataSource(mockDataSource));
-      useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
+      useAccount.setState({
+        flags: { ...FLAGS_OFF, reviews: "read", reviewsPages: true },
+      });
       try {
         const { user } = await renderDetails();
-        // The row on screen now: it re-renders as Terpsicle's numbers land.
         const jada = () =>
           within(screen.getByTestId("sections")).getByRole("button", {
             expanded: true,
             name: /^Jada/,
           });
-        // 88 on PlanetTerp at 4.6, and the mock's 9 on Terpsicle at 3.33.
-        await waitFor(() => expect(jada()).toHaveTextContent(/4\.5\(97\)$/));
+        await waitFor(() => expect(jada()).toHaveTextContent(/4\.6\(88\)$/));
         expect(jada()).toHaveAccessibleName(
-          /^Jada Abernathy ?rated 4\.5 of 5, 97 reviews$/,
+          /^Jada Abernathy ?rated 4\.6 of 5, 88 reviews$/,
         );
         // The rating re-renders as the numbers settle, so hover the one on
         // screen now, and again if a newer one replaced it.
@@ -242,11 +249,11 @@ describe("Course details", () => {
               expanded: true,
               name: /^Jada/,
             }),
-          ).getByText("4.5");
+          ).getByText("4.6");
           await user.hover(rating);
           expect(
             screen.getByRole("tooltip", {
-              name: "4.5 from 97 reviews: 4.6 from 88 on PlanetTerp, 3.3 from 9 on Terpsicle",
+              name: "4.6 from 88 reviews on PlanetTerp",
             }),
           ).toBeInTheDocument();
         });
@@ -610,9 +617,8 @@ describe("Course details", () => {
 
   describe("reviews", () => {
     it("open a preview over the list, with Reviews' mark, asked for only then", async () => {
-      vi.mocked(api.reviews.page).mockResolvedValue({
-        terpsicle: null,
-        planetTerp: [
+      vi.mocked(api.reviews.planetTerp).mockResolvedValue({
+        reviews: [
           aPlanetTerpReview({
             id: "0123456789abcdef",
             instructorId: "ashdown_keiko",
@@ -624,7 +630,7 @@ describe("Course details", () => {
         next: null,
       });
       const { user } = await renderDetails();
-      expect(api.reviews.page).not.toHaveBeenCalled();
+      expect(api.reviews.planetTerp).not.toHaveBeenCalled();
       const header = screen
         .getByRole("button", { name: /^Keiko Ashdown/ })
         .closest("div.sticky") as HTMLElement;
@@ -638,20 +644,39 @@ describe("Course details", () => {
           "The problem sets were long, and the exams followed them closely.",
         ),
       );
-      // Who and which course, nothing more: the server reads what the
-      // nightly crawl stored and never asks PlanetTerp on a visit.
-      expect(api.reviews.page).toHaveBeenCalledWith({
+      // PlanetTerp's alone, never ours: the server reads what the nightly
+      // crawl stored and never asks PlanetTerp on a visit.
+      expect(api.reviews.planetTerp).toHaveBeenCalledWith({
         instructorId: "ashdown_keiko",
         course: "CMSC351",
+        cursor: null,
+        limit: 3,
       });
+      expect(api.reviews.page).not.toHaveBeenCalled();
       expect(keiko).toHaveTextContent("3.1");
       expect(keiko).toHaveTextContent(/In CMSC351, \d+% got an A or B/);
       expect(
         within(keiko).getByRole("img", { name: "4 out of 5 stars" }),
       ).toBeVisible();
+      // Our pages are off: the rest is on PlanetTerp, in a new tab, and the
+      // preview says whose it all is.
+      const all = within(keiko).getByRole("link", {
+        name: /^Read all \d+ on PlanetTerp$/,
+      });
+      expect(all).toHaveAttribute(
+        "href",
+        "https://planetterp.com/professor/ashdown_keiko",
+      );
+      expect(all).toHaveAttribute("target", "_blank");
       expect(
-        within(keiko).getByRole("link", { name: "Read them on PlanetTerp" }),
-      ).toHaveAttribute("href", expect.stringContaining("planetterp.com"));
+        within(keiko).getByRole("link", { name: "Review on PlanetTerp" }),
+      ).toHaveAttribute(
+        "href",
+        "https://planetterp.com/professor/ashdown_keiko",
+      );
+      expect(within(keiko).getByTestId("pt-credit")).toHaveTextContent(
+        "From PlanetTerp: ratings, reviews and grades.",
+      );
       expect(track).toHaveBeenCalledWith("course_details_tab", {
         tab: "instructors",
       });
@@ -659,8 +684,10 @@ describe("Course details", () => {
       expect(document.querySelector(".lucide-sparkles")).toBeNull();
     });
 
-    it("link to Terpsicle Reviews once it's open here", async () => {
-      useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "read" } });
+    it("link to Terpsicle Reviews while our pages are open here", async () => {
+      useAccount.setState({
+        flags: { ...FLAGS_OFF, reviews: "read", reviewsPages: true },
+      });
       try {
         await renderDetails("CMSC351", "instructors");
         const jada = await findReviews("Jada Abernathy");
@@ -670,7 +697,7 @@ describe("Course details", () => {
           ).toHaveAttribute("href", "/reviews/abernathy-jada?course=CMSC351"),
         );
         expect(
-          within(jada).queryByRole("link", { name: "Read them on PlanetTerp" }),
+          within(jada).queryByRole("link", { name: /on PlanetTerp/ }),
         ).toBeNull();
         // A View link on its own line, so it can't read as PlanetTerp's
         // (QA S3), and it counts as a cross-link.

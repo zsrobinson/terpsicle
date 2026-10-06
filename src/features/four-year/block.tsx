@@ -16,7 +16,7 @@ import {
   nextSemester,
 } from "~/core/four-year/terms";
 import { courseSlug } from "~/core/reviews/slugs";
-import { GEN_ED_LABELS, type TermId } from "~/core/schema";
+import { GEN_ED_LABELS, planetTerpCourseUrl, type TermId } from "~/core/schema";
 import {
   type FourYearCourseEntry,
   type FourYearEntry,
@@ -37,6 +37,7 @@ import {
   ActionMenuSub,
 } from "~/ui/action-menu";
 import { Button } from "~/ui/button";
+import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 import {
@@ -119,7 +120,10 @@ function moveTargets(
 function BlockMenu({ entry }: { entry: FourYearEntry }) {
   const { doc, columns, lookup, genEds, summaries } = useModel();
   const nav = usePlanNav();
-  const reviewsOn = useAccount((s) => s.flags.reviews !== "off");
+  // Our Reviews pages, or PlanetTerp's course page while they're off.
+  const reviewsOn = useAccount(
+    (s) => s.flags.reviewsPages && s.flags.reviews !== "off",
+  );
   const course =
     entry.kind === "course" ? lookup.courses.get(entry.code) : null;
   const targets = moveTargets(columns, entry);
@@ -196,6 +200,19 @@ function BlockMenu({ entry }: { entry: FourYearEntry }) {
           }
         >
           <IntegrationLabel product="reviews" />
+        </ActionMenuLinkItem>
+      ) : null}
+      {entry.kind === "course" && !reviewsOn ? (
+        <ActionMenuLinkItem
+          tooltip={`${entry.code}'s reviews and grades on PlanetTerp, in a new tab`}
+          render={<a href={planetTerpCourseUrl(entry.code)} {...OUTSIDE_TAB} />}
+        >
+          <span className="inline-flex items-center gap-0.5">
+            <IntegrationLabel product="reviews">
+              Reviews on PlanetTerp
+            </IntegrationLabel>
+            <OutsideArrow />
+          </span>
         </ActionMenuLinkItem>
       ) : null}
       {entry.kind === "wildcard" ? (
