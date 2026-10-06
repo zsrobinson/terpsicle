@@ -200,6 +200,24 @@ describe("offeringSummary: the classes", () => {
     });
   });
 
+  it("keeps a summer course's season through a stray fall", () => {
+    const summers = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map(
+      (y): TermId => `${y}05`,
+    );
+    // Every summer and Fall 2022 once: summers, not "Rarely".
+    const s = summary("00000000100000--00", { offered: summers });
+    expect(s.pattern).toEqual({
+      kind: "summer-or-winter",
+      seasons: ["summer"],
+    });
+    expect(offeringText(s)).toBe("Summer only");
+    // Two summers and two falls aren't a summer course.
+    expect(
+      summary("00000000101000--00", { offered: ["202505", "202605"] }).pattern
+        .kind,
+    ).not.toBe("summer-or-winter");
+  });
+
   it("calls one summer or winter low confidence", () => {
     const s = summary("00000000000000--00", { offered: ["202612"] });
     expect(s.pattern).toEqual({

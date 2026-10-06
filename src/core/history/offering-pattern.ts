@@ -208,8 +208,11 @@ export function offeringSummary(input: {
 
   const inWindow = ran.filter((t) => t >= windowStart);
   const semestersRan = inWindow.filter(isSemester);
-  if (semestersRan.length === 0) {
-    const others = inWindow.filter((t) => !isSemester(t));
+  const others = inWindow.filter((t) => !isSemester(t));
+  // A summer or winter course keeps its season through a stray fall or
+  // spring (at most one per three of its own), as "Fall only" does through
+  // a stray spring: every summer and one fall isn't "Rarely".
+  if (semestersRan.length <= 2 && others.length >= 3 * semestersRan.length) {
     if (others.length > 0) {
       const seasons = (["summer", "winter"] as const).filter((s) =>
         others.some((t) => seasonOf(t) === s),
