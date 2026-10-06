@@ -67,7 +67,7 @@ const KEPT: readonly [what: string, howLong: string][] = [
   ],
   [
     "Feedback",
-    "1 year; a screenshot 180 days, or 30 days after we fix what it's about",
+    "1 year; a screenshot 180 days, or 30 days after we've dealt with it",
   ],
   ["Staying signed in", "30 days after you last use Terpsicle"],
   [
@@ -221,11 +221,12 @@ export function PrivacyPage() {
           </p>
           <p>
             <Lead>Todo.</Lead> To show your deadlines, we keep your ELMS
-            calendar link on our server and check it about every 20 minutes.
-            It's encrypted with one server key that every ELMS link shares, not
-            your account's own key. We store the assignments and events it lists
-            (titles, courses and due dates), which ones you've marked done, and
-            any courses you hide. We don't get your grades, submissions or ELMS
+            calendar link on our server and check it about every 20 minutes
+            while you use Todo, and less often when you don't. It's encrypted
+            with one server key that every ELMS link shares, not your account's
+            own key. We store the assignments and events it lists (titles,
+            courses and due dates), which ones you've marked done, and any
+            courses you hide. We don't get your grades, submissions or ELMS
             password, and we never sign in to ELMS or Gradescope for you.
             Disconnect any time and we delete the link and everything from it at
             once. If you add a calendar file instead, it's read in your browser,
@@ -328,7 +329,7 @@ export function PrivacyPage() {
               {
                 name: "Google",
                 children:
-                  "signs you in, and tells us your name and UMD email address.",
+                  "signs you in, and tells us your name, your UMD email address and an ID for your Google account.",
               },
               {
                 name: "PostHog",
@@ -410,8 +411,9 @@ export function PrivacyPage() {
             everywhere, then waits 7 days in case you change your mind: signing
             in keeps the account. After that, we delete your profile, your
             synced plans, four-year plans and settings, your Todo tasks and ELMS
-            link with its deadlines, your seat watches, notification settings,
-            chat messages and calendar feed link. Your calendar feed stops
+            link with its deadlines, your seat watches, your notifications,
+            their settings and the record of what we sent you, your chat
+            messages and your calendar feed link. Your calendar feed stops
             working right away. Plans saved in your browser stay until you
             remove them.
           </p>

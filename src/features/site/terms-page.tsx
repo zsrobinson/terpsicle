@@ -126,13 +126,13 @@ export function TermsPage() {
           </p>
           <p>
             We can change Terpsicle, or stop running it, at any time. When we
-            change these terms, the date at the top changes, and using Terpsicle
-            after that means you accept the new ones.
+            change these terms of use, the date at the top changes, and using
+            Terpsicle after that means you accept the new ones.
           </p>
           <p>
-            These terms are governed by the laws of the State of Maryland. The
-            code itself is under the MIT License; these terms cover using
-            Terpsicle, not the code.
+            These terms of use are governed by the laws of the State of
+            Maryland. The code itself is under the MIT License; these terms of
+            use cover using Terpsicle, not the code.
           </p>
         </LegalSection>
       </article>
