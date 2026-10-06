@@ -305,6 +305,34 @@ async function seedAccount(id: string, n: number) {
         `seat-open:${id}:${TERM}:CMSC351-0101:email`,
         at,
       ],
+      // One delivery of each kind, under the dedupe keys their senders
+      // build: every one of them spells out the directory ID.
+      ...(
+        [
+          ["seat-open", `seat-open:${id}:${TERM}:2026-10-09T13:00:00Z:push`],
+          ["seat-open", `seat-open:${id}:${TERM}:2026-10-09T13:00:00Z:email`],
+          [
+            "chat-mention",
+            `chat-mention:${id}:01JAAAAAAAAAAAAAAAAAAAAA1${n}:push`,
+          ],
+          ["chat-reply", `chat-reply:${id}:01JAAAAAAAAAAAAAAAAAAAAA2${n}:push`],
+          ["chat-digest", `chat-digest:${id}:2026-10-09:email`],
+          ["todo-due", `todo-due:${id}:2026-10-09:push`],
+          [
+            "chat-mention",
+            `quiet:${id}:chat-mention:${TERM}:CMSC351:${at}:push`,
+          ],
+          ["admin-urgent", `admin-urgent:${id}:${at}:push`],
+        ] as const
+      ).map(([type, key]) => [
+        `INSERT INTO notification_deliveries (user_id, type, channel, dedupe_key, status, sent_at)
+         VALUES (?1, ?2, ?3, ?4, 'sent', ?5)`,
+        id,
+        type,
+        key.endsWith(":email") ? "email" : "push",
+        key,
+        at,
+      ]),
       [
         `INSERT INTO feedback (id, kind, product, path, text, host, user_id, created_at, updated_at)
          VALUES (?2, 'bug', 'schedule', '/schedule', 'The calendar jumps when I drag a block.', 'terpsicle.com', ?1, ?3, ?3)`,
