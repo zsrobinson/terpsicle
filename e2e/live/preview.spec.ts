@@ -210,11 +210,21 @@ test("/ shows the marketing page to a first visit, and /privacy and /terms load"
   ).toBeVisible();
 });
 
-test("our Reviews pages go to PlanetTerp, as previews have them off", async ({
+test("our Reviews pages go to PlanetTerp while they're off", async ({
   page,
 }) => {
-  // REVIEWS_PAGES_ENABLED is unset on previews (wrangler.jsonc): each
-  // address answers a 302 to its PlanetTerp twin, which isn't followed here.
+  // REVIEWS_PAGES_ENABLED is unset on previews (wrangler.jsonc), and on
+  // production once it switches to version A; until then production serves
+  // the pages, so read the flag the app is told rather than assume it.
+  const me = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === "/api/me" && r.ok(),
+  );
+  await page.goto("/schedule");
+  const { flags } = (await (await me).json()) as {
+    flags: { reviewsPages: boolean };
+  };
+  test.skip(flags.reviewsPages, "This deployment has our Reviews pages on.");
+  // Each address answers a 302 to its PlanetTerp twin, not followed here.
   for (const [path, to] of [
     ["/reviews", "https://planetterp.com"],
     ["/reviews/cmsc351", "https://planetterp.com/course/CMSC351"],
