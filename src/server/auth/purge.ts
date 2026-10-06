@@ -71,7 +71,7 @@ export const PURGE_LEDGER = {
   notifications:
     "deleted: the person's inbox (seat openings, mentions, replies, Due tomorrow); actor_id set to null on others' rows about their messages",
   notification_deliveries:
-    "kept for dedupe and counts, user_id set to null; pruned after 90 days",
+    "deleted: every dedupe key spells out the directory ID (`seat-open:<id>:…`, `todo-due:<id>:…`), so a row kept with user_id nulled would still name them",
   // 0007_seat_watches
   seat_watches: "deleted",
   seat_alert_sends: "deleted",
@@ -368,21 +368,17 @@ export function accountStatements(
     byUser("chat_send_hashes"),
     // The owner's stops on them (the users columns go with the row).
     byUser("author_stops"),
-    // Notifications: settings, devices and chat notifications go; the
-    // record of what was sent stays, linked to nobody.
+    // Notifications: settings, devices, the inbox and the record of what
+    // was sent, whose dedupe keys name the person.
     byUser("notification_settings"),
     byUser("push_subscriptions"),
     byUser("notifications"),
+    byUser("notification_deliveries"),
     // Others' inbox rows about their messages keep no trace of who (the
     // messages themselves went in step 1, so those rows drop out anyway).
     db
       .prepare(
         `UPDATE notifications SET actor_id = NULL WHERE actor_id = ?1 AND ${STILL_DUE}`,
-      )
-      .bind(userId, at),
-    db
-      .prepare(
-        `UPDATE notification_deliveries SET user_id = NULL WHERE user_id = ?1 AND ${STILL_DUE}`,
       )
       .bind(userId, at),
     // Seat watches and the alerts sent for them.
