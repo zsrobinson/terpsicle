@@ -219,8 +219,15 @@ export function HomePage() {
                 colors={colors}
               />
             ) : null}
-            {signedIn && flags.reviews === "on" && local ? (
-              <ReviewsSection local={local} today={clock.today} />
+            {/* Our Reviews, signed in where you write them; while reviews
+                live on PlanetTerp, for anyone with plans. */}
+            {local &&
+            (flags.reviewsPages ? signedIn && flags.reviews === "on" : true) ? (
+              <ReviewsSection
+                local={local}
+                today={clock.today}
+                outside={!flags.reviewsPages}
+              />
             ) : null}
           </>
         }

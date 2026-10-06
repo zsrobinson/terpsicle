@@ -483,6 +483,21 @@ export class ObjectStore {
     });
   }
 
+  /**
+   * The author's own messages, oldest first, for their data file. Ones
+   * they deleted are left out: their text is gone already.
+   */
+  authorMessages(authorId: string): MessageRow[] {
+    if (!this.#ready) return [];
+    return this.sql
+      .exec(
+        "SELECT * FROM messages WHERE author_id = ? AND deleted_at IS NULL ORDER BY seq",
+        authorId,
+      )
+      .toArray()
+      .map(toRow);
+  }
+
   /** Messages still checking whose recheck time has come. */
   dueForCheck(now: number, limit: number): MessageRow[] {
     if (!this.#ready) return [];

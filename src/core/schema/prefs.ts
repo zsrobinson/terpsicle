@@ -22,6 +22,16 @@ export const HomePrefsSchema = z.object({
 export type HomePrefs = z.infer<typeof HomePrefsSchema>;
 
 /**
+ * Home's "Review your instructors" rows you've closed while reviews live on
+ * PlanetTerp, which can't tell us what you reviewed there: `reviewedKey`s
+ * (~/core/reviews), the newest last.
+ */
+export const ToReviewPrefsSchema = z.object({
+  dismissed: z.array(z.string().min(1).max(160)).max(100),
+});
+export type ToReviewPrefs = z.infer<typeof ToReviewPrefsSchema>;
+
+/**
  * Loose on purpose: a key this build doesn't know (a newer build's, another
  * product's) passes through untouched, so no build drops what it can't read.
  * That includes `todo`, where Todo's "Weeks start on" was kept until its
@@ -33,5 +43,6 @@ export type HomePrefs = z.infer<typeof HomePrefsSchema>;
 export const SyncedPrefsSchema = z.looseObject({
   chatRules: ChatRulesPrefsSchema.optional(),
   home: HomePrefsSchema.optional(),
+  toReview: ToReviewPrefsSchema.optional(),
 });
 export type SyncedPrefs = z.infer<typeof SyncedPrefsSchema>;

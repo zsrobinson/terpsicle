@@ -559,3 +559,66 @@ export async function readNotifications(
     .bind(userId, termId, courseCode, roomId, seq, at)
     .run();
 }
+
+const ChatDataRowSchema = z.object({
+  kind: z.enum(["room", "follow", "muted", "authored"]),
+  term_id: z.string(),
+  course_code: z.string(),
+  extra: z.string().nullable(),
+});
+
+/**
+ * One person's chat rows, for their data file (docs/DATA.md §5.6): their
+ * rooms (from their main plans), the courses they follow, the rooms they
+ * muted, and the courses they've written in.
+ */
+export async function chatDataOf(
+  db: D1Database,
+  userId: string,
+): Promise<{
+  rooms: { termId: string; courseCode: string; sectionCode: string }[];
+  follows: { termId: string; courseCode: string; createdAt: string }[];
+  muted: { termId: string; courseCode: string; roomId: string }[];
+  authored: { termId: string; courseCode: string }[];
+}> {
+  const { results } = await db
+    .prepare(
+      `SELECT 'room' AS kind, term_id, course_code, section_code AS extra
+         FROM chat_members WHERE user_id = ?1
+       UNION ALL
+       SELECT 'follow', term_id, course_code, created_at
+         FROM chat_follows WHERE user_id = ?1
+       UNION ALL
+       SELECT 'muted', term_id, course_code, room_id
+         FROM chat_room_prefs WHERE user_id = ?1 AND muted = 1
+       UNION ALL
+       SELECT 'authored', term_id, course_code, NULL
+         FROM chat_author_courses WHERE user_id = ?1
+       ORDER BY 2, 3`,
+    )
+    .bind(userId)
+    .all();
+  const rows = results.map((r) => ChatDataRowSchema.parse(r));
+  const of = (kind: string) => rows.filter((r) => r.kind === kind);
+  return {
+    rooms: of("room").map((r) => ({
+      termId: r.term_id,
+      courseCode: r.course_code,
+      sectionCode: r.extra ?? "",
+    })),
+    follows: of("follow").map((r) => ({
+      termId: r.term_id,
+      courseCode: r.course_code,
+      createdAt: r.extra ?? "",
+    })),
+    muted: of("muted").map((r) => ({
+      termId: r.term_id,
+      courseCode: r.course_code,
+      roomId: r.extra ?? "",
+    })),
+    authored: of("authored").map((r) => ({
+      termId: r.term_id,
+      courseCode: r.course_code,
+    })),
+  };
+}

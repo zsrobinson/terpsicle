@@ -35,6 +35,7 @@ describe("the composed route table", () => {
     expect(summary()).toMatchInlineSnapshot(`
       [
         "account/delete auth=user ip=30 user=10 bytes=- reviews=- whenOff=-",
+        "account/export auth=user ip=- user=30 bytes=- reviews=- whenOff=-",
         "admin/chat/remove auth=admin ip=600 user=- bytes=- reviews=- whenOff=-",
         "admin/decisions auth=admin ip=600 user=- bytes=- reviews=- whenOff=-",
         "admin/feedback/delete auth=admin ip=600 user=- bytes=- reviews=- whenOff=-",

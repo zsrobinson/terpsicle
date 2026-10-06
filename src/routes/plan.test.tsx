@@ -602,8 +602,28 @@ describe("links to the other products", () => {
     expect(within(fall).queryByRole("link", { name: "View todos" })).toBeNull();
   });
 
-  it("a course block's menu has View reviews, while Reviews is on", async () => {
+  it("a course block's menu has Reviews on PlanetTerp while our Reviews pages are off", async () => {
     useAccount.setState({ flags: { ...FLAGS_OFF, reviews: "on" } });
+    await seed(PLAN);
+    const user = renderPlan();
+    await user.click(
+      await screen.findByRole("button", { name: "CMSC351 options" }),
+    );
+    const item = await screen.findByRole("menuitem", {
+      name: /Reviews on PlanetTerp/,
+    });
+    expect(item).toHaveAttribute(
+      "href",
+      "https://planetterp.com/course/CMSC351",
+    );
+    expect(item).toHaveAttribute("target", "_blank");
+    expect(screen.queryByRole("menuitem", { name: "View reviews" })).toBeNull();
+  });
+
+  it("a course block's menu has View reviews, while our Reviews is on", async () => {
+    useAccount.setState({
+      flags: { ...FLAGS_OFF, reviews: "on", reviewsPages: true },
+    });
     await seed(PLAN);
     const user = renderPlan();
     await user.click(

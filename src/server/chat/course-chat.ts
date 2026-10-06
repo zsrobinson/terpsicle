@@ -8,6 +8,7 @@
 // It's reachable only through the Worker (src/server/chat/socket.ts), which
 // checks the session and says who's asking in X-Terpsicle-* headers, and
 // through moderation's handler (applyDecision).
+
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
 import {
@@ -40,6 +41,10 @@ import {
   type RoomId,
   TermIdSchema,
 } from "~/core/schema";
+import {
+  type ExportChatMessage,
+  ExportChatMessageSchema,
+} from "~/core/schema/data-export";
 import { applyStopStatement, recordStopStatement } from "../auth/stops";
 import {
   latestDecision,
@@ -805,6 +810,33 @@ export class CourseChat extends DurableObject<Env> {
     }
     for (const root of threads) await this.#threadChanged(root);
     return { messages: gone.length };
+  }
+
+  /**
+   * The person's own messages in this course, for their data file
+   * (docs/DATA.md §5.6): their words and where they are. A reply names
+   * what it answers by id only, never someone else's words.
+   */
+  async exportAuthor(target: {
+    termId: string;
+    courseCode: string;
+    userId: string;
+  }): Promise<ExportChatMessage[]> {
+    this.#bind(target.termId, target.courseCode);
+    return this.#store.authorMessages(target.userId).flatMap((row) => {
+      const message = ExportChatMessageSchema.safeParse({
+        termId: target.termId,
+        courseCode: target.courseCode,
+        roomId: row.room_id,
+        id: row.id,
+        body: row.body,
+        replyTo: row.reply_to,
+        status: row.status,
+        createdAt: row.created_at,
+        editedAt: row.edited_at,
+      });
+      return message.success ? [message.data] : [];
+    });
   }
 
   /**

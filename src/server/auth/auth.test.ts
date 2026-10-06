@@ -554,8 +554,9 @@ describe("flags", () => {
     ).toBe("on");
   });
 
-  it("keeps our Reviews pages off in previews, as in production after the switch", () => {
-    const { previews } = testBindings().varNames;
+  it("keeps our Reviews pages off in production and previews", () => {
+    const { production, previews } = testBindings().varNames;
+    expect(production).not.toContain("REVIEWS_PAGES_ENABLED");
     expect(previews).not.toContain("REVIEWS_PAGES_ENABLED");
   });
 });

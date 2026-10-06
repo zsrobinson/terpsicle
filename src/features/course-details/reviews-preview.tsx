@@ -4,7 +4,7 @@ import { useState } from "react";
 import { IntegrationLabel } from "~/components/brand/integration-label";
 import { formatGpa, formatShare, gradeSummary } from "~/core/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
-import { combinedRatingWords, formatStars, mergeReviews } from "~/core/reviews";
+import { combinedRatingWords, formatStars } from "~/core/reviews";
 import {
   type Course,
   type CourseCode,
@@ -12,7 +12,8 @@ import {
   type PlanetTerpDept,
   PREVIEW_REVIEWS,
 } from "~/core/schema";
-import { formatFullDate, formatMonthYear } from "~/core/time/format";
+import { formatFullDate } from "~/core/time/format";
+import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { lazyComponent } from "~/lib/lazy-component";
 import { api } from "~/server/fns/api";
@@ -24,29 +25,41 @@ import { Skeleton } from "~/ui/skeleton";
 import { Stars } from "~/ui/stars";
 import { WithTooltip } from "~/ui/tooltip";
 import { instructorFor } from "./planetterp";
-import { ReadThem, useCombinedRating } from "./reviews";
+import { instructorRating, ReadThem } from "./reviews";
 
 // A small Reviews, where you pick a section (owner, 2026-09-29: "a little
 // popover that's like a mini version/preview of the [reviews] tab, with the
 // option to open the full one up too"): their rating, their grades in the
-// course, the newest few reviews, and View reviews for the rest. A popover
+// course and the newest few reviews, all PlanetTerp's and credited to it
+// (docs/decisions.md, "Reviews link out to PlanetTerp"), then the way to
+// the rest: PlanetTerp, or View reviews while our pages are open. A popover
 // on a desktop, a sheet on a phone. It carries Reviews' mark, as every
 // product's part inside another does (docs/decisions.md). Nothing of
-// Reviews' pages loads with the scheduler: this asks `reviews/page` itself.
+// Reviews' pages loads with the scheduler: this asks `planetterp/reviews`
+// itself.
 
 /** Reviews the preview shows. */
 const SHOWN = PREVIEW_REVIEWS;
 /** How long a preview's reviews count as current: they change nightly. */
 const PREVIEW_STALE_MS = 10 * 60_000;
 
-/** One instructor's newest reviews in a course, ours and PlanetTerp's. */
+/**
+ * One instructor's newest PlanetTerp reviews in a course, as the nightly
+ * crawl stored them: never ours, which only our own pages show.
+ */
 export function instructorReviewsQuery(
   slug: InstructorSlug,
   course: CourseCode,
 ) {
   return queryOptions({
     queryKey: ["reviews", "preview", slug, course],
-    queryFn: () => api.reviews.page({ instructorId: slug, course }),
+    queryFn: () =>
+      api.reviews.planetTerp({
+        instructorId: slug,
+        course,
+        cursor: null,
+        limit: SHOWN,
+      }),
     staleTime: PREVIEW_STALE_MS,
     retry: 1,
   });
@@ -149,7 +162,11 @@ export function ReviewsPreview({
   loading: boolean;
 }) {
   const pt = instructorFor(planetTerp, name);
-  const combined = useCombinedRating(name, course, planetTerp);
+  const combined = instructorRating(name, planetTerp);
+  // As `ReadThem` decides: our pages, or PlanetTerp's ways out.
+  const ours = useAccount(
+    (s) => s.flags.reviewsPages && s.flags.reviews !== "off",
+  );
   const record = pt
     ? planetTerp?.courses[course.code]?.byInstructor[pt.slug]
     : undefined;
@@ -164,13 +181,8 @@ export function ReviewsPreview({
     ...instructorReviewsQuery(pt?.slug ?? "", course.code),
     enabled: pt !== null && !loading,
   });
-  const shown = reviews.data
-    ? mergeReviews(
-        reviews.data.terpsicle ?? [],
-        reviews.data.planetTerp,
-        true,
-      ).slice(0, SHOWN)
-    : [];
+  // PlanetTerp's alone, as the rating above is: one source, credited.
+  const shown = reviews.data?.reviews.slice(0, SHOWN) ?? [];
 
   return (
     <div className="flex flex-col gap-3 text-sm" data-instructor={name}>
@@ -235,43 +247,47 @@ export function ReviewsPreview({
         <ul className="flex flex-col" aria-label="Newest reviews">
           {shown.map((r) => (
             <li
-              key={r.review.id}
+              key={r.id}
               className="flex flex-col gap-1 border-hairline border-t py-2 first:border-t-0 first:pt-0"
             >
               <span className="flex items-center gap-2 text-muted text-xs">
-                <Stars size={11} rating={r.review.rating} />
-                {r.source === "planetterp" ? (
-                  <time dateTime={r.review.createdDate} className="tnum">
-                    {formatFullDate(r.review.createdDate)}
-                  </time>
-                ) : (
-                  <time dateTime={r.review.createdMonth} className="tnum">
-                    {formatMonthYear(r.review.createdMonth)}
-                  </time>
-                )}
-                {r.source === "planetterp" ? <span>PlanetTerp</span> : null}
+                <Stars size={11} rating={r.rating} />
+                <time dateTime={r.createdDate} className="tnum">
+                  {formatFullDate(r.createdDate)}
+                </time>
               </span>
               <p className="line-clamp-4 whitespace-pre-line break-words">
-                {r.review.body}
+                {r.body}
               </p>
             </li>
           ))}
         </ul>
       )}
-      {pt && pt.reviewCount > 0 && !loading ? (
+      {pt && pt.reviewCount > 0 && !loading && ours ? (
         <p className="text-muted text-xs">
           {pt.reviewCount} review{pt.reviewCount === 1 ? "" : "s"} on
           PlanetTerp.
         </p>
       ) : null}
-      {freshness && !loading ? (
-        <p className="text-faint text-xs" data-testid="pt-freshness">
-          {freshness}
-        </p>
+      {pt && !loading ? (
+        <ReadThem
+          slug={pt.slug}
+          course={course.code}
+          name={name}
+          reviewCount={pt.reviewCount}
+        />
       ) : null}
       {pt && !loading ? (
-        <p>
-          <ReadThem slug={pt.slug} course={course.code} name={name} />
+        <p
+          className="border-hairline border-t pt-2 text-faint text-xs"
+          data-testid="pt-credit"
+        >
+          From PlanetTerp: ratings, reviews and grades.
+          {freshness ? (
+            <span className="block text-faint" data-testid="pt-freshness">
+              {freshness}
+            </span>
+          ) : null}
         </p>
       ) : null}
     </div>
