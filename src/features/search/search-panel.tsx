@@ -135,10 +135,9 @@ export function SearchPanel() {
       <h2 className="sr-only">Search</h2>
       <ResultCount
         count={
-          results.status === "ready" && courses.length > 0
-            ? courses.length
-            : null
+          results.status === "ready" && rowCount > 0 ? courses.length : null
         }
+        notOffered={notOffered.length}
       />
       <div className="flex shrink-0 flex-col gap-2 border-hairline border-b px-4 py-3">
         <CourseSearchField
@@ -334,14 +333,23 @@ const NO_COURSES: readonly Course[] = [];
  * results has its own message). Always mounted, so the live region exists
  * before its text changes.
  */
-function ResultCount({ count }: { count: number | null }) {
+function ResultCount({
+  count,
+  notOffered,
+}: {
+  count: number | null;
+  /** The greyed rows after them: said too, or "0 courses" hides them. */
+  notOffered: number;
+}) {
   const [said, setSaid] = useState("");
   useEffect(() => {
     const text =
-      count === null ? "" : `${count} ${count === 1 ? "course" : "courses"}`;
+      count === null
+        ? ""
+        : `${count} ${count === 1 ? "course" : "courses"}${notOffered > 0 ? `, ${notOffered} not offered this term` : ""}`;
     const timer = setTimeout(() => setSaid(text), 600);
     return () => clearTimeout(timer);
-  }, [count]);
+  }, [count, notOffered]);
   return (
     <p className="sr-only" aria-live="polite" aria-atomic="true">
       {said}

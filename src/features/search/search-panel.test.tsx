@@ -118,6 +118,10 @@ describe("Search tab", () => {
     expect(screen.getByRole("listbox")).toHaveAccessibleName(
       "0 courses, 1 not offered this term",
     );
+    // And a screen reader hears it, not silence.
+    expect(
+      await screen.findByText("0 courses, 1 not offered this term"),
+    ).toHaveAttribute("aria-live", "polite");
     // Opening it says what it is and when it's offered.
     await user.click(row);
     expect(
@@ -228,6 +232,22 @@ describe("Search tab", () => {
     expect(useUi.getState().hoverCourse).toBeNull();
     expect(track).toHaveBeenCalledWith("search_result_opened", {
       position: 0,
+    });
+  });
+
+  it("↓ reaches a greyed row too, with no ghosts, and ↵ opens it", async () => {
+    const { user, box } = await renderSearch();
+    await user.type(box, "cmsc473");
+    const row = await screen.findByRole("option", { name: /^CMSC473/ });
+    await user.keyboard("{ArrowDown}");
+    expect(box).toHaveAttribute("aria-activedescendant", row.id);
+    expect(row).toHaveAttribute("aria-selected", "true");
+    // Nothing of it is on the calendar: the term has no sections of it.
+    expect(useUi.getState().hoverCourse).toBeNull();
+    await user.keyboard("{Enter}");
+    expect(currentView().drill).toEqual({
+      kind: "course",
+      courseCode: "CMSC473",
     });
   });
 

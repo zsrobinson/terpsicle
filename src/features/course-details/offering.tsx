@@ -80,15 +80,23 @@ export type CourseOffering = NonNullable<ReturnType<typeof useCourseOffering>>;
 export function UsuallyOffered({ offering }: { offering: CourseOffering }) {
   const { line, record, cells } = offering;
   const span = stripSpan(cells);
-  const tip = [
-    record ?? "Too few fall and spring semesters on record to tell.",
-    span ? `${span}: filled ran, hollow didn't, dashed isn't on record.` : "",
-    "A pattern from past semesters, not a promise.",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const counted =
+    record ??
+    (offering.summary.pattern.kind === "summer-or-winter"
+      ? "Offered mostly in summer or winter terms."
+      : "Too few fall and spring semesters on record to tell.");
+  // A card, not one long line: three sentences would run across the
+  // calendar and cover the facts above.
+  const card = (
+    <div className="mt-1 space-y-1 text-muted">
+      {span ? (
+        <p>{span}: filled ran, hollow didn't, dashed isn't on record.</p>
+      ) : null}
+      <p>A pattern from past semesters, not a promise.</p>
+    </div>
+  );
   return (
-    <WithTooltip label={tip}>
+    <WithTooltip label={counted} card={card}>
       <div data-testid="usually-offered">
         <p>
           <span className="font-medium text-fg">Usually offered</span>{" "}
