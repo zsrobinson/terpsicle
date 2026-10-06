@@ -31,7 +31,7 @@ type ProductPageProps = {
 } & (
   | {
       width: "note" | "reading";
-      /** Privacy and About Terpsicle; on by default. */
+      /** Privacy, Terms of use and About Terpsicle; on by default. */
       footer?: boolean;
     }
   | {
@@ -85,8 +85,8 @@ export function ProductPage(props: ProductPageProps) {
 }
 
 /**
- * A 40px muted line (44px on a phone): Privacy and About Terpsicle, each a
- * tap target the line's height. Feedback is in the bar.
+ * A 40px muted line (44px on a phone): Privacy, Terms of use and About
+ * Terpsicle, each a tap target the line's height. Feedback is in the bar.
  */
 export function PageFooter({ className }: { className?: string }) {
   return (
@@ -99,6 +99,11 @@ export function PageFooter({ className }: { className?: string }) {
       <WithTooltip label="What Terpsicle keeps about you, and why">
         <Link to="/privacy" className="hover:text-fg">
           Privacy
+        </Link>
+      </WithTooltip>
+      <WithTooltip label="The rules for using Terpsicle">
+        <Link to="/terms" className="hover:text-fg">
+          Terms of use
         </Link>
       </WithTooltip>
       {/* ?stay: returning visitors would otherwise skip to the scheduler.

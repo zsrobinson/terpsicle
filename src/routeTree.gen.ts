@@ -17,6 +17,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminDecisionsRouteImport } from './routes/admin.decisions'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
@@ -92,6 +93,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof ScheduleRouteWithChildren
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
+  '/terms': typeof TermsRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/grades': typeof AdminGradesRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
+  '/terms': typeof TermsRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/grades': typeof AdminGradesRoute
@@ -375,6 +383,7 @@ export interface FileRoutesById {
   '/schedule': typeof ScheduleRouteWithChildren
   '/settings': typeof SettingsRoute
   '/signin': typeof SigninRoute
+  '/terms': typeof TermsRoute
   '/admin/decisions': typeof AdminDecisionsRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/grades': typeof AdminGradesRoute
@@ -423,6 +432,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/signin'
+    | '/terms'
     | '/admin/decisions'
     | '/admin/feedback'
     | '/admin/grades'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/settings'
     | '/signin'
+    | '/terms'
     | '/admin/decisions'
     | '/admin/feedback'
     | '/admin/grades'
@@ -512,6 +523,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/signin'
+    | '/terms'
     | '/admin/decisions'
     | '/admin/feedback'
     | '/admin/grades'
@@ -559,6 +571,7 @@ export interface RootRouteChildren {
   ScheduleRoute: typeof ScheduleRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   SigninRoute: typeof SigninRoute
+  TermsRoute: typeof TermsRoute
   AdminDecisionsRoute: typeof AdminDecisionsRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminGradesRoute: typeof AdminGradesRoute
@@ -633,6 +646,13 @@ declare module '@tanstack/react-router' {
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -965,6 +985,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScheduleRoute: ScheduleRouteWithChildren,
   SettingsRoute: SettingsRoute,
   SigninRoute: SigninRoute,
+  TermsRoute: TermsRoute,
   AdminDecisionsRoute: AdminDecisionsRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminGradesRoute: AdminGradesRoute,

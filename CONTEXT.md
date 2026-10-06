@@ -194,6 +194,13 @@ _Avoid_: end-to-end (encryption), zero-knowledge, sync key
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
 _Avoid_: close account, deactivate
 
+**Privacy**:
+The privacy policy at `/privacy`: what we keep about you, why, who else touches it, how long, and how to delete it. Links and titles say "Privacy"; a sentence can say "privacy policy".
+
+**Terms of use**:
+The rules for using Terpsicle at `/terms`, always beside **Privacy**: in the footer, the account menu and under every sign-in ("By signing in, you agree to the terms of use and privacy policy."). Never "Terms" alone, since a **term** is a semester.
+_Avoid_: terms, terms of service, ToS (in UI; Google's console calls its field "terms of service")
+
 **Sparkles**:
 The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. Students see none today (the owner removed Reviews' summaries on 2026-09-29); only the owner's feedback groups carry it.
 

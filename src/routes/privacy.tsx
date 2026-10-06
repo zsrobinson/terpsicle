@@ -8,7 +8,8 @@ export const Route = createFileRoute("/privacy")({
       { title: "Privacy · Terpsicle" },
       {
         name: "description",
-        content: "What Terpsicle keeps about you, where, and why.",
+        content:
+          "What Terpsicle keeps about you, why, who else touches it, how long we keep it and how to delete it.",
       },
     ],
   }),

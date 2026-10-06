@@ -25,6 +25,10 @@ describe("ProductPage", () => {
       "href",
       "/privacy",
     );
+    expect(screen.getByRole("link", { name: "Terms of use" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
     expect(
       screen.getByRole("link", { name: "About Terpsicle" }),
     ).toHaveAttribute("href", "/?stay");

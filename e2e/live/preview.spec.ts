@@ -190,10 +190,11 @@ function savedKeys(): Promise<string[]> {
   });
 }
 
-test("/ shows the marketing page to a first visit, and /privacy loads", async ({
+test("/ shows the marketing page to a first visit, and /privacy and /terms load", async ({
   page,
 }) => {
-  // Google's OAuth consent screen links to /privacy and checks that it loads.
+  // Google's OAuth consent screen links to /privacy and /terms, and checks
+  // that they load.
   await page.goto("/");
   // The hero's button; the closing section repeats it.
   await expect(
@@ -202,6 +203,10 @@ test("/ shows the marketing page to a first visit, and /privacy loads", async ({
   await page.goto("/privacy");
   await expect(
     page.getByRole("heading", { name: "Privacy", level: 1 }),
+  ).toBeVisible();
+  await page.goto("/terms");
+  await expect(
+    page.getByRole("heading", { name: "Terms of use", level: 1 }),
   ).toBeVisible();
 });
 

@@ -98,6 +98,11 @@ export function MarketingFooter() {
             Privacy
           </a>
         </LazyTooltip>
+        <LazyTooltip label="The rules for using Terpsicle">
+          <a href="/terms" className="mk-link hover:text-fg">
+            Terms of use
+          </a>
+        </LazyTooltip>
         <span>
           Course data from Testudo. Reviews and grades from{" "}
           <LazyTooltip label="PlanetTerp, where the grade data and many reviews come from">

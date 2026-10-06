@@ -30,6 +30,7 @@ export const SITE_PAGES: readonly SitemapEntry[] = [
   { path: "/reviews", changeFrequency: "weekly", priority: 0.8 },
   { path: "/reviews/policy", changeFrequency: "yearly", priority: 0.2 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
+  { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
 ];
 
 /**

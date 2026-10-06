@@ -7,6 +7,7 @@ import {
   UMD_ACCOUNTS_WORDS,
 } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
+import { ProseLink } from "~/features/site/legal";
 import { track } from "~/lib/analytics";
 import { api } from "~/server/fns/api";
 import { Button } from "~/ui/button";
@@ -122,10 +123,31 @@ export function SignInPanel({
       {pitch ? <p className="text-fg">{SIGN_IN_PITCH}</p> : null}
       <GoogleButton returnTo={returnTo} from={from} className="w-fit" />
       <p className="text-muted text-sm">
-        Use your {UMD_ACCOUNTS_WORDS} account. We see your name, email and
-        photo, never your mail or files.
+        Use your {UMD_ACCOUNTS_WORDS} account. We keep your name and email,
+        never your photo, mail or files.
       </p>
+      <SignInAgreement />
     </div>
+  );
+}
+
+/** The line under a sign-in: what signing in agrees to, with both pages. */
+export function SignInAgreement() {
+  return (
+    <p className="text-muted text-sm">
+      By signing in, you agree to the{" "}
+      <ProseLink to="/terms" tooltip="The rules for using Terpsicle">
+        terms of use
+      </ProseLink>{" "}
+      and{" "}
+      <ProseLink
+        to="/privacy"
+        tooltip="What Terpsicle keeps about you, and why"
+      >
+        privacy policy
+      </ProseLink>
+      .
+    </p>
   );
 }
 

@@ -15,6 +15,7 @@ describe("sitemapXml", () => {
       "https://terpsicle.com/reviews",
       "https://terpsicle.com/reviews/policy",
       "https://terpsicle.com/privacy",
+      "https://terpsicle.com/terms",
     ]);
     expect(xml).toContain("<priority>1.0</priority>");
     expect(xml).toContain("<changefreq>yearly</changefreq>");
