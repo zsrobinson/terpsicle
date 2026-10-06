@@ -80,13 +80,13 @@ export function PrivacyPage() {
             how long we keep it and how to delete it. Terpsicle isn't affiliated
             with the University of Maryland.
           </p>
-          <ul aria-label="In short" className="flex flex-col gap-2.5">
+          <ul aria-label="In short" className="flex flex-col gap-2">
             {SUMMARY.map(({ icon: Icon, text }) => (
               <li key={text} className="flex gap-3 text-base text-fg">
                 <Icon
                   size={16}
                   aria-hidden="true"
-                  className="mt-[3px] shrink-0 text-muted"
+                  className="mt-1 shrink-0 text-muted"
                 />
                 {text}
               </li>
