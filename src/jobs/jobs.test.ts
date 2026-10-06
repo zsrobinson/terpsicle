@@ -27,6 +27,7 @@ import {
   PlanetTerpDeptSchema,
   PlanetTerpIndexSchema,
   PlanetTerpManifestSchema,
+  PREVIEW_REVIEWS,
   planetTerpDeptKey,
   planetTerpIndexKey,
   SeatsFileSchema,
@@ -534,6 +535,29 @@ describe("planetterp job", () => {
       "SELECT updated_at FROM planetterp_review_sets WHERE instructor_id = 'kruskal'",
     ).first<{ updated_at: string }>();
     expect(after?.updated_at).toBe(before?.updated_at);
+  });
+
+  it("keeps only what Schedule's preview shows while our Reviews pages are off", async () => {
+    const fake = fakeInternet();
+    await runCatalogJob({
+      env,
+      now: at("2026-09-25T12:00:00Z"),
+      fetch: fake.fetch,
+    });
+    await runPlanetTerpJob({
+      // Env types each var as its wrangler.jsonc value.
+      env: { ...env, REVIEWS_PAGES_ENABLED: undefined } as unknown as Env,
+      now: at("2026-09-26T05:17:00Z"),
+      fetch: fake.fetch,
+    });
+    const perCourse = await env.DB.prepare(
+      "SELECT course, COUNT(*) AS n FROM planetterp_reviews WHERE instructor_id = 'kruskal' GROUP BY course",
+    ).all<{ course: string | null; n: number }>();
+    expect(perCourse.results.length).toBeGreaterThan(0);
+    for (const row of perCourse.results) {
+      expect(row.course).not.toBeNull();
+      expect(row.n).toBeLessThanOrEqual(PREVIEW_REVIEWS);
+    }
   });
 
   it("joins the history's names too, so a past instructor is one person (Fawzi Emad in Spring 2025)", async () => {

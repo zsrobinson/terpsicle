@@ -73,6 +73,8 @@ export const apiEnv = (overrides: Partial<ApiEnv> = {}): ApiEnv => ({
   AUTH_TEST_MODE: "true",
   AUTH_SECRET: "test-auth-secret-0123456789abcdefghijklmnopq",
   REVIEWS_ENABLED: "on",
+  // Writing needs our pages too: without them "on" reads as "read".
+  REVIEWS_PAGES_ENABLED: "true",
   ...overrides,
 });
 

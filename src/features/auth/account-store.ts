@@ -9,6 +9,7 @@ import {
   type MeUser,
 } from "~/core/schema";
 import { SYNC_RESET_KEY } from "~/features/sync/status";
+import { clientConfig } from "~/lib/config";
 import { accountClient, meKey, meQuery, signedOutAnswer } from "./me-query";
 
 export { type AccountClient, setAccountClient } from "./me-query";
@@ -58,7 +59,12 @@ export interface AccountState {
   deleteAccount: () => Promise<string>;
 }
 
-/** Everything off: until /api/me answers, or when it can't. */
+/**
+ * Everything off: until /api/me answers, or when it can't. Except our
+ * Reviews pages in mock mode (dev and e2e), whose server opens them: the
+ * purple tab would otherwise start as a way out to PlanetTerp and turn into
+ * a tab under the pointer.
+ */
 export const FLAGS_OFF: Flags = {
   signIn: false,
   chat: "off",
@@ -67,6 +73,7 @@ export const FLAGS_OFF: Flags = {
   push: false,
   todo: false,
   plan: false,
+  reviewsPages: clientConfig.dataSource === "mock",
   authTestMode: false,
 };
 

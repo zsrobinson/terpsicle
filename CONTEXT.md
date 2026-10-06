@@ -12,7 +12,10 @@ _Avoid_: Planet Terpsicle, anything borrowing PlanetTerp's name
 The class scheduler at `/schedule`, red, first in the product order. Older docs call it "the scheduler" or plain "Terpsicle"; copy calls it Schedule.
 
 **Reviews**:
-Terpsicle Reviews, course and professor reviews at `/reviews`, purple.
+Terpsicle Reviews, course and professor reviews, purple. While our **Reviews pages** are off, its tab is a way out to PlanetTerp.
+
+**Reviews pages**:
+Our own `/reviews` pages, with writing and moderation: kept in the code behind `REVIEWS_PAGES_ENABLED` and off in production, where their addresses go to PlanetTerp's.
 
 **Chat**:
 Terpsicle Chat, class chat rooms at `/chat`, blue.
@@ -37,6 +40,10 @@ _Avoid_: bottom nav, dock
 **View link**:
 A link from one product into another, worded "View schedule", "View reviews", "View chat", "View four-year plan" or "View todos" (`PRODUCTS`' `view`). Each wears the product's mark (an integration) and is counted as `cross_link_clicked`. Plan's says "four-year" because in Schedule "plan" alone is Plan A or B.
 _Avoid_: Open in Reviews, Go to Chat, Open the scheduler
+
+**Way out**:
+A link that leaves Terpsicle for another site: it opens in a new tab, ends with a small arrow, and its words say where it goes ("Reviews on PlanetTerp"), never "View …". Code says `OutsideLink`.
+_Avoid_: external link (in copy), link-out (in copy)
 
 **Integration**:
 A place where one product shows a piece of another or links into it: Reviews' preview in Schedule's course details, "Join CMSC351 chat", Plan's "View schedule", a bell row. It always wears that product's mark before its words. Code says `IntegrationLabel`.
@@ -189,7 +196,7 @@ Keeping a signed-in person's plans and four-year plans the same on every device.
 _Avoid_: the cloud (for Todo's sync)
 
 **Account key**:
-The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. Deleting the account destroys it first. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
+The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. It lives apart from that data (in R2), and deleting the account destroys it, so nothing it encrypted can be read again, even from a backup. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
 _Avoid_: end-to-end (encryption), zero-knowledge, sync key
 
 **Delete account**:

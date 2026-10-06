@@ -5,8 +5,17 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { INLINE_SCRIPT_HASHES } from "virtual:terpsicle/inline-script-hashes";
-import { describe, expect, it, vi } from "vitest";
-import { CSP_NONCE_HEADER } from "~/core/schema";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  CSP_NONCE_HEADER,
+  PLANETTERP_MANIFEST_KEY,
+  planetTerpIndexKey,
+} from "~/core/schema";
+import {
+  aPlanetTerpIndex,
+  aPlanetTerpManifest,
+  FIXTURE_HASH,
+} from "~/fixtures";
 import { CRON_JOBS, UnknownCronError } from "~/jobs/index";
 import { testBindings } from "./test-bindings";
 import { createWorker } from "./worker";
@@ -118,6 +127,79 @@ describe("fetch", () => {
     expect(response.headers.get("Location")).toBe(
       "https://terpsicle.com/x?plan=abc",
     );
+  });
+});
+
+describe("our Reviews pages while they're off", () => {
+  // Env types each var as its wrangler.jsonc value.
+  const off = { ...env, REVIEWS_PAGES_ENABLED: undefined } as unknown as Env;
+  const visit = async (url: string, bindings: Env = off) => {
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(new Request(url), bindings, ctx);
+    await waitOnExecutionContext(ctx);
+    return response;
+  };
+
+  beforeEach(async () => {
+    await env.DATA.put(
+      PLANETTERP_MANIFEST_KEY,
+      JSON.stringify(aPlanetTerpManifest({ index: { hash: FIXTURE_HASH } })),
+    );
+    await env.DATA.put(
+      planetTerpIndexKey(FIXTURE_HASH),
+      JSON.stringify(
+        aPlanetTerpIndex({
+          instructors: {
+            kruskal: ["Clyde Kruskal", ["CMSC"]],
+            goldman_aaron: ["Aaron Goldman", ["CMSC"]],
+          },
+        }),
+      ),
+    );
+  });
+
+  it("302 to their PlanetTerp twins, before the app renders, and aren't kept", async () => {
+    app.fetch.mockClear();
+    for (const [path, to] of [
+      ["/reviews", "https://planetterp.com"],
+      ["/reviews/cmsc351", "https://planetterp.com/course/CMSC351"],
+      ["/reviews/kruskal", "https://planetterp.com/professor/kruskal"],
+      [
+        "/reviews/goldman-aaron?course=CMSC351",
+        "https://planetterp.com/professor/goldman_aaron",
+      ],
+      [
+        "/reviews/jo-early?course=CMSC351",
+        "https://planetterp.com/course/CMSC351",
+      ],
+      [
+        "/reviews/instructors/goldman_aaron",
+        "https://planetterp.com/professor/goldman_aaron",
+      ],
+      ["/reviews/courses/CMSC351", "https://planetterp.com/course/CMSC351"],
+      ["/reviews/policy", "https://planetterp.com"],
+    ]) {
+      const response = await visit(`https://terpsicle.com${path}`);
+      expect(response.status, path).toBe(302);
+      expect(response.headers.get("Location"), path).toBe(to);
+      expect(response.headers.get("Cache-Control"), path).toBe("no-store");
+    }
+    expect(app.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keep /reviews/mine for authors, and render as ever when the pages are on", async () => {
+    expect(
+      await (await visit("https://terpsicle.com/reviews/mine")).text(),
+    ).toBe("app shell");
+    const on = await visit("https://terpsicle.com/reviews/kruskal", env);
+    expect(on.status).toBe(200);
+    expect(await on.text()).toBe("app shell");
+  });
+
+  it("leave the sitemap", async () => {
+    const xml = await (await visit("https://terpsicle.com/sitemap.xml")).text();
+    expect(xml).toContain("<loc>https://terpsicle.com/schedule</loc>");
+    expect(xml).not.toContain("/reviews");
   });
 });
 

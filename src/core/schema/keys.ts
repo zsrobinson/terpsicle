@@ -71,8 +71,15 @@ export const calendarKey = (termId: TermId): string =>
 /** Job state (resume cursors, last crawl snapshots). Never served. */
 export const JOBS_PREFIX = "_jobs/";
 
+/** PlanetTerp's front page, where the Reviews tab goes while our pages are off. */
+export const PLANETTERP_HOME = "https://planetterp.com";
+
 export const planetTerpUrl = (slug: InstructorSlug): string =>
-  `https://planetterp.com/professor/${encodeURIComponent(slug)}`;
+  `${PLANETTERP_HOME}/professor/${encodeURIComponent(slug)}`;
+
+/** A course's page on PlanetTerp, which spells codes in capitals. */
+export const planetTerpCourseUrl = (code: string): string =>
+  `${PLANETTERP_HOME}/course/${encodeURIComponent(code.toUpperCase())}`;
 
 /**
  * The key a Testudo instructor name is joined on (PlanetTerpDept.names).

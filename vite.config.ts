@@ -99,11 +99,14 @@ export default defineConfig(({ command, mode }) => ({
               delete worker.vars?.POSTHOG_TOKEN;
               // Mock mode (and so e2e) signs in with the fake Google, which
               // the Worker only honors on localhost (docs/AUTH.md), and has
-              // Reviews on, as previews do.
+              // Reviews on, pages and all.
               if (mode === "mock") {
                 worker.vars ??= {};
                 worker.vars.AUTH_TEST_MODE = "true";
                 worker.vars.REVIEWS_ENABLED = "on";
+                // Our Reviews pages stay on here, so their code keeps
+                // running in e2e while production links out to PlanetTerp.
+                worker.vars.REVIEWS_PAGES_ENABLED = "true";
                 // Todo in test mode: the fixed key and the fixture feed.
                 worker.vars.TODO_ENABLED = "on";
                 // Web push in test mode: the fixed VAPID pair, and e2e's

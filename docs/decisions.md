@@ -208,7 +208,7 @@ Revisit if: never on its own.
 
 ### Synced data is encrypted on the server, with a key per account
 2026-10-04 · owner · app-wide
-Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so nothing it sealed can be opened afterward; D1's Time Travel can still restore the whole database, key included, for 30 days. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
+Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key, so nothing it sealed can be opened afterward, even from a backup of the database: the keys live in R2, apart from what they seal ("Account keys live in R2, apart from what they seal"). The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`. (changed 2026-10-05: it said D1's Time Travel could restore a deleted account's key for 30 days; the owner moved the keys to R2.)
 Revisit if: a feature needs the server to read synced data in bulk, or the owner wants end-to-end encryption and gives up server-side reads.
 
 ### Privacy and terms in plain words; open source is the proof
@@ -479,12 +479,22 @@ Revisit if: a third product needs sync, or loading the whole engine on Plan cost
 Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `prefs` object in the settings doc and one `prefs` row on the device. It's loose, so every build carries keys it doesn't know, and a conflict settles it per product key, like a course's color. Schedule never edits it but always pushes it whole. Every page reads a localStorage copy (Reviews loads no IndexedDB up front), which whatever writes the row keeps current.
 Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
 
-### Account keys live in D1, beside what they seal
-2026-10-04 · agent · one feature
-Each account's data key is a `user_keys` row, sealed under the Worker secret `USER_DATA_KEY`, as the owner's plan laid out (DATA.md §7.7). Deleting the account deletes the row first, so nothing it sealed opens afterward. But D1's Time Travel can restore the whole database, keys and all, to any minute of the last 30 days, so for those 30 days a full restore would bring a deleted account's data back; after them nothing can. Keeping the wrapped keys in R2 instead, which has no point-in-time restore, would make deleting final at once, for an R2 read on each sync request.
-Revisit if: `/privacy` is to promise that deleted data can't come back even from a backup.
+### Account keys live in R2, apart from what they seal
+2026-10-05 · owner · one feature
+Each account's data key, sealed under the Worker secret `USER_DATA_KEY`, is one object, `keys/<userId>`, in the private R2 bucket `terpsicle-user-keys` (binding `USER_KEYS`; DATA.md §7.7). D1's Time Travel can put the whole database back as it was at any minute of the last 30 days, but R2 keeps no earlier version of an object, so once the purge deletes the key, the rows it sealed stay unreadable even if a restore brings them back. The cost is one R2 read per request that opens synced data. "if that makes sense, go for it, it'd be good for privacy." (changed 2026-10-05, owner: the keys were `user_keys` rows in D1, which a Time Travel restore would bring back with the data for 30 days.)
+Revisit if: R2 gains versioning or point-in-time restore that we'd turn on, or the read on each request shows up in latency.
 
 ## Reviews
+
+### Reviews link out to PlanetTerp
+2026-10-05 · owner · one feature
+"let's go with the first verison, linking out." From the day before: "i'd probably prefer that we don't have our own review pages if we're just displaying from planetterp, maybe just those little popover preview things… maybe the actual review pages and whatnot are hidden behind some sort of feature flag for now? i don't want to just delete all of that. and i kind of like the branding we have with the 'five tabs' even if the purple one is now just a link out to planetterp". The purple tab keeps its place among the five and opens planetterp.com in a new tab, with an arrow and the tooltip "Reviews on PlanetTerp. Opens in a new tab." (the phone's tab bar and the product menu too). Schedule keeps the reviews preview, credited to PlanetTerp and linking there. Our `/reviews` pages, writing and moderation stay in the code behind `REVIEWS_PAGES_ENABLED`, off in production and previews; their addresses answer a 302 to PlanetTerp's, and nothing of ours is written while they're off. Mock mode and e2e keep them on, so the code keeps running, plus one spec with them off. The report: "Reviews with PlanetTerp", version A (fb5).
+Revisit if: phone users leave from the purple tab and don't come back (then the report's version B, a thin page of our own), or PlanetTerp asks us to stop showing its reviews.
+
+### No anonymous-reviews change while our pages are off
+2026-10-05 · owner · one feature
+The privacy plan's "Anonymous reviews" PR (no author on a published review, no editing after) isn't needed: with "Reviews link out to PlanetTerp", nobody writes a review here. Production had no live review of ours (one deleted) when the pages went off. "Anonymous reviews, signed-in writers" still holds for the code behind the flag.
+Revisit if: our Reviews pages come back on.
 
 ### Anonymous reviews, signed-in writers
 2026-09-26 · owner · one feature
@@ -493,7 +503,7 @@ Revisit if: never on its own.
 
 ### Full reviews live at /reviews
 2026-09-26 · owner · one feature
-The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".)
+The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".) (changed 2026-10-05, owner: while our pages are off, full reviews live on PlanetTerp; see "Reviews link out to PlanetTerp".)
 Revisit if: people don't find reviews from the scheduler.
 
 ### No AI features in Reviews
@@ -509,6 +519,7 @@ Revisit if: a course's term list grows too long to scan (then fold the older ter
 ### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
 2026-09-29 · owner · one feature
 "the whole app is free... if you're on that page and not signed in you've already proved that point." The page's title is the product's name, with no "free, no sign-in" line. Like PlanetTerp's front page it has recent reviews (ours and PlanetTerp's, newest first), grades across every course, and a row of counts (courses, professors, reviews, course grades) that counts up from 0 once when it comes into view, and doesn't move with Reduce Motion. The counts are PlanetTerp's data (the index's `totals`).
+(changed 2026-10-05, owner: while our pages are off, `/reviews` goes to planetterp.com; see "Reviews link out to PlanetTerp".)
 Revisit if: our own reviews outnumber PlanetTerp's, so the counts should be ours.
 
 ### What Reviews knows you took
@@ -518,7 +529,7 @@ Revisit if: transcripts start carrying instructors.
 
 ### PlanetTerp's reviews fill on a page's first visit
 2026-09-29 · agent · one feature
-The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
+The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page. (changed 2026-10-05, owner, "Reviews link out to PlanetTerp": gone, so PlanetTerp sees our nightly crawler and never our visitors. The job has been through every instructor since; a preview, where crons don't run, shows no reviews in Schedule's preview. While our pages are off the job keeps only each course's newest three per instructor, what the preview shows.)
 Revisit if: PlanetTerp asks us not to call its API from page loads.
 
 ### Reviews pages: two columns from the top, no back link
@@ -558,7 +569,7 @@ Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules chang
 
 ### PlanetTerp reviews are shown, marked as theirs
 2026-09-28 · owner · one feature
-"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.)
+"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.) (changed 2026-10-05, owner: while our pages are off, their reviews show only in Schedule's preview, credited "From PlanetTerp" and linking there; see "Reviews link out to PlanetTerp".)
 Revisit if: PlanetTerp asks us to stop.
 
 ### Reviews pages live one level under /reviews

@@ -2,7 +2,7 @@
 // CourseChat objects: an account with rows in every table it can reach is
 // gone after its week, nothing anywhere still names it, a neighbour's data
 // is untouched, a run that dies midway is finished by the next, and an
-// account still in its week is left alone.
+// account still in its week is left alone. Its key in R2 USER_KEYS goes too.
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -19,14 +19,18 @@ import type { CourseChat } from "../chat/course-chat";
 import { chatTargetId } from "../chat/moderation-handler";
 import { ObjectStore } from "../chat/object-store";
 import { PURGED_REPORTER_PREFIX } from "../moderation/store";
+import { accountKeyPath } from "../security/user-keys";
 import { sealedBodyFor } from "../sync/testing";
+import { testBindings } from "../test-bindings";
 import { sealedTitleFor } from "../todo/testing";
 import {
   accountStatements,
+  PURGE_BUCKETS,
   PURGE_LEDGER,
   type PurgeEnv,
   purgeDueAccounts,
   SYSTEM_TABLES,
+  sealedStatements,
 } from "./purge";
 import { markDeleting, upsertUser } from "./store";
 
@@ -47,6 +51,10 @@ const chat = (course: string) =>
   env.COURSE_CHAT.get(
     env.COURSE_CHAT.idFromName(courseRoomId(TERM, course)),
   ) as DurableObjectStub<CourseChat>;
+
+/** Whether R2 holds the account's key. */
+const hasKey = async (userId: string) =>
+  (await env.USER_KEYS.head(accountKeyPath(userId))) !== null;
 
 /** Every table of ours in D1, from the live schema. */
 async function ourTables(): Promise<string[]> {
@@ -297,6 +305,34 @@ async function seedAccount(id: string, n: number) {
         `seat-open:${id}:${TERM}:CMSC351-0101:email`,
         at,
       ],
+      // One delivery of each kind, under the dedupe keys their senders
+      // build: every one of them spells out the directory ID.
+      ...(
+        [
+          ["seat-open", `seat-open:${id}:${TERM}:2026-10-09T13:00:00Z:push`],
+          ["seat-open", `seat-open:${id}:${TERM}:2026-10-09T13:00:00Z:email`],
+          [
+            "chat-mention",
+            `chat-mention:${id}:01JAAAAAAAAAAAAAAAAAAAAA1${n}:push`,
+          ],
+          ["chat-reply", `chat-reply:${id}:01JAAAAAAAAAAAAAAAAAAAAA2${n}:push`],
+          ["chat-digest", `chat-digest:${id}:2026-10-09:email`],
+          ["todo-due", `todo-due:${id}:2026-10-09:push`],
+          [
+            "chat-mention",
+            `quiet:${id}:chat-mention:${TERM}:CMSC351:${at}:push`,
+          ],
+          ["admin-urgent", `admin-urgent:${id}:${at}:push`],
+        ] as const
+      ).map(([type, key]) => [
+        `INSERT INTO notification_deliveries (user_id, type, channel, dedupe_key, status, sent_at)
+         VALUES (?1, ?2, ?3, ?4, 'sent', ?5)`,
+        id,
+        type,
+        key.endsWith(":email") ? "email" : "push",
+        key,
+        at,
+      ]),
       [
         `INSERT INTO feedback (id, kind, product, path, text, host, user_id, created_at, updated_at)
          VALUES (?2, 'bug', 'schedule', '/schedule', 'The calendar jumps when I drag a block.', 'terpsicle.com', ?1, ?3, ?3)`,
@@ -334,9 +370,11 @@ beforeEach(async () => {
     });
     await evictDurableObject(chat(course)).catch(() => {});
   }
-  const listed = await env.USER_CONTENT.list();
-  if (listed.objects.length > 0)
-    await env.USER_CONTENT.delete(listed.objects.map((o) => o.key));
+  for (const bucket of [env.USER_CONTENT, env.USER_KEYS]) {
+    const listed = await bucket.list();
+    if (listed.objects.length > 0)
+      await bucket.delete(listed.objects.map((o) => o.key));
+  }
 
   await env.DB.prepare(
     "INSERT INTO instructors (id, name, created_at) VALUES ('ada-brandt', 'Ada Brandt', ?1)",
@@ -382,6 +420,25 @@ describe("the ledger", () => {
     expect(Object.keys(PURGE_LEDGER).sort()).toEqual(await ourTables());
   });
 
+  it("lists every R2 bucket in wrangler.jsonc, and only those", () => {
+    expect(Object.keys(PURGE_BUCKETS).sort()).toEqual(
+      Object.keys(testBindings().r2Buckets.production).sort(),
+    );
+  });
+
+  it("gives previews buckets of their own, but the public data", () => {
+    // A preview runs unreviewed code with test sign-ins: it may read the
+    // public course data, never write where production keeps anyone's.
+    const { production, previews } = testBindings().r2Buckets;
+    expect(Object.keys(previews).sort()).toEqual(
+      Object.keys(production).sort(),
+    );
+    const shared = Object.entries(previews).filter(([, bucket]) =>
+      Object.values(production).includes(bucket),
+    );
+    expect(shared).toEqual([["DATA", production.DATA]]);
+  });
+
   it("purges every table whose rows can name a person", async () => {
     // A column that can hold a user id or an address, in a table the purge
     // leaves untouched, would be a leak.
@@ -404,8 +461,10 @@ describe("the daily purge", () => {
     for (const id of [KEEP, GRACE]) others.set(id, await rowsMentioning(id));
     await runDailyJob({ env: env as Env, now: NOW });
 
-    // No row in D1 names them, by directory ID or address.
+    // No row in D1 names them, by directory ID or address, and their key
+    // is gone from R2.
     expect(await rowsMentioning(GONE)).toEqual([]);
+    expect(await hasKey(GONE)).toBe(false);
     // Their chat messages, reactions and send log, in every course.
     for (const course of COURSES)
       expect(await chatRowsOf(course, GONE), course).toBe(0);
@@ -432,6 +491,7 @@ describe("the daily purge", () => {
     // Everyone else's data is untouched.
     for (const id of [KEEP, GRACE]) {
       expect(await rowsMentioning(id), id).toEqual(others.get(id));
+      expect(await hasKey(id), id).toBe(true);
       for (const course of COURSES)
         expect(await chatRowsOf(course, id), `${id} ${course}`).toBeGreaterThan(
           0,
@@ -540,12 +600,28 @@ describe("the daily purge", () => {
     // The course already under way is gone; nothing after it is touched.
     expect(await chatRowsOf("CMSC131", GONE)).toBe(0);
     expect(await chatRowsOf("CMSC351", GONE)).toBeGreaterThan(0);
-    // Every row is still there, but the finished course's chat record.
+    // Every row is still there, but the finished course's chat record, and
+    // so is the key.
+    expect(await hasKey(GONE)).toBe(true);
     expect(await rowsMentioning(GONE)).toEqual(
       before.map((r) =>
         r === "chat_author_courses: 2" ? "chat_author_courses: 1" : r,
       ),
     );
+  });
+
+  it("deletes nothing, not even chat, without the key bucket", async () => {
+    const before = await rowsMentioning(GONE);
+    const { USER_KEYS: _bucket, ...unbound } = env as Env;
+    expect(await purgeDueAccounts(unbound as PurgeEnv, NOW)).toMatchObject({
+      accounts: 0,
+      chatCourses: 0,
+      errors: ["purge key: UserDataKeyMissing"],
+    });
+    expect(await rowsMentioning(GONE)).toEqual(before);
+    for (const course of COURSES)
+      expect(await chatRowsOf(course, GONE)).toBeGreaterThan(0);
+    expect(await hasKey(GONE)).toBe(true);
   });
 
   it("changes nothing in the batch once the account is kept", async () => {
@@ -555,6 +631,7 @@ describe("the daily purge", () => {
       .bind(GONE)
       .run();
     const before = await rowsMentioning(GONE);
+    await env.DB.batch(sealedStatements(env.DB, GONE, NOW));
     await env.DB.batch(accountStatements(env.DB, GONE, NOW));
     expect(await rowsMentioning(GONE)).toEqual(before);
   });
