@@ -46,7 +46,7 @@ vi.mock("~/server/fns/api", async (importOriginal) => {
     ...actual,
     api: {
       ...actual.api,
-      reviews: { ...actual.api.reviews, page: vi.fn() },
+      reviews: { ...actual.api.reviews, page: vi.fn(), planetTerp: vi.fn() },
     },
   };
 });
@@ -110,6 +110,11 @@ describe("Course details", () => {
     vi.mocked(api.reviews.page).mockResolvedValue({
       terpsicle: null,
       planetTerp: [],
+      next: null,
+    });
+    vi.mocked(api.reviews.planetTerp).mockReset();
+    vi.mocked(api.reviews.planetTerp).mockResolvedValue({
+      reviews: [],
       next: null,
     });
     resetSeatWatches();
@@ -612,9 +617,8 @@ describe("Course details", () => {
 
   describe("reviews", () => {
     it("open a preview over the list, with Reviews' mark, asked for only then", async () => {
-      vi.mocked(api.reviews.page).mockResolvedValue({
-        terpsicle: null,
-        planetTerp: [
+      vi.mocked(api.reviews.planetTerp).mockResolvedValue({
+        reviews: [
           aPlanetTerpReview({
             id: "0123456789abcdef",
             instructorId: "ashdown_keiko",
@@ -626,7 +630,7 @@ describe("Course details", () => {
         next: null,
       });
       const { user } = await renderDetails();
-      expect(api.reviews.page).not.toHaveBeenCalled();
+      expect(api.reviews.planetTerp).not.toHaveBeenCalled();
       const header = screen
         .getByRole("button", { name: /^Keiko Ashdown/ })
         .closest("div.sticky") as HTMLElement;
@@ -640,12 +644,15 @@ describe("Course details", () => {
           "The problem sets were long, and the exams followed them closely.",
         ),
       );
-      // Who and which course, nothing more: the server reads what the
-      // nightly crawl stored and never asks PlanetTerp on a visit.
-      expect(api.reviews.page).toHaveBeenCalledWith({
+      // PlanetTerp's alone, never ours: the server reads what the nightly
+      // crawl stored and never asks PlanetTerp on a visit.
+      expect(api.reviews.planetTerp).toHaveBeenCalledWith({
         instructorId: "ashdown_keiko",
         course: "CMSC351",
+        cursor: null,
+        limit: 3,
       });
+      expect(api.reviews.page).not.toHaveBeenCalled();
       expect(keiko).toHaveTextContent("3.1");
       expect(keiko).toHaveTextContent(/In CMSC351, \d+% got an A or B/);
       expect(

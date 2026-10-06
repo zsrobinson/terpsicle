@@ -4,7 +4,7 @@ import { useState } from "react";
 import { IntegrationLabel } from "~/components/brand/integration-label";
 import { formatGpa, formatShare, gradeSummary } from "~/core/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
-import { combinedRatingWords, formatStars, mergeReviews } from "~/core/reviews";
+import { combinedRatingWords, formatStars } from "~/core/reviews";
 import {
   type Course,
   type CourseCode,
@@ -12,7 +12,7 @@ import {
   type PlanetTerpDept,
   PREVIEW_REVIEWS,
 } from "~/core/schema";
-import { formatFullDate, formatMonthYear } from "~/core/time/format";
+import { formatFullDate } from "~/core/time/format";
 import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
 import { lazyComponent } from "~/lib/lazy-component";
@@ -35,21 +35,31 @@ import { instructorRating, ReadThem } from "./reviews";
 // the rest: PlanetTerp, or View reviews while our pages are open. A popover
 // on a desktop, a sheet on a phone. It carries Reviews' mark, as every
 // product's part inside another does (docs/decisions.md). Nothing of
-// Reviews' pages loads with the scheduler: this asks `reviews/page` itself.
+// Reviews' pages loads with the scheduler: this asks `planetterp/reviews`
+// itself.
 
 /** Reviews the preview shows. */
 const SHOWN = PREVIEW_REVIEWS;
 /** How long a preview's reviews count as current: they change nightly. */
 const PREVIEW_STALE_MS = 10 * 60_000;
 
-/** One instructor's newest reviews in a course (the preview shows PlanetTerp's). */
+/**
+ * One instructor's newest PlanetTerp reviews in a course, as the nightly
+ * crawl stored them: never ours, which only our own pages show.
+ */
 export function instructorReviewsQuery(
   slug: InstructorSlug,
   course: CourseCode,
 ) {
   return queryOptions({
     queryKey: ["reviews", "preview", slug, course],
-    queryFn: () => api.reviews.page({ instructorId: slug, course }),
+    queryFn: () =>
+      api.reviews.planetTerp({
+        instructorId: slug,
+        course,
+        cursor: null,
+        limit: SHOWN,
+      }),
     staleTime: PREVIEW_STALE_MS,
     retry: 1,
   });
@@ -153,7 +163,10 @@ export function ReviewsPreview({
 }) {
   const pt = instructorFor(planetTerp, name);
   const combined = instructorRating(name, planetTerp);
-  const ours = useAccount((s) => s.flags.reviewsPages);
+  // As `ReadThem` decides: our pages, or PlanetTerp's ways out.
+  const ours = useAccount(
+    (s) => s.flags.reviewsPages && s.flags.reviews !== "off",
+  );
   const record = pt
     ? planetTerp?.courses[course.code]?.byInstructor[pt.slug]
     : undefined;
@@ -169,9 +182,7 @@ export function ReviewsPreview({
     enabled: pt !== null && !loading,
   });
   // PlanetTerp's alone, as the rating above is: one source, credited.
-  const shown = reviews.data
-    ? mergeReviews([], reviews.data.planetTerp, true).slice(0, SHOWN)
-    : [];
+  const shown = reviews.data?.reviews.slice(0, SHOWN) ?? [];
 
   return (
     <div className="flex flex-col gap-3 text-sm" data-instructor={name}>
@@ -236,23 +247,17 @@ export function ReviewsPreview({
         <ul className="flex flex-col" aria-label="Newest reviews">
           {shown.map((r) => (
             <li
-              key={r.review.id}
+              key={r.id}
               className="flex flex-col gap-1 border-hairline border-t py-2 first:border-t-0 first:pt-0"
             >
               <span className="flex items-center gap-2 text-muted text-xs">
-                <Stars size={11} rating={r.review.rating} />
-                {r.source === "planetterp" ? (
-                  <time dateTime={r.review.createdDate} className="tnum">
-                    {formatFullDate(r.review.createdDate)}
-                  </time>
-                ) : (
-                  <time dateTime={r.review.createdMonth} className="tnum">
-                    {formatMonthYear(r.review.createdMonth)}
-                  </time>
-                )}
+                <Stars size={11} rating={r.rating} />
+                <time dateTime={r.createdDate} className="tnum">
+                  {formatFullDate(r.createdDate)}
+                </time>
               </span>
               <p className="line-clamp-4 whitespace-pre-line break-words">
-                {r.review.body}
+                {r.body}
               </p>
             </li>
           ))}

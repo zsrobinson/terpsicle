@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { PenLine, X } from "lucide-react";
 import { useMemo } from "react";
+import { courseDept } from "~/core/catalog/plan-diff";
 import { termLabel } from "~/core/catalog/terms";
 import {
   courseSlug,
@@ -12,8 +13,6 @@ import {
   withToReviewDismissed,
 } from "~/core/reviews";
 import {
-  type CourseCode,
-  type DeptCode,
   type InstructorSlug,
   type IsoDate,
   instructorNameKey,
@@ -26,6 +25,7 @@ import {
   useAccountPrefsSettled,
   useSyncedPrefs,
 } from "~/features/prefs/synced-prefs";
+import { Button } from "~/ui/button";
 import { ListRow } from "~/ui/list-row";
 import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
 import { undoToast } from "~/ui/toast";
@@ -77,7 +77,7 @@ export function ReviewsSection({
   const people = useMemo(
     () =>
       outside && rows
-        ? rows.map((r) => ({ dept: deptOfCourse(r.course), name: r.name }))
+        ? rows.map((r) => ({ dept: courseDept(r.course), name: r.name }))
         : [],
     [rows, outside],
   );
@@ -108,7 +108,7 @@ export function ReviewsSection({
               key={reviewedKey(r.course, r.name)}
               r={r}
               slug={
-                slugs[`${deptOfCourse(r.course)}:${instructorNameKey(r.name)}`]
+                slugs[`${courseDept(r.course)}:${instructorNameKey(r.name)}`]
               }
             />
           ) : (
@@ -189,24 +189,25 @@ function OutsideRow({
       className="relative px-0 hover:bg-hover"
       secondary={termLabel(r.termId)}
       trail={
-        <span className="flex items-center gap-1">
-          <span className="flex items-center gap-1 font-medium text-fg">
-            <PenLine size={13} aria-hidden="true" />
-            Review
-            <OutsideArrow />
-          </span>
-          {/* Above the row's link, which covers the row. */}
-          <WithTooltip label={`Dismiss ${r.name} in ${r.course}`}>
-            <button
-              type="button"
-              aria-label={`Dismiss ${r.name} in ${r.course}`}
-              onClick={dismiss}
-              className="relative z-10 flex size-7 items-center justify-center text-muted transition-colors hover:bg-hover hover:text-fg max-md:size-11"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          </WithTooltip>
+        <span className="flex items-center gap-1 font-medium text-fg">
+          <PenLine size={13} aria-hidden="true" />
+          Review
+          <OutsideArrow />
         </span>
+      }
+      action={
+        <WithTooltip label={`Dismiss ${r.name} in ${r.course}`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Dismiss ${r.name} in ${r.course}`}
+            onClick={dismiss}
+            // Above the row's link, which covers the row.
+            className="relative z-10"
+          >
+            <X aria-hidden="true" />
+          </Button>
+        </WithTooltip>
       }
     >
       <WithTooltip label={`Review ${r.name} on PlanetTerp, in a new tab`}>
@@ -238,9 +239,4 @@ function useDismissedRows(outside: boolean): ReadonlySet<string> | null {
   const settled = useAccountPrefsSettled();
   if (!outside || prefs === null || !settled) return null;
   return dismissedToReview(prefs);
-}
-
-/** A course's department, its code's first four letters. */
-function deptOfCourse(course: CourseCode): DeptCode {
-  return course.slice(0, 4);
 }
