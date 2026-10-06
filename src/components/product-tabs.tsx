@@ -1,8 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import { type FocusEvent, useEffect, useRef, useState } from "react";
+import {
+  type FocusEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useAccount } from "~/features/auth/account-store";
-import { listedProducts, type ProductId } from "~/lib/products";
+import { listedProducts, type ProductId, productLink } from "~/lib/products";
+import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
 import { WithTooltip } from "~/ui/tooltip";
 import { Mark } from "./brand/mark";
 
@@ -15,6 +22,10 @@ import { Mark } from "./brand/mark";
 // the right of the pointer closes at once, one to its left only once the
 // pointer leaves the tabs, since closing it would slide the rest under the
 // pointer.
+//
+// While our Reviews pages are off (REVIEWS_PAGES_ENABLED), the purple tab
+// keeps its place and opens PlanetTerp in a new tab, wearing the way-out
+// arrow (docs/decisions.md, "Reviews link out to PlanetTerp").
 
 /** How long the pointer rests on a tab before its name opens. */
 const INTENT_MS = 120;
@@ -171,44 +182,68 @@ export function ProductTabs({ current }: { current: ProductId | null }) {
     >
       {products.map((p) => {
         const shown = open(p.id);
-        return (
-          <WithTooltip key={p.id} label={p.view} side="bottom">
-            <Link
-              to={p.to}
-              aria-current={p.id === current ? "page" : undefined}
-              data-product-tab={p.id}
-              data-open={shown ? "" : undefined}
-              onPointerMove={(e) => {
-                if (e.pointerType !== "touch") point(p.id);
-              }}
-              onFocus={(e) => onFocus(p.id, e)}
-              onBlur={() => setFocused((f) => (f === p.id ? null : f))}
+        const link = productLink(p, flags, current);
+        const props = {
+          "aria-current": p.id === current ? ("page" as const) : undefined,
+          "data-product-tab": p.id,
+          "data-open": shown ? "" : undefined,
+          onPointerMove: (e: ReactPointerEvent<HTMLAnchorElement>) => {
+            if (e.pointerType !== "touch") point(p.id);
+          },
+          onFocus: (e: FocusEvent<HTMLAnchorElement>) => onFocus(p.id, e),
+          onBlur: () => setFocused((f) => (f === p.id ? null : f)),
+          className: cn(
+            "flex h-8 items-center rounded-md px-1.5 font-medium text-base text-muted transition-colors hover:bg-hover hover:text-fg aria-[current=page]:text-fg",
+            CURRENT[p.id],
+          ),
+        };
+        const body = (
+          <>
+            <Mark id={p.id} size={20} />
+            {/* The name's width animates as a grid track, from 0fr to
+                1fr, with its gap from the mark inside the clip, so the gap
+                folds too. Clipped, never hidden: it's still the link's
+                name to a screen reader. */}
+            <span
+              data-tab-name=""
               className={cn(
-                "flex h-8 items-center rounded-md px-1.5 font-medium text-base text-muted transition-colors hover:bg-hover hover:text-fg aria-[current=page]:text-fg",
-                CURRENT[p.id],
+                "grid transition-[grid-template-columns,opacity] duration-(--dur-reveal) ease-(--ease-sheet)",
+                shown
+                  ? "grid-cols-[1fr] opacity-100"
+                  : "grid-cols-[0fr] opacity-0",
               )}
             >
-              <Mark id={p.id} size={20} />
-              {/* The name's width animates as a grid track, from 0fr to
-                  1fr, with its gap from the mark inside the clip, so the gap
-                  folds too. Clipped, never hidden: it's still the link's
-                  name to a screen reader. */}
-              <span
-                data-tab-name=""
-                className={cn(
-                  "grid transition-[grid-template-columns,opacity] duration-(--dur-reveal) ease-(--ease-sheet)",
-                  shown
-                    ? "grid-cols-[1fr] opacity-100"
-                    : "grid-cols-[0fr] opacity-0",
-                )}
-              >
-                <span className="overflow-hidden">
-                  <span className="block whitespace-nowrap pr-0.5 pl-1.5">
-                    {p.label}
-                  </span>
+              <span className="overflow-hidden">
+                <span className="block whitespace-nowrap pr-0.5 pl-1.5">
+                  {p.label}
+                  {link.outside ? (
+                    <span className="sr-only"> on PlanetTerp</span>
+                  ) : null}
                 </span>
               </span>
-            </Link>
+            </span>
+            {/* A way out of Terpsicle, at rest and open: the arrow rides
+                the mark's corner, then follows the name. */}
+            {link.outside ? (
+              <OutsideArrow className="-ml-0.5 mb-3 size-2.5 text-muted" />
+            ) : null}
+          </>
+        );
+        return (
+          <WithTooltip
+            key={p.id}
+            label={link.outside ? link.tooltip : p.view}
+            side="bottom"
+          >
+            {link.outside ? (
+              <a {...props} {...OUTSIDE_TAB} href={link.href}>
+                {body}
+              </a>
+            ) : (
+              <Link {...props} to={link.href}>
+                {body}
+              </Link>
+            )}
           </WithTooltip>
         );
       })}

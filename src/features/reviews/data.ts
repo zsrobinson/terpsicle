@@ -113,12 +113,7 @@ export function forgetPageReviews(): void {
 
 /** The browser asks the API, once per page and visit. */
 function browserPageReviews(input: ReviewsPageInput): Promise<PageReviews> {
-  const key = [
-    input.instructorId,
-    input.course,
-    input.planetTerpName ?? "",
-    input.sort ?? "latest",
-  ];
+  const key = [input.instructorId, input.course, input.sort ?? "latest"];
   return once(`page-reviews:${key.join(":")}`, () =>
     reviewsClient().reviews.page(input),
   );
