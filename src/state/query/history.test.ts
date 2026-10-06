@@ -23,10 +23,17 @@ describe("the instructor history in mock mode", () => {
   it("says who taught a course in a term", async () => {
     const client = createTestQueryClient();
     const manifest = await client.fetchQuery(historyManifestQuery(source));
-    expect(manifest.terms.map((t) => t.termId)).toEqual([
+    // The catalog's two terms, Fall 2026, and the older terms the mock
+    // backfills (fixtures/mock/history.ts), newest first, with its gap.
+    const terms = manifest.terms.map((t) => t.termId);
+    expect(terms.slice(0, 5)).toEqual([
       fixtureTermId,
+      "202608",
       archivedFixtureTermId,
+      "202501",
+      "202408",
     ]);
+    expect(terms.at(-1)).toBe("201808");
     const observer = new QueryObserver(
       client,
       whoTaughtQuery(source, manifest, "CMSC351", fixtureTermId),

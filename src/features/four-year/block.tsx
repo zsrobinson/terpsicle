@@ -3,6 +3,7 @@ import { cn } from "cn";
 import { MoreHorizontal } from "lucide-react";
 import type { DragEvent } from "react";
 import { IntegrationLabel } from "~/components/brand/integration-label";
+import { messageToText } from "~/components/message-text";
 import { wildcardDetail, wildcardLabel } from "~/core/catalog/wildcard";
 import { isUnknownCourse } from "~/core/four-year/course-lookup";
 import { entryCredits } from "~/core/four-year/credits";
@@ -475,12 +476,16 @@ export function EntryBlock({
       </>
     );
 
-  const label =
+  const action =
     entry.kind === "course"
       ? `About ${entry.code}`
       : entry.kind === "wildcard"
         ? `Pick a course for ${entryName(entry)}`
         : `What ${displayTitle(entry.title)} counts as`;
+  // The inset says there's a problem; the tooltip says which, so a glance
+  // doesn't need the Problems tab ("CMSC452 is usually spring only").
+  const first = problems[0];
+  const label = first ? `${action}. ${messageToText(first.title)}` : action;
 
   if (readOnly)
     return (

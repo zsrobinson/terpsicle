@@ -221,6 +221,7 @@ export const FourYearProblemKindSchema = z.enum([
   "unknown-course",
   "not-offered-lately",
   "unmatched-credit",
+  "unlikely-term",
 ]);
 export type FourYearProblemKind = z.infer<typeof FourYearProblemKindSchema>;
 
@@ -232,6 +233,7 @@ export const FOUR_YEAR_PROBLEM_SEVERITY = {
   "unknown-course": "warning",
   "not-offered-lately": "info",
   "unmatched-credit": "info",
+  "unlikely-term": "info",
 } as const satisfies Record<
   FourYearProblemKind,
   z.infer<typeof SeveritySchema>

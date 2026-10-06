@@ -46,6 +46,10 @@ export const reviewsDeptKey = (dept: DeptCode, hash: ContentHash): string =>
 export const HISTORY_MANIFEST_KEY = "history/manifest.json";
 export const historyTermKey = (termId: TermId, hash: ContentHash): string =>
   `history/term/${termId}.${hash}.json`;
+/** When each course is offered, derived from the history (DATA.md §3.5). */
+export const OFFERED_MANIFEST_KEY = "offered/manifest.json";
+export const offeredKey = (hash: ContentHash): string =>
+  `offered/courses.${hash}.json`;
 export const historyDeptKey = (dept: DeptCode, hash: ContentHash): string =>
   `history/dept/${dept}.${hash}.json`;
 

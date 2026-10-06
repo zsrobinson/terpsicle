@@ -103,7 +103,7 @@ test("a course Testudo dropped gets its course info, from its base course or by 
   await page.goto("/plan/problems");
   await expect(
     page.getByText(
-      "Prerequisites out of order, light semesters, repeated courses, courses Testudo hasn't offered lately and transfer credit it didn't match show up here.",
+      "Prerequisites out of order, light semesters, repeated courses, courses Testudo hasn't offered lately or in a semester they usually aren't, and transfer credit it didn't match show up here.",
     ),
   ).toBeVisible();
   // Its Humanities, and the seminar's History and I-Series, count.

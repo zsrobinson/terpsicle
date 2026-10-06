@@ -1,4 +1,5 @@
 import { MessageText } from "~/components/message-text";
+import { OfferingStrip } from "~/components/offering-strip";
 import {
   ProblemAction,
   ProblemFixButton,
@@ -6,6 +7,7 @@ import {
   ProblemRow,
   ProblemsClear,
 } from "~/components/problem-list";
+import { offeringRecord, offeringStrip } from "~/core/history/offering-pattern";
 import { problemCountWords } from "~/core/problems/count-words";
 import type { FourYearProblem } from "~/core/schema/four-year";
 import { track } from "~/lib/analytics";
@@ -14,7 +16,8 @@ import { useModel, usePlanNav, useProblemCounts } from "./model";
 import { PlanView } from "./views";
 
 // The Problems tab (V3 §2.8): prerequisites out of order, light semesters,
-// repeats, codes Testudo doesn't know, courses not offered lately. All of it
+// repeats, codes Testudo doesn't know, courses not offered lately or in a
+// term they usually aren't (with their offering strip). All of it
 // information: nothing blocks a move, nothing turns red. A fix is offered
 // only when it makes no new problem, and Undo takes it back. The list, its
 // bands and its rows are the scheduler's (~/components/problem-list).
@@ -33,7 +36,7 @@ function reveal(problem: FourYearProblem) {
 }
 
 function Row({ problem }: { problem: FourYearProblem }) {
-  const { doc } = useModel();
+  const { doc, offerings } = useModel();
   const nav = usePlanNav();
   const [subject] = problem.subjects;
   const entry =
@@ -51,6 +54,11 @@ function Row({ problem }: { problem: FourYearProblem }) {
     problem.kind === "unmatched-credit" && entry?.kind === "credit"
       ? entry
       : null;
+  // A course's offering pattern at a glance: "every spring" without dates.
+  const offering =
+    problem.kind === "unlikely-term" && entry?.kind === "course"
+      ? offerings?.courses.get(entry.code)
+      : undefined;
   return (
     <ProblemRow
       severity={problem.severity}
@@ -64,6 +72,22 @@ function Row({ problem }: { problem: FourYearProblem }) {
         requestAnimationFrame(() => reveal(problem));
       }}
       detail={<MessageText message={problem.detail} />}
+      extra={
+        offering && offerings ? (
+          <OfferingStrip
+            className="flex"
+            cells={offeringStrip({
+              offered: offering.offered,
+              recorded: offerings.recorded,
+              now: offerings.now,
+            })}
+            label={
+              offeringRecord(offering.summary) ??
+              "When it was offered, fall and spring"
+            }
+          />
+        ) : null
+      }
       actions={
         problem.fix || describe || credit ? (
           <>
@@ -112,8 +136,8 @@ export function ProblemsPanel() {
     return (
       <ProblemsClear>
         Prerequisites out of order, light semesters, repeated courses, courses
-        Testudo hasn't offered lately and transfer credit it didn't match show
-        up here.
+        Testudo hasn't offered lately or in a semester they usually aren't, and
+        transfer credit it didn't match show up here.
       </ProblemsClear>
     );
   return (

@@ -172,3 +172,61 @@ export const HistoryManifestSchema = z.object({
   ),
 });
 export type HistoryManifest = z.infer<typeof HistoryManifestSchema>;
+
+// ---------- offered (docs/DATA.md §3.5, "Offered") ----------
+
+/** Hex digits only, little end first: digit `i` holds terms `4i` to `4i + 3`. */
+const TermBitsSchema = z.string().regex(/^[0-9a-f]*$/);
+
+/**
+ * One course in `offered/courses.<hash>.json`:
+ * `[code, title, creditsMin, creditsMax, ran]`. `ran` sets bit `i` for every
+ * `terms[i]` the course ran in, its cross-listings not merged (the job reads
+ * only the history). Title and credits are the newest term's that names them.
+ */
+export const HistoryOfferedCourseSchema = z.tuple([
+  CourseCodeSchema,
+  z.string().min(1).max(200).nullable(),
+  z.number().min(0).max(30).nullable(),
+  z.number().min(0).max(30).nullable(),
+  TermBitsSchema,
+]);
+export type HistoryOfferedCourse = z.infer<typeof HistoryOfferedCourseSchema>;
+
+/**
+ * `offered/courses.<hash>.json`: every course that ran in a term on record
+ * over the offering window, with the terms it ran in, so a search can say
+ * when a course the term doesn't have is offered. Raw facts, not verdicts:
+ * the client reads the pattern with `offeringSummary` and today's terms.
+ */
+export const HistoryOfferedSchema = z
+  .object({
+    schemaVersion: historyVersion,
+    /** Every term on record in the window, oldest first: what `ran` indexes. */
+    terms: z.array(TermIdSchema).refine(sortedUnique, {
+      message: "terms must be sorted and unique",
+    }),
+    /** Sorted by code, unique. */
+    courses: z.array(HistoryOfferedCourseSchema),
+  })
+  .refine((f) => sortedUnique(f.courses.map((c) => c[0])), {
+    message: "courses must be sorted by code and unique",
+  });
+export type HistoryOffered = z.infer<typeof HistoryOfferedSchema>;
+
+/**
+ * `offered/manifest.json`: names the offered file, and which version of
+ * each term's record it was built from, so a run reads only changed terms.
+ * Its own family of keys (`offered/`), apart from `history/`, so the history
+ * job of a build that doesn't know it leaves it alone.
+ */
+export const HistoryOfferedManifestSchema = z.object({
+  schemaVersion: historyVersion,
+  generatedAt: IsoDateTimeSchema,
+  hash: ContentHashSchema,
+  /** Term → the hash of its `history/term` file the offered file reflects. */
+  built: z.record(TermIdSchema, ContentHashSchema),
+});
+export type HistoryOfferedManifest = z.infer<
+  typeof HistoryOfferedManifestSchema
+>;

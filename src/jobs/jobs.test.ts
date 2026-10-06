@@ -21,6 +21,8 @@ import {
   historyDeptKey,
   ManifestSchema,
   manifestKey,
+  OFFERED_MANIFEST_KEY,
+  offeredKey,
   PLANETTERP_MANIFEST_KEY,
   PlanetTerpDeptSchema,
   PlanetTerpIndexSchema,
@@ -36,6 +38,8 @@ import {
 import {
   HistoryDeptSchema,
   HistoryManifestSchema,
+  HistoryOfferedManifestSchema,
+  HistoryOfferedSchema,
 } from "~/core/schema/history";
 import buildingAllSearch from "~/ingest/__fixtures__/buildings/building-all-search.json?raw";
 import planetterpGrades from "~/ingest/__fixtures__/planetterp/grades-CMSC351.json?raw";
@@ -354,15 +358,33 @@ describe("history job", () => {
     expect(cmsc131?.offerings[0]?.termId).toBe("202701");
     expect(cmsc131?.offerings[0]?.sections).toHaveLength(9);
 
+    // And the offered file, from the same terms.
+    const offeredManifest = await readJson(
+      OFFERED_MANIFEST_KEY,
+      HistoryOfferedManifestSchema,
+    );
+    expect(Object.keys(offeredManifest.built).sort()).toEqual([
+      "202605",
+      "202608",
+      "202612",
+      "202701",
+    ]);
+    const offered = await readJson(
+      offeredKey(offeredManifest.hash),
+      HistoryOfferedSchema,
+    );
+    expect(offered.terms).toEqual(["202605", "202608", "202612", "202701"]);
+    expect(offered.courses.some(([code]) => code === "CMSC131")).toBe(true);
+
     // Nothing changed since: the next run rewrites nothing.
-    const before = (await env.DATA.list({ prefix: "history/" })).objects.map(
-      (o) => `${o.key}@${o.etag}`,
-    );
+    const list = async () =>
+      [
+        ...(await env.DATA.list({ prefix: "history/" })).objects,
+        ...(await env.DATA.list({ prefix: "offered/" })).objects,
+      ].map((o) => `${o.key}@${o.etag}`);
+    const before = await list();
     await runHistoryJob({ env, now: at("2026-09-25T18:41:00Z") });
-    const after = (await env.DATA.list({ prefix: "history/" })).objects.map(
-      (o) => `${o.key}@${o.etag}`,
-    );
-    expect(after).toEqual(before);
+    expect(await list()).toEqual(before);
   });
 });
 

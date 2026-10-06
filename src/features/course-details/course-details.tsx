@@ -3,10 +3,17 @@ import { PanelBody, SectionHeader } from "~/components/panel";
 import { groupSectionsByInstructor } from "~/core/catalog";
 import { defaultCourseColor } from "~/core/color";
 import { gradesSourceWords } from "~/core/grades";
-import type { Course, CourseDetailsTab, TermId } from "~/core/schema";
+import type {
+  Course,
+  CourseCode,
+  CourseDetailsTab,
+  TermId,
+} from "~/core/schema";
+import { openCourse } from "~/features/courses/actions";
 import { usePushAskCard } from "~/features/notifications/push-ask";
 import { PushAskCard } from "~/features/notifications/push-ask-card";
 import { useReadCourseNotifications } from "~/features/notifications/read-here";
+import { switchTerm } from "~/features/schedule/actions";
 import { useDrillEntry } from "~/features/schedule/drill-entry";
 import { track } from "~/lib/analytics";
 import { deptOf, useCatalog } from "~/state/catalog-store";
@@ -18,9 +25,12 @@ import {
   useFitContext,
   useTermCatalog,
 } from "~/state/hooks";
+import { Button } from "~/ui/button";
 import { Skeleton } from "~/ui/skeleton";
+import { WithTooltip } from "~/ui/tooltip";
 import { Grades } from "./grades";
 import { DetailsHeader } from "./header";
+import { UsuallyOffered, useCourseOffering } from "./offering";
 import { hasReviews } from "./reviews";
 import { Sections } from "./sections";
 
@@ -55,12 +65,11 @@ export function CourseDetails() {
   if (!termId || !catalog || (!course && !settled)) return <DetailsSkeleton />;
   if (!course)
     return (
-      <PanelBody className="px-4 py-4 text-base">
-        <p>
-          <span className="ident font-semibold">{entry.courseCode}</span> isn't
-          offered in {term?.name ?? "this term"}.
-        </p>
-      </PanelBody>
+      <NotOffered
+        code={entry.courseCode}
+        termId={termId}
+        termName={term?.name ?? "this term"}
+      />
     );
   return (
     <Details
@@ -214,5 +223,56 @@ function DetailsSkeleton() {
       <Skeleton className="mt-4 h-3 w-full" />
       <Skeleton className="h-3 w-5/6" />
     </div>
+  );
+}
+
+/**
+ * A course the term doesn't have (opened from a link, or from Search's
+ * greyed rows): what it is and when it's offered, and the term that has it
+ * when Testudo lists one (the owner, 2026-10-05).
+ */
+function NotOffered({
+  code,
+  termId,
+  termName,
+}: {
+  code: CourseCode;
+  termId: TermId;
+  termName: string;
+}) {
+  const offering = useCourseOffering([code], termId, false);
+  const next = offering?.listedNext ?? null;
+  return (
+    <PanelBody className="px-4 py-4">
+      {offering?.title ? (
+        <h2 className="emph-title mb-2 text-balance text-lg leading-5">
+          {offering.title}
+        </h2>
+      ) : null}
+      <p className="text-base">
+        <span className="ident font-semibold">{code}</span> isn't offered in{" "}
+        {termName}.
+      </p>
+      {offering ? (
+        <div className="mt-2 text-sm leading-4">
+          <UsuallyOffered offering={offering} />
+        </div>
+      ) : null}
+      {next ? (
+        <WithTooltip label={`Switch to ${next.name}, which lists ${code}`}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => {
+              switchTerm(next);
+              openCourse(code);
+            }}
+          >
+            Open {next.name}
+          </Button>
+        </WithTooltip>
+      ) : null}
+    </PanelBody>
   );
 }

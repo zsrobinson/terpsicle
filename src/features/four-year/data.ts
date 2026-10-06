@@ -43,8 +43,10 @@ import { useFourYear } from "./store";
 
 /** What the term list and the calendars say. */
 export interface FourYearFacts {
-  /** The newest term Testudo lists, for `not-offered-lately`. */
+  /** The newest term Testudo lists, for `not-offered-lately` and offering patterns. */
   latestTermId: TermId | null;
+  /** The terms Testudo lists now: what they have is a fact, not a pattern. */
+  listedTermIds: ReadonlySet<TermId>;
   /** Published calendars; a term without one uses its season's months. */
   calendars: readonly AcademicCalendar[];
 }
@@ -68,13 +70,20 @@ export function useFourYearFacts<T>(select: (facts: FourYearFacts) => T): T {
       ),
     [terms],
   );
+  const listedTermIds = useMemo(
+    () =>
+      new Set(
+        (terms ?? []).filter((t) => t.status === "active").map((t) => t.id),
+      ),
+    [terms],
+  );
   const calendars = useQueries({
     queries: (terms ?? []).map((t) => calendarQuery(source, t.id)),
     combine: publishedCalendars,
   });
   const facts = useMemo(
-    () => ({ latestTermId, calendars }),
-    [latestTermId, calendars],
+    () => ({ latestTermId, listedTermIds, calendars }),
+    [latestTermId, listedTermIds, calendars],
   );
   return select(facts);
 }

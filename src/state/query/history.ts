@@ -5,6 +5,8 @@ import {
   type DeptCode,
   HISTORY_MANIFEST_KEY,
   historyDeptKey,
+  OFFERED_MANIFEST_KEY,
+  offeredKey,
   type TermId,
 } from "~/core/schema";
 import {
@@ -12,6 +14,8 @@ import {
   HistoryDeptSchema,
   type HistoryManifest,
   HistoryManifestSchema,
+  HistoryOfferedManifestSchema,
+  HistoryOfferedSchema,
   type HistoryOffering,
 } from "~/core/schema/history";
 import type { DataSource } from "../data-source";
@@ -45,6 +49,38 @@ export function historyManifestQuery(source: DataSource | null) {
         manifest.departments.map((d) => historyDeptKey(d.code, d.hash)),
       fileSchema: () => HistoryDeptSchema,
     },
+  );
+}
+
+/**
+ * `offered/manifest.json`: names the offered file (DATA.md §3.5), when each
+ * course runs. Schedule's search reads it, and only once someone types:
+ * neither page's first load waits for it.
+ */
+export function offeredManifestQuery(source: DataSource | null) {
+  return publishedPointer(
+    source,
+    OFFERED_MANIFEST_KEY,
+    HistoryOfferedManifestSchema,
+    "history",
+    {
+      staleTime: HISTORY_MANIFEST_STALE_MS,
+      lists: (manifest) => [offeredKey(manifest.hash)],
+      fileSchema: () => HistoryOfferedSchema,
+    },
+  );
+}
+
+/** The offered file at the hash its manifest names (none: nothing to read). */
+export function offeredQuery(
+  source: DataSource | null,
+  hash: ContentHash | undefined,
+) {
+  return publishedFile(
+    hash ? source : null,
+    hash ? offeredKey(hash) : "offered/none",
+    HistoryOfferedSchema,
+    "history",
   );
 }
 

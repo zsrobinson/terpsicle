@@ -14,6 +14,7 @@ import { Button } from "~/ui/button";
 import { WithTooltip } from "~/ui/tooltip";
 import { AboutMore } from "./about";
 import { bookmarkCourse } from "./actions";
+import { UsuallyOffered, useCourseOffering } from "./offering";
 import { permissionWords } from "./words";
 
 // The top of course details (UX review §3.4): who the course is, then the
@@ -55,6 +56,11 @@ export function DetailsHeader({
   onAbout: (open: boolean) => void;
 }) {
   const chatTermId = useChatTerm();
+  const offering = useCourseOffering(
+    [course.code, ...course.crossListings],
+    termId,
+    true,
+  );
   const chatOn =
     useAccount((s) => s.flags.chat !== "off") && chatTermId === termId;
   const genEds = [
@@ -107,6 +113,7 @@ export function DetailsHeader({
             </Fact>
           ) : null,
         )}
+        {offering ? <UsuallyOffered offering={offering} /> : null}
         {aboutOpen ? (
           <div className="pt-1" data-testid="about-course">
             <AboutMore course={course} onOpenCourse={openCourse} />

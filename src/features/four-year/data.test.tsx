@@ -344,6 +344,10 @@ describe("the term list and calendars (useFourYearFacts)", () => {
       expect(result.current.calendars).toHaveLength(mockCalendars.length),
     );
     expect(result.current.latestTermId).toBe(newestTerm);
+    // Only the active terms are listed: an archived one is the history's.
+    expect([...result.current.listedTermIds]).toEqual(
+      mockTermsFile.terms.filter((t) => t.status === "active").map((t) => t.id),
+    );
     expect(byTerm(result.current.calendars)).toEqual(byTerm(mockCalendars));
     // Each calendar is in the query the scheduler and Home read.
     for (const c of mockCalendars)
@@ -423,7 +427,11 @@ describe("the term list and calendars (useFourYearFacts)", () => {
         client.getQueryState(termsQuery(server.source).queryKey)?.status,
       ).toBe("error"),
     );
-    expect(result.current).toEqual({ latestTermId: null, calendars: [] });
+    expect(result.current).toEqual({
+      latestTermId: null,
+      listedTermIds: new Set(),
+      calendars: [],
+    });
     expect(server.take()).toEqual([TERMS_KEY]);
   });
 });
