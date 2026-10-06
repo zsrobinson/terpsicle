@@ -640,11 +640,11 @@ describe("Course details", () => {
           "The problem sets were long, and the exams followed them closely.",
         ),
       );
-      // Their name, so the server can fetch reviews its job hasn't stored.
+      // Who and which course, nothing more: the server reads what the
+      // nightly crawl stored and never asks PlanetTerp on a visit.
       expect(api.reviews.page).toHaveBeenCalledWith({
         instructorId: "ashdown_keiko",
         course: "CMSC351",
-        planetTerpName: "Keiko Ashdown",
       });
       expect(keiko).toHaveTextContent("3.1");
       expect(keiko).toHaveTextContent(/In CMSC351, \d+% got an A or B/);

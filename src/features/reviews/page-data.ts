@@ -36,7 +36,6 @@ import {
   type TermId,
 } from "~/core/schema";
 import { suggestCourses, suggestInstructors } from "~/core/seo";
-import { clientConfig } from "~/lib/config";
 import {
   loadCourseEntry,
   loadCourseSearch,
@@ -269,27 +268,7 @@ export async function loadReviewsPage(
     if (taught) return { kind: "taught", taught };
   }
   if (!data) return { kind: "missing", what: "instructor" };
-  // PlanetTerp has reviews of them that the nightly job hasn't stored yet
-  // (it stores a share a night): ask again with their name, and the server
-  // fetches them from PlanetTerp once (owner, 2026-09-29: Magdalene
-  // Ngeve's page showed none).
-  // Fixtures' names aren't PlanetTerp's, and e2e stays offline.
-  const reviews =
-    clientConfig.dataSource === "live" &&
-    first.planetTerp.length === 0 &&
-    !courseCode &&
-    data.name &&
-    (data.planetTerp?.reviewCount ?? 0) > 0
-      ? await reader
-          .pageReviews({
-            instructorId: id,
-            course: null,
-            planetTerpName: data.name,
-            sort,
-          })
-          .catch(() => first)
-      : first;
-  return { kind: "instructor", instructor: data, reviews };
+  return { kind: "instructor", instructor: data, reviews: first };
 }
 
 /** The instructor an address names; null when it can't be anyone. */

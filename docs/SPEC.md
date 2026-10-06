@@ -130,7 +130,7 @@ Nobody should have to touch the app when a new semester appears.
 - **Many sections** (over 20) add the plan's own section pinned under the Sections bar; "Only fits" appears from 9 sections.
 - **Seat freshness:** "Seats as of 2 minutes ago" above the Sections bar.
 - **Tabs:**
-  - **Instructors:** a card per instructor with rating, reviews count, average GPA and % A/B in this course, and a "Reviews" button wearing Reviews' mark that opens a preview of their reviews (a popover, a sheet on phones: the rating, the grades sentence, the three newest reviews, "View reviews").
+  - **Instructors:** a card per instructor with rating, reviews count, average GPA and % A/B in this course, and a "Reviews" button wearing Reviews' mark that opens a preview of their reviews (a popover, a sheet on phones: the rating, the grades sentence, the three newest reviews, "View reviews"). v3: all PlanetTerp's, credited, and while our Reviews pages are off it leads to PlanetTerp ("Read all 88 on PlanetTerp", "Review on PlanetTerp"; `docs/V2.md` §7.8).
   - **Grades:** a sentence ("64% got an A or B · average GPA 2.93") above **PlanetTerp-style bars**: one bar each for A, B, C, D, F, W and Other. Each letter bar is split into +/plain/− segments, and hovering a segment shows its count and percentage.
   - **About:** description, prerequisites and restrictions as text (not enforced), cross-listings.
 
@@ -267,7 +267,7 @@ Seat alerts are a signed-in feature (`docs/V2.md` §6.5). The owner calls it **S
 | Data | Source | Notes |
 |---|---|---|
 | Terms, departments, courses, sections, seats, meetings, delivery, notes | Testudo Schedule of Classes (scraped) | The term list comes from Testudo too (§3.0). Seat counts refresh every 5 min for active terms. |
-| Instructor ratings, reviews, grade distributions (+/−, W) | PlanetTerp API | We're OK using it; cache politely and link back. |
+| Instructor ratings, reviews, grade distributions (+/−, W) | PlanetTerp API | We're OK using it; cache politely and link back. v3: one nightly crawl only, and Reviews links out to PlanetTerp (`docs/V2.md` §7.8). |
 | Building codes → numbers → coordinates | Testudo building popup + UMD ArcGIS BuildingAllSearch | Checked-in `buildings.json`. |
 | Walking distances **and route geometries** (standard + accessible) | UMD GIS DynamicRouting (`gis.umd.edu`), precomputed per building pair | Built by a resumable cron job (or a script if Workers can't reach UMD's token server), stored in R2. OSRM/OSM is the fallback for distances only. |
 | Term dates, breaks, holidays | `provost.umd.edu/calendar.md` | For .ics. |

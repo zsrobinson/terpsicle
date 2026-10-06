@@ -5,16 +5,16 @@ import { IntegrationLabel } from "~/components/brand/integration-label";
 import { formatGpa, formatShare, gradeSummary } from "~/core/grades";
 import { planetTerpFreshnessWords } from "~/core/grades/source";
 import { combinedRatingWords, formatStars, mergeReviews } from "~/core/reviews";
-import type {
-  Course,
-  CourseCode,
-  InstructorSlug,
-  PlanetTerpDept,
+import {
+  type Course,
+  type CourseCode,
+  type InstructorSlug,
+  type PlanetTerpDept,
+  PREVIEW_REVIEWS,
 } from "~/core/schema";
 import { formatFullDate, formatMonthYear } from "~/core/time/format";
 import { useAccount } from "~/features/auth/account-store";
 import { useIsMobile } from "~/hooks/use-media-query";
-import { clientConfig } from "~/lib/config";
 import { lazyComponent } from "~/lib/lazy-component";
 import { api } from "~/server/fns/api";
 import { deptOf, useCatalog } from "~/state/catalog-store";
@@ -38,7 +38,7 @@ import { instructorRating, ReadThem } from "./reviews";
 // Reviews' pages loads with the scheduler: this asks `reviews/page` itself.
 
 /** Reviews the preview shows. */
-const SHOWN = 3;
+const SHOWN = PREVIEW_REVIEWS;
 /** How long a preview's reviews count as current: they change nightly. */
 const PREVIEW_STALE_MS = 10 * 60_000;
 
@@ -46,18 +46,10 @@ const PREVIEW_STALE_MS = 10 * 60_000;
 export function instructorReviewsQuery(
   slug: InstructorSlug,
   course: CourseCode,
-  planetTerpName: string,
 ) {
   return queryOptions({
     queryKey: ["reviews", "preview", slug, course],
-    // Their name lets the server fetch reviews the nightly job hasn't
-    // stored; fixtures' names aren't PlanetTerp's, and e2e stays offline.
-    queryFn: () =>
-      api.reviews.page({
-        instructorId: slug,
-        course,
-        ...(clientConfig.dataSource === "live" ? { planetTerpName } : {}),
-      }),
+    queryFn: () => api.reviews.page({ instructorId: slug, course }),
     staleTime: PREVIEW_STALE_MS,
     retry: 1,
   });
@@ -173,7 +165,7 @@ export function ReviewsPreview({
   const stale = useCatalog((s) => s.appStale);
   const freshness = pt ? planetTerpFreshnessWords(source) : null;
   const reviews = useQuery({
-    ...instructorReviewsQuery(pt?.slug ?? "", course.code, pt?.name ?? name),
+    ...instructorReviewsQuery(pt?.slug ?? "", course.code),
     enabled: pt !== null && !loading,
   });
   // PlanetTerp's alone, as the rating above is: one source, credited.

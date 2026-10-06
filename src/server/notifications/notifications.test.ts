@@ -647,7 +647,7 @@ describe("signing out, deleting the account and the purge", () => {
     expect((await rows()).results).toEqual([]);
   });
 
-  it("purges settings and devices, keeping deliveries without the person", async () => {
+  it("purges settings, devices and deliveries, whose keys name the person", async () => {
     const phone = await device();
     await subscribe(phone, await aSubscription(1));
     await phone.call("/api/notifications/settings/set", {
@@ -669,13 +669,7 @@ describe("signing out, deleting the account and the purge", () => {
       }>();
     expect((await count("push_subscriptions"))?.n).toBe(0);
     expect((await count("notification_settings"))?.n).toBe(0);
-    expect(
-      (
-        await env.DB.prepare(
-          "SELECT DISTINCT user_id FROM notification_deliveries",
-        ).all()
-      ).results,
-    ).toEqual([{ user_id: null }]);
+    expect((await count("notification_deliveries"))?.n).toBe(0);
   });
 
   it("prunes deliveries after 90 days", async () => {

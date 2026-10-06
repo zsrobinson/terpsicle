@@ -205,8 +205,33 @@ test("/ shows the marketing page to a first visit, and /privacy loads", async ({
   ).toBeVisible();
 });
 
+test("our Reviews pages go to PlanetTerp while they're off", async ({
+  page,
+}) => {
+  // REVIEWS_PAGES_ENABLED is unset on previews (wrangler.jsonc), and on
+  // production once it switches to version A; until then production serves
+  // the pages, so read the flag the app is told rather than assume it.
+  const me = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === "/api/me" && r.ok(),
+  );
+  await page.goto("/schedule");
+  const { flags } = (await (await me).json()) as {
+    flags: { reviewsPages: boolean };
+  };
+  test.skip(flags.reviewsPages, "This deployment has our Reviews pages on.");
+  // Each address answers a 302 to its PlanetTerp twin, not followed here.
+  for (const [path, to] of [
+    ["/reviews", "https://planetterp.com"],
+    ["/reviews/cmsc351", "https://planetterp.com/course/CMSC351"],
+  ] as const) {
+    const response = await page.request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(302);
+    expect(response.headers().location, path).toBe(to);
+  }
+});
+
 test("the public product pages render and hydrate", async ({ page }) => {
-  for (const path of ["/reviews", "/chat", "/plan", "/todo"]) {
+  for (const path of ["/chat", "/plan", "/todo"]) {
     await test.step(path, async () => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
