@@ -27,7 +27,7 @@ const SUMMARY: readonly { icon: typeof EyeOff; text: string }[] = [
   },
   {
     icon: LockKeyhole,
-    text: "Signed in, it syncs to your account, encrypted with your account's own key.",
+    text: "Signed in, it syncs to your account, and most of it is encrypted with your account's own key.",
   },
   {
     icon: EyeOff,
@@ -49,7 +49,14 @@ const KEPT: readonly [what: string, howLong: string][] = [
     "Your ELMS link, and the deadlines from it",
     "Until you disconnect; each deadline until 30 days after it's due",
   ],
-  ["Seat watches", "Until you stop watching, or the term ends"],
+  [
+    "Seat watches",
+    "Until you stop watching, or Testudo stops listing the term",
+  ],
+  [
+    "Each device's push subscription",
+    "Until you turn it off or remove the device, or its push service ends it",
+  ],
   ["Notifications in the bell", "30 days"],
   ["A record of each notification we sent, without its words", "90 days"],
   ["Chat messages", "Until the room is deleted, 70 days after classes end"],
@@ -63,6 +70,10 @@ const KEPT: readonly [what: string, howLong: string][] = [
     "1 year; a screenshot 180 days, or 30 days after we fix what it's about",
   ],
   ["Staying signed in", "30 days after you last use Terpsicle"],
+  [
+    "The cookie with the UMD address you last signed in with",
+    "400 days, or until you sign out",
+  ],
   ["Your account", "Until you delete it, then 7 days to change your mind"],
   ["Database backups", "30 days"],
 ];
@@ -115,18 +126,20 @@ export function PrivacyPage() {
         <LegalSection title="Signing in">
           <p>
             You sign in with your UMD Google account (umd.edu or
-            terpmail.umd.edu). Google gives us your name and UMD email address,
-            and we keep both. Your directory ID (the part of your email before
-            the @) identifies your account. We don't collect or show your
-            profile picture: your initials stand in for it. We never get your
-            mail, your files or your password.
+            terpmail.umd.edu). Google gives us your name, your UMD email address
+            and an ID for your Google account, and we keep all three. Your
+            directory ID (the part of your email before the @) identifies your
+            account. We don't collect or show your profile picture: your
+            initials stand in for it. We never get your mail, your files or your
+            password.
           </p>
           <p>
             Signing in sets a cookie that keeps you signed in, for up to 30 days
             after you last use Terpsicle. Two more help sign-in itself: one
             lasts 10 minutes while Google answers, and one remembers which UMD
-            address you used, so Google can suggest it next time (signing out
-            clears it). We set no other cookies, and none for ads or tracking.
+            address you used, so Google can suggest it next time. That one lasts
+            400 days, longer than you stay signed in, and signing out clears it.
+            We set no other cookies, and none for ads or tracking.
           </p>
           <p>
             If Google says your organization blocked Terpsicle, UMD's Google
@@ -149,10 +162,12 @@ export function PrivacyPage() {
             the key.
           </p>
           <p>
-            It isn't end-to-end encryption. Our server can open your data,
-            because a few features need it to: Chat reads your main plan to find
-            your class rooms, and your calendar feed reads it to list your
-            classes. We don't open it for anything else, and{" "}
+            It isn't end-to-end encryption: our server can open your data. It
+            does so to send it back to you, and for three features: Chat reads
+            your plans and settings to find your class rooms, your calendar feed
+            reads your plans, settings and tasks to list your classes and
+            deadlines, and Due tomorrow reads tomorrow's tasks to name them in
+            its push. We don't open it for anything else, and{" "}
             <ProseOutsideLink
               href={REPO_URL}
               tooltip="Terpsicle's code on GitHub. Opens in a new tab."
@@ -162,10 +177,11 @@ export function PrivacyPage() {
             shows it.
           </p>
           <p>
-            A few things stay readable so those features work: the sections in
-            your main plan (Chat's rooms come from them), which terms you have
-            plans in and when you saved, and your tasks' due dates and courses,
-            but not what they say.
+            Some things aren't encrypted, so features can use them without
+            opening the rest: the sections in your main plan (Chat's rooms come
+            from them), which terms you have plans in and when you saved, your
+            tasks' due dates and courses (but not what they say), and the
+            deadlines from ELMS or a calendar file.
           </p>
         </LegalSection>
 
@@ -194,20 +210,22 @@ export function PrivacyPage() {
         <LegalSection title="Things we do for you">
           <p>
             <Lead>Notifications.</Lead> When you watch a full section, we let
-            you know when a seat opens, by push and email. Mentions and replies
-            in Chat, and Todo's Due tomorrow, work the same way. To send them,
-            we keep your seat watches, your email address, your browser's push
-            subscription, your notification settings and what's in the bell.
-            Push messages pass through your browser maker's push service.
-            Settings lets you turn each kind on or off, for push and email
-            separately.
+            you know when a seat opens, by push, email or both. Mentions and
+            replies in Chat, and Todo's Due tomorrow, come by push. The chat
+            digest, a once-a-day list of what you haven't read in Chat, is the
+            only chat email. To send them, we keep your seat watches, your email
+            address, your browser's push subscription, your notification
+            settings and what's in the bell. Push messages pass through your
+            browser maker's push service. Settings lets you turn each one on or
+            off.
           </p>
           <p>
             <Lead>Todo.</Lead> To show your deadlines, we keep your ELMS
-            calendar link on our server, encrypted, and check it about every 20
-            minutes. We store the assignments and events it lists (titles,
-            courses and due dates), which ones you've marked done, and any
-            courses you hide. We don't get your grades, submissions or ELMS
+            calendar link on our server and check it about every 20 minutes.
+            It's encrypted with one server key that every ELMS link shares, not
+            your account's own key. We store the assignments and events it lists
+            (titles, courses and due dates), which ones you've marked done, and
+            any courses you hide. We don't get your grades, submissions or ELMS
             password, and we never sign in to ELMS or Gradescope for you.
             Disconnect any time and we delete the link and everything from it at
             once. If you add a calendar file instead, it's read in your browser,
@@ -218,9 +236,10 @@ export function PrivacyPage() {
             <Lead>Your calendar feed.</Lead> If you subscribe to it, your
             calendar app fetches your classes and Todo deadlines from a private
             link, without signing in. Anyone with the link can see those dates,
-            so keep it to yourself. We store only a one-way hash of it and when
-            a calendar last fetched it, never the link in a log or analytics.
-            "Make a new link" in Settings stops the old one at once.
+            so keep it to yourself. We don't store the link itself, only what
+            lets us show it to you again, a one-way hash to recognize it, and
+            when a calendar last fetched it. "Make a new link" in Settings stops
+            the old one at once.
           </p>
         </LegalSection>
 
@@ -240,16 +259,24 @@ export function PrivacyPage() {
           </p>
           <p>
             These models run on Cloudflare, where Terpsicle runs, not at an AI
-            company. Cloudflare doesn't train models on what we send, and
-            neither do we.
+            company.{" "}
+            <ProseOutsideLink
+              href={CLOUDFLARE_AI_DATA_URL}
+              tooltip="How Cloudflare uses what's sent to its AI models. Opens in a new tab."
+            >
+              Cloudflare says
+            </ProseOutsideLink>{" "}
+            it doesn't train models on what we send, and we don't either.
           </p>
         </LegalSection>
 
         <LegalSection title="Analytics and feedback">
           <p>
             We use PostHog to count which parts of the app people use. It's
-            anonymous: it isn't linked to your name or account, it sets no
-            cookies, and PostHog never receives your IP address. It sees actions
+            anonymous: it isn't linked to your name or account, and PostHog
+            never receives your IP address. It sets no cookies, but it keeps a
+            random ID in your browser's local storage, so it can tell one
+            visitor from another without knowing who they are. It sees actions
             like opening a tab or adding a course, never what you type, and
             never what you write in chats. A share link's plan never reaches it:
             PostHog only learns that a shared plan was opened. We don't record
@@ -310,12 +337,12 @@ export function PrivacyPage() {
               {
                 name: "Push services",
                 children:
-                  "your browser maker's (Apple's, Google's or Mozilla's) deliver push notifications, encrypted for your device.",
+                  "your browser maker's (for example, Apple's, Google's, Mozilla's or Microsoft's) deliver push notifications, encrypted for your device.",
               },
               {
                 name: "ELMS",
                 children:
-                  "if you connect it, our server fetches your calendar link from ELMS (umd.instructure.com) to read your deadlines.",
+                  "if you connect it, our server fetches your calendar from ELMS (umd.instructure.com) with your link, to read your deadlines.",
               },
               {
                 name: "PlanetTerp",
@@ -371,22 +398,30 @@ export function PrivacyPage() {
             >
               Settings
             </ProseLink>
-            , you can download everything you've made in Terpsicle as one file,
-            and delete your account. Deleting signs you out everywhere, then
-            waits 7 days in case you change your mind: signing in keeps the
-            account. After that, we delete your profile, your synced plans,
-            four-year plans and settings, your Todo tasks and ELMS link with its
-            deadlines, your seat watches, notification settings, chat messages
-            and calendar feed link. Your calendar feed stops working right away.
-            Plans saved in your browser stay until you remove them.
+            , you can download your data as one file: your plans, four-year
+            plans with their grades, and settings, and, signed in, your profile,
+            the tasks you added in Todo and the courses you hid there, your seat
+            watches, notification settings, your class chats and the messages
+            you wrote in them, and any reviews you wrote in Terpsicle. Deadlines
+            from ELMS aren't in it, since Todo gets them from ELMS again.
           </p>
           <p>
-            Deleting your account destroys its key, so what it encrypted can't
-            be read again by anyone, us included, even from a backup. What isn't
-            encrypted (the sections of your main plan, which terms you have
-            plans in, your tasks' dates, your seat watches, chat messages and
-            the rest) can stay in the backups for up to 30 days after it's
-            deleted. Feedback you sent stays, with no name on it.
+            You can delete your account there too. Deleting signs you out
+            everywhere, then waits 7 days in case you change your mind: signing
+            in keeps the account. After that, we delete your profile, your
+            synced plans, four-year plans and settings, your Todo tasks and ELMS
+            link with its deadlines, your seat watches, notification settings,
+            chat messages and calendar feed link. Your calendar feed stops
+            working right away. Plans saved in your browser stay until you
+            remove them.
+          </p>
+          <p>
+            All of that leaves our live database at once, and your account's key
+            is deleted. Backups take longer: Cloudflare can put our database and
+            Chat's messages back as they were at any moment of the last 30 days,
+            so a copy of everything, encrypted or not, stays in those backups
+            until it rolls off, within 30 days. That includes your ELMS link.
+            Feedback you sent stays, with no name on it.
           </p>
         </LegalSection>
 
@@ -416,6 +451,10 @@ export function PrivacyPage() {
 }
 
 const HEAD_CELL = "py-2 pr-4 text-left font-normal text-muted";
+
+/** Cloudflare's own words on what Workers AI does with what it's sent. */
+const CLOUDFLARE_AI_DATA_URL =
+  "https://developers.cloudflare.com/workers-ai/platform/data-usage/";
 
 /** A paragraph's subject, in the page's ink: "Chat." */
 function Lead({ children }: { children: ReactNode }) {

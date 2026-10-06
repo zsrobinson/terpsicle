@@ -27,12 +27,12 @@ export function TermsPage() {
         <p>
           These are the rules for using Terpsicle, in plain words. By using it,
           you agree to them. If you don't, please don't use Terpsicle. What we
-          keep about you, and why, is on the{" "}
+          keep about you, and why, is in{" "}
           <ProseLink
             to="/privacy"
             tooltip="What Terpsicle keeps about you, and why"
           >
-            privacy page
+            Privacy
           </ProseLink>
           .
         </p>
@@ -90,9 +90,10 @@ export function TermsPage() {
             Reviews are written on PlanetTerp, under its rules.
           </p>
           <p>
-            We can remove anything that breaks these rules, and pause accounts
-            that break them, from Chat or from all of Terpsicle. We'll usually
-            say why, but we don't have to.
+            We can remove anything that breaks these rules, and stop someone who
+            breaks them from posting in Chat. We also keep the right to close an
+            account that breaks them. We'll usually say why, but we don't have
+            to.
           </p>
         </LegalSection>
 
