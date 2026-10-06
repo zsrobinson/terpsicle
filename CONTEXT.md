@@ -375,7 +375,7 @@ A rating is 1 to 5 in halves, written with the rating slider (a star's left half
 The newest reviews anywhere, ours and PlanetTerp's, on `/reviews`, each saying who and which course it's about.
 
 **Reviews preview**:
-In Schedule's course details, the popover (a sheet on phones) an instructor's "Reviews" button opens, wearing Reviews' mark: their rating, the grades sentence, their three newest reviews and "View reviews". Code says `ReviewsPreview`.
+In Schedule's course details, the popover (a sheet on phones) an instructor's "Reviews" button opens, wearing Reviews' mark: their rating, the grades sentence and their three newest reviews, all PlanetTerp's and credited "From PlanetTerp", then "View reviews", or while our Reviews pages are off, "Read all 88 on PlanetTerp" and "Review on PlanetTerp". Code says `ReviewsPreview`.
 _Avoid_: reviews tab, summary
 
 **Folded tabs**:

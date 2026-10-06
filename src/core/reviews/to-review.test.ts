@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { aPlan, aPlanCourse, aSavedCourse, aSectionSnapshot } from "~/fixtures";
 import {
+  DISMISSED_TO_REVIEW_MAX,
+  dismissedToReview,
   instructorsToReview,
   isReviewableTerm,
   reviewedKey,
+  withToReviewDismissed,
 } from "./to-review";
 
 const placed = (courseCode: string, ...instructors: string[]) =>
@@ -85,5 +88,36 @@ describe("instructorsToReview", () => {
     expect(instructorsToReview(plans, today, reviewed)).toEqual([
       { termId: "202601", course: "CMSC351", name: "Ada Brandt" },
     ]);
+  });
+});
+
+describe("withToReviewDismissed", () => {
+  const key = reviewedKey("CMSC351", "Keiko Ashdown");
+
+  it("closes a row and opens it again, keeping the other prefs", () => {
+    const prefs = { home: { dismissed: ["plan"] } };
+    const closed = withToReviewDismissed(prefs, key, true);
+    expect(dismissedToReview(closed)).toEqual(new Set([key]));
+    expect(closed.home).toEqual({ dismissed: ["plan"] });
+    expect(
+      dismissedToReview(withToReviewDismissed(closed, key, false)),
+    ).toEqual(new Set());
+  });
+
+  it("changes nothing when the row is already that way", () => {
+    const prefs = withToReviewDismissed({}, key, true);
+    expect(withToReviewDismissed(prefs, key, true)).toBe(prefs);
+    const none = {};
+    expect(withToReviewDismissed(none, key, false)).toBe(none);
+  });
+
+  it("keeps the newest, dropping the oldest past the limit", () => {
+    let prefs = {};
+    for (let i = 0; i <= DISMISSED_TO_REVIEW_MAX; i++)
+      prefs = withToReviewDismissed(prefs, `CMSC${100 + i}:x`, true);
+    const kept = dismissedToReview(prefs);
+    expect(kept.size).toBe(DISMISSED_TO_REVIEW_MAX);
+    expect(kept.has("CMSC100:x")).toBe(false);
+    expect(kept.has(`CMSC${100 + DISMISSED_TO_REVIEW_MAX}:x`)).toBe(true);
   });
 });
