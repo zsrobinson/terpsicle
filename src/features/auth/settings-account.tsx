@@ -4,6 +4,10 @@ import { lazy, Suspense, useState } from "react";
 import { signInStartHref } from "~/core/auth";
 import { SIGN_IN_START_PATH } from "~/core/schema";
 import { SitePage } from "~/features/site/site-page";
+import {
+  DataRow,
+  YourDataSection,
+} from "~/features/your-data/your-data-section";
 import { track } from "~/lib/analytics";
 import { Button } from "~/ui/button";
 import { InlineError } from "~/ui/inline-error";
@@ -41,12 +45,14 @@ export function deletionDay(iso: string): string {
 /**
  * `/settings`: the account (V2.md §1.1), the sections you're watching for a
  * seat (#watching, from the account menu), the way to notifications (§6.2,
- * their own page), and AI features, signed in or not. A note page in the
- * site's frame, so every product is one click away.
+ * their own page), and your data (download it, add a file back, delete the
+ * account; DATA.md §5.6), signed in or not. A note page in the site's
+ * frame, so every product is one click away.
  */
 export function SettingsPage() {
   const status = useAccount((s) => s.status);
   const seatAlerts = useAccount((s) => s.flags.seatAlerts);
+  const todo = useAccount((s) => s.flags.todo);
   return (
     <SitePage>
       <PageHeader
@@ -91,6 +97,11 @@ export function SettingsPage() {
             <SeatWatches />
           </Suspense>
         ) : null}
+        {status === "loading" ? null : (
+          <YourDataSection who={{ signedIn: status === "signed-in", todo }}>
+            {status === "signed-in" ? <DeleteAccount /> : null}
+          </YourDataSection>
+        )}
       </div>
     </SitePage>
   );
@@ -165,49 +176,23 @@ function AccountDetails() {
 
 function AccountActions() {
   const signOut = useAccount((s) => s.signOut);
-  const deleteAccount = useAccount((s) => s.deleteAccount);
-  const [working, setWorking] = useState<
-    "sign-out" | "remove" | "delete" | null
-  >(null);
+  const [working, setWorking] = useState<"sign-out" | "remove" | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
 
-  const run = async (kind: "sign-out" | "remove" | "delete") => {
+  const run = async (kind: "sign-out" | "remove") => {
     setWorking(kind);
     setFailed(null);
     try {
-      if (kind !== "delete") {
-        const removeLocal = kind === "remove";
-        await signOut({ removeLocal });
-        track("signed_out", { removedLocal: removeLocal });
-        if (removeLocal)
-          noteToast("Signed out", {
-            description:
-              "Your plans are removed from this browser. They're still on your account.",
-          });
-      } else {
-        const due = await deleteAccount();
-        track("account_deletion_requested", {});
-        // No confirmation dialog (DESIGN §5): Undo signs back in, which
-        // keeps the account.
-        undoToast({
-          id: "account-delete",
-          message: `Deleting your account on ${deletionDay(due)}`,
-          description: "Undo signs you back in and keeps it.",
-          tooltip: "Sign back in and keep your account",
-          onUndo: () => {
-            track("signin_started", { from: "undo" });
-            window.location.assign(
-              signInStartHref(SIGN_IN_START_PATH, SETTINGS_PATH),
-            );
-          },
+      const removeLocal = kind === "remove";
+      await signOut({ removeLocal });
+      track("signed_out", { removedLocal: removeLocal });
+      if (removeLocal)
+        noteToast("Signed out", {
+          description:
+            "Your plans are removed from this browser. They're still on your account.",
         });
-      }
     } catch (error) {
-      setFailed(
-        kind === "delete"
-          ? "That didn't go through. Check your connection and try again."
-          : signOutFailure(error),
-      );
+      setFailed(signOutFailure(error));
     } finally {
       setWorking(null);
     }
@@ -237,25 +222,68 @@ function AccountActions() {
           </Button>
         </WithTooltip>
       </div>
-      <WithTooltip label="Signs you out everywhere. The account goes after a week unless you sign in again.">
-        <Button
-          variant="ghost"
-          disabled={working !== null}
-          onClick={() => void run("delete")}
-          // Over the words that explain it, its own words on the column's
-          // edge: the ghost button's padding hangs out into the gutter.
-          className="-ml-3 self-start"
-        >
-          {working === "delete" ? "Deleting…" : "Delete account"}
-        </Button>
-      </WithTooltip>
-      <p className="text-sm">
-        Deleting signs you out everywhere. After a week, your profile, synced
-        plans, chat messages and ELMS feed are gone for good. Your published
-        reviews stay up, with no name on them. Delete them first if you want
-        them gone. Plans on this device stay.
-      </p>
       {failed ? <InlineError message={failed} className="py-0" /> : null}
     </div>
+  );
+}
+
+/**
+ * "Delete your account", in Your data: no confirmation dialog (DESIGN §5).
+ * The account waits a week, and Undo signs back in, which keeps it.
+ */
+function DeleteAccount() {
+  const deleteAccount = useAccount((s) => s.deleteAccount);
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const run = async () => {
+    setWorking(true);
+    setFailed(false);
+    try {
+      const due = await deleteAccount();
+      track("account_deletion_requested", {});
+      undoToast({
+        id: "account-delete",
+        message: `Deleting your account on ${deletionDay(due)}`,
+        description: "Undo signs you back in and keeps it.",
+        tooltip: "Sign back in and keep your account",
+        onUndo: () => {
+          track("signin_started", { from: "undo" });
+          window.location.assign(
+            signInStartHref(SIGN_IN_START_PATH, SETTINGS_PATH),
+          );
+        },
+      });
+    } catch {
+      setFailed(true);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <DataRow
+      title="Delete your account"
+      description="Signs you out everywhere, then waits a week: signing in before then keeps it. After that, your profile, synced plans, four-year plans, settings, Todo tasks, seat watches and chat messages are gone for good, and what was encrypted can't be read again, even from a backup. Reviews you posted stay up with no name on them. Plans in this browser stay."
+      action={
+        <WithTooltip label="Signs you out everywhere. The account goes after a week unless you sign in again.">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={working}
+            onClick={() => void run()}
+          >
+            {working ? "Deleting…" : "Delete account"}
+          </Button>
+        </WithTooltip>
+      }
+    >
+      {failed ? (
+        <InlineError
+          message="That didn't go through. Check your connection and try again."
+          className="pb-0"
+        />
+      ) : null}
+    </DataRow>
   );
 }

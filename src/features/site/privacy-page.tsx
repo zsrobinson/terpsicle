@@ -237,14 +237,15 @@ export function PrivacyPage() {
 
         <Section title="Deleting your account">
           <p>
-            You can delete your account in Settings. Terpsicle waits 7 days, in
-            case you change your mind (signing in cancels it), then deletes your
-            profile, synced plans, notification settings, seat watches, chat
-            messages, your calendar feed link, and your ELMS link, deadlines,
-            own tasks and done marks. Your calendar feed stops working as soon
-            as you delete your account. Reviews you posted stay up with no name
-            attached; delete them first if you want them gone. Plans saved in
-            your browser stay until you remove them.
+            You can download everything you made in Terpsicle as one file, and
+            delete your account, under Your data in Settings. Terpsicle waits 7
+            days, in case you change your mind (signing in cancels it), then
+            deletes your profile, synced plans, notification settings, seat
+            watches, chat messages, your calendar feed link, and your ELMS link,
+            deadlines, own tasks and done marks. Your calendar feed stops
+            working as soon as you delete your account. Reviews you posted stay
+            up with no name attached; delete them first if you want them gone.
+            Plans saved in your browser stay until you remove them.
           </p>
           <p>
             Your synced plans, settings and four-year plans, and what your Todo
