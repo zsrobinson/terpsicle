@@ -9,6 +9,7 @@ import type {
 } from "~/core/schema";
 import { dueTimeLabel, isElmsUrl } from "~/core/todo";
 import { tintStyle } from "~/features/calendar/tint";
+import { Checkbox } from "~/ui/checkbox";
 import { ListRow } from "~/ui/list-row";
 import { WithTooltip } from "~/ui/tooltip";
 
@@ -32,6 +33,7 @@ export function TodoCheckbox({
   done,
   onToggle,
   sample = false,
+  haptic = false,
   className,
 }: {
   title: string;
@@ -39,30 +41,27 @@ export function TodoCheckbox({
   onToggle?: () => void;
   /** The front door's sample: it can't be checked, and says why. */
   sample?: boolean;
+  /** Ticks on iPhone: the check that finishes its course's week. */
+  haptic?: boolean;
   className?: string;
 }) {
   // The label is the target (44px on phones); the box inside is the control.
   return (
-    <label className={cn(TARGET, sample ? null : "cursor-pointer", className)}>
-      <WithTooltip
-        label={
-          sample
-            ? "A sample. Sign in to check off your own."
-            : done
-              ? "Mark as not done"
-              : "Mark done"
-        }
-      >
-        <input
-          type="checkbox"
-          checked={done}
-          disabled={sample}
-          aria-label={sample ? `Sample: ${title}` : `Done: ${title}`}
-          onChange={() => onToggle?.()}
-          className="size-4 shrink-0 cursor-pointer accent-accent disabled:cursor-default"
-        />
-      </WithTooltip>
-    </label>
+    <Checkbox
+      tooltip={
+        sample
+          ? "A sample. Sign in to check off your own."
+          : done
+            ? "Mark as not done"
+            : "Mark done"
+      }
+      checked={done}
+      disabled={sample}
+      haptic={haptic && !done}
+      aria-label={sample ? `Sample: ${title}` : `Done: ${title}`}
+      onChange={() => onToggle?.()}
+      className={cn(TARGET, className)}
+    />
   );
 }
 
@@ -109,6 +108,7 @@ export function TodoItemRow({
   menu,
   preview = false,
   showCourse = true,
+  haptic = false,
   ...row
 }: Omit<ComponentProps<"li">, "children" | "color"> & {
   item: TodoItem;
@@ -130,6 +130,8 @@ export function TodoItemRow({
   preview?: boolean;
   /** Off under a course's own heading. */
   showCourse?: boolean;
+  /** Its check ticks on iPhone: it finishes its course's week. */
+  haptic?: boolean;
 }) {
   const link = item.link !== null && isElmsUrl(item.link) ? item.link : null;
   // Under "No date", the heading already says it.
@@ -151,6 +153,7 @@ export function TodoItemRow({
           done={done}
           onToggle={onToggle}
           sample={preview}
+          haptic={haptic}
           className="-my-3 -mr-2 -ml-3 md:-my-1.5 md:-mr-1.5 md:-ml-2"
         />
       }

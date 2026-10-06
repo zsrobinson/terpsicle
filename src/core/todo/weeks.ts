@@ -132,6 +132,24 @@ export function courseWeek(
   );
 }
 
+/**
+ * Whether checking `item` off finishes its course's week from `first` (a
+ * Monday): it's due that week, it isn't done, and it's the last of its
+ * course's `row` that isn't. Todo ticks on that tap, as the course's bar
+ * fills. A hidden course has no row, so nothing in it finishes.
+ */
+export function finishesCourseWeek(
+  item: TodoItem,
+  done: ReadonlySet<string>,
+  first: IsoDate,
+  row: Progress | undefined,
+): boolean {
+  if (row === undefined || done.has(item.uid) || item.dueDate === null)
+    return false;
+  if (item.dueDate < first || item.dueDate > addDays(first, 6)) return false;
+  return row.total - row.done === 1;
+}
+
 /** The week's done and due across the courses given. */
 export function totalOf(rows: readonly Progress[]): Progress {
   let done = 0;

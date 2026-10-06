@@ -29,6 +29,11 @@ export interface ViewProps {
   now: number;
   look: (item: TodoItem) => ItemLook;
   onToggle: (item: TodoItem, via: CheckedVia) => void;
+  /**
+   * Whether checking it off finishes its course's week, so its tap ticks on
+   * iPhone as the bar's confetti goes (./sidebar).
+   */
+  finishes: (item: TodoItem) => boolean;
   /** The courses an own task can be for: on the feed and in your plans. */
   taskCourses: readonly CourseCode[];
   /** Deletes an own task, with Undo. */
@@ -119,6 +124,7 @@ function OwnTaskRow({
         {...props.look(item)}
         relative={relativeDue(item, props.now, props.today)}
         onToggle={() => props.onToggle(item, "list")}
+        haptic={props.finishes(item)}
         menu={
           <TaskMenu
             item={item}
@@ -158,6 +164,7 @@ export function Rows({
           {...props.look(item)}
           relative={relativeDue(item, props.now, props.today)}
           onToggle={() => props.onToggle(item, "list")}
+          haptic={props.finishes(item)}
         />
       </TaskContextMenu>
     ),
