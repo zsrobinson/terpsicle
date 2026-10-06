@@ -17,6 +17,7 @@ import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
 import { EARLY_ACCESS, EARLY_ACCESS_NOTE } from "./early-access";
+import { LegalMenuItems } from "./legal-menu-items";
 
 // The product menu, the brand's app switcher (docs/V2.md §1.1, DESIGN.md
 // §7.6): where the bar is too narrow for the product tabs (app-bar.tsx),
@@ -108,9 +109,9 @@ export function ProductMenu({
 }
 
 /**
- * About Terpsicle and the Early access note: the product menu's foot, and
- * the account menu's on a phone, where the tab bar has taken the product
- * menu's place.
+ * About Terpsicle, Privacy, Terms of use and the Early access note: the
+ * product menu's foot, and the account menu's on a phone, where the tab bar
+ * has taken the product menu's place.
  */
 export function AboutItems() {
   return (
@@ -121,6 +122,7 @@ export function AboutItems() {
       >
         About Terpsicle
       </ActionMenuLinkItem>
+      <LegalMenuItems />
       <ActionMenuText className="pt-1 text-xs">
         <span className="font-medium text-fg">{EARLY_ACCESS}:</span>{" "}
         {EARLY_ACCESS_NOTE}

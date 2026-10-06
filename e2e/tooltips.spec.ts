@@ -33,6 +33,7 @@ const SIGNED_OUT = [
   "/plan",
   "/todo",
   "/privacy",
+  "/terms",
   "/signin",
   "/home",
 ];

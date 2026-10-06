@@ -45,7 +45,7 @@ Admins are not configuration: see "Admins".
 
 Done once, in the [Google Cloud console](https://console.cloud.google.com/), in a project named "Terpsicle" (STATUS.md records what's done):
 
-1. **Google Auth Platform → Branding.** App name "Terpsicle"; a user support email; the logo; home page `https://terpsicle.com`; privacy policy `https://terpsicle.com/privacy`; authorized domain `terpsicle.com` (verify it in [Search Console](https://search.google.com/search-console) first); a developer contact email.
+1. **Google Auth Platform → Branding.** App name "Terpsicle"; a user support email; the logo; home page `https://terpsicle.com`; privacy policy `https://terpsicle.com/privacy`; terms of service `https://terpsicle.com/terms`; authorized domain `terpsicle.com` (verify it in [Search Console](https://search.google.com/search-console) first); a developer contact email.
 2. **Audience.** User type **External**, then **Publish app** (In production). While it's in Testing, only 100 listed test users can sign in.
 3. **Data access.** Add the scopes `openid`, `email` and `profile`. All three are non-sensitive, so there's no scope review.
 4. **Clients → Create client → Web application**, named "Terpsicle":

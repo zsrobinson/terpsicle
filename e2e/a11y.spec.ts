@@ -93,6 +93,7 @@ for (const scheme of ["light", "dark"] as const) {
       for (const path of [
         "/",
         "/privacy",
+        "/terms",
         "/reviews",
         "/home",
         "/schedule/nowhere",

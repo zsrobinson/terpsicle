@@ -91,7 +91,7 @@ One package at the root: one `package.json`, one Biome config, one Vitest config
 ├── config/                     tracked settings the Worker bundles (admins.txt)
 ├── src/
 │   ├── server.ts               Worker entry: { fetch, scheduled }
-│   ├── routes/                 TanStack file routes, one per page and view: / (marketing), /home, /schedule/* (each rail tab and drill-in), /reviews/*, /chat, /plan/*, /todo/*, /settings, /signin, /privacy, /admin/*
+│   ├── routes/                 TanStack file routes, one per page and view: / (marketing), /home, /schedule/* (each rail tab and drill-in), /reviews/*, /chat, /plan/*, /todo/*, /settings, /signin, /privacy, /terms, /admin/*
 │   ├── features/<name>/        one folder per feature, every product's (course-details, generate, reviews, chat, four-year for Plan, todo, notifications, pwa, …)
 │   │   └── schedule/           the scheduler's shell: top bar, rail, sidebar + drill-in, drawer, calendar region, its URL state and actions (README.md)
 │   ├── components/             views every product shares: the family bar (app-bar), product menu, theme toggle, panel pieces, brand/ (Mark, Wordmark, logo), workbench/
@@ -177,7 +177,7 @@ Path aliases: `~/core`, `~/ingest`, `~/features/*`, `~/components/*`, `~/hooks/*
 |---|---|---|
 | `/schedule` (and `/schedule/courses`, `/schedule/course/$code` with it) | 345 KB | 335 KB (`perf/schedule-bundle`; 378 KB before it); 348 KB for `/schedule/courses` once each view was a route (`v2/schedule-routes`; 362 KB before it) |
 | `/` (the marketing page) | 240 KB | 232 KB (`v3/landing-bundle`; 330 KB before it) |
-| `/settings`, `/signin`, `/privacy` | 215 KB | 193 KB (v2 routes) |
+| `/settings`, `/signin`, `/privacy`, `/terms` | 215 KB | 193 KB (v2 routes) |
 
 What `/` loads on first use, not up front (each has a rule in `MARKETING_NEVER_EAGER`). Its first load is its search ranking, and it shows none of the app's frame:
 - **The router's loading, failure and 404 states**, which draw the family bar with its menus, the bell and Feedback (`src/features/site/lazy-route-states.tsx`). The server renders them from a static import. Every other page preloads their files from its head (`<link rel="modulepreload">`, the list from `scripts/pwa-precache.ts`) and takes them up at boot; `/` fetches them when a navigation starts.

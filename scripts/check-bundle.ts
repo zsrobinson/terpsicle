@@ -31,9 +31,10 @@ const TAB_BAR_NEVER_EAGER = {
 };
 
 /**
- * Gzipped JS + CSS for the other entry pages (/settings, /signin, /privacy),
- * in bytes: 193 KB when this was set (v2 routes, for `/` too), mostly React,
- * the router and the route tree's search schemas, plus about 10% headroom.
+ * Gzipped JS + CSS for the other entry pages (/settings, /signin, /privacy,
+ * /terms), in bytes: 193 KB when this was set (v2 routes, for `/` too),
+ * mostly React, the router and the route tree's search schemas, plus about
+ * 10% headroom.
  * Same rule for raising it.
  */
 export const LANDING_BUDGET = 215 * 1024;
@@ -400,7 +401,7 @@ export const ROUTE_BUDGETS: readonly {
       TAB_BAR_NEVER_EAGER,
     ],
   },
-  ...["/settings", "/signin", "/privacy"].map((route) => ({
+  ...["/settings", "/signin", "/privacy", "/terms"].map((route) => ({
     route,
     budget: LANDING_BUDGET,
     never: [

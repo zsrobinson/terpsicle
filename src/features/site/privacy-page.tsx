@@ -1,172 +1,288 @@
+import { EyeOff, LockKeyhole, MonitorSmartphone } from "lucide-react";
 import type { ReactNode } from "react";
 import { PageHeader } from "~/ui/page-header";
-import { PageSection } from "~/ui/page-section";
 import { WithTooltip } from "~/ui/tooltip";
 import { ContactEmail } from "./contact-email";
+import {
+  LEGAL_UPDATED,
+  LegalSection,
+  NamedList,
+  ProseLink,
+  ProseOutsideLink,
+  REPO_URL,
+} from "./legal";
 import { SitePage } from "./site-page";
 
 // `/privacy`: Google's OAuth consent screen links here, and brand
-// verification checks that it loads (docs/V2.md §14). A draft for the owner
-// to review. Keep it true to the app as built and planned (docs/V2.md, the
-// owner's decisions), with nothing added that isn't.
+// verification checks that it loads (docs/V2.md §14). Written from what's
+// built (docs/DATA.md §7.7, docs/decisions.md's privacy entries): change it
+// in the same PR as anything it describes, and move LEGAL_UPDATED with it.
+// Never call the encryption end-to-end (CLAUDE.md).
 
-/** One part of the policy: the kit's section, with prose in it. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <PageSection title={title} className="text-fg">
-      <div className="flex flex-col gap-3 text-muted">{children}</div>
-    </PageSection>
-  );
-}
+/** The three lines at the top: the whole page, for people who read no more. */
+const SUMMARY: readonly { icon: typeof EyeOff; text: string }[] = [
+  {
+    icon: MonitorSmartphone,
+    text: "Without an account, everything you make stays in your browser.",
+  },
+  {
+    icon: LockKeyhole,
+    text: "Signed in, it syncs to your account, and most of it is encrypted with your account's own key.",
+  },
+  {
+    icon: EyeOff,
+    text: "We don't sell or share your data, and analytics are anonymous.",
+  },
+];
+
+/** How long each thing is kept: one table, backups included. */
+const KEPT: readonly [what: string, howLong: string][] = [
+  [
+    "Plans, four-year plans and settings",
+    "Until you delete them, or your account",
+  ],
+  [
+    "Tasks you add in Todo",
+    "Until you delete them, or 30 days after they're due",
+  ],
+  [
+    "Your ELMS link, and the deadlines from it",
+    "Until you disconnect; each deadline until 30 days after it's due",
+  ],
+  [
+    "Seat watches",
+    "Until you stop watching, or Testudo stops listing the term",
+  ],
+  [
+    "Each device's push subscription",
+    "Until you turn it off or remove the device, or its push service ends it",
+  ],
+  ["Notifications in the bell", "30 days"],
+  ["A record of each notification we sent, without its words", "90 days"],
+  ["Chat messages", "Until the room is deleted, 70 days after classes end"],
+  ["A message's fingerprint, against spam", "1 hour"],
+  [
+    "The moderator's copy of a held or reported message",
+    "30 days after it's decided",
+  ],
+  [
+    "Feedback",
+    "1 year; a screenshot 180 days, or 30 days after we've dealt with it",
+  ],
+  ["Staying signed in", "30 days after you last use Terpsicle"],
+  [
+    "The cookie with the UMD address you last signed in with",
+    "400 days, or until you sign out",
+  ],
+  ["Your account", "Until you delete it, then 7 days to change your mind"],
+  ["Database backups", "30 days"],
+];
 
 export function PrivacyPage() {
   return (
     <SitePage layout="reading">
-      <PageHeader title="Privacy" status="Draft, last updated 2026-09-27" />
+      <PageHeader title="Privacy" status={`Last updated ${LEGAL_UPDATED}`} />
       <article className="flex flex-col gap-6 text-muted leading-relaxed">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <p>
-            Terpsicle is a set of planning tools for University of Maryland
+            Terpsicle is a set of free planning tools for University of Maryland
             students: Schedule, Reviews, Chat, Plan and Todo. This page says
-            what it keeps about you, where, and why. Terpsicle isn't affiliated
+            what we keep about you, why, where it lives, who else touches it,
+            how long we keep it and how to delete it. Terpsicle isn't affiliated
             with the University of Maryland.
           </p>
-          <p className="font-medium text-fg">
-            We don't sell or share your data.
-          </p>
-          <p>
-            The services named below (Google for sign-in, Cloudflare for hosting
-            and moderation, PostHog for anonymous analytics, and your browser's
-            push service) handle it only to run Terpsicle for you.
-          </p>
+          <ul aria-label="In short" className="flex flex-col gap-2">
+            {SUMMARY.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex gap-3 text-base text-fg">
+                <Icon
+                  size={16}
+                  aria-hidden="true"
+                  className="mt-1 shrink-0 text-muted"
+                />
+                {text}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <Section title="Schedule">
+        <LegalSection title="On your device">
           <p>
-            Your plans, blocks and settings are saved in your browser, on your
-            device. Nothing about them is sent to Terpsicle unless you sign in.
-            Loading courses, seats and reviews doesn't tell Terpsicle who you
-            are.
+            Schedule and Plan work without an account. Your plans, blocks,
+            four-year plans and settings are saved in your browser, on your
+            device, and nothing about them is sent to us unless you sign in.
+            Loading courses, seats and ratings doesn't tell us who you are.
           </p>
           <p>
-            A share link carries a copy of your plan inside the link itself.
-            Terpsicle doesn't store it, and anyone with the link can see that
-            plan.
-          </p>
-        </Section>
-
-        <Section title="Signing in">
-          <p>
-            Schedule works without an account. To sign in, you use your UMD
-            Google account (umd.edu or terpmail.umd.edu). Terpsicle keeps your
-            name and your UMD email address from Google. Your directory ID (the
-            part of your email before the @) identifies your account. Terpsicle
-            doesn't collect or show your profile picture: your initials stand in
-            for it.
-          </p>
-          <p>
-            Once you sign in, your plans and settings (like the day Todo's weeks
-            start) sync to your account, so they follow you to your other
-            devices. Synced plans are stored on Terpsicle's servers, encrypted
-            at rest. Terpsicle sets one cookie to keep you signed in, and no
-            other cookies.
-          </p>
-          <p>
-            If Google says your organization blocked Terpsicle, UMD's Google
-            settings stopped it.
-          </p>
-        </Section>
-
-        <Section title="Reviews">
-          <p>
-            Anyone can read reviews. Writing one needs a sign-in, which shows
-            you have a UMD account. Readers never see who wrote a review, but
-            Terpsicle stores the author to prevent abuse, such as one person
-            posting many reviews.
-          </p>
-          <p>
-            An automated moderation model (Meta's Llama models, run by
-            Cloudflare) checks each review before it's published. If it isn't
-            sure, Terpsicle's moderator reads the review without seeing who
-            wrote it.
-          </p>
-        </Section>
-
-        <Section title="Chat">
-          <p>
-            Class chats show your real name (and your initials, never a picture)
-            to the other students in the room. Messages are stored so the room
-            keeps its history. The same kind of moderation model checks messages
-            for serious abuse, such as threats, hate and spam, and holds those
-            for the moderator to review. To catch one message posted across many
-            courses, Terpsicle keeps a fingerprint of each message (which can't
-            be turned back into its words), with its course and time, for an
-            hour. A term's rooms become read-only 10 days after classes end, and
-            are deleted 60 days after that.
-          </p>
-        </Section>
-
-        <Section title="Plan">
-          <p>
-            Your four-year plan is saved in your browser. If you're signed in,
-            it's also saved on our server so it's on your other devices. That
-            includes any grades you imported. Nobody else can see your plan or
-            your grades, and we don't use them for anything else.
-          </p>
-          <p>
-            When you paste your unofficial transcript, it's read in your browser
-            and never saved or sent to us. Only the courses you import are
-            saved: each one's code (if it has one) and title as the transcript
+            When you paste your unofficial transcript into Plan, it's read in
+            your browser and never sent to us. Only the courses you import are
+            kept: each one's code (if it has one) and title as the transcript
             prints it, whether it was a UMD course, AP, an exam or transfer
             credit, its semester, credits and GenEds, and its grade if you keep
             grades. Your name, UID, birth date, the schools you transferred from
             and the rest of the page aren't kept anywhere.
           </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="Todo">
+        <LegalSection title="Signing in">
           <p>
-            To show your deadlines, we keep your ELMS calendar link on our
-            server, encrypted, and check it about every 20 minutes. We store the
-            assignments and events it lists (titles, courses and due dates),
-            which ones you've marked done, and any courses you hide. We don't
-            get your grades, submissions or ELMS password, and we never sign in
-            to ELMS or Gradescope for you. Disconnect any time and we delete the
-            link and everything from it at once.
+            You sign in with your UMD Google account (umd.edu or
+            terpmail.umd.edu). Google gives us your name, your UMD email address
+            and an ID for your Google account, and we keep all three. Your
+            directory ID (the part of your email before the @) identifies your
+            account. We don't collect or show your profile picture: your
+            initials stand in for it. We never get your mail, your files or your
+            password.
           </p>
           <p>
-            If you add a calendar file, it's read in your browser. Only the
-            deadlines in it are sent to us, never the file itself.
+            Signing in sets a cookie that keeps you signed in, for up to 30 days
+            after you last use Terpsicle. Two more help sign-in itself: one
+            lasts 10 minutes while Google answers, and one remembers which UMD
+            address you used, so Google can suggest it next time. That one lasts
+            400 days, longer than you stay signed in, and signing out clears it.
+            We set no other cookies, and none for ads or tracking.
           </p>
           <p>
-            Tasks you add yourself are kept on our server too (what you type,
-            and the course and due date you pick), so they're on your other
-            devices. They never go to ELMS, and nobody else can see them. Delete
-            one any time.
+            If Google says your organization blocked Terpsicle, UMD's Google
+            settings stopped it.
           </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="Seat watches and notifications">
+        <LegalSection title="What syncs, and how it's protected">
           <p>
-            When you watch a full section, Terpsicle tells you by web push and
-            email once a seat opens; chat notifications work the same way. To
-            send them, Terpsicle keeps your seat watches, your email address,
-            your browser's push subscription and your notification settings.
-            Push messages pass through your browser maker's push service. The
-            notification settings page lets you turn each kind on or off, for
-            push and email separately.
+            Signed in, what you make syncs to your account, so it's on your
+            other devices: your plans and blocks, four-year plans with any
+            grades you imported, your settings, and the tasks you add in Todo.
+            Nobody else can see them. There's no switch to sync less: to keep
+            something off our server, use Terpsicle signed out.
           </p>
           <p>
-            If you subscribe to your calendar feed, your calendar app fetches
-            your classes and Todo deadlines from a private link, without signing
-            in. Anyone with the link can see those dates, so keep it to
-            yourself. We store only a one-way hash of it and when a calendar
-            last fetched it, never the link in a log or analytics. "Make a new
-            link" in the notification settings stops the old one at once.
+            We store them encrypted, with a key made for your account alone
+            (AES-256-GCM) and kept apart from the data. A copy of our database
+            without that key can't be read, and deleting your account destroys
+            the key.
           </p>
-        </Section>
+          <p>
+            It isn't end-to-end encryption: our server can open your data. It
+            does so to send it back to you, and for three features: Chat reads
+            your plans and settings to find your class rooms, your calendar feed
+            reads your plans, settings and tasks to list your classes and
+            deadlines, and Due tomorrow reads tomorrow's tasks to name them in
+            its push. We don't open it for anything else, and{" "}
+            <ProseOutsideLink
+              href={REPO_URL}
+              tooltip="Terpsicle's code on GitHub. Opens in a new tab."
+            >
+              the code
+            </ProseOutsideLink>{" "}
+            shows it.
+          </p>
+          <p>
+            Some things aren't encrypted, so features can use them without
+            opening the rest: the sections in your main plan (Chat's rooms come
+            from them), which terms you have plans in and when you saved, your
+            tasks' due dates and courses (but not what they say), and the
+            deadlines from ELMS or a calendar file.
+          </p>
+        </LegalSection>
 
-        <Section title="Feedback">
+        <LegalSection title="What you share">
+          <p>
+            <Lead>Chat.</Lead> Class chats show your real name, with your
+            initials, to the other students in the room. Which rooms you're in
+            comes from your main plan. Your messages are stored so the room
+            keeps its history. A term's rooms become read-only 10 days after
+            classes end, and are deleted 60 days after that.
+          </p>
+          <p>
+            <Lead>Reviews.</Lead> Reviews live on PlanetTerp. Schedule shows
+            PlanetTerp's public ratings, reviews and grade data, with credit and
+            a link, from a copy our server updates each night. We don't send
+            PlanetTerp anything about you. The Reviews tab opens planetterp.com,
+            where PlanetTerp's own privacy policy applies.
+          </p>
+          <p>
+            <Lead>Share links.</Lead> A share link carries a copy of your plan
+            inside the link itself. We don't store it, and anyone with the link
+            can see that plan.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="Things we do for you">
+          <p>
+            <Lead>Notifications.</Lead> When you watch a full section, we let
+            you know when a seat opens, by push, email or both. Mentions and
+            replies in Chat, and Todo's Due tomorrow, come by push. The chat
+            digest, a once-a-day list of what you haven't read in Chat, is the
+            only chat email. To send them, we keep your seat watches, your email
+            address, your browser's push subscription, your notification
+            settings and what's in the bell. Push messages pass through your
+            browser maker's push service. Settings lets you turn each one on or
+            off.
+          </p>
+          <p>
+            <Lead>Todo.</Lead> To show your deadlines, we keep your ELMS
+            calendar link on our server and check it about every 20 minutes
+            while you use Todo, and less often when you don't. It's encrypted
+            with one server key that every ELMS link shares, not your account's
+            own key. We store the assignments and events it lists (titles,
+            courses and due dates), which ones you've marked done, and any
+            courses you hide. We don't get your grades, submissions or ELMS
+            password, and we never sign in to ELMS or Gradescope for you.
+            Disconnect any time and we delete the link and everything from it at
+            once. If you add a calendar file instead, it's read in your browser,
+            and only the deadlines in it are sent to us. Tasks you add yourself
+            never go to ELMS.
+          </p>
+          <p>
+            <Lead>Your calendar feed.</Lead> If you subscribe to it, your
+            calendar app fetches your classes and Todo deadlines from a private
+            link, without signing in. Anyone with the link can see those dates,
+            so keep it to yourself. We don't store the link itself, only what
+            lets us show it to you again, a one-way hash to recognize it, and
+            when a calendar last fetched it. "Make a new link" in Settings stops
+            the old one at once.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="Moderation and AI">
+          <p>
+            To keep Chat free of threats, hate and spam, an automated model
+            (Meta's Llama models, run by Cloudflare) checks each message. If it
+            isn't sure, it holds the message for our moderator, who reads it
+            without seeing who wrote it. Reports go to the moderator too, and
+            nobody sees who sent them. To catch one message posted across many
+            courses, we keep a fingerprint of each message (which can't be
+            turned back into its words) with its course and time, for an hour.
+          </p>
+          <p>
+            To sort similar feedback together, we send its words (never the
+            screenshot or what you were doing) to a model run by Cloudflare.
+          </p>
+          <p>
+            These models run on Cloudflare, where Terpsicle runs, not at an AI
+            company.{" "}
+            <ProseOutsideLink
+              href={CLOUDFLARE_AI_DATA_URL}
+              tooltip="How Cloudflare uses what's sent to its AI models. Opens in a new tab."
+            >
+              Cloudflare says
+            </ProseOutsideLink>{" "}
+            it doesn't train models on what we send, and we don't either.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="Analytics and feedback">
+          <p>
+            We use PostHog to count which parts of the app people use. It's
+            anonymous: it isn't linked to your name or account, and PostHog
+            never receives your IP address. It sets no cookies, but it keeps a
+            random ID in your browser's local storage, so it can tell one
+            visitor from another without knowing who they are. It sees actions
+            like opening a tab or adding a course, never what you type, and
+            never what you write in chats. A share link's plan never reaches it:
+            PostHog only learns that a shared plan was opened. We don't record
+            sessions, so nobody can play back what you did on a page.
+          </p>
           <p>
             "Send feedback" sends us what you write. Two boxes, on unless you
             turn them off, add more:
@@ -190,80 +306,159 @@ export function PrivacyPage() {
           </ul>
           <p>
             Feedback never includes your ELMS calendar link, sign-in or
-            notification tokens, a share link's plan, other people's messages or
-            reviews, or grades you pasted into Plan. It isn't linked to your
-            account unless you're signed in and turn on "You can reply by
-            email"; then we keep who sent it so we can email you once when it's
-            fixed.
+            notification tokens, a share link's plan, other people's messages,
+            or grades you pasted into Plan. It isn't linked to your account
+            unless you're signed in and turn on "You can reply by email"; then
+            we keep who sent it so we can email you once when it's fixed. Right
+            after sending, Undo takes it back completely.
           </p>
-          <p>
-            To sort similar feedback together, we send its words (never the
-            screenshot or what you were doing) to an AI model that runs on
-            Cloudflare, where Terpsicle runs.
-          </p>
-          <p>
-            Screenshots are deleted 180 days after you send them, or 30 days
-            after we mark your feedback done, whichever comes first. Everything
-            else is deleted after a year. Right after sending, Undo takes it
-            back completely.
-          </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="Analytics">
+        <LegalSection title="Who else touches your data">
           <p>
-            Terpsicle uses PostHog to count which parts of the app people use.
-            It's anonymous: it isn't linked to your name or account, it sets no
-            cookies, and PostHog never receives your IP address. It sees actions
-            like opening a tab or adding a course, never what you type, and
-            never what you write in reviews or chats. A share link's plan never
-            reaches it: PostHog only learns that a shared plan was opened.
+            Only these services, and only to run Terpsicle for you. We never
+            sell your data.
           </p>
-          <p>
-            Terpsicle doesn't record sessions. Nobody can play back what you did
-            on a page.
-          </p>
-        </Section>
+          <NamedList
+            items={[
+              {
+                name: "Cloudflare",
+                children:
+                  "hosts Terpsicle: its servers, database and storage, the AI models above, and the emails we send. Like any host, it sees your IP address when you visit. Our own code never keeps it: to limit abuse, we count requests with a one-way hash of it.",
+              },
+              {
+                name: "Google",
+                children:
+                  "signs you in, and tells us your name, your UMD email address and an ID for your Google account.",
+              },
+              {
+                name: "PostHog",
+                children: "counts anonymous use of the app, as above.",
+              },
+              {
+                name: "Push services",
+                children:
+                  "your browser maker's (for example, Apple's, Google's, Mozilla's or Microsoft's) deliver push notifications, encrypted for your device.",
+              },
+              {
+                name: "ELMS",
+                children:
+                  "if you connect it, our server fetches your calendar from ELMS (umd.instructure.com) with your link, to read your deadlines.",
+              },
+              {
+                name: "PlanetTerp",
+                children:
+                  "our server reads its public data each night. It gets nothing about you.",
+              },
+            ]}
+          />
+        </LegalSection>
 
-        <Section title="Hosting">
+        <LegalSection title="How long we keep things">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-hairline border-b">
+                <th scope="col" className={HEAD_CELL}>
+                  What
+                </th>
+                <th scope="col" className={HEAD_CELL}>
+                  How long
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {KEPT.map(([what, howLong]) => (
+                <tr
+                  key={what}
+                  className="border-hairline border-b last:border-b-0"
+                >
+                  <th
+                    scope="row"
+                    className="w-1/2 py-2 pr-4 text-left align-top font-normal text-fg"
+                  >
+                    {what}
+                  </th>
+                  <td className="py-2 align-top">{howLong}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           <p>
-            Terpsicle runs on Cloudflare, which stores synced plans, reviews,
-            messages, seat watches, notification settings, your ELMS calendar
-            link (encrypted), the deadlines from it, the tasks you add in Todo
-            and your done marks. To limit abuse, Terpsicle counts requests per
-            network using a one-way hash of your IP address, never the address
-            itself.
+            Cloudflare's backups let us put the database back as it was at any
+            moment of the last 30 days, so something you delete can live on in
+            them that long. Chat's messages have the same 30 days.
           </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="Deleting your account">
+        <LegalSection title="Deleting your account">
           <p>
-            You can download everything you made in Terpsicle as one file, and
-            delete your account, under Your data in Settings. Terpsicle waits 7
-            days, in case you change your mind (signing in cancels it), then
-            deletes your profile, synced plans, notification settings, seat
-            watches, chat messages, your calendar feed link, and your ELMS link,
-            deadlines, own tasks and done marks. Your calendar feed stops
-            working as soon as you delete your account. Reviews you posted stay
-            up with no name attached; delete them first if you want them gone.
-            Plans saved in your browser stay until you remove them.
+            Under Your data in{" "}
+            <ProseLink
+              to="/settings"
+              tooltip="Download your data, or delete your account"
+            >
+              Settings
+            </ProseLink>
+            , you can download your data as one file: your plans, four-year
+            plans with their grades, and settings, and, signed in, your profile,
+            the tasks you added in Todo and the courses you hid there, your seat
+            watches, notification settings, your class chats and the messages
+            you wrote in them, and any reviews you wrote in Terpsicle. Deadlines
+            from ELMS aren't in it, since Todo gets them from ELMS again.
           </p>
           <p>
-            Your synced plans, settings and four-year plans, and what your Todo
-            tasks say, are encrypted with your account's own key. Deleting your
-            account destroys that key, so nobody can read them again, not even
-            from a backup. The sections of your main plan (class chats use them)
-            and which terms you have plans in aren't encrypted. Cloudflare keeps
-            backups of those, and of everything else here, including which
-            reviews and feedback were yours, for up to 30 days after it's
-            deleted.
+            You can delete your account there too. Deleting signs you out
+            everywhere, then waits 7 days in case you change your mind: signing
+            in keeps the account. After that, we delete your profile, your
+            synced plans, four-year plans and settings, your Todo tasks and ELMS
+            link with its deadlines, your seat watches, your notifications,
+            their settings and the record of what we sent you, your chat
+            messages and your calendar feed link. Your calendar feed stops
+            working right away. Plans saved in your browser stay until you
+            remove them.
           </p>
-        </Section>
+          <p>
+            All of that leaves our live database at once, and your account's key
+            is deleted. Backups take longer: Cloudflare can put our database and
+            Chat's messages back as they were at any moment of the last 30 days,
+            so a copy of everything, encrypted or not, stays in those backups
+            until it rolls off, within 30 days. That includes your ELMS link.
+            Feedback you sent stays, with no name on it.
+          </p>
+        </LegalSection>
 
-        <Section title="Contact">
+        <LegalSection title="Open source, and questions">
+          <p>
+            Terpsicle is open source, so you don't have to take this page's word
+            for it: everything it describes is in{" "}
+            <ProseOutsideLink
+              href={REPO_URL}
+              tooltip="Terpsicle's code on GitHub. Opens in a new tab."
+            >
+              Terpsicle's code on GitHub
+            </ProseOutsideLink>
+            . When what we keep changes, this page changes with it, and so does
+            the date at the top. The{" "}
+            <ProseLink to="/terms" tooltip="The rules for using Terpsicle">
+              terms of use
+            </ProseLink>{" "}
+            cover the rest.
+          </p>
           <p>Questions about your data, or a request to delete it:</p>
           <ContactEmail Tooltip={WithTooltip} />
-        </Section>
+        </LegalSection>
       </article>
     </SitePage>
   );
+}
+
+const HEAD_CELL = "py-2 pr-4 text-left font-normal text-muted";
+
+/** Cloudflare's own words on what Workers AI does with what it's sent. */
+const CLOUDFLARE_AI_DATA_URL =
+  "https://developers.cloudflare.com/workers-ai/platform/data-usage/";
+
+/** A paragraph's subject, in the page's ink: "Chat." */
+function Lead({ children }: { children: ReactNode }) {
+  return <span className="font-medium text-fg">{children}</span>;
 }

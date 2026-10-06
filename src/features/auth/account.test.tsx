@@ -184,6 +184,18 @@ describe("the top bar's account button", () => {
       "href",
       "/api/auth/google?return=%2Fschedule%3Fplan%3Dabc",
     );
+    // What signing in agrees to, and both pages at the menu's foot.
+    expect(
+      within(menu).getByText(
+        "By signing in, you agree to the terms of use and privacy policy.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(menu).getByRole("menuitem", { name: "Privacy" }),
+    ).toHaveAttribute("href", "/privacy");
+    expect(
+      within(menu).getByRole("menuitem", { name: "Terms of use" }),
+    ).toHaveAttribute("href", "/terms");
   });
 
   it("tells you on Todo that you'll need your ELMS calendar link", async () => {
@@ -239,6 +251,12 @@ describe("the top bar's account button", () => {
       within(menu).getByRole("menuitem", { name: "Settings" }),
     ).toHaveAttribute("href", "/settings");
     expect(within(menu).queryByRole("menuitem", { name: "Admin" })).toBeNull();
+    expect(
+      within(menu).getByRole("menuitem", { name: "Privacy" }),
+    ).toHaveAttribute("href", "/privacy");
+    expect(
+      within(menu).getByRole("menuitem", { name: "Terms of use" }),
+    ).toHaveAttribute("href", "/terms");
     await user.click(within(menu).getByRole("menuitem", { name: "Sign out" }));
     expect(client.auth.signOut).toHaveBeenCalledWith({ removeLocal: false });
     expect(

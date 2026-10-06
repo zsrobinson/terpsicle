@@ -191,12 +191,19 @@ The JSON file Settings' "Your data" downloads: your plans, four-year plans with 
 _Avoid_: export (Schedule's Export tab is something else), backup, archive
 
 **Account key**:
-The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. It lives apart from that data (in R2), and deleting the account destroys it, so nothing it encrypted can be read again, even from a backup. We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
+The key each account's synced data is encrypted with on our server: plans, settings, four-year plans with their grades, and your own tasks' words. It lives apart from that data (in R2), and deleting the account destroys it, so nothing it encrypted can be read again, even from a backup (once November 4, 2026 passes: keys made before October 5 lived in D1, whose 30-day restore window still holds them until then). We can still open what it encrypts (Chat reads your main plan), so it's "encrypted on our server with a key for your account", never "end-to-end". Code calls it the account's data key, wrapped by `USER_DATA_KEY`.
 _Avoid_: end-to-end (encryption), zero-knowledge, sync key
 
 **Delete account**:
 "Delete account" in `/settings`: no dialog, a week to change your mind (signing in keeps the account), then the **purge** takes everything that names the person. Published reviews stay, with no name on them.
 _Avoid_: close account, deactivate
+
+**Privacy**:
+The privacy policy at `/privacy`: what we keep about you, why, who else touches it, how long, and how to delete it. Links and titles say "Privacy"; a sentence can say "privacy policy".
+
+**Terms of use**:
+The rules for using Terpsicle at `/terms`, always beside **Privacy**: in the footer, the account menu and under every sign-in ("By signing in, you agree to the terms of use and privacy policy."). Never "Terms" alone, since a **term** is a semester.
+_Avoid_: terms, terms of service, ToS (in UI; Google's console calls its field "terms of service")
 
 **Sparkles**:
 The icon that marks LLM output, and only LLM output. Generate's results are algorithms and never get it. Students see none today (the owner removed Reviews' summaries on 2026-09-29); only the owner's feedback groups carry it.

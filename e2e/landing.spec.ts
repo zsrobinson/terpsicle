@@ -187,6 +187,7 @@ for (const [path, heading, title] of [
   ],
   ["/chat", "A chat room for every class", "Chat · Terpsicle"],
   ["/privacy", "Privacy", "Privacy · Terpsicle"],
+  ["/terms", "Terms of use", "Terms of use · Terpsicle"],
 ] as const) {
   test(`${path} is its own page, outside the scheduler`, async ({ page }) => {
     await page.goto(path);
@@ -215,23 +216,61 @@ test("/admin sends a signed-out visitor to sign in, and back afterwards", async 
   await expect(page.locator("[data-app-shell]")).toHaveCount(0);
 });
 
-test("/privacy shows the contact address in words, never whole", async ({
+test("/privacy and /terms show the contact address in words, never whole", async ({
   page,
   request,
 }) => {
   const address = ["admin", "terpsicle.com"].join("@");
-  const html = await (await request.get("/privacy")).text();
-  expect(html).toContain("admin [at] terpsicle.com");
-  expect(html).not.toContain(address);
+  for (const path of ["/privacy", "/terms"]) {
+    const html = await (await request.get(path)).text();
+    expect(html).toContain("admin [at] terpsicle.com");
+    expect(html).not.toContain(address);
+  }
 
   await page.goto("/privacy");
   await expect(
-    page.getByText("We don't sell or share your data."),
+    page.getByText(
+      "We don't sell or share your data, and analytics are anonymous.",
+    ),
   ).toBeVisible();
   // "Email us" builds the mailto: only on click, so the hydrated page
   // doesn't hold the address either.
   await expect(page.getByRole("button", { name: "Email us" })).toBeVisible();
   expect(await page.content()).not.toContain(address);
+});
+
+// The terms sit beside the privacy page wherever it's linked: every
+// reading page's footer, and the line under sign-in.
+test("/terms is a footer link away from /privacy, and sign-in names both", async ({
+  page,
+}) => {
+  await page.goto("/privacy");
+  const footer = page.getByRole("contentinfo");
+  await footer.getByRole("link", { name: "Terms of use" }).click();
+  await expect(page).toHaveURL(/\/terms$/);
+  await expect(
+    page.getByRole("heading", { name: "Terms of use", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "The legal part", level: 2 }),
+  ).toBeVisible();
+  await footer.getByRole("link", { name: "Privacy" }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await expect(
+    page.getByRole("heading", { name: "Privacy", level: 1 }),
+  ).toBeVisible();
+
+  await page.goto("/signin");
+  const agreement = page.getByText("By signing in, you agree to the");
+  await expect(agreement).toHaveText(
+    "By signing in, you agree to the terms of use and privacy policy.",
+  );
+  await expect(
+    agreement.getByRole("link", { name: "terms of use" }),
+  ).toHaveAttribute("href", "/terms");
+  await expect(
+    agreement.getByRole("link", { name: "privacy policy" }),
+  ).toHaveAttribute("href", "/privacy");
 });
 
 test("an unknown path says so and offers the scheduler", async ({

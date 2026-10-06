@@ -7,6 +7,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { LegalMenuItems } from "~/components/legal-menu-items";
 import { ThemeMenuItems } from "~/components/theme-toggle";
 import { signInPitch, signInStartHref } from "~/core/auth";
 import { type MeUser, SIGN_IN_START_PATH } from "~/core/schema";
@@ -106,6 +107,7 @@ function AccountMenu({
   note: string | null;
 }) {
   const user = useAccount((s) => s.user);
+  const phone = usePhoneMenus();
   const [open, setOpen] = useState(false);
   return (
     <ActionMenu
@@ -158,6 +160,14 @@ function AccountMenu({
       <ThemeMenuItems />
       <InstallAppMenuItem />
       {items}
+      {/* A phone's menu has them in the product menu's foot (`items` on
+          a page with the tab bar), so they're never listed twice. */}
+      {phone ? null : (
+        <>
+          <ActionMenuSeparator />
+          <LegalMenuItems icons />
+        </>
+      )}
     </ActionMenu>
   );
 }
@@ -201,6 +211,11 @@ function SignInItems() {
       >
         {testMode ? "Sign in (test mode)" : "Sign in with Google"}
       </ActionMenuLinkItem>
+      {/* Words only: both pages are items at the menu's foot (on a phone,
+          the product menu's), and a link in a menu's text isn't an item. */}
+      <ActionMenuText className="pt-1 text-xs">
+        By signing in, you agree to the terms of use and privacy policy.
+      </ActionMenuText>
     </>
   );
 }
