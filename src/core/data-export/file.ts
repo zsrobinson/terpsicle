@@ -1,4 +1,9 @@
-import type { IsoDate, IsoDateTime } from "../schema";
+import {
+  type IsoDate,
+  type IsoDateTime,
+  SYNC_MAX_BODY_BYTES,
+  syncBodyBytes,
+} from "../schema";
 import {
   type AccountData,
   DATA_EXPORT_FORMAT,
@@ -68,9 +73,18 @@ export function readDataFile(text: string, size: number): ReadDataFile {
   )
     return { status: "newer" };
   const parsed = DataExportSchema.safeParse(json);
-  return parsed.success
-    ? { status: "ok", file: parsed.data }
-    : { status: "invalid" };
+  if (!parsed.success) return { status: "invalid" };
+  // A doc the account can't hold would never sync, and a settings doc that
+  // big would stop every later settings change from syncing too (the
+  // prefs carry any key, so a file can make them as big as it likes).
+  const docs = [
+    ...parsed.data.plans,
+    ...parsed.data.fourYear,
+    parsed.data.settings,
+  ];
+  if (docs.some((body) => syncBodyBytes(body) > SYNC_MAX_BODY_BYTES))
+    return { status: "invalid" };
+  return { status: "ok", file: parsed.data };
 }
 
 /** What a reader's message says for each way a file can't be added. */

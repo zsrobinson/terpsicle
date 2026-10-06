@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DATA_EXPORT_MAX_BYTES,
+  DATA_EXPORT_MAX_PLANS,
   type DataExport,
   DataExportSchema,
 } from "~/core/schema/data-export";
@@ -93,6 +94,59 @@ describe("reading a file", () => {
     expect(readDataFile("{}", DATA_EXPORT_MAX_BYTES + 1)).toEqual({
       status: "too-big",
     });
+  });
+
+  it("refuses more plans than adding can handle", () => {
+    const plans = Array.from({ length: DATA_EXPORT_MAX_PLANS + 1 }, (_, i) =>
+      aPlan({ id: `plan_many_${String(i).padStart(5, "0")}` }),
+    );
+    expect(read({ ...browserFile(), plans })).toEqual({ status: "invalid" });
+  });
+
+  it("refuses a doc too big to sync, so a file can't stall your settings", () => {
+    const file = browserFile();
+    const prefs = { ...file.settings.prefs, junk: "x".repeat(70_000) };
+    expect(read({ ...file, settings: { ...file.settings, prefs } })).toEqual({
+      status: "invalid",
+    });
+  });
+
+  it("refuses a task todo/save-task wouldn't take", () => {
+    const account = anAccountData();
+    const [task] = account.todo?.tasks ?? [];
+    if (!task || !account.todo) throw new Error("the fixture has a task");
+    const withTask = (t: Record<string, unknown>) =>
+      read({
+        ...browserFile(),
+        from: "account",
+        account: { ...account, todo: { ...account.todo, tasks: [t] } },
+      });
+    expect(withTask({ ...task, title: "   " })).toEqual({ status: "invalid" });
+    expect(withTask({ ...task, dueDate: null, dueTime: 600 })).toEqual({
+      status: "invalid",
+    });
+  });
+
+  it("drops __proto__ keys and never touches Object.prototype", () => {
+    const file = browserFile(aSyncedTables({ plans: [planA] }));
+    const text = JSON.stringify({
+      ...file,
+      PROTO: { polluted: true },
+      settings: {
+        ...file.settings,
+        prefs: { ...file.settings.prefs, PROTO: { polluted: true } },
+      },
+      plans: file.plans.map((p) => ({ ...p, PROTO: { polluted: true } })),
+    }).replaceAll('"PROTO"', '"__proto__"');
+    const result = readDataFile(text, text.length);
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(Object.getPrototypeOf(result.file)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(result.file.settings.prefs)).toBe(
+      Object.prototype,
+    );
+    expect(Object.getPrototypeOf(result.file.plans[0])).toBe(Object.prototype);
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
   });
 });
 

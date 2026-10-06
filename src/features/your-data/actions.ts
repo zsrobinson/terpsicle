@@ -162,8 +162,10 @@ export interface AppliedImport {
   plan: ImportPlan;
   /** Own tasks it added (and so Undo deletes). */
   taskUids: string[];
-  /** Tasks it couldn't add: the account's limit, or a date Todo doesn't keep. */
+  /** Tasks it couldn't add: the account's limit, a date Todo doesn't keep, or a lost connection. */
   tasksLeftOut: number;
+  /** Adding tasks stopped partway (no connection, or the hour's limit). */
+  tasksStopped: boolean;
 }
 
 /**
@@ -192,23 +194,33 @@ export async function applyImport(
   const applied = plan as ImportPlan | null;
   if (!applied) throw new Error("adding the file didn't run");
   const added: string[] = [];
-  let leftOut = 0;
+  let stopped = false;
   for (const task of applied.tasks) {
-    const result = await todoApi.saveTask({
-      uid: task.uid,
-      title: task.title,
-      courseCode: task.courseCode,
-      dueDate: task.dueDate,
-      dueTime: task.dueTime,
-    });
-    if (result.status !== "saved") {
-      leftOut += 1;
-      continue;
+    try {
+      const result = await todoApi.saveTask({
+        uid: task.uid,
+        title: task.title,
+        courseCode: task.courseCode,
+        dueDate: task.dueDate,
+        dueTime: task.dueTime,
+      });
+      if (result.status !== "saved") continue;
+      added.push(task.uid);
+      if (task.done) await todoApi.done({ uid: task.uid, done: true });
+    } catch {
+      // Offline or over the hour's limit: the plans are in already, so
+      // stop here and still offer Undo for what was added. Adding the file
+      // again skips what's here and brings the rest.
+      stopped = true;
+      break;
     }
-    added.push(task.uid);
-    if (task.done) await todoApi.done({ uid: task.uid, done: true });
   }
-  return { plan: applied, taskUids: added, tasksLeftOut: leftOut };
+  return {
+    plan: applied,
+    taskUids: added,
+    tasksLeftOut: applied.tasks.length - added.length,
+    tasksStopped: stopped,
+  };
 }
 
 /** Undo: takes out what the file added, and your settings come back. */

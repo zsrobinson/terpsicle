@@ -18,8 +18,9 @@ const now = () => NOW;
 
 const room = courseRoomId(TERM, COURSE);
 const chat = () => env.COURSE_CHAT.get(env.COURSE_CHAT.idFromName(room));
+const FIRST_MESSAGE = "01JBBBBBBBBBBBBBBBBBBBBBB0";
 
-/** A message from each of these people in the course's object. */
+/** A message from each of these people in the course's object; every one after the first answers the first. */
 async function seedMessages(people: readonly string[]) {
   await runInDurableObject(chat(), (_i, state) => {
     const store = new ObjectStore(state.storage);
@@ -32,7 +33,7 @@ async function seedMessages(people: readonly string[]) {
         author_id: person,
         author_name: `Name ${person}`,
         body: `Hello from ${person}`,
-        reply_to: null,
+        reply_to: n === 0 ? null : FIRST_MESSAGE,
         status: "visible",
         held_reason: null,
         client_req: `req-${n}`,
@@ -99,7 +100,8 @@ describe("account/export", () => {
          VALUES ('tstudent', ?1, 'ENGL101', ?2)`,
       ).bind(TERM, NOW.toISOString()),
     ]);
-    await seedMessages(["tstudent", "tadmin"]);
+    // tadmin writes first; tstudent's message answers it.
+    await seedMessages(["tadmin", "tstudent"]);
 
     const data = AccountDataSchema.parse(
       await student.call("/api/account/export"),
@@ -138,6 +140,8 @@ describe("account/export", () => {
         courseCode: COURSE,
         roomId: room,
         body: "Hello from tstudent",
+        // What it answers, by id only: never the other person's words.
+        replyTo: FIRST_MESSAGE,
         status: "visible",
       }),
     ]);

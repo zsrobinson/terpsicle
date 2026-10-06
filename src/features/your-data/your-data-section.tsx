@@ -86,31 +86,29 @@ function DownloadRow({ who }: { who: DataWho }) {
     }
   };
   return (
-    <>
-      <DataRow
-        title="Download your data"
-        description={
-          who.signedIn
-            ? "Your plans, four-year plans with grades, settings, Todo tasks, seat watches, notification settings, class chats with the messages you wrote, and your reviews, in one file."
-            : "The plans, four-year plans and settings in this browser, in one file. Sign in to include your account's too."
-        }
-        action={
-          <WithTooltip label="Downloads a .json file you can add back later">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => void download()}
-            >
-              <Download aria-hidden="true" />
-              {busy ? "Getting it ready…" : "Download"}
-            </Button>
-          </WithTooltip>
-        }
-      >
-        {failed ? <InlineError message={FAILED} className="pb-0" /> : null}
-      </DataRow>
-    </>
+    <DataRow
+      title="Download your data"
+      description={
+        who.signedIn
+          ? `Your plans, four-year plans with grades, settings, ${who.todo ? "Todo tasks, " : ""}seat watches, notification settings, class chats with the messages you wrote, and your reviews, in one file.`
+          : "The plans, four-year plans and settings in this browser, in one file. Sign in to include your account's too."
+      }
+      action={
+        <WithTooltip label="Downloads a .json file you can add back later">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => void download()}
+          >
+            <Download aria-hidden="true" />
+            {busy ? "Getting it ready…" : "Download"}
+          </Button>
+        </WithTooltip>
+      }
+    >
+      {failed ? <InlineError message={FAILED} className="pb-0" /> : null}
+    </DataRow>
   );
 }
 
@@ -164,9 +162,11 @@ function AddRow({ who }: { who: DataWho }) {
         id: "your-data",
         message: addedMessage(counts, applied.plan.settingsChanged),
         description:
-          applied.tasksLeftOut > 0
-            ? `${count(applied.tasksLeftOut, "task wasn't", "tasks weren't")} added: Todo keeps 500 at most, with dates from 30 days back to a year ahead.`
-            : `Undo takes it out of ${where} again.`,
+          applied.tasksLeftOut === 0
+            ? `Undo takes it out of ${where} again.`
+            : applied.tasksStopped
+              ? `${count(applied.tasksLeftOut, "task wasn't", "tasks weren't")} added. Check your connection and add the file again: what's already here is skipped.`
+              : `${count(applied.tasksLeftOut, "task wasn't", "tasks weren't")} added: Todo keeps 500 at most, with dates from 30 days back to a year ahead.`,
         tooltip: "Take out what the file added",
         onUndo: () => {
           track("data_file_undone", {});
@@ -277,8 +277,10 @@ function ImportPreview({
       <p className="font-medium text-fg">{summary}</p>
       {names.length > 0 ? (
         <ul className="flex flex-col gap-0.5 text-sm text-muted">
-          {names.slice(0, SHOWN).map((name) => (
-            <li key={name} className="truncate">
+          {names.slice(0, SHOWN).map((name, i) => (
+            // Two tasks can share a title; the list never reorders.
+            // biome-ignore lint/suspicious/noArrayIndexKey: see above
+            <li key={i} className="truncate">
               {name}
             </li>
           ))}

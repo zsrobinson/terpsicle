@@ -12,7 +12,12 @@ import {
 } from "./primitives";
 import { MyReviewSchema } from "./reviews";
 import { SettingsDocSchema } from "./sync";
-import { TodoDueTimeSchema, TodoTaskUidSchema } from "./todo-api";
+import { SYNC_MAX_FOUR_YEAR_DOCS, SYNC_MAX_PLANS } from "./sync-api";
+import {
+  TODO_MAX_TASKS,
+  TodoDueTimeSchema,
+  TodoTaskUidSchema,
+} from "./todo-api";
 
 // The data file (docs/DATA.md §5.6): everything a person owns in Terpsicle, as
 // one JSON file they download from Settings ("Your data") and can add back
@@ -30,18 +35,33 @@ export const DATA_EXPORT_FORMAT = "terpsicle-data";
 export const DATA_EXPORT_VERSION = 1;
 /** A file bigger than this isn't read (plans and four-year plans are small). */
 export const DATA_EXPORT_MAX_BYTES = 10 * 1024 * 1024;
+/**
+ * The most plans and four-year plans a file holds: five accounts' worth.
+ * Adding a file compares each plan's name with the others in its term, so
+ * tens of thousands would freeze the page; nobody makes that many.
+ */
+export const DATA_EXPORT_MAX_PLANS = 5 * SYNC_MAX_PLANS;
+export const DATA_EXPORT_MAX_FOUR_YEAR = 5 * SYNC_MAX_FOUR_YEAR_DOCS;
 
-/** One of your own Todo tasks, as you'd type it again. */
-export const ExportTaskSchema = z.object({
-  uid: TodoTaskUidSchema,
-  title: z.string().min(1).max(300),
-  courseCode: CourseCodeSchema.nullable(),
-  /** Null: "No date". */
-  dueDate: IsoDateSchema.nullable(),
-  /** Minutes after midnight in New York; null is all day (or no date). */
-  dueTime: TodoDueTimeSchema.nullable(),
-  done: z.boolean(),
-});
+/**
+ * One of your own Todo tasks, as you'd type it again: what `todo/save-task`
+ * takes, so a task that reads here saves there.
+ */
+export const ExportTaskSchema = z
+  .object({
+    uid: TodoTaskUidSchema,
+    title: z.string().trim().min(1).max(300),
+    courseCode: CourseCodeSchema.nullable(),
+    /** Null: "No date". */
+    dueDate: IsoDateSchema.nullable(),
+    /** Minutes after midnight in New York; null is all day (or no date). */
+    dueTime: TodoDueTimeSchema.nullable(),
+    done: z.boolean(),
+  })
+  .refine((t) => t.dueTime === null || t.dueDate !== null, {
+    message: "A time needs a date",
+    path: ["dueTime"],
+  });
 export type ExportTask = z.infer<typeof ExportTaskSchema>;
 
 /** A message you wrote in a class chat, with where it is. */
@@ -75,7 +95,7 @@ export const AccountDataSchema = z.object({
   /** Null when Todo isn't on for you. */
   todo: z
     .object({
-      tasks: z.array(ExportTaskSchema),
+      tasks: z.array(ExportTaskSchema).max(TODO_MAX_TASKS),
       /** Courses you hid in Todo. */
       hiddenCourses: z.array(z.string()),
     })
@@ -131,11 +151,11 @@ export const DataExportSchema = z.object({
    */
   from: z.enum(["account", "browser"]),
   /** The scheduler's plans, every term. */
-  plans: z.array(PlanSchema),
+  plans: z.array(PlanSchema).max(DATA_EXPORT_MAX_PLANS),
   /** Blocks, course colors, travel, main plans and the other products' prefs. */
   settings: SettingsDocSchema,
   /** Terpsicle Plan's four-year plans, grades included. */
-  fourYear: z.array(FourYearDocSchema),
+  fourYear: z.array(FourYearDocSchema).max(DATA_EXPORT_MAX_FOUR_YEAR),
   /** Null in a browser's file. */
   account: AccountDataSchema.nullable(),
 });

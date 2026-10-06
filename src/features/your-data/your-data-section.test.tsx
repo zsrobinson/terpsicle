@@ -99,6 +99,7 @@ describe("Your data", () => {
       plan: ready.plan,
       taskUids: [],
       tasksLeftOut: 0,
+      tasksStopped: false,
     };
     actions.applyImport.mockResolvedValue(applied);
     actions.undoApplied.mockResolvedValue(undefined);
@@ -123,6 +124,31 @@ describe("Your data", () => {
     expect(screen.queryByText("Adds 1 plan.")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(actions.undoApplied).toHaveBeenCalledWith(applied);
+  });
+
+  it("still offers Undo when adding tasks stopped partway, and says to add the file again", async () => {
+    const ready = prepared();
+    actions.prepareImport.mockResolvedValue(ready);
+    actions.applyImport.mockResolvedValue({
+      plan: ready.plan,
+      taskUids: [],
+      tasksLeftOut: 3,
+      tasksStopped: true,
+    } satisfies AppliedImport);
+    show(true);
+    await userEvent.upload(
+      screen.getByTitle("Choose a Terpsicle data file (.json)"),
+      jsonFile(),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Add to your account" }),
+    );
+    expect(
+      await screen.findByText(
+        "3 tasks weren't added. Check your connection and add the file again: what's already here is skipped.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeVisible();
   });
 
   it("leaves everything as it is on Cancel", async () => {
