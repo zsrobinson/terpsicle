@@ -63,6 +63,13 @@ import { showBoard } from "./workbench-store";
 
 export const IMPORT_INPUT_ID = "plan-import-paste";
 
+/**
+ * The paste's label is the view's header line, so the panel has one header
+ * (QA5: "Import" over a second heading) and the field's name is the words
+ * you see over it.
+ */
+const IMPORT_LABEL_ID = "plan-import-paste-label";
+
 /** How long a paste sits still before `transcript_parsed` counts it. */
 const PARSED_EVENT_MS = 1500;
 
@@ -560,9 +567,6 @@ export function ImportPanel() {
   return (
     <div className="flex flex-col">
       <div className="space-y-2 px-4 py-3">
-        <label htmlFor={IMPORT_INPUT_ID} className="emph-label block">
-          Paste your unofficial transcript
-        </label>
         <p className="text-muted text-sm">
           In Testudo, open Unofficial Transcript, select everything on the page
           ({modKey("A")}), copy, and paste it here.
@@ -576,6 +580,7 @@ export function ImportPanel() {
             <Textarea
               ref={input}
               id={IMPORT_INPUT_ID}
+              aria-labelledby={IMPORT_LABEL_ID}
               data-private
               value={text}
               onChange={(event) => setTranscriptText(event.target.value)}
@@ -679,7 +684,12 @@ export function ImportPanel() {
 /** The Import view, on its route (`/plan/import`). */
 export function ImportView() {
   return (
-    <PlanView tab="import">
+    <PlanView
+      tab="import"
+      status={
+        <span id={IMPORT_LABEL_ID}>Paste your unofficial transcript</span>
+      }
+    >
       <ImportPanel />
     </PlanView>
   );

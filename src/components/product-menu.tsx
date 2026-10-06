@@ -1,13 +1,19 @@
 import { ChevronsUpDown } from "lucide-react";
 import { STAY_PARAM } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
-import { listedProducts, PRODUCTS, type ProductId } from "~/lib/products";
+import {
+  listedProducts,
+  PRODUCTS,
+  type ProductId,
+  productLink,
+} from "~/lib/products";
 import {
   ActionMenu,
   ActionMenuLinkItem,
   ActionMenuSeparator,
   ActionMenuText,
 } from "~/ui/action-menu";
+import { OUTSIDE_TAB, OutsideArrow } from "~/ui/outside-link";
 import { Mark } from "./brand/mark";
 import { Wordmark } from "./brand/wordmark";
 import { EARLY_ACCESS, EARLY_ACCESS_NOTE } from "./early-access";
@@ -71,19 +77,30 @@ export function ProductMenu({
         </button>
       }
     >
-      {listedProducts(flags, current).map((product) => (
-        <ActionMenuLinkItem
-          key={product.id}
-          href={product.to}
-          current={product.id === current}
-          currentClassName={CURRENT[product.id]}
-          hint={product.hint}
-          // Sized: menu items shrink unsized icons to 14px. 30px is 3px units.
-          icon={<Mark id={product.id} size={30} className="size-7.5" />}
-        >
-          <span className="font-semibold">{product.label}</span>
-        </ActionMenuLinkItem>
-      ))}
+      {listedProducts(flags, current).map((product) => {
+        const link = productLink(product, flags, current);
+        return (
+          <ActionMenuLinkItem
+            key={product.id}
+            href={link.outside ? undefined : link.href}
+            // Reviews while our pages are off: PlanetTerp, in a new tab.
+            render={
+              link.outside ? <a href={link.href} {...OUTSIDE_TAB} /> : undefined
+            }
+            tooltip={link.outside ? link.tooltip : undefined}
+            current={product.id === current}
+            currentClassName={CURRENT[product.id]}
+            hint={link.outside ? link.hint : product.hint}
+            // Sized: menu items shrink unsized icons to 14px. 30px is 3px units.
+            icon={<Mark id={product.id} size={30} className="size-7.5" />}
+          >
+            <span className="inline-flex items-center gap-0.5 font-semibold">
+              {product.label}
+              {link.outside ? <OutsideArrow /> : null}
+            </span>
+          </ActionMenuLinkItem>
+        );
+      })}
       <ActionMenuSeparator />
       <AboutItems />
     </ActionMenu>

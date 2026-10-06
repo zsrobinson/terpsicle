@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider, WithTooltip } from "./tooltip";
 
 function Field() {
@@ -12,6 +12,34 @@ function Field() {
     </TooltipProvider>
   );
 }
+
+function Chip({ onClick = () => {} }: { onClick?: () => void }) {
+  return (
+    <TooltipProvider delayDuration={0}>
+      <WithTooltip
+        label="Latest first class of the day"
+        card={<p>Your top plan: 10am avg start</p>}
+      >
+        <button type="button" onClick={onClick}>
+          Later starts
+        </button>
+      </WithTooltip>
+    </TooltipProvider>
+  );
+}
+
+// A finger's touch keeps tooltips shut for a second (module state, real
+// time), so everything that opens one by the keyboard runs before the
+// touch tests, which come last.
+describe("WithTooltip with a card", () => {
+  it("shows the card under its words when the keyboard focuses the control", async () => {
+    render(<Chip />);
+    await userEvent.setup().tab();
+    const tip = await screen.findByRole("tooltip");
+    expect(tip).toHaveTextContent("Latest first class of the day");
+    expect(tip).toHaveTextContent("Your top plan: 10am avg start");
+  });
+});
 
 describe("WithTooltip", () => {
   it("opens when the keyboard focuses its control", async () => {
@@ -63,5 +91,51 @@ describe("WithTooltip", () => {
     fireEvent.pointerDown(field, { pointerType: "touch" });
     act(() => field.focus());
     expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+});
+
+describe("WithTooltip with a card, by touch", () => {
+  it("opens when a finger holds the control, and the hold isn't a tap", () => {
+    vi.useFakeTimers();
+    try {
+      let taps = 0;
+      render(<Chip onClick={() => taps++} />);
+      const chip = screen.getByRole("button");
+      fireEvent.pointerDown(chip, { pointerType: "touch" });
+      act(() => vi.advanceTimersByTime(600));
+      fireEvent.pointerUp(chip, { pointerType: "touch" });
+      fireEvent.click(chip);
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Your top plan");
+      expect(taps).toBe(0);
+      // A quick tap afterwards still toggles it.
+      fireEvent.pointerDown(chip, { pointerType: "touch" });
+      fireEvent.pointerUp(chip, { pointerType: "touch" });
+      fireEvent.click(chip);
+      expect(taps).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("doesn't open when the finger moves on, as a scroll does", () => {
+    vi.useFakeTimers();
+    try {
+      render(<Chip />);
+      const chip = screen.getByRole("button");
+      fireEvent.pointerDown(chip, {
+        pointerType: "touch",
+        clientX: 10,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(chip, {
+        pointerType: "touch",
+        clientX: 10,
+        clientY: 40,
+      });
+      act(() => vi.advanceTimersByTime(600));
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

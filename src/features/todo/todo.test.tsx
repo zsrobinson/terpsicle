@@ -219,7 +219,7 @@ function sidebar() {
 }
 
 /**
- * Opens Todo's sync from the bar's cloud, beside the bell: ELMS's and the
+ * Opens Todo's sync from the bar's sync slot, beside the bell: ELMS's and the
  * account's syncs, Sync now, and ELMS's link. A popover, at a desktop's width.
  */
 async function openElms(
@@ -502,7 +502,7 @@ describe("connecting", () => {
 });
 
 describe("syncing, in the bar", () => {
-  it("says under the week when ELMS synced, and the cloud syncs both and takes a new link", async () => {
+  it("says under the week when ELMS synced, and the sync slot syncs both and takes a new link", async () => {
     const client = fakeClient({ items: [aTodoItem()] });
     signedIn();
     renderTodo();

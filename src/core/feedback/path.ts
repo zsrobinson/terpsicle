@@ -33,7 +33,8 @@ const FEEDBACK_PAGES: readonly [string, FeedbackProduct][] = [
 
 /**
  * The product a page's feedback is about, or null where the button doesn't
- * show: `/`, `/privacy`, sign-in, and pages we don't have.
+ * show: `/`, `/privacy` and sign-in. (A path we don't have gets the 404,
+ * whose bar files its feedback as the site's: SiteHeader.)
  */
 export function feedbackProduct(pathname: string): FeedbackProduct | null {
   return (

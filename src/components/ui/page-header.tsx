@@ -69,6 +69,15 @@ export function BackButton({
 }
 
 /**
+ * The page's `h1` at each size: a step over its sections' titles
+ * (`PAGE_SECTION_TITLE`), which `src/components/design-tokens.test.ts` checks.
+ */
+export const PAGE_TITLE = {
+  page: "emph-title text-xl",
+  display: "emph-title text-balance text-3xl",
+} as const;
+
+/**
  * - `page`: the page's `h1` at 18/24 semibold, a 12px status line under it,
  *   the view switch and actions at the right, a hairline under it all. On
  *   phones it stacks: title and status, then the switch and actions in a row.
@@ -116,7 +125,7 @@ export function PageHeader({
                 {eyebrow}
               </div>
             ) : null}
-            <h1 className="emph-title text-balance text-3xl">{title}</h1>
+            <h1 className={PAGE_TITLE.display}>{title}</h1>
             {status ? (
               <div className="emph-secondary flex flex-wrap items-center gap-x-2 gap-y-1 text-lg">
                 {status}
@@ -163,7 +172,7 @@ export function PageHeader({
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         {back ? <BackLink {...back} className="mb-1" /> : null}
-        <h1 className="emph-title text-xl">{title}</h1>
+        <h1 className={PAGE_TITLE.page}>{title}</h1>
         {status ? (
           <div className="emph-meta flex flex-wrap items-center gap-1.5">
             {status}

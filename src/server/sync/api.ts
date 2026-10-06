@@ -15,11 +15,14 @@ import { captureServerEvent } from "../analytics";
 import { apiError } from "../api/http";
 import type { IdentityRouteContext } from "../auth/api";
 import { refreshChatMembers } from "../chat/store";
-import { userDataForRequest } from "../security/user-keys";
+import {
+  type AccountKeyBucket,
+  userDataForRequest,
+} from "../security/user-keys";
 import { pullDocs, pushDocs } from "./store";
 
 /** Bodies are sealed with each account's key (../security/user-keys.ts). */
-export interface SyncEnv extends UserDataKeyVars {
+export interface SyncEnv extends UserDataKeyVars, AccountKeyBucket {
   DB: D1Database;
   POSTHOG_TOKEN?: string;
   /** "true" lets four-year docs be saved (docs/V3.md §2.4, §8). */

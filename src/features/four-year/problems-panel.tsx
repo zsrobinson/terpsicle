@@ -1,12 +1,14 @@
-import { cn } from "cn";
 import { MessageText } from "~/components/message-text";
-import { PanelNote } from "~/components/panel";
+import {
+  ProblemAction,
+  ProblemFixButton,
+  ProblemList,
+  ProblemRow,
+  ProblemsClear,
+} from "~/components/problem-list";
 import { problemCountWords } from "~/core/problems/count-words";
 import type { FourYearProblem } from "~/core/schema/four-year";
 import { track } from "~/lib/analytics";
-import { Button } from "~/ui/button";
-import { ListRow } from "~/ui/list-row";
-import { WithTooltip } from "~/ui/tooltip";
 import { applyFix } from "./actions";
 import { useModel, usePlanNav, useProblemCounts } from "./model";
 import { PlanView } from "./views";
@@ -14,7 +16,8 @@ import { PlanView } from "./views";
 // The Problems tab (V3 §2.8): prerequisites out of order, light semesters,
 // repeats, codes Testudo doesn't know, courses not offered lately. All of it
 // information: nothing blocks a move, nothing turns red. A fix is offered
-// only when it makes no new problem, and Undo takes it back.
+// only when it makes no new problem, and Undo takes it back. The list, its
+// bands and its rows are the scheduler's (~/components/problem-list).
 
 /** Brings a problem's first subject into view: its block, or its semester. */
 function reveal(problem: FourYearProblem) {
@@ -49,97 +52,57 @@ function Row({ problem }: { problem: FourYearProblem }) {
       ? entry
       : null;
   return (
-    <ListRow
-      as="li"
-      align="start"
-      // The whole row shows the problem (the title's ::after covers it), as
-      // the scheduler's does; the fix sits above that.
-      className="relative hover:bg-hover"
-      lead={
-        // A warning's dot; a note has none (nothing turns red, V3 §2.8).
-        <span
-          aria-hidden="true"
-          className={cn(
-            "mt-1.5 block size-1.5",
-            problem.severity === "warning" && "bg-warn",
-          )}
-        />
+    <ProblemRow
+      severity={problem.severity}
+      testId={`problem-${problem.kind}`}
+      title={<MessageText message={problem.title} />}
+      openLabel="Show it in your semesters"
+      onOpen={() => {
+        track("four_year_problem_opened", { kind: problem.kind });
+        // The phone shows one semester: switch to the problem's.
+        if (term !== undefined) nav.go({ semester: term });
+        requestAnimationFrame(() => reveal(problem));
+      }}
+      detail={<MessageText message={problem.detail} />}
+      actions={
+        problem.fix || describe || credit ? (
+          <>
+            {problem.fix ? (
+              <ProblemFixButton
+                label={problem.fix.label}
+                onApply={() => applyFix(doc, problem)}
+              />
+            ) : null}
+            {describe ? (
+              <ProblemAction
+                tooltip={`Say what ${describe} was: its title, credits, GenEds and what it counts as`}
+                onClick={() =>
+                  nav.go(
+                    { course: describe, credit: undefined },
+                    { drill: true },
+                  )
+                }
+              >
+                Add course info
+              </ProblemAction>
+            ) : null}
+            {credit ? (
+              <ProblemAction
+                tooltip={`Say which UMD course ${credit.title} counts as, if any`}
+                onClick={() =>
+                  nav.go(
+                    { credit: credit.id, course: undefined },
+                    { drill: true },
+                  )
+                }
+              >
+                Choose what it counts as
+              </ProblemAction>
+            ) : null}
+          </>
+        ) : null
       }
-      secondary={
-        <>
-          <MessageText message={problem.detail} />
-          {problem.fix || describe || credit ? (
-            <span className="mt-1.5 flex flex-wrap gap-1.5">
-              {problem.fix ? (
-                <WithTooltip label="Undo takes it back">
-                  <Button
-                    variant="outline"
-                    size="row"
-                    className="relative z-10"
-                    onClick={() => applyFix(doc, problem)}
-                  >
-                    {problem.fix.label}
-                  </Button>
-                </WithTooltip>
-              ) : null}
-              {describe ? (
-                <WithTooltip
-                  label={`Say what ${describe} was: its title, credits, GenEds and what it counts as`}
-                >
-                  <Button
-                    variant={problem.fix ? "ghost" : "outline"}
-                    size="row"
-                    className="relative z-10"
-                    onClick={() =>
-                      nav.go(
-                        { course: describe, credit: undefined },
-                        { drill: true },
-                      )
-                    }
-                  >
-                    Add course info
-                  </Button>
-                </WithTooltip>
-              ) : null}
-              {credit ? (
-                <WithTooltip
-                  label={`Say which UMD course ${credit.title} counts as, if any`}
-                >
-                  <Button
-                    variant="outline"
-                    size="row"
-                    className="relative z-10"
-                    onClick={() =>
-                      nav.go(
-                        { credit: credit.id, course: undefined },
-                        { drill: true },
-                      )
-                    }
-                  >
-                    Choose what it counts as
-                  </Button>
-                </WithTooltip>
-              ) : null}
-            </span>
-          ) : null}
-        </>
-      }
-    >
-      <WithTooltip label="Show it in your semesters">
-        <button
-          type="button"
-          onClick={() => {
-            track("four_year_problem_opened", { kind: problem.kind });
-            // The phone shows one semester: switch to the problem's.
-            if (term !== undefined) nav.go({ semester: term });
-            requestAnimationFrame(() => reveal(problem));
-          }}
-          className="text-left font-medium after:absolute after:inset-0"
-        >
-          <MessageText message={problem.title} />
-        </button>
-      </WithTooltip>
-    </ListRow>
+    />
   );
 }
 
@@ -147,18 +110,17 @@ export function ProblemsPanel() {
   const { problems } = useModel();
   if (problems.length === 0)
     return (
-      <PanelNote>
+      <ProblemsClear>
         Prerequisites out of order, light semesters, repeated courses, courses
         Testudo hasn't offered lately and transfer credit it didn't match show
         up here.
-      </PanelNote>
+      </ProblemsClear>
     );
   return (
-    <ul aria-label="Problems">
-      {problems.map((problem) => (
-        <Row key={problem.id} problem={problem} />
-      ))}
-    </ul>
+    <ProblemList
+      problems={problems}
+      row={(problem) => <Row key={problem.id} problem={problem} />}
+    />
   );
 }
 

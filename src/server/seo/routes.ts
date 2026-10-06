@@ -1,3 +1,4 @@
+import { FeatureVarsSchema } from "~/core/schema";
 import {
   robotsTxt,
   SITE_PAGES,
@@ -38,7 +39,9 @@ function file(
 /** The robots.txt or sitemap for `request`, or null for any other path. */
 export async function serveSeoFile(
   request: Request,
-  env: Pick<Env, "DATA" | "DB" | "REVIEWS_ENABLED">,
+  env: Pick<Env, "DATA" | "DB" | "REVIEWS_ENABLED"> & {
+    REVIEWS_PAGES_ENABLED?: string;
+  },
 ): Promise<Response | null> {
   const url = new URL(request.url);
   if (!["GET", "HEAD"].includes(request.method)) return null;
@@ -55,10 +58,15 @@ export async function serveSeoFile(
   if (url.pathname === SITEMAP_PATH) {
     // The site's own pages first, so a sitemap that outgrew one file (see
     // SITEMAP_MAX_URLS) still names them.
-    const entries = [
-      ...SITE_PAGES,
-      ...(await reviewsSitemapEntries(env)),
-    ].slice(0, SITEMAP_MAX_URLS);
+    // While our Reviews pages are off, their addresses go to PlanetTerp,
+    // so none of them is listed (docs/decisions.md, "Reviews link out to
+    // PlanetTerp").
+    const pages = FeatureVarsSchema.parse(env).REVIEWS_PAGES_ENABLED;
+    const entries = (
+      pages
+        ? [...SITE_PAGES, ...(await reviewsSitemapEntries(env))]
+        : SITE_PAGES.filter((p) => !/^\/reviews(\/|$)/.test(p.path))
+    ).slice(0, SITEMAP_MAX_URLS);
     return file(
       request,
       sitemapXml(origin, entries),

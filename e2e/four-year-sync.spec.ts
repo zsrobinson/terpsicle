@@ -214,7 +214,7 @@ test("the same four-year plan changed on two devices, one offline, keeps both", 
   await b.context().setOffline(true);
   await addCourse(b, "MATH240");
   await expect(savedState(b)).toHaveAttribute("data-sync-status", "offline");
-  await expect(savedState(b)).toHaveText("Offline, will save when you're back");
+  await expect(savedState(b)).toHaveText("Saves when online");
 
   await addCourse(a, "STAT400");
   await saved(a);

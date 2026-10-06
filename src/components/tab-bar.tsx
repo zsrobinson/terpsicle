@@ -1,7 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import { HOME_PATH, type TabId, tabBarAt } from "~/core/routing";
 import { useAccount } from "~/features/auth/account-store";
-import { listedProducts } from "~/lib/products";
+import { listedProducts, productLink } from "~/lib/products";
 import { TabBarItem } from "~/ui/tab-bar-item";
 import { Mark } from "./brand/mark";
 
@@ -19,6 +19,8 @@ import { Mark } from "./brand/mark";
 // keyboard up, and where a page says so (`data-hides-tab-bar`, a Chat
 // room); and it sets `--tab-bar-height` and `--tab-bar-space` for
 // everything anchored to the bottom (the drawer's peek, toasts, pages).
+// Reviews opens PlanetTerp in a new tab while our pages are off, as the
+// family bar's purple tab does (~/lib/products, `productLink`).
 
 /** The current tab's soft color, as the desktop's tabs wear it. */
 const CURRENT: Record<TabId, string> = {
@@ -54,19 +56,23 @@ export function TabBar() {
             onReselect={toTop}
           />
         </li>
-        {listedProducts(flags, here).map((p) => (
-          <li key={p.id} className="flex min-w-0 flex-1">
-            <TabBarItem
-              to={p.to}
-              label={p.label}
-              tooltip={p.view}
-              icon={<Mark id={p.id} size={30} />}
-              current={place.current === p.id}
-              currentClassName={CURRENT[p.id]}
-              onReselect={toTop}
-            />
-          </li>
-        ))}
+        {listedProducts(flags, here).map((p) => {
+          const link = productLink(p, flags, here);
+          return (
+            <li key={p.id} className="flex min-w-0 flex-1">
+              <TabBarItem
+                to={link.href}
+                outside={link.outside ? "PlanetTerp" : undefined}
+                label={p.label}
+                tooltip={link.outside ? link.tooltip : p.view}
+                icon={<Mark id={p.id} size={30} />}
+                current={place.current === p.id}
+                currentClassName={CURRENT[p.id]}
+                onReselect={toTop}
+              />
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

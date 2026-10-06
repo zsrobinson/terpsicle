@@ -1,13 +1,89 @@
 import { cn } from "cn";
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
+import type { ComponentProps, ReactNode } from "react";
 import { problemCountWords } from "~/core/problems/count-words";
 import type { Severity } from "~/core/schema/problems";
 import { TONE_FILL } from "~/lib/emphasis";
 import { Skeleton } from "~/ui/skeleton";
 import { WithTooltip } from "~/ui/tooltip";
 
-// A workbench's status in the family bar, the same in every product: its
-// credits, then its problems, which open the Problems view.
+// A workbench's status in the family bar, the same in every product: where
+// its data is (the sync slot), then its credits, then its problems, which
+// open the Problems view (docs/COHESION.md §4, the bar's order).
+
+/**
+ * The sync slot's look: a ghost button, 28px, muted until hovered or open.
+ * For a trigger that isn't `SyncSlot`'s own button (Todo's popover).
+ */
+export const SYNC_SLOT_CLASS =
+  "flex h-7 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-muted text-sm transition-colors hover:bg-hover hover:text-fg aria-expanded:bg-hover aria-expanded:text-fg";
+
+/**
+ * What the slot shows: a 15px glyph, then its word from 1280px. Narrower,
+ * the word is for screen readers and the tooltip says it.
+ */
+export function SyncSlotFace({
+  icon,
+  word,
+}: {
+  icon: ReactNode;
+  word: string;
+}) {
+  return (
+    <>
+      {icon}
+      <span className="whitespace-nowrap max-xl:sr-only">{word}</span>
+    </>
+  );
+}
+
+/**
+ * The family bar's sync slot, first in a workbench's status, the same in
+ * Schedule, Plan and Todo: a glyph and a word, the whole sentence in its
+ * tooltip. A cloud is your plans with your account (plan sync), a monitor
+ * your plans in this browser, a calendar Todo's ELMS feed: different things
+ * never share a glyph. Pressing it checks again now; without `onPress` it's
+ * a status you can focus for its tooltip.
+ */
+export function SyncSlot({
+  icon,
+  word,
+  tooltip,
+  onPress,
+  ...rest
+}: {
+  icon: ReactNode;
+  word: string;
+  tooltip: string;
+  onPress?: () => void;
+} & Omit<ComponentProps<"button">, "children" | "onClick">) {
+  if (!onPress)
+    return (
+      <WithTooltip label={tooltip} side="bottom">
+        <span
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: the tooltip needs a focus stop
+          tabIndex={0}
+          role="status"
+          {...(rest as ComponentProps<"span">)}
+          className={cn(SYNC_SLOT_CLASS, "hover:bg-transparent")}
+        >
+          <SyncSlotFace icon={icon} word={word} />
+        </span>
+      </WithTooltip>
+    );
+  return (
+    <WithTooltip label={tooltip} side="bottom">
+      <button
+        type="button"
+        {...rest}
+        onClick={onPress}
+        className={SYNC_SLOT_CLASS}
+      >
+        <SyncSlotFace icon={icon} word={word} />
+      </button>
+    </WithTooltip>
+  );
+}
 
 /** "16 credits", "62 of 120 credits": the number in ink, the rest muted. */
 export function CreditsStatus({ label }: { label: string | null }) {

@@ -1,4 +1,5 @@
 import { SCHEDULE_PATH } from "~/core/routing";
+import { PLANETTERP_HOME } from "~/core/schema";
 import type { MarkId } from "./brand/marks";
 
 // The products (docs/V2.md §1, docs/V3.md §1.2), in color order, for the product menu and the pages
@@ -23,6 +24,13 @@ export const PRODUCTS = [
     label: "Reviews",
     hint: "Courses and instructors",
     view: "View reviews",
+    // While our Reviews pages are off (REVIEWS_PAGES_ENABLED), the purple
+    // tab keeps its place among the five and opens PlanetTerp instead.
+    outside: {
+      href: PLANETTERP_HOME,
+      hint: "On PlanetTerp",
+      tooltip: "Reviews on PlanetTerp. Opens in a new tab.",
+    },
   },
   {
     id: "chat",
@@ -51,6 +59,8 @@ export const PRODUCTS = [
   label: string;
   hint: string;
   view: string;
+  /** Another site that stands in for the product while it's off here. */
+  outside?: { href: string; hint: string; tooltip: string };
 }[];
 
 export type Product = (typeof PRODUCTS)[number];
@@ -66,4 +76,26 @@ export function listedProducts(
   return PRODUCTS.filter(
     (p) => p.id !== "plan" || flags.plan || current === "plan",
   );
+}
+
+/**
+ * Where a product's tab goes: its own page, or, for Reviews while our pages
+ * are off, PlanetTerp in a new tab. The page you're on always stays itself
+ * (an author's /reviews/mine).
+ */
+export function productLink(
+  product: Product,
+  flags: { reviewsPages: boolean },
+  current: ProductId | null,
+):
+  | { href: string; outside: false }
+  | {
+      href: string;
+      outside: true;
+      hint: string;
+      tooltip: string;
+    } {
+  if ("outside" in product && !flags.reviewsPages && current !== product.id)
+    return { ...product.outside, outside: true };
+  return { href: product.to, outside: false };
 }

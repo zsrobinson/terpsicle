@@ -64,6 +64,17 @@ Revisit if: never on its own.
 Every kit primitive (menus, popovers, dialogs, selects, tooltips, switches, sheets and drawers) is built on Base UI (`@base-ui/react`). Radix, vaul and the shadcn CLI go away. Our look stays: Ink's soft gray highlights and our padding ("i do prefer our soft gray instead of the inverted color"). For a component we don't have yet, the styling on Base UI's docs site is the default to start from.
 Revisit if: Base UI lacks a primitive we need; wrap it in the kit and say why.
 
+### One chip, selected in the soft gray
+2026-10-05 · owner · app-wide
+Every small toggle chip (Search's filters, Generate's filters, preferences and "Includes", course details' "Only fits", Blocks' presets and days, Plan's GenEd toggles) is the kit's chip (`~/ui/chip`): square corners, 24px, and selected in Ink's soft gray (`accent-soft` with a strong hairline), as the owner prefers ("i do prefer our soft gray instead of the inverted color"). Nothing selected is inverted any more. Filters and preferences stay told apart by what they say: a filter has its funnel and how many plans it took out, a preference doubles with an ink outline and "2×". Generate's preferences are square chips, not pills: "yeah square like everything, i meant pills in a general sense."
+Under a finger (a coarse pointer) a chip is 32px to see and 44px to hit, the rest an invisible margin above and below (`CHIP_TOUCH`), and lines of chips sit 12px apart so two margins meet without overlapping (`CHIP_ROWS`); a mouse keeps the 24px chip. The owner left it to us ("do whatever makes sense"): a 44px chip would double every line of chips, and 32px plus the margin takes the same room per line as 24px would with a 44px margin, but reads better. Plan's GenEd toggles were already 44px on phones.
+Revisit if: people take a preference for a filter, the owner wants the pills back, or phone taps land on the wrong chip.
+
+### A chip's card: more on hover
+2026-10-05 · owner · one feature
+"hovering should display more information, like that histogram thing i've seen in your previous mockups." Hovering or focusing a Generate chip opens a card under its words (the kit's tooltip with a `card`, `WithTooltip`); on a phone, pressing and holding the chip opens it, and the hold doesn't toggle the chip. A preference's card is a small histogram of the plans on screen on what it ranks by (gaps a week, days on campus, average start, rating, GPA, open seats in the tightest section), the top plan's bar marked and the end it ranks higher named. A filter that's on shows what it took out on one bar ("Kept 52 · Took out 568"); one that's off charts what it would look at (first or last class of the week, days on campus, open seats, credits), and Time to walk and Not in my blocks, which look at nothing a plan's stats have, keep a plain tooltip. The bars are drawn as the course page's grade bars: ink at a few strengths, no hue. It's a tooltip rather than a Base UI preview card or a hover-opening popover because the chip already has a tooltip (two hover layers would stack), Base UI's tooltip already opens on hover and keyboard focus and closes on a press, and a preview card's trigger is a link; nothing in the card is interactive. The numbers come from the results in memory (`planSpread`, `filterRemoval` in `src/core/generate/spread.ts`).
+Revisit if: the cards get in the way of clicking through the chips, or people want to act from them.
+
 ### Menus are ActionMenus
 2026-10-04 · agent · app-wide
 Following the iPhone plan the owner approved: feature code builds every menu from the kit's `ActionMenu` (a button's menu) or `ActionContextMenu` (a row's right click, a long press on a phone), a menu from 768px up and a sheet below; a submenu takes the sheet's list's place. A guard test (`src/components/ui/menus.test.ts`) fails on a raw dropdown or context menu outside the kit. Reviews keeps its `DropdownMenu` while its move to PlanetTerp is decided.
@@ -175,6 +186,11 @@ On a bar marked `crowdedBelow2xl` (the scheduler's and Plan's), below 1536px the
 (changed 2026-09-29, `v3/shell-tab-bar`: Share joined the scheduler's bar as an icon, so its credits show from 1536px too, not 1280px; the Courses panel's header says them.) (changed 2026-09-30, `v3/family-bar`: the product tabs fold to their marks on every bar, which gives the room back, so `crowdedBelow2xl` is gone. Every desktop bar shows the coffee button and Feedback's label; three plan tabs still fit whole at 1440px and two at 1280px.)
 Revisit if: the scheduler's bar changes its context or status, or the owner wants the chip on every bar at every width.
 
+### One sync slot in the bar, and a glyph per kind of sync
+2026-10-05 · agent · one feature
+Schedule, Plan and Todo show where their data is in one place, the bar's sync slot (`SyncSlot`, first in the bar's status): a glyph, then a word from 1280px, with the whole sentence in its tooltip. A cloud means your plans with your account ("Saved", "Saving…"); a monitor means Plan's four-year plan in this browser ("Saved in this browser"); a calendar means Todo's sync, whose state is the ELMS feed's ("Sync", which opens it). The calendar and "Sync" replace Todo's cloud, so the same glyph never means two things. On a phone's bar, Schedule's and Plan's slot is words for screen readers only (the account menu has the line); Todo's stays, as an icon, since it's the only way into its sync.
+Revisit if: a fourth kind of sync arrives, or the bars run out of room at 1280px.
+
 ### Sign in with Google, UMD only
 2026-09-26 · owner · app-wide
 Google only, with `hd` exactly `terpmail.umd.edu` or `umd.edu` and a verified email; no magic link. Real names come from Google at every sign-in and aren't editable here; pictures aren't collected at all ("No profile pictures", below). People are keyed on their directory ID.
@@ -192,7 +208,7 @@ Revisit if: never on its own.
 
 ### Synced data is encrypted on the server, with a key per account
 2026-10-04 · owner · app-wide
-Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key first, so nothing it sealed can be opened afterward; D1's Time Travel can still restore the whole database, key included, for 30 days. The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`.
+Each account gets its own data key, kept wrapped by a Worker secret, and every synced body and Todo task's text is sealed with it (AES-256-GCM through `src/server/security/seal.ts`, bound to its row). Deleting an account destroys its key, so nothing it sealed can be opened afterward, even from a backup of the database: the keys live in R2, apart from what they seal ("Account keys live in R2, apart from what they seal"). The server can still decrypt, which is what lets Chat find your rooms from your main plan and the calendar feed read it, so we never call it "end-to-end", in copy, docs or code (CLAUDE.md, "Accounts and privacy"). Built in `v2/sync-encryption`. (changed 2026-10-05: it said D1's Time Travel could restore a deleted account's key for 30 days; the owner moved the keys to R2.)
 Revisit if: a feature needs the server to read synced data in bulk, or the owner wants end-to-end encryption and gives up server-side reads.
 
 ### Privacy and terms in plain words; open source is the proof
@@ -438,6 +454,11 @@ Revisit if: people want Registered per term rather than per plan.
 While a course's sections show on the calendar, a click or tap on empty time closes the course, as Esc does, and doesn't start a block ("clicking on a blank part of the schedule should exit the view instead of trying to draw a block"). Blocks are drawn only with no course open.
 Revisit if: people want to block time while comparing sections.
 
+### Plan's credits: the bar says the number, the sidebar's foot the rest
+2026-10-05 · owner · one feature
+The owner left it to us ("do whatever makes sense"). From 1024px the family bar's status says Plan's credits ("104 of 120 credits"), so the sidebar's foot drops that headline there and keeps what only it has: the progress bar and "52 earned · 12 in progress · 40 planned", over the degree-audit line. From 769 to 1023px the bar has no room for the credits, so the foot says the headline too. Dropping the whole foot at 1024px would have lost the breakdown, which nothing else on the page shows; keeping it whole said the same number twice on one screen.
+Revisit if: the bar's credits move or get a breakdown of their own.
+
 ### Four-year plans share by link, versioned
 2026-09-28 · owner · one feature
 Plan gets the same Share, for advisors: the plan is in the URL (the owner: "continue storing the data in the URL … think about versioning"), opening read-only at `/plan/shared` without an account, with Save a copy. Grades never go in a link. The version is a prefix outside the compressed JSON, with a wire schema and decoder per version kept for good (agent), so a newer link is recognized unread and an old one always opens. Compression is fflate's raw deflate, as the scheduler's links use, since it's synchronous and runs in core's tests (CompressionStream would make the codec async for no gain).
@@ -458,12 +479,22 @@ Revisit if: a third product needs sync, or loading the whole engine on Plan cost
 Prefs that aren't Schedule's (AI features, Chat's room rules seen) are one `prefs` object in the settings doc and one `prefs` row on the device. It's loose, so every build carries keys it doesn't know, and a conflict settles it per product key, like a course's color. Schedule never edits it but always pushes it whole. Every page reads a localStorage copy (Reviews loads no IndexedDB up front), which whatever writes the row keeps current.
 Revisit if: a pref needs merging inside its own key, or a pref must be read on the server.
 
-### Account keys live in D1, beside what they seal
-2026-10-04 · agent · one feature
-Each account's data key is a `user_keys` row, sealed under the Worker secret `USER_DATA_KEY`, as the owner's plan laid out (DATA.md §7.7). Deleting the account deletes the row first, so nothing it sealed opens afterward. But D1's Time Travel can restore the whole database, keys and all, to any minute of the last 30 days, so for those 30 days a full restore would bring a deleted account's data back; after them nothing can. Keeping the wrapped keys in R2 instead, which has no point-in-time restore, would make deleting final at once, for an R2 read on each sync request.
-Revisit if: `/privacy` is to promise that deleted data can't come back even from a backup.
+### Account keys live in R2, apart from what they seal
+2026-10-05 · owner · one feature
+Each account's data key, sealed under the Worker secret `USER_DATA_KEY`, is one object, `keys/<userId>`, in the private R2 bucket `terpsicle-user-keys` (binding `USER_KEYS`; DATA.md §7.7). D1's Time Travel can put the whole database back as it was at any minute of the last 30 days, but R2 keeps no earlier version of an object, so once the purge deletes the key, the rows it sealed stay unreadable even if a restore brings them back. The cost is one R2 read per request that opens synced data. "if that makes sense, go for it, it'd be good for privacy." (changed 2026-10-05, owner: the keys were `user_keys` rows in D1, which a Time Travel restore would bring back with the data for 30 days.)
+Revisit if: R2 gains versioning or point-in-time restore that we'd turn on, or the read on each request shows up in latency.
 
 ## Reviews
+
+### Reviews link out to PlanetTerp
+2026-10-05 · owner · one feature
+"let's go with the first verison, linking out." From the day before: "i'd probably prefer that we don't have our own review pages if we're just displaying from planetterp, maybe just those little popover preview things… maybe the actual review pages and whatnot are hidden behind some sort of feature flag for now? i don't want to just delete all of that. and i kind of like the branding we have with the 'five tabs' even if the purple one is now just a link out to planetterp". The purple tab keeps its place among the five and opens planetterp.com in a new tab, with an arrow and the tooltip "Reviews on PlanetTerp. Opens in a new tab." (the phone's tab bar and the product menu too). Schedule keeps the reviews preview, credited to PlanetTerp and linking there. Our `/reviews` pages, writing and moderation stay in the code behind `REVIEWS_PAGES_ENABLED`, off in production and previews; their addresses answer a 302 to PlanetTerp's, and nothing of ours is written while they're off. Mock mode and e2e keep them on, so the code keeps running, plus one spec with them off. The report: "Reviews with PlanetTerp", version A (fb5).
+Revisit if: phone users leave from the purple tab and don't come back (then the report's version B, a thin page of our own), or PlanetTerp asks us to stop showing its reviews.
+
+### No anonymous-reviews change while our pages are off
+2026-10-05 · owner · one feature
+The privacy plan's "Anonymous reviews" PR (no author on a published review, no editing after) isn't needed: with "Reviews link out to PlanetTerp", nobody writes a review here. Production had no live review of ours (one deleted) when the pages went off. "Anonymous reviews, signed-in writers" still holds for the code behind the flag.
+Revisit if: our Reviews pages come back on.
 
 ### Anonymous reviews, signed-in writers
 2026-09-26 · owner · one feature
@@ -472,7 +503,7 @@ Revisit if: never on its own.
 
 ### Full reviews live at /reviews
 2026-09-26 · owner · one feature
-The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".)
+The scheduler's course details keep the numbers, the summary and a link; reading and writing reviews happen at `/reviews`. (changed 2026-09-29, by the owner: "maybe a little popover that's like a mini version/preview of the [reviews] tab, with the option to open the full one up too. that way you can quickly read through recent reviews and whatnot without leaving the schedule tab completely." Each instructor's "Reviews" button opens a preview, a popover (a sheet on phones): the rating, the grades sentence, the three newest reviews and "View reviews".) (changed 2026-10-05, owner: while our pages are off, full reviews live on PlanetTerp; see "Reviews link out to PlanetTerp".)
 Revisit if: people don't find reviews from the scheduler.
 
 ### No AI features in Reviews
@@ -488,6 +519,7 @@ Revisit if: a course's term list grows too long to scan (then fold the older ter
 ### /reviews is Terpsicle Reviews, with PlanetTerp's front-page numbers
 2026-09-29 · owner · one feature
 "the whole app is free... if you're on that page and not signed in you've already proved that point." The page's title is the product's name, with no "free, no sign-in" line. Like PlanetTerp's front page it has recent reviews (ours and PlanetTerp's, newest first), grades across every course, and a row of counts (courses, professors, reviews, course grades) that counts up from 0 once when it comes into view, and doesn't move with Reduce Motion. The counts are PlanetTerp's data (the index's `totals`).
+(changed 2026-10-05, owner: while our pages are off, `/reviews` goes to planetterp.com; see "Reviews link out to PlanetTerp".)
 Revisit if: our own reviews outnumber PlanetTerp's, so the counts should be ours.
 
 ### What Reviews knows you took
@@ -497,7 +529,7 @@ Revisit if: transcripts start carrying instructors.
 
 ### PlanetTerp's reviews fill on a page's first visit
 2026-09-29 · agent · one feature
-The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page.
+The nightly job stores at most 1,500 instructors' reviews a night, so for a while after a fresh start (and always on a preview, where crons don't run) the most-reviewed could show none. When an instructor's page finds none stored but PlanetTerp counts some, it asks `reviews/page` again with their PlanetTerp name, and the server fetches them from PlanetTerp once and stores them as the job would (`src/server/reviews/planetterp-live.ts`). Found with Magdalene Ngeve's page. (changed 2026-10-05, owner, "Reviews link out to PlanetTerp": gone, so PlanetTerp sees our nightly crawler and never our visitors. The job has been through every instructor since; a preview, where crons don't run, shows no reviews in Schedule's preview. While our pages are off the job keeps only each course's newest three per instructor, what the preview shows.)
 Revisit if: PlanetTerp asks us not to call its API from page loads.
 
 ### Reviews pages: two columns from the top, no back link
@@ -537,7 +569,7 @@ Revisit if: PlanetTerp agrees to let us use its ratings, or Google's rules chang
 
 ### PlanetTerp reviews are shown, marked as theirs
 2026-09-28 · owner · one feature
-"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.)
+"let's actually display reviews from planetterp; i'm going to say it's okay." Their reviews appear among ours, newest first, each with a "PlanetTerp" chip (tooltip and link), no author. The nightly PlanetTerp job keeps them in D1 and rewrites only the instructors whose reviews changed. (changed 2026-09-28: "PlanetTerp text stays off" said text waited on PlanetTerp's OK.) (changed 2026-10-05, owner: while our pages are off, their reviews show only in Schedule's preview, credited "From PlanetTerp" and linking there; see "Reviews link out to PlanetTerp".)
 Revisit if: PlanetTerp asks us to stop.
 
 ### Reviews pages live one level under /reviews

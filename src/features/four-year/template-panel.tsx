@@ -173,13 +173,10 @@ export function TemplatePanel({
 }) {
   return (
     <div className="space-y-3 px-4 py-3">
-      <div className="space-y-1">
-        <h2 className="emph-heading">Start from a sample plan</h2>
-        <p className="text-muted text-sm">
-          A sample plan lays out a major's courses semester by semester. Adding
-          one fills your empty semesters and leaves the rest as they are.
-        </p>
-      </div>
+      <p className="emph-secondary text-sm">
+        Adding a sample plan fills your empty semesters and leaves the rest as
+        they are.
+      </p>
       <StartsIn />
       {templates.map((t) => (
         <TemplateCard key={t.id} template={t} />
@@ -188,6 +185,9 @@ export function TemplatePanel({
   );
 }
 
+/** The Samples header's line: what a sample plan is. */
+const SAMPLES_STATUS = "A major's courses, semester by semester";
+
 /** The Samples view, on its route (`/plan/samples`), whose loader brings the sample plans. */
 export function SamplesView({
   templates,
@@ -195,7 +195,7 @@ export function SamplesView({
   templates: readonly FourYearTemplate[];
 }) {
   return (
-    <PlanView tab="templates">
+    <PlanView tab="templates" status={SAMPLES_STATUS}>
       <TemplatePanel templates={templates} />
     </PlanView>
   );
@@ -208,7 +208,7 @@ export function SamplesView({
  */
 export function SamplesFailed(props: ErrorComponentProps) {
   return (
-    <PlanView tab="templates">
+    <PlanView tab="templates" status={SAMPLES_STATUS}>
       <RouteError {...props} />
     </PlanView>
   );

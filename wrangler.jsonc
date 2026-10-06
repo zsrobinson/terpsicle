@@ -37,7 +37,12 @@
     // Feedback screenshots (docs/FEEDBACK.md), shown to the admin only. It
     // also held profile pictures under avatars/ until 2026-09-28; the daily
     // job deletes what's left (src/server/auth/legacy-pictures.ts).
-    { "binding": "USER_CONTENT", "bucket_name": "terpsicle-user-content" }
+    { "binding": "USER_CONTENT", "bucket_name": "terpsicle-user-content" },
+    // Each account's data key, wrapped by USER_DATA_KEY, at keys/<userId>
+    // (docs/DATA.md §7.7). Private, with no public access, no custom domain,
+    // and no lifecycle rule or bucket lock, ever: deleting an account's key
+    // must be final. Only src/server/security/user-keys.ts reads it.
+    { "binding": "USER_KEYS", "bucket_name": "terpsicle-user-keys" }
   ],
   "d1_databases": [
     {
@@ -86,6 +91,12 @@
     // reports but takes no new words. On since the Reviews UI (#85) shipped
     // (the owner, 2026-09-26: ship each product when its screens land).
     "REVIEWS_ENABLED": "on",
+    // Our own /reviews pages (docs/decisions.md, "Reviews link out to
+    // PlanetTerp"). Unset or anything but "true" hides them: their
+    // addresses answer a 302 to PlanetTerp's, the purple tab opens
+    // planetterp.com, and nobody writes ("on" above reads as "read"). On
+    // here until the switch PR turns Reviews over to PlanetTerp.
+    "REVIEWS_PAGES_ENABLED": "true",
     // Terpsicle Todo (docs/V3.md §3). "on" also needs the secret
     // TODO_FEED_KEY (32 random bytes, base64url) on this Worker; without it
     // every /api/todo/* answers "unavailable". To rotate the key: set the new
@@ -115,8 +126,9 @@
     // fallback. To rotate: set the new key as USER_DATA_KEY with a new
     // USER_DATA_KEY_ID, and the old one as USER_DATA_KEY_PREVIOUS with
     // USER_DATA_KEY_PREVIOUS_ID (a var); once the daily job has rewrapped
-    // every account's key (no `user_keys` row names the old id), remove both.
-    // Previews and mock mode use test mode's fixed key instead.
+    // every account's key (accountKeysLeft is 0), remove both. The wrapped
+    // keys live in R2 USER_KEYS. Previews and mock mode use test mode's
+    // fixed key instead.
     "USER_DATA_KEY_ID": "k1"
   },
   "ai": { "binding": "AI" },
@@ -160,6 +172,8 @@
       "AUTH_TEST_MODE": "true",
       "CHAT_ENABLED": "on",
       "REVIEWS_ENABLED": "on",
+      // REVIEWS_PAGES_ENABLED stays unset: previews show Reviews as
+      // production will, linking out to PlanetTerp. Mock mode turns it on.
       "TODO_ENABLED": "on",
       // Previews never push: their test-mode key reaches no real device.
       "PUSH_ENABLED": "false",
@@ -172,6 +186,13 @@
       { "binding": "DATA", "bucket_name": "terpsicle-data" },
       {
         "binding": "USER_CONTENT",
+        "bucket_name": "terpsicle-user-content-preview"
+      },
+      // Test accounts' keys, wrapped by test mode's public key, under keys/
+      // in the previews' own private bucket: nothing there needs a bucket
+      // of its own, and previews never touch production's.
+      {
+        "binding": "USER_KEYS",
         "bucket_name": "terpsicle-user-content-preview"
       }
     ],
