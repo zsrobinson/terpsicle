@@ -106,6 +106,10 @@ test("Plan notes a spring-only course in a fall, and moves it", async ({
   const note = page.getByTestId("problem-unlikely-term").filter({
     hasText: "CMSC452 is usually spring only",
   });
+  // The note waits for the history's manifest and department file, which a
+  // reloaded page reads after the plan's own data: on a cold dev server that
+  // can take more than 5 s, so it's waited for as an action would.
+  await note.waitFor();
   await expect(note).toContainText(
     "Offered in 7 of the 8 springs on record since 2019, and in no fall. Last offered Spring 2027.",
   );
