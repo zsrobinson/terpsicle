@@ -272,7 +272,11 @@ describe("plan sync in the scheduler", { timeout: TEST_TIMEOUT }, () => {
         ),
       WAIT,
     );
-    expect(fake.plans().has("plan_later_01")).toBe(true);
+    // The join says so as it settles; the push follows in the same sync.
+    await vi.waitFor(
+      () => expect(fake.plans().has("plan_later_01")).toBe(true),
+      WAIT,
+    );
     expect(localStorage.getItem(SYNC_RESET_KEY)).toBeNull();
   });
 
