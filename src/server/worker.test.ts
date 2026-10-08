@@ -128,6 +128,15 @@ describe("fetch", () => {
       "https://terpsicle.com/x?plan=abc",
     );
   });
+
+  it("sends plain-http www to https, and no cache keeps it", async () => {
+    // A stored "301 → http://terpsicle.com/" for `/` once answered the apex
+    // too, and the home page redirected to itself.
+    const response = await get("http://www.terpsicle.com/");
+    expect(response.status).toBe(301);
+    expect(response.headers.get("Location")).toBe("https://terpsicle.com/");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
 });
 
 describe("our Reviews pages while they're off", () => {
