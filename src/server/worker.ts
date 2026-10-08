@@ -92,6 +92,23 @@ function privatePage(response: Response): Response {
   return out;
 }
 
+/**
+ * A redirect that doesn't say how long to keep it isn't kept: a cache would
+ * otherwise apply its own default, and one stored redirect took the home
+ * page down (the www redirect in `route`).
+ */
+function uncachedRedirect(response: Response): Response {
+  if (
+    response.status < 300 ||
+    response.status >= 400 ||
+    response.headers.has("Cache-Control")
+  )
+    return response;
+  const out = new Response(response.body, response);
+  out.headers.set("Cache-Control", "no-store");
+  return out;
+}
+
 /** The TanStack Start request handler (or a stand-in in tests). */
 export interface AppHandler {
   fetch(
@@ -175,8 +192,19 @@ export function createWorker(
     const url = new URL(request.url);
 
     if (url.hostname === WWW_HOST) {
-      url.hostname = APEX_HOST;
-      return Response.redirect(url.toString(), 301);
+      // Always to https, and never kept by a cache. Plain http reaches the
+      // Worker (the zone doesn't force https), and Workers Cache served one
+      // stored answer for `/` to every host: a request for
+      // http://www.terpsicle.com/ once left "301 → http://terpsicle.com/"
+      // there, and the home page redirected to itself until the cache
+      // dropped it.
+      return new Response(null, {
+        status: 301,
+        headers: {
+          Location: `https://${APEX_HOST}${url.pathname}${url.search}`,
+          "Cache-Control": "no-store",
+        },
+      });
     }
     if (url.pathname === CSP_REPORT_PATH) {
       return handleCspReport(request);
@@ -247,7 +275,8 @@ export function createWorker(
         return openChatSocket(request, env, new Date());
       }
       const response = await route(request, env, ctx);
-      if (response) return withSecurityHeaders(response, request);
+      if (response)
+        return withSecurityHeaders(uncachedRedirect(response), request);
       const access = await pageAccess(request, env, new Date());
       const renderHere = (r: Request) => render(r, env);
       return access
