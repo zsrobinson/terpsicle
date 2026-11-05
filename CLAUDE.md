@@ -17,7 +17,7 @@ Before you write infrastructure (routing, URL or state sync, lazy loading, cachi
 
 ## Docs
 - `docs/SPEC.md` (what), `docs/DESIGN.md` (why, and the owner's taste), `docs/BUILD.md` (how), `docs/DATA.md` (R2 layout, schemas, local storage). `docs/V2.md` (accounts, sync, PWA, notifications, Reviews, Chat, moderation, admin) and `docs/V3.md` (Plan, Todo) win where they differ from the older docs.
-- Per area: `docs/AUTH.md`, `docs/MODERATION.md`, `docs/ANALYTICS.md`, `docs/ACCESSIBILITY.md`, `docs/MOBILE-TESTING.md`, `docs/UX-PRINCIPLES.md`, `src/features/schedule/README.md` (the scheduler shell), `src/core/README.md` (core modules).
+- Per area: `docs/AUTH.md`, `docs/MODERATION.md`, `docs/ANALYTICS.md`, `docs/ACCESSIBILITY.md`, `docs/MOBILE-TESTING.md`, `docs/UX-PRINCIPLES.md`, `docs/MCP.md` (the public MCP server at `/mcp`), `src/features/schedule/README.md` (the scheduler shell), `src/core/README.md` (core modules).
 - Progress: `docs/STATUS.md`. Design reference: `reference/prototype/built/final.html`, screenshots in `reference/prototype/screenshots/`.
 - Skills (`.claude/skills/`): `ship-a-pr`, `framework-first`, `record-a-decision`, `glossary`, `tdd`, and `grill-me` (typed by the owner). The `reviewer` agent (`.claude/agents/reviewer.md`) reviews a PR diff against all of this.
 

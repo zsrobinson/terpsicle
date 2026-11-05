@@ -55,6 +55,10 @@ _Avoid_: component icon (that's the product's mark), cross-link (in copy)
 `/` for a first visit (returning people go to `/schedule`). Its **story** is the hero, then one **step** per product in color order, beside **the screen**: a sample of Schedule with Plan A that stays in view (sticky) while the steps scroll past. Each step's **piece** lands on the screen: the Problems tab, a rating card, a section's room, a semester of Plan, a few of Todo's cards. Everything on the screen is a sample: nothing is saved or sent.
 _Avoid_: landing page (in copy), the atom, the tangle or detangle (rejected designs)
 
+**MCP server**:
+`/mcp`: Terpsicle's public data for AI agents over the Model Context Protocol, read-only and with no sign-in. Its tools are named `umd_*` (`umd_search_courses`, `umd_check_offerings`, …). It's a way in for agents, not a sixth product: no page, mark or color (docs/MCP.md).
+_Avoid_: API (that's `/api`, the app's own), plugin, connector (that's the client's word for it)
+
 **Family bar**:
 The one bar on every page: the wordmark, the Early access chip and the five products as tabs (folded into the product menu on narrow screens, and into the tab bar on phones, where the bar keeps only the product's context), the product's context, then the page's own controls (its status, its tools, Share) and the account cluster. The product you're on shows its mark and name, the others just their marks (Home and Settings show only marks), and hovering or tabbing to a tab opens that one tab's name. The Early access chip shows from 1536px, on every bar alike, so the product tabs sit in the same place on every product; narrower, the product menu says it. Code says `AppBar` and `ProductTabs`.
 

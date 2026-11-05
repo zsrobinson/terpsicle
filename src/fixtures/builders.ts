@@ -80,7 +80,14 @@ import type {
   FourYearTemplate,
   FourYearWildcardEntry,
 } from "~/core/schema/four-year";
-import type { HistoryCourse, HistoryTerm } from "~/core/schema/history";
+import type {
+  HistoryCourse,
+  HistoryDept,
+  HistoryManifest,
+  HistoryOffered,
+  HistoryOffering,
+  HistoryTerm,
+} from "~/core/schema/history";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   type InboxItem,
@@ -386,6 +393,85 @@ export function aHistoryTerm(
     schemaVersion: 1,
     termId: fixtureTermId,
     courses: [aHistoryCourse()],
+    ...overrides,
+  };
+}
+
+/** One term of CMSC351 in a department file: Ada Brandt's section 0101. */
+export function aHistoryOffering(
+  overrides: Partial<HistoryOffering> = {},
+): HistoryOffering {
+  return {
+    termId: fixtureTermId,
+    source: "terpsicle",
+    instructors: ["Ada Brandt"],
+    sections: [{ code: "0101", instructors: ["Ada Brandt"] }],
+    ...overrides,
+  };
+}
+
+/** The falls from `from` through `to`, newest first: a fall-only course's offerings. */
+export function everyFall(
+  from: number,
+  to: number,
+  overrides: Partial<HistoryOffering> = {},
+): HistoryOffering[] {
+  const out: HistoryOffering[] = [];
+  for (let year = to; year >= from; year--)
+    out.push(aHistoryOffering({ termId: `${year}08`, ...overrides }));
+  return out;
+}
+
+/** The history's CMSC file: CMSC351 in the fixture term. */
+export function aHistoryDept(
+  overrides: Partial<HistoryDept> = {},
+): HistoryDept {
+  return {
+    schemaVersion: 1,
+    dept: "CMSC",
+    courses: [
+      { code: "CMSC351", title: "Algorithms", offerings: [aHistoryOffering()] },
+    ],
+    ...overrides,
+  };
+}
+
+/** Every fall and spring from Fall `from` through the fixture term, newest first. */
+export function semestersOnRecord(from: number): string[] {
+  const out: string[] = [];
+  for (let year = Number(fixtureTermId.slice(0, 4)); year >= from; year--) {
+    if (`${year}08` <= fixtureTermId) out.push(`${year}08`);
+    if (year > from) out.push(`${year}01`);
+  }
+  return out;
+}
+
+/** The history's manifest: the given terms (newest first) and CMSC, all at FIXTURE_HASH. */
+export function aHistoryManifest(
+  terms: readonly string[] = [fixtureTermId],
+  overrides: Partial<HistoryManifest> = {},
+): HistoryManifest {
+  return {
+    schemaVersion: 1,
+    generatedAt: FIXTURE_NOW,
+    terms: terms.map((termId) => ({
+      termId,
+      hash: FIXTURE_HASH,
+      courses: { terpsicle: 1, umdio: 0, planetterp: 0 },
+    })),
+    departments: [{ code: "CMSC", hash: FIXTURE_HASH }],
+    ...overrides,
+  };
+}
+
+/** The offered file: CMSC474 in the fall terms of three on record. */
+export function anOfferedFile(
+  overrides: Partial<HistoryOffered> = {},
+): HistoryOffered {
+  return {
+    schemaVersion: 1,
+    terms: ["202508", "202601", "202608"],
+    courses: [["CMSC474", "Computational Game Theory", 3, 3, "5"]],
     ...overrides,
   };
 }
