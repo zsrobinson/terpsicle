@@ -19,6 +19,11 @@ Each entry: a title, then `date · by · scope`, the decision in one to three li
 Terpsicle is really good academic planning tools. Earshot and Orgs are dropped, not shelved, and degree audit is out of scope (UMD has one).
 Revisit if: the owner sets a new direction.
 
+### A public MCP server over what /data serves
+2026-11-05 · owner · app-wide
+`/mcp` gives agents the public data (catalog, seats, history and offering patterns, PlanetTerp ratings and grades) and the scheduler's checker and generator, with no sign-in and nothing anyone wrote or saved. Agent defaults inside it: the official MCP SDK, stateless; `umd_`-prefixed tools; 120 calls a minute per address (docs/MCP.md).
+Revisit if: agents need someone's own plans or Todo, which needs sign-in for agents (OAuth) first.
+
 ### Five products in color order
 2026-09-26 · owner · app-wide
 Schedule (red), Reviews (purple), Chat (blue), Plan (green), Todo (yellow), in that order in the product menu, marketing and docs, "unless it looks really bad".

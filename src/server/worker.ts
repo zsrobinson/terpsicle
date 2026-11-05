@@ -10,6 +10,7 @@ import { CALENDAR_FEED_PREFIX } from "./calendar/token";
 import { CHAT_SOCKET_PATH, openChatSocket } from "./chat/socket";
 import { DATA_PREFIX, serveData } from "./data";
 import { FEEDBACK_SHOT_PREFIX, serveFeedbackShot } from "./feedback/shots";
+import { handleMcp, MCP_PATH } from "./mcp/handler";
 import { pageContext } from "./pages/context";
 import {
   inlineScriptHashes,
@@ -214,6 +215,10 @@ export function createWorker(
     }
     if (url.pathname.startsWith(API_PREFIX)) {
       return handleApi(request, env, ctx);
+    }
+    if (url.pathname === MCP_PATH || url.pathname.startsWith(`${MCP_PATH}/`)) {
+      // The public MCP server: the published data, for agents (docs/MCP.md).
+      return handleMcp(request, env);
     }
     if (url.pathname.startsWith(CALENDAR_FEED_PREFIX)) {
       // The calendar feed: a GET with no cookie, for calendar apps.
