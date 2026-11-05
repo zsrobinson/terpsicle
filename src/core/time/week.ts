@@ -86,6 +86,22 @@ export function sectionWeekItems(
   return items;
 }
 
+/**
+ * Whether a section meets on any of `days`: its timed meetings only, so a
+ * section with no set times never does. Generate's "days off" and the MCP
+ * server's `days_off` both read it.
+ */
+export function meetsOnAny(
+  courseCode: CourseCode,
+  section: Section,
+  days: readonly Day[],
+): boolean {
+  return (
+    days.length > 0 &&
+    sectionWeekItems(courseCode, section).some((i) => days.includes(i.day))
+  );
+}
+
 export function blockWeekItems(block: Block): WeekItem[] {
   const source: BlockSource = {
     kind: "block",

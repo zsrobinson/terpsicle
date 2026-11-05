@@ -9,6 +9,8 @@ import {
   type CourseCode,
   CourseCodeSchema,
   type DeptCode,
+  parseSectionKey,
+  type SectionKey,
   type Term,
   type TermId,
 } from "~/core/schema";
@@ -105,4 +107,23 @@ export async function inBatches<T, R>(
   for (let i = 0; i < items.length; i += limit)
     out.push(...(await Promise.all(items.slice(i, i + limit).map(run))));
   return out;
+}
+
+/** "cmsc351 0101", "CMSC 351-0101", "CMSC351-0101" → "CMSC351-0101". */
+export function readSectionKey(input: string): SectionKey {
+  const text = input.trim().toUpperCase();
+  // The section is the last group of letters and digits; the course is the rest.
+  const match = /^(.*?)[\s-]*([A-Z0-9]{3,4})$/.exec(text);
+  const course = (match?.[1] ?? "").replace(/[^A-Z0-9]/g, "");
+  const section = match?.[2] ?? "";
+  if (!match || course.length < 7)
+    throw new ToolInputError(
+      `"${input}" isn't a section. Write the course and its section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
+    );
+  const key = `${course}-${section.padStart(4, "0")}`;
+  if (!parseSectionKey(key))
+    throw new ToolInputError(
+      `"${input}" isn't a section. Write the course and its section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
+    );
+  return key;
 }

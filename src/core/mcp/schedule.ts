@@ -88,19 +88,7 @@ export function checkSchedule(input: {
     const ref = index.sections.get(key);
     return ref ? [ref] : [];
   });
-  const plan: Plan = {
-    id: "mcp-check",
-    termId: input.termId,
-    name: "Schedule",
-    order: 0,
-    createdAt: input.now,
-    updatedAt: input.now,
-    courses: placed.map(({ course, section }) => ({
-      courseCode: course.code,
-      sectionCode: section.code,
-      snapshot: snapshotOf(section),
-    })),
-  };
+  const plan = planOfSections(input.termId, placed, input.now);
   const problems = planProblems({
     plan,
     index,
@@ -165,4 +153,29 @@ export function scheduleWeek(
     if (today.length > 0) week[day] = today.map((r) => r.text);
   }
   return { credits: { min, max }, week, untimed };
+}
+
+/**
+ * A throwaway plan holding `placed`, one section per course: what
+ * checkSchedule, the fit check and a share link each take. Never saved.
+ */
+export function planOfSections(
+  termId: TermId,
+  placed: readonly { readonly course: Course; readonly section: Section }[],
+  now: string,
+  name = "Schedule",
+): Plan {
+  return {
+    id: "mcp-schedule",
+    termId,
+    name,
+    order: 0,
+    createdAt: now,
+    updatedAt: now,
+    courses: placed.map(({ course, section }) => ({
+      courseCode: course.code,
+      sectionCode: section.code,
+      snapshot: snapshotOf(section),
+    })),
+  };
 }

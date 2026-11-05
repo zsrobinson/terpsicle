@@ -65,6 +65,7 @@ import {
   HistoryOfferedSchema,
 } from "~/core/schema/history";
 import type { SeatsMap } from "~/core/seats";
+import { campusMoment } from "~/core/time/format";
 import { type CampusMap, campusMap, EMPTY_CAMPUS } from "~/core/travel";
 import { decodeRoutes } from "~/core/travel/routes-binary";
 import { r2Json } from "../published";
@@ -197,9 +198,17 @@ export function mcpData(bucket: R2Bucket) {
     return file?.seats ?? null;
   }
 
-  async function seatsAsOf(termId: TermId): Promise<string | null> {
+  /**
+   * When a term's seat counts are from: Testudo's own "Open Seats as of"
+   * stamp, else when we last fetched them (DATA.md §3.2). Null before the
+   * first seats run.
+   */
+  async function seatCountsTime(
+    termId: TermId,
+  ): Promise<{ asOf: string; asOfUtc: string } | null> {
     const m = await manifest(termId);
-    return m?.seats?.fetchedAt ?? null;
+    const at = m?.seats ? (m.seats.asOf ?? m.seats.fetchedAt) : null;
+    return at ? { asOf: campusMoment(at), asOfUtc: at } : null;
   }
 
   async function courseSearchRows(): Promise<{
@@ -304,7 +313,7 @@ export function mcpData(bucket: R2Bucket) {
     deptCourses,
     course,
     seats,
-    seatsAsOf,
+    seatCountsTime,
     courseSearchRows,
     courseIndexDept,
     historyManifest,

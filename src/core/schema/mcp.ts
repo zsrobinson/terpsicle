@@ -23,6 +23,32 @@ export const McpDetailSchema = z
   .optional()
   .describe('"concise" (default) or "full" for every field.');
 
+/** Sections to fit around: one per course, in the term. */
+export const McpFitsWithSchema = z
+  .array(z.string().max(20))
+  .max(12)
+  .optional()
+  .describe(
+    'Section keys to fit around, one per course: ["CMSC351-0101", "ARTT210-0101"]. Keeps only sections that don\'t overlap them and leave enough time to walk between buildings (a tight walk still fits; umd_check_schedule flags it).',
+  );
+export const McpDaysOffSchema = z
+  .array(z.enum(DAYS))
+  .max(6)
+  .optional()
+  .describe(
+    "Days with no classes: M, Tu, W, Th, F. Sections with no set times pass.",
+  );
+export const McpPaceSchema = z
+  .enum(["slower", "typical", "faster"])
+  .optional()
+  .describe(
+    "Walking pace for travel time: slower 2.5 mph, typical 3.0 (default), faster 3.5. Use faster when the person says they walk fast.",
+  );
+export const McpAccessibleSchema = z
+  .boolean()
+  .optional()
+  .describe("Use Accessible routes for walking times.");
+
 export const ListTermsInputSchema = z.object({});
 export type ListTermsInput = z.infer<typeof ListTermsInputSchema>;
 
@@ -68,6 +94,10 @@ export const SearchCoursesInputSchema = z.object({
     .describe(
       "Also list up to 5 matching courses this term doesn't have (default true).",
     ),
+  fits_with: McpFitsWithSchema,
+  days_off: McpDaysOffSchema,
+  pace: McpPaceSchema,
+  accessible: McpAccessibleSchema,
   limit: z.number().int().min(1).max(50).optional().describe("Default 15."),
   offset: z.number().int().min(0).max(500).optional(),
 });
@@ -93,6 +123,16 @@ export const GetSectionsInputSchema = z.object({
     .optional()
     .describe("Part of an instructor's name."),
   detail: McpDetailSchema,
+  fits_with: McpFitsWithSchema,
+  fits_only: z
+    .boolean()
+    .optional()
+    .describe(
+      "With fits_with: only sections that fit (default: all, each labeled).",
+    ),
+  days_off: McpDaysOffSchema,
+  pace: McpPaceSchema,
+  accessible: McpAccessibleSchema,
   limit: z.number().int().min(1).max(100).optional().describe("Default 40."),
   offset: z.number().int().min(0).optional(),
 });
@@ -152,10 +192,13 @@ export const CheckScheduleInputSchema = z.object({
       'Section keys, one per course: ["CMSC351-0101", "MATH240-0212"].',
     ),
   term: McpTermSchema,
-  accessible: z
-    .boolean()
+  name: z
+    .string()
+    .max(60)
     .optional()
-    .describe("Use Accessible routes for walking times."),
+    .describe('The schedule\'s name in its share link (default "Schedule").'),
+  pace: McpPaceSchema,
+  accessible: McpAccessibleSchema,
 });
 export type CheckScheduleInput = z.infer<typeof CheckScheduleInputSchema>;
 
@@ -199,10 +242,8 @@ export const GenerateSchedulesInputSchema = z.object({
   rank_by: RankFactorSchema.optional().describe(
     "compact (default, fewest gaps), fewer-days, later-starts, best-rated, higher-gpa or safest-seats.",
   ),
-  accessible: z
-    .boolean()
-    .optional()
-    .describe("Use Accessible routes for walking times."),
+  pace: McpPaceSchema,
+  accessible: McpAccessibleSchema,
   limit: z
     .number()
     .int()

@@ -142,8 +142,11 @@ export async function handleMcp(
   }
 
   const data = mcpData(env.DATA);
-  const handler = createMcpHandler(() => buildMcpServer(data, now), {
-    maxRequestBodySize: MAX_BODY_BYTES,
-  });
+  const handler = createMcpHandler(
+    () => buildMcpServer(data, now, url.origin),
+    {
+      maxRequestBodySize: MAX_BODY_BYTES,
+    },
+  );
   return withCors(await handler.fetch(request));
 }
