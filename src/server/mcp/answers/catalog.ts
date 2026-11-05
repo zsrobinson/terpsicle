@@ -19,10 +19,12 @@ import {
   type CourseSearchRow,
   type Credits,
   courseSearchKey,
+  type Day,
   GEN_ED_LABELS,
   planetTerpCourseUrl,
   sectionKey,
   type TermId,
+  type TravelSettings,
 } from "~/core/schema";
 import type { SearchCoursesInput } from "~/core/schema/mcp";
 import {
@@ -33,7 +35,9 @@ import {
 } from "~/core/search";
 import { seatCounts } from "~/core/seats";
 import { siteUrl } from "~/core/seo/site";
+import { meetsOnAny } from "~/core/time/week";
 import type { McpData } from "../data";
+import { fitsWith, fitWords, passes, travelOf } from "../fits";
 import {
   catalogTerm,
   deptOf,
@@ -170,7 +174,11 @@ export type SearchInput = SearchCoursesInput;
 /** Most departments one search reads the term's sections of. */
 const MAX_SEARCH_DEPTS = 40;
 
-export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
+export async function searchCoursesAnswer(
+  data: McpData,
+  input: SearchInput,
+  now: Date,
+) {
   const { term, terms } = await catalogTerm(data, input.term);
   const query = input.query?.trim() ?? "";
   const dept = input.dept?.trim().toUpperCase() || null;
@@ -193,12 +201,23 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
   const limit = input.limit ?? 15;
   const offset = input.offset ?? 0;
   const idx = await searchIndex(data);
+  const fits = await fitsWith(
+    data,
+    term.id,
+    term.name,
+    input.fits_with ?? [],
+    travelOf(input),
+    now.toISOString(),
+  );
+  const daysOff = input.days_off ?? [];
+  const bySection = fits !== null || daysOff.length > 0;
 
   const codes = query ? searchCourses(idx.search, query) : idx.search.codes;
   const candidates = codes.filter((code) => {
     const row = idx.byCode.get(code);
     if (!row) return false;
     if (dept && !code.startsWith(dept)) return false;
+    if (fits?.courses.has(code)) return false;
     if (input.level !== undefined && courseLevel(code) !== input.level)
       return false;
     if (
@@ -221,7 +240,7 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
     return p;
   };
 
-  const found: Course[] = [];
+  const found: { course: Course; sections: string[] | null }[] = [];
   const notInTerm: CourseCode[] = [];
   const loaded = new Map<string, Map<CourseCode, Course>>();
   let scanned = 0;
@@ -266,14 +285,28 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
         )
       )
         continue;
-      if (input.open_seats_only && !hasOpenSeats(course, seats)) continue;
-      found.push(course);
+      if (!bySection) {
+        if (input.open_seats_only && !hasOpenSeats(course, seats)) continue;
+        found.push({ course, sections: null });
+        continue;
+      }
+      // Fit, days off and open seats must all hold for one section.
+      const sections = course.sections
+        .filter(
+          (s) =>
+            passes(fits, daysOff, course, s) &&
+            (!input.open_seats_only ||
+              (seatCounts(seats, sectionKey(course.code, s.code))?.open ?? 0) >
+                0),
+        )
+        .map((s) => s.code);
+      if (sections.length > 0) found.push({ course, sections });
     }
   }
 
   const page = found.slice(offset, want);
   const results = await Promise.all(
-    page.map(async (course) => {
+    page.map(async ({ course, sections }) => {
       const summary = termSummary(
         course,
         seats,
@@ -287,6 +320,14 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
         sections: summary.sections,
         sectionsWithOpenSeats: summary.sectionsWithOpenSeats,
         instructors: summary.instructors.slice(0, 6).map(instructorWords),
+        ...(sections
+          ? {
+              fittingSections:
+                sections.length > 8
+                  ? [...sections.slice(0, 8), `and ${sections.length - 8} more`]
+                  : sections,
+            }
+          : {}),
       };
     }),
   );
@@ -326,7 +367,7 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
     nextOffset: more ? want : null,
     notOfferedThisTerm: notOffered,
     note: stoppedEarly
-      ? `Matches span more than ${MAX_SEARCH_DEPTS} departments; narrow with dept, a query or gen_eds to see the rest.`
+      ? `Matches span more than ${MAX_SEARCH_DEPTS} departments; narrow with dept or level (or a query or gen_eds) to see the rest.`
       : results.length === 0
         ? `No ${term.name} course matches. Try fewer filters or other words.`
         : null,
@@ -449,7 +490,13 @@ export async function getSections(
     detail?: "concise" | "full" | undefined;
     limit?: number | undefined;
     offset?: number | undefined;
+    fits_with?: string[] | undefined;
+    fits_only?: boolean | undefined;
+    days_off?: Day[] | undefined;
+    pace?: TravelSettings["pace"] | undefined;
+    accessible?: boolean | undefined;
   },
+  now: Date,
 ) {
   const code = readCourseCode(input.course_code);
   const { term } = await catalogTerm(data, input.term);
@@ -461,37 +508,55 @@ export async function getSections(
       `${code} isn't offered in ${term.name}. umd_get_course says when it usually runs; umd_list_terms lists the terms with sections.`,
     );
   }
-  const [seats, asOf, planetTerp] = await Promise.all([
+  const [seats, seatTime, planetTerp, fits] = await Promise.all([
     data.seats(term.id),
-    data.seatsAsOf(term.id),
+    data.seatCountsTime(term.id),
     data.planetTerpDept(deptOf(code)),
+    fitsWith(
+      data,
+      term.id,
+      term.name,
+      input.fits_with ?? [],
+      travelOf(input),
+      now.toISOString(),
+    ),
   ]);
+  if (fits?.courses.has(code))
+    throw new ToolInputError(
+      `${code} is in fits_with; leave it out to compare its sections with the rest.`,
+    );
+  const daysOff = input.days_off ?? [];
   const who = input.instructor?.trim().toLowerCase();
   const matching = course.sections.filter(
     (s) =>
       (!input.open_only ||
         (seatCounts(seats, sectionKey(code, s.code))?.open ?? 0) > 0) &&
-      (!who || s.instructors.some((n) => n.toLowerCase().includes(who))),
+      (!who || s.instructors.some((n) => n.toLowerCase().includes(who))) &&
+      !meetsOnAny(code, s, daysOff) &&
+      (!fits || !input.fits_only || passes(fits, [], course, s)),
   );
   const limit = input.limit ?? 40;
   const offset = input.offset ?? 0;
   const full = input.detail === "full";
   const sections = matching.slice(offset, offset + limit).map((s) => {
-    const view = sectionView(course, s, seats, planetTerp);
+    const view = {
+      ...sectionView(course, s, seats, planetTerp),
+      ...(fits ? { fit: fitWords(fits, course, s) } : {}),
+    };
     return full ? view : { ...view, notes: undefined };
   });
   return {
     course: code,
     title: course.title,
     term: termRef(term.id),
-    seatsAsOf: asOf,
+    seatCounts: seatTime,
     totalSections: course.sections.length,
     matching: matching.length,
     sections,
     nextOffset: matching.length > offset + limit ? offset + limit : null,
     note:
       matching.length === 0
-        ? "No section matches; drop open_only or instructor."
+        ? "No section matches; drop open_only, instructor, days_off or fits_only."
         : full
           ? null
           : 'Section notes are left out; pass detail: "full" for them.',

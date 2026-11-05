@@ -1,52 +1,41 @@
 import { buildCatalogIndex } from "~/core/catalog/catalog-index";
 import { generatePlans, sectionQuality } from "~/core/generate";
-import { checkSchedule, messageText, scheduleWeek } from "~/core/mcp/schedule";
+import {
+  checkSchedule,
+  messageText,
+  planOfSections,
+  scheduleWeek,
+} from "~/core/mcp/schedule";
 import { termRef } from "~/core/mcp/terms";
 import { round } from "~/core/mcp/views";
 import {
   type Course,
   type CourseCode,
   type Day,
-  DEFAULT_TRAVEL_SETTINGS,
   type GenerateRequest,
   type GenItem,
   type Minutes,
   type PlanetTerpDept,
   parseSectionKey,
   type RankFactor,
-  type SectionKey,
+  type Section,
+  type TravelSettings,
 } from "~/core/schema";
+import { sharePayloadFromPlan, shareUrl } from "~/core/share";
 import { formatTime, parseTime } from "~/core/time/format";
 import type { McpData } from "../data";
+import { travelOf } from "../fits";
 import {
   catalogTerm,
   deptOf,
   inBatches,
   readCourseCode,
+  readSectionKey,
   ToolInputError,
 } from "../lookup";
 
 // Schedules: check one (the scheduler's Problems) or build some (its
 // generator, the same search Generate runs in the browser's worker).
-
-/** "cmsc351 0101", "CMSC 351-0101", "CMSC351-0101" → "CMSC351-0101". */
-export function readSectionKey(input: string): SectionKey {
-  const text = input.trim().toUpperCase();
-  // The section is the last group of letters and digits; the course is the rest.
-  const match = /^(.*?)[\s-]*([A-Z0-9]{3,4})$/.exec(text);
-  const course = (match?.[1] ?? "").replace(/[^A-Z0-9]/g, "");
-  const section = match?.[2] ?? "";
-  if (!match || course.length < 7)
-    throw new ToolInputError(
-      `"${input}" isn't a section. Write the course and its section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
-    );
-  const key = `${course}-${section.padStart(4, "0")}`;
-  if (!parseSectionKey(key))
-    throw new ToolInputError(
-      `"${input}" isn't a section. Write the course and its section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
-    );
-  return key;
-}
 
 /** A section code for `course`: "0101", "101" or a key of that same course. */
 function readSectionOf(course: CourseCode, input: string): string {
@@ -71,14 +60,37 @@ async function termCourses(
   return out;
 }
 
+/**
+ * The scheduler's own share link for these sections (DATA.md §8): it opens
+ * the read-only shared view, with "Save a copy".
+ */
+function scheduleShareUrl(
+  origin: string,
+  termId: string,
+  placed: readonly { course: Course; section: Section }[],
+  now: Date,
+  name?: string,
+): string {
+  const plan = planOfSections(
+    termId,
+    placed,
+    now.toISOString(),
+    name?.trim() || "Schedule",
+  );
+  return shareUrl(origin, sharePayloadFromPlan(plan, [], {}));
+}
+
 export async function checkScheduleAnswer(
   data: McpData,
   input: {
     sections: string[];
     term?: string | undefined;
+    name?: string | undefined;
+    pace?: TravelSettings["pace"] | undefined;
     accessible?: boolean | undefined;
   },
   now: Date,
+  origin: string,
 ) {
   const { term } = await catalogTerm(data, input.term);
   const keys = [...new Set(input.sections.map(readSectionKey))];
@@ -97,9 +109,10 @@ export async function checkScheduleAnswer(
     throw new ToolInputError(
       `${term.name} has no section ${missing.join(", ")}. umd_get_sections lists a course's sections.`,
     );
-  const [seats, campus] = await Promise.all([
+  const [seats, campus, seatTime] = await Promise.all([
     data.seats(term.id),
     data.campus(),
+    data.seatCountsTime(term.id),
   ]);
   const check = checkSchedule({
     termId: term.id,
@@ -107,15 +120,22 @@ export async function checkScheduleAnswer(
     sections: keys,
     seats,
     campus,
-    travel: {
-      ...DEFAULT_TRAVEL_SETTINGS,
-      accessible: input.accessible ?? false,
-    },
+    travel: travelOf(input),
     now: now.toISOString(),
+  });
+  const placed = keys.flatMap((k) => {
+    const parsed = parseSectionKey(k);
+    const course = parsed ? courses.get(parsed.courseCode) : undefined;
+    const section = course?.sections.find(
+      (x) => x.code === parsed?.sectionCode,
+    );
+    return course && section ? [{ course, section }] : [];
   });
   return {
     term: termRef(term.id),
     ...check,
+    seatCounts: seatTime,
+    shareUrl: scheduleShareUrl(origin, term.id, placed, now, input.name),
     verdict: check.problems.some((p) => p.severity === "error")
       ? "Has errors: this schedule doesn't work as is."
       : check.problems.some((p) => p.severity === "warning")
@@ -162,9 +182,12 @@ export async function generateSchedules(
     min_credits?: number | undefined;
     max_credits?: number | undefined;
     rank_by?: RankFactor | undefined;
+    pace?: TravelSettings["pace"] | undefined;
     accessible?: boolean | undefined;
     limit?: number | undefined;
   },
+  now: Date,
+  origin: string,
 ) {
   const { term } = await catalogTerm(data, input.term);
   const items: GenItem[] = [];
@@ -227,17 +250,15 @@ export async function generateSchedules(
     },
     rankBy: { preset: rankBy },
     blocks: [],
-    travel: {
-      ...DEFAULT_TRAVEL_SETTINGS,
-      accessible: input.accessible ?? false,
-    },
+    travel: travelOf(input),
     limits: { maxResults: 50, maxSteps: MAX_STEPS },
   };
   const depts = [...new Set(codes.map(deptOf))];
-  const [seats, campus, ratings] = await Promise.all([
+  const [seats, campus, ratings, seatTime] = await Promise.all([
     data.seats(term.id),
     data.campus(),
     inBatches(depts, 8, (d) => data.planetTerpDept(d)),
+    data.seatCountsTime(term.id),
   ]);
   const list = [...courses.values()];
   const index = buildCatalogIndex(term.id, list);
@@ -275,11 +296,13 @@ export async function generateSchedules(
       ),
       week: week.week,
       untimed: week.untimed,
+      shareUrl: scheduleShareUrl(origin, term.id, refs, now),
     };
   });
   return {
     term: termRef(term.id),
     rankedBy: RANK_WORDS[rankBy],
+    seatCounts: seatTime,
     found: result.totalFound,
     searchCutShort: result.truncated,
     schedules,

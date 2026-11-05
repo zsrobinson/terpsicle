@@ -12,10 +12,11 @@ import {
   type PlanetTerpDept,
   type SeatTuple,
   type Section,
+  seatCountsFromTuple,
   sectionKey,
   type TermId,
 } from "../schema";
-import type { SeatsMap } from "../seats";
+import { type SeatsMap, seatStatus } from "../seats";
 import { formatDateSpan, formatDays, formatTimeRange } from "../time/format";
 import { termRef } from "./terms";
 
@@ -54,6 +55,8 @@ const DELIVERY_WORDS = {
 } as const;
 
 export type SeatsView = {
+  /** The scheduler's words: "12 of 36 open", "2 left", "Full · 9 waitlisted". */
+  status: string;
   open: number;
   total: number;
   waitlist: number | null;
@@ -62,8 +65,8 @@ export type SeatsView = {
 
 export function seatsView(tuple: SeatTuple | undefined): SeatsView | null {
   if (!tuple) return null;
-  const [open, total, waitlist, holdfile] = tuple;
-  return { open, total, waitlist, holdfile };
+  const counts = seatCountsFromTuple(tuple);
+  return { ...counts, status: seatStatus(counts).words };
 }
 
 /** An instructor as a section or a course names them, with PlanetTerp's numbers when the join found them. */

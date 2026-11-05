@@ -20,6 +20,7 @@ import {
   blockWeekItems,
   itemsOverlap,
   type MeetingItem,
+  meetsOnAny,
   sectionWeekItems,
   type WeekItem,
 } from "../time/week";
@@ -83,8 +84,7 @@ export function sectionViolations(
     out.push("earliest-start");
   if (latestEnd !== null && items.some((i) => i.end > latestEnd))
     out.push("latest-end");
-  if (daysOff.length > 0 && items.some((i) => daysOff.includes(i.day)))
-    out.push("days-off");
+  if (meetsOnAny(course.code, section, daysOff)) out.push("days-off");
   if (mustHaves.openSeatsOnly) {
     // Unknown counts pass: we can't say the section is full.
     const counts = seatCounts(seats, sectionKey(course.code, section.code));

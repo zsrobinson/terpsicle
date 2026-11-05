@@ -130,6 +130,24 @@ export function campusDate(iso: string): IsoDate {
   return CAMPUS_DATE.format(new Date(iso));
 }
 
+const CAMPUS_MOMENT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** "Thu Nov 5, 4:30pm ET": an instant on College Park's clock. */
+export function campusMoment(iso: string): string {
+  const parts = Object.fromEntries(
+    CAMPUS_MOMENT.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
+  const minute = parts.minute === "00" ? "" : `:${parts.minute}`;
+  return `${parts.weekday} ${parts.month} ${parts.day}, ${parts.hour}${minute}${(parts.dayPeriod ?? "").toLowerCase()} ET`;
+}
+
 /** "Oct 26": the campus day an owner's stop ends, as its author and the owner read it. */
 export function stopEndWords(until: string): string {
   return formatShortDate(campusDate(until));

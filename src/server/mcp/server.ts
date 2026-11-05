@@ -32,7 +32,7 @@ import type { McpData } from "./data";
 import { ToolInputError } from "./lookup";
 
 export const MCP_SERVER_NAME = "terpsicle";
-export const MCP_SERVER_VERSION = "1.0.0";
+export const MCP_SERVER_VERSION = "1.1.0";
 
 export const MCP_INSTRUCTIONS = `Terpsicle's public data on University of Maryland (College Park) courses, from Testudo's Schedule of Classes, Terpsicle's history of past terms and PlanetTerp's ratings and grades. No sign-in; read-only.
 
@@ -41,7 +41,8 @@ How the tools fit:
 - umd_get_sections gives meeting times, rooms, instructors and live seats for one course in one term.
 - umd_check_offerings says whether courses are likely to run in future terms (from past offering patterns): use it for multi-semester plans.
 - umd_course_history lists who taught a course in each past term; umd_find_instructors and umd_get_instructor cover instructors.
-- umd_generate_schedules builds conflict-free weekly schedules from a list of courses; umd_check_schedule checks a set of sections you picked.
+- umd_generate_schedules builds conflict-free weekly schedules from a list of courses; umd_check_schedule checks a set of sections you picked. Both give a shareUrl that opens the schedule in Terpsicle.
+- To find what fits around classes someone already has, pass their sections as fits_with to umd_search_courses (with dept or level) or umd_get_sections; days_off limits the days.
 
 Formats:
 - Terms: a name like "Fall 2027", or an id YYYYMM: the year, then 01 spring, 05 summer, 08 fall or 12 winter. A winter id has the year it starts in, so Winter 2027 is 2026 then 12. Every answer names terms both ways. Omit the term to use the one students are registering for now (umd_list_terms says which).
@@ -50,7 +51,7 @@ Formats:
   .map(([c, l]) => `${c} ${l}`)
   .join(", ")}.
 
-Good to know: only terms Testudo lists have sections and seats. Seats refresh every 5 minutes. Offering patterns are a guide from the last eight school years, not a promise. PlanetTerp's grades stop at its latest term; ratings are student reviews.`;
+Good to know: only terms Testudo lists have sections and seats. Seat counts are Testudo's own, as of the time in seatCounts.asOf (Eastern): quote them with that time. Offering patterns are a guide from the last eight school years, not a promise. PlanetTerp's grades stop at its latest term; ratings are student reviews.`;
 
 const ANNOTATIONS = {
   readOnlyHint: true,
@@ -78,7 +79,11 @@ async function answer(run: () => Promise<unknown>): Promise<Answer> {
   }
 }
 
-export function buildMcpServer(data: McpData, now: () => Date): McpServer {
+export function buildMcpServer(
+  data: McpData,
+  now: () => Date,
+  origin: string,
+): McpServer {
   const server = new McpServer(
     { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION, title: "Terpsicle" },
     {
@@ -119,11 +124,11 @@ export function buildMcpServer(data: McpData, now: () => Date): McpServer {
     {
       title: "Search courses",
       description:
-        'Find courses in a term by words (title or code: "machine learning", "CMSC4"), department, gen-ed, level or credits. Each result has its credits, gen-eds, section count, sections with open seats and instructors with PlanetTerp ratings. Matching courses the term doesn\'t have come back separately in notOfferedThisTerm, with when they usually run. Results are best match first; page with offset.',
+        'Find courses in a term by words (title or code: "machine learning", "CMSC4"), department, gen-ed, level or credits. Each result has its credits, gen-eds, section count, sections with open seats and instructors with PlanetTerp ratings. Matching courses the term doesn\'t have come back separately in notOfferedThisTerm, with when they usually run. With fits_with (section keys someone already has), keeps only courses with a section that fits around them, listed in fittingSections; days_off keeps only sections that meet on none of those days. Results are best match first; page with offset.',
       inputSchema: SearchCoursesInputSchema,
       annotations: ANNOTATIONS,
     },
-    (args) => answer(() => searchCoursesAnswer(data, args)),
+    (args) => answer(() => searchCoursesAnswer(data, args, now())),
   );
 
   server.registerTool(
@@ -143,11 +148,11 @@ export function buildMcpServer(data: McpData, now: () => Date): McpServer {
     {
       title: "Get sections",
       description:
-        'A course\'s sections in a term: key (CMSC351-0101), instructors with ratings, delivery, each meeting ("MWF 10am–10:50am · IRB 0324"), live seats (open, total, waitlist), non-standard dates and restrictions. Filter to open sections or an instructor.',
+        'A course\'s sections in a term: key (CMSC351-0101), instructors with ratings, delivery, each meeting ("MWF 10am–10:50am · IRB 0324"), live seats (status words like "Full · 9 waitlisted", with open, total, and waitlist and holdfile, which are null when Testudo doesn\'t show that count; seats is null when Testudo shows none), non-standard dates and restrictions. With fits_with, each section says whether it fits around those sections ("Fits", "Overlaps CMSC330", "Not enough time after ARTT210"). Filter to open sections, an instructor, days_off or fits_only.',
       inputSchema: GetSectionsInputSchema,
       annotations: ANNOTATIONS,
     },
-    (args) => answer(() => getSections(data, args)),
+    (args) => answer(() => getSections(data, args, now())),
   );
 
   server.registerTool(
@@ -203,11 +208,11 @@ export function buildMcpServer(data: McpData, now: () => Date): McpServer {
     {
       title: "Check a schedule",
       description:
-        'Check a set of sections as one weekly schedule, the way Terpsicle\'s scheduler does: overlapping classes, too little time to walk between buildings, full or restricted sections, sections without set times. Gives the week day by day, total credits, each problem and a suggested fix ("Switch to CMSC351 0201").',
+        'Check a set of sections as one weekly schedule, the way Terpsicle\'s scheduler does: overlapping classes, too little time to walk between buildings, full or restricted sections, sections without set times. Gives the week day by day, total credits, each problem and a suggested fix ("Switch to CMSC351 0201"), and a shareUrl that opens the schedule in Terpsicle (read-only, with Save a copy). Walking times are at a typical 3.0 mph unless pace says otherwise.',
       inputSchema: CheckScheduleInputSchema,
       annotations: ANNOTATIONS,
     },
-    (args) => answer(() => checkScheduleAnswer(data, args, now())),
+    (args) => answer(() => checkScheduleAnswer(data, args, now(), origin)),
   );
 
   server.registerTool(
@@ -215,11 +220,11 @@ export function buildMcpServer(data: McpData, now: () => Date): McpServer {
     {
       title: "Generate schedules",
       description:
-        "Build the best conflict-free weekly schedules from a list of courses, with Terpsicle's generator: no overlaps, enough time to walk between buildings, and your limits (earliest start, latest end, days off, open seats only, credits). Ranked by one preference. Optional courses go in when they fit. When nothing fits, says which limit to loosen and the closest schedules.",
+        "Build the best conflict-free weekly schedules from a list of courses, with Terpsicle's generator: no overlaps, enough time to walk between buildings, and your limits (earliest start, latest end, days off, open seats only, credits). Ranked by one preference. Optional courses go in when they fit. When nothing fits, says which limit to loosen and the closest schedules. Each schedule has a shareUrl that opens it in Terpsicle.",
       inputSchema: GenerateSchedulesInputSchema,
       annotations: ANNOTATIONS,
     },
-    (args) => answer(() => generateSchedules(data, args)),
+    (args) => answer(() => generateSchedules(data, args, now(), origin)),
   );
 
   return server;

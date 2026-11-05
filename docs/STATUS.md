@@ -178,7 +178,7 @@ Terpsicle stays free with no billing; sync is on whenever you're signed in, grad
   - Every chat message is read. When nothing flagged the message, only `targets-person` acts on it: letting all the small model's labels act held 4 of 23 good messages.
   - Model failures retry every 5 minutes before reaching the owner.
 
-- **The MCP server** (`v3/mcp-server`, docs/MCP.md): `https://terpsicle.com/mcp`, public and read-only, eleven `umd_*` tools over the published data (search, a course, sections and seats, offering patterns and look-ahead, course history, instructors, the schedule check and the generator), on the official MCP SDK (2026-07-28 and, statelessly, 2025-era clients), with a server card at `/mcp/server-card` and 600 calls a minute per address. Not yet in the MCP Registry (an owner action: DNS verification).
+- **The MCP server** (`v3/mcp-server`, docs/MCP.md): `https://terpsicle.com/mcp`, public and read-only, eleven `umd_*` tools over the published data (search, a course, sections and seats, offering patterns and look-ahead, course history, instructors, the schedule check and the generator), on the official MCP SDK (2026-07-28 and, statelessly, 2025-era clients), with a server card at `/mcp/server-card` and 600 calls a minute per address. Not yet in the MCP Registry (an owner action: DNS verification). v1.1 (`v3/mcp-fits-and-sharing`): `fits_with` and `days_off` on search and sections, share links on both schedule tools, seat status words and a `seatCounts` time in Eastern, and walking `pace`.
 
 ## Known issues
 

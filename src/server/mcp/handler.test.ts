@@ -18,6 +18,7 @@ import {
   seatsKey,
   TERMS_KEY,
 } from "~/core/schema";
+import { decodeShare } from "~/core/share";
 import {
   aCourse,
   aCourseIndexDept,
@@ -515,6 +516,108 @@ describe("the tools", () => {
         })
       ).error,
     ).toContain("swap them");
+  });
+
+  it("says when seat counts are from, and words them as the scheduler does", async () => {
+    const { value } = await tool("umd_get_sections", {
+      course_code: "CMSC351",
+    });
+    expect(value.seatCounts).toEqual({
+      asOf: "Thu Sep 24, 10:30pm ET",
+      asOfUtc: "2026-09-25T02:30:00.000Z",
+    });
+    expect(value.sections[0].seats).toMatchObject({
+      status: "Full · 5 waitlisted",
+    });
+    expect(value.sections[1].seats.status).toBe("12 of 40 open");
+  });
+
+  it("finds what fits around sections someone has", async () => {
+    const { value } = await tool("umd_search_courses", {
+      query: "CMSC",
+      fits_with: ["CMSC330-0101"],
+    });
+    // CMSC330 is the fixed course; CMSC351 0101 overlaps it at 10:30.
+    expect(
+      value.results.map((r: { code: string; fittingSections: string[] }) => [
+        r.code,
+        r.fittingSections,
+      ]),
+    ).toEqual([
+      ["CMSC351", ["0201"]],
+      ["CMSC389", ["0101"]],
+    ]);
+    const sections = await tool("umd_get_sections", {
+      course_code: "CMSC351",
+      fits_with: ["cmsc330 0101"],
+    });
+    expect(
+      sections.value.sections.map((s: { key: string; fit: string }) => [
+        s.key,
+        s.fit,
+      ]),
+    ).toEqual([
+      ["CMSC351-0101", "Overlaps CMSC330"],
+      ["CMSC351-0201", "Fits"],
+    ]);
+    const only = await tool("umd_get_sections", {
+      course_code: "CMSC351",
+      fits_with: ["CMSC330-0101"],
+      fits_only: true,
+    });
+    expect(only.value.sections.map((s: { key: string }) => s.key)).toEqual([
+      "CMSC351-0201",
+    ]);
+    expect(
+      (
+        await tool("umd_search_courses", {
+          query: "CMSC",
+          fits_with: ["CMSC330-0101", "CMSC330-0201"],
+        })
+      ).error,
+    ).toContain("two sections of CMSC330");
+    expect(
+      (
+        await tool("umd_search_courses", {
+          query: "CMSC",
+          fits_with: ["CMSC330-0901"],
+        })
+      ).error,
+    ).toContain("no section CMSC330-0901");
+  });
+
+  it("keeps only sections that meet on none of the days off", async () => {
+    const { value } = await tool("umd_search_courses", {
+      query: "CMSC",
+      days_off: ["F"],
+    });
+    expect(value.results).toEqual([]);
+    const sections = await tool("umd_get_sections", {
+      course_code: "CMSC351",
+      days_off: ["Tu"],
+    });
+    expect(sections.value.matching).toBe(2);
+  });
+
+  it("links each schedule to the scheduler's share view", async () => {
+    const { value } = await tool("umd_check_schedule", {
+      sections: ["CMSC351-0201", "CMSC330-0101"],
+      name: "Spring plan",
+    });
+    expect(value.seatCounts.asOfUtc).toBe("2026-09-25T02:30:00.000Z");
+    const url = new URL(value.shareUrl);
+    expect(url.origin + url.pathname).toBe(`${ORIGIN}/schedule`);
+    const decoded = decodeShare(url.searchParams.get("plan") ?? "");
+    expect(decoded.ok && decoded.payload).toMatchObject({
+      termId: "202701",
+      name: "Spring plan",
+      sections: ["CMSC351-0201", "CMSC330-0101"],
+    });
+    const generated = await tool("umd_generate_schedules", {
+      courses: [{ code: "CMSC351" }, { code: "CMSC330" }],
+      limit: 1,
+    });
+    expect(generated.value.schedules[0].shareUrl).toContain("/schedule?plan=");
   });
 
   it("generates schedules that fit, or says what to loosen", async () => {
