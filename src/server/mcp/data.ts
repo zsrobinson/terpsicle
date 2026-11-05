@@ -3,12 +3,12 @@
 // public: it's what /data serves.
 //
 // Hashed files never change once written (DATA.md §2.2), so each isolate
-// keeps the ones it has parsed, up to a bound: an agent's calls come in
-// runs, and the big files (the course index's search rows, the offered
-// file, a department's history) cost far more to parse and check than to
-// fetch. Fixed-name files (the term list, manifests) are kept for a minute,
-// the edge's own TTL for the catalog's (DATA.md §2.5). This stands in for
-// TanStack Query, which is the browser's; the Worker has no query cache.
+// keeps the checked values of the ones it has read, up to a bound, like
+// `r2PublishedFiles` (src/server/pages/context.ts) keeps raw ones: an
+// agent's calls come in runs, and the big files (the course index's search
+// rows, the offered file) cost far more to parse and check against their
+// schemas than to fetch. That's why this keeps checked values rather than
+// sharing r2PublishedFiles' raw JSON. The Worker has no TanStack Query.
 import type { z } from "zod";
 import {
   type AcademicCalendar,
@@ -67,74 +67,97 @@ import {
 import type { SeatsMap } from "~/core/seats";
 import { type CampusMap, campusMap, EMPTY_CAMPUS } from "~/core/travel";
 import { decodeRoutes } from "~/core/travel/routes-binary";
+import { r2Json } from "../published";
 
+/** Content-hashed: never changes once written (DATA.md §2.2). */
 const HASHED = /\.[0-9a-f]{16}\.(json|bin)$/;
-/** Parsed hashed files an isolate keeps: about a dozen departments' worth of an agent's run. */
-const MAX_KEPT = 48;
-/** How long a fixed-name file is kept: the catalog manifests' edge TTL. */
-const FIXED_TTL_MS = 60_000;
+/**
+ * The few files most calls start from, each hundreds of KB to parse and
+ * check: the course index's search rows, the offered file, PlanetTerp's
+ * index and the routes. Kept apart, so a broad search's department files
+ * never push them out.
+ */
+const INDEX_FILE =
+  /^(courses\/search|offered\/courses|planetterp\/index|geo\/)/;
+/** Department files an isolate keeps: one broad search's worth (MAX_SEARCH_DEPTS). */
+const MAX_FILES = 48;
+/** Index files and what's derived from them (two of each, across a republish). */
+const MAX_INDEX = 12;
 
-type Kept = { value: Promise<unknown>; at: number };
-const kept = new Map<string, Kept>();
+const files = new Map<string, unknown>();
+const indexFiles = new Map<string, unknown>();
 
 /** Forget everything (tests). */
 export function clearPublishedCache(): void {
-  kept.clear();
+  files.clear();
+  indexFiles.clear();
 }
 
-function remember(
-  key: string,
-  load: () => Promise<unknown>,
-  now: number,
-): Promise<unknown> {
-  const hashed = HASHED.test(key);
-  const hit = kept.get(key);
-  if (hit && (hashed || now - hit.at < FIXED_TTL_MS)) {
-    // Most recently used goes last, so the oldest is evicted first.
-    kept.delete(key);
-    kept.set(key, hit);
-    return hit.value;
-  }
-  const value = load();
-  // A failed or missing read isn't kept: the next call tries again.
-  value.then(
-    (v) => {
-      if (v === null) kept.delete(key);
-    },
-    () => kept.delete(key),
-  );
-  kept.set(key, { value, at: now });
-  while (kept.size > MAX_KEPT) {
-    const oldest = kept.keys().next().value;
-    if (oldest === undefined) break;
-    kept.delete(oldest);
-  }
+/** The kept value for `key`, newest last, or undefined. */
+function keptValue(key: string): unknown {
+  const pool = INDEX_FILE.test(key) ? indexFiles : files;
+  if (!pool.has(key)) return undefined;
+  const value = pool.get(key);
+  pool.delete(key);
+  pool.set(key, value);
   return value;
+}
+
+function keep(key: string, value: unknown): void {
+  const [pool, max] = INDEX_FILE.test(key)
+    ? [indexFiles, MAX_INDEX]
+    : [files, MAX_FILES];
+  pool.set(key, value);
+  for (const oldest of pool.keys()) {
+    if (pool.size <= max) break;
+    pool.delete(oldest);
+  }
 }
 
 export type McpData = ReturnType<typeof mcpData>;
 
-/** The published data, read from `bucket` (`now` is the clock, for the fixed files' TTL). */
-export function mcpData(bucket: R2Bucket, now: () => number = Date.now) {
+/**
+ * The published data for one request, read from `bucket`. A read in
+ * flight is shared only within the request (workerd won't let another
+ * request wait on it, src/server/pages/context.ts); across requests, an
+ * isolate keeps hashed files' settled, checked values, and what's derived
+ * from them, since neither ever changes. Fixed-name files (the term list,
+ * manifests) are read fresh each request: they're small, and they say
+ * which hashed files are current.
+ */
+export function mcpData(bucket: R2Bucket) {
+  const inFlight = new Map<string, Promise<unknown>>();
+
+  function once<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const kept = HASHED.test(key.replace(/#.*$/, ""))
+      ? keptValue(key)
+      : undefined;
+    if (kept !== undefined) return Promise.resolve(kept as T);
+    let value = inFlight.get(key) as Promise<T> | undefined;
+    if (!value) {
+      value = load().then((v) => {
+        // A missing or unreadable file isn't kept: the next call tries again.
+        if (v !== null && HASHED.test(key.replace(/#.*$/, ""))) keep(key, v);
+        return v;
+      });
+      inFlight.set(key, value);
+    }
+    return value;
+  }
+
   function read<S extends z.ZodType>(
     key: string,
     schema: S,
   ): Promise<z.output<S> | null> {
-    return remember(
-      key,
-      async () => {
-        const object = await bucket.get(key);
-        if (!object) return null;
-        const parsed = schema.safeParse(await object.json());
-        return parsed.success ? parsed.data : null;
-      },
-      now(),
-    ) as Promise<z.output<S> | null>;
+    return once(key, async () => {
+      const parsed = schema.safeParse(await r2Json(bucket)(key));
+      return parsed.success ? parsed.data : null;
+    });
   }
 
-  /** A derived value of a hashed file, kept beside it (a search index, a decoded binary). */
+  /** A value derived from hashed file `key` (a search index, a decoded binary), kept beside it. */
   function derive<T>(key: string, load: () => Promise<T>): Promise<T> {
-    return remember(`${key}#derived`, load, now()) as Promise<T>;
+    return once(`${key}#derived`, load);
   }
 
   async function terms(): Promise<Term[]> {

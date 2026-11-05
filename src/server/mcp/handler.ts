@@ -133,7 +133,7 @@ export async function handleMcp(
             error: {
               code: -32000,
               message:
-                "Too many requests: Terpsicle's MCP server allows 120 calls a minute per address. Wait a minute and try again.",
+                "Too many requests: Terpsicle's MCP server allows 600 calls a minute per address. Wait a minute and try again.",
             },
           },
           { status: 429, headers: { "Retry-After": "60" } },

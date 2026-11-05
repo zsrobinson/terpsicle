@@ -1,10 +1,9 @@
 import { termLabel } from "~/core/catalog/terms";
-import { readHistoryOffered } from "~/core/history/offered";
 import {
-  nextOffering,
-  offeringPhrase,
-  offeringSummary,
-} from "~/core/history/offering-pattern";
+  notOfferedMatches,
+  type OfferedCourse,
+  readHistoryOffered,
+} from "~/core/history/offered";
 import { defaultTerm, newestTerm, termRef } from "~/core/mcp/terms";
 import {
   genEdWords,
@@ -19,11 +18,21 @@ import {
   type CourseCode,
   type CourseSearchRow,
   type Credits,
+  courseSearchKey,
   GEN_ED_LABELS,
   planetTerpCourseUrl,
+  sectionKey,
   type TermId,
 } from "~/core/schema";
-import { courseLevel, createRowSearch, searchCourses } from "~/core/search";
+import type { SearchCoursesInput } from "~/core/schema/mcp";
+import {
+  courseLevel,
+  createRowSearch,
+  hasOpenSeats,
+  searchCourses,
+} from "~/core/search";
+import { seatCounts } from "~/core/seats";
+import { siteUrl } from "~/core/seo/site";
 import type { McpData } from "../data";
 import {
   catalogTerm,
@@ -37,8 +46,6 @@ import { indexEntry, offeringFor } from "./offerings";
 
 // The catalog: terms, departments, search, a course, its sections.
 
-const SITE = "https://terpsicle.com";
-
 function creditsWords(credits: Credits): string {
   return credits.min === credits.max
     ? String(credits.min)
@@ -47,7 +54,7 @@ function creditsWords(credits: Credits): string {
 
 export function courseLinks(code: CourseCode, termId: TermId) {
   return {
-    terpsicle: `${SITE}/schedule/course/${code}?term=${termId}`,
+    terpsicle: siteUrl(`/schedule/course/${code}?term=${termId}`),
     testudo: `https://app.testudo.umd.edu/soc/${termId}/${deptOf(code)}/${code}`,
     planetterp: planetTerpCourseUrl(code),
   };
@@ -132,11 +139,13 @@ async function searchIndex(data: McpData) {
   ]);
   if (!rows)
     throw new Error("The course index didn't load. Try again shortly.");
-  const key = `courses/search.${rows.hash}.json+${offered?.hash ?? "none"}`;
+  const key = `${courseSearchKey(rows.hash)}#offered.${offered?.hash ?? "none"}`;
   return data.derive(key, async () => {
     const byCode = new Map<CourseCode, SearchDocRow>();
     for (const row of rows.rows) byCode.set(row[0], row);
-    const ran = offered ? readHistoryOffered(offered.file) : new Map();
+    const ran: ReadonlyMap<CourseCode, OfferedCourse> = offered
+      ? readHistoryOffered(offered.file)
+      : new Map();
     for (const [code, course] of ran) {
       if (byCode.has(code) || !course.title) continue;
       byCode.set(code, [
@@ -156,18 +165,7 @@ async function searchIndex(data: McpData) {
   });
 }
 
-export type SearchInput = {
-  query?: string | undefined;
-  term?: string | undefined;
-  dept?: string | undefined;
-  gen_eds?: string[] | undefined;
-  level?: number | undefined;
-  credits?: number | undefined;
-  open_seats_only?: boolean | undefined;
-  include_not_offered?: boolean | undefined;
-  limit?: number | undefined;
-  offset?: number | undefined;
-};
+export type SearchInput = SearchCoursesInput;
 
 /** Most departments one search reads the term's sections of. */
 const MAX_SEARCH_DEPTS = 40;
@@ -231,17 +229,24 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
   const want = offset + limit;
   // Read departments in the order their courses rank, a few at a time,
   // until the page is full.
-  for (let i = 0; i < candidates.length && found.length < want; ) {
+  for (
+    let i = 0;
+    i < candidates.length && found.length < want && !stoppedEarly;
+  ) {
     const batch: CourseCode[] = [];
     const newDepts = new Set<string>();
     while (i < candidates.length && batch.length < 60) {
-      const code = candidates[i++] ?? "";
+      const code = candidates[i] ?? "";
+      const dept = deptOf(code);
+      const isNew = !loaded.has(dept) && !newDepts.has(dept);
+      // At the cap, scan what's taken so far and stop before this one.
+      if (isNew && loaded.size + newDepts.size >= MAX_SEARCH_DEPTS) {
+        stoppedEarly = true;
+        break;
+      }
+      i += 1;
       batch.push(code);
-      if (!loaded.has(deptOf(code))) newDepts.add(deptOf(code));
-    }
-    if (loaded.size + newDepts.size > MAX_SEARCH_DEPTS) {
-      stoppedEarly = true;
-      break;
+      if (isNew) newDepts.add(dept);
     }
     await inBatches([...newDepts], 10, async (d) => {
       const courses = await data.deptCourses(term.id, d);
@@ -261,13 +266,7 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
         )
       )
         continue;
-      if (
-        input.open_seats_only &&
-        !course.sections.some(
-          (s) => (seats?.[`${course.code}-${s.code}`]?.[0] ?? 0) > 0,
-        )
-      )
-        continue;
+      if (input.open_seats_only && !hasOpenSeats(course, seats)) continue;
       found.push(course);
     }
   }
@@ -292,40 +291,30 @@ export async function searchCoursesAnswer(data: McpData, input: SearchInput) {
     }),
   );
 
-  // Courses that matched but aren't in this term, with when they run.
-  const listed = new Set(
-    terms.filter((t) => t.status === "active").map((t) => t.id),
-  );
-  const now = newestTerm(terms) ?? term.id;
-  const recorded = new Set([...idx.offeredTerms, ...listed]);
+  // Courses that matched but aren't in this term, with when they run: the
+  // same matches Schedule's search shows greyed (notOfferedMatches).
   const showNotOffered =
     (input.include_not_offered ?? true) &&
     offset === 0 &&
     !input.open_seats_only;
-  const exact = query.toUpperCase().replace(/[^A-Z0-9]/g, "");
   const notOffered = showNotOffered
-    ? notInTerm
-        .flatMap((code) => {
-          const row = idx.byCode.get(code);
-          const ran = new Set<TermId>(idx.offered.get(code)?.ran ?? []);
-          if (!row) return [];
-          const summary = offeringSummary({ offered: ran, recorded, now });
-          if (summary.pattern.kind === "discontinued" && code !== exact)
-            return [];
-          const next = nextOffering(summary, term.id, listed, ran);
-          return [
-            {
-              code,
-              title: row[1],
-              credits: creditsWords({ min: row[2], max: row[3] }),
-              usually: offeringPhrase(summary),
-              next: next
-                ? `${next.likely ? "likely " : ""}${termLabel(next.termId)}`
-                : null,
-            },
-          ];
-        })
-        .slice(0, 5)
+    ? notOfferedMatches({
+        ranked: notInTerm,
+        inTerm: () => false,
+        offered: idx.offered,
+        recorded: idx.offeredTerms,
+        listed: new Set(
+          terms.filter((t) => t.status === "active").map((t) => t.id),
+        ),
+        now: newestTerm(terms) ?? term.id,
+        termId: term.id,
+        query,
+      }).map((m) => ({
+        code: m.code,
+        title: m.title,
+        credits: m.credits ? creditsWords(m.credits) : null,
+        when: m.when,
+      }))
     : [];
 
   const more =
@@ -480,7 +469,8 @@ export async function getSections(
   const who = input.instructor?.trim().toLowerCase();
   const matching = course.sections.filter(
     (s) =>
-      (!input.open_only || (seats?.[`${code}-${s.code}`]?.[0] ?? 0) > 0) &&
+      (!input.open_only ||
+        (seatCounts(seats, sectionKey(code, s.code))?.open ?? 0) > 0) &&
       (!who || s.instructors.some((n) => n.toLowerCase().includes(who))),
   );
   const limit = input.limit ?? 40;

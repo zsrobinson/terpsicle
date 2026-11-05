@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   COURSE_INDEX_MANIFEST_KEY,
+  type CourseSearchRow,
   calendarKey,
   courseIndexDeptKey,
   courseSearchKey,
@@ -24,7 +25,10 @@ import {
   aCourseIndexManifest,
   aCourseSearchFile,
   aDeptChunk,
+  aHistoryDept,
+  aHistoryManifest,
   aManifest,
+  anOfferedFile,
   aPlanetTerpDept,
   aPlanetTerpIndex,
   aPlanetTerpManifest,
@@ -34,8 +38,10 @@ import {
   aTerm,
   aTermsFile,
   aTimedMeeting,
+  everyFall,
   FIXTURE_HASH,
   FIXTURE_NOW,
+  semestersOnRecord,
 } from "~/fixtures";
 import { clearPublishedCache } from "./data";
 import { handleMcp, MCP_PATH, MCP_SERVER_CARD_PATH } from "./handler";
@@ -45,6 +51,12 @@ import { handleMcp, MCP_PATH, MCP_SERVER_CARD_PATH } from "./handler";
 
 const ORIGIN = "https://terpsicle.com";
 const H = FIXTURE_HASH;
+/** 45 departments with a course each, none of them in a term. */
+const MANY_DEPTS = Array.from(
+  { length: 45 },
+  (_, i) =>
+    `TA${String.fromCharCode(65 + Math.floor(i / 26))}${String.fromCharCode(65 + (i % 26))}`,
+);
 
 async function put(key: string, value: unknown) {
   await env.DATA.put(key, JSON.stringify(value));
@@ -82,11 +94,24 @@ async function seed() {
       }),
     ],
   });
+  // Ranks first for "topics" (the shortest title), ahead of 45 other
+  // departments' special topics this term doesn't have.
+  const topics = aCourse({
+    code: "CMSC389",
+    title: "Topics",
+    prerequisite: null,
+    sections: [
+      aSection({
+        code: "0101",
+        meetings: [aTimedMeeting({ start: 900, end: 950 })],
+      }),
+    ],
+  });
   for (const termId of ["202701", "202608"]) {
     await put(manifestKey(termId), aManifest({ termId }));
     await put(
       deptChunkKey(termId, "CMSC", H),
-      aDeptChunk({ termId, courses: [languages, algorithms] }),
+      aDeptChunk({ termId, courses: [languages, algorithms, topics] }),
     );
     await put(
       seatsKey(termId, H),
@@ -108,7 +133,17 @@ async function seed() {
       courses: [
         ["CMSC330", "Organization of Programming Languages", 3, 3, []],
         ["CMSC351", "Algorithms", 3, 3, []],
+        ["CMSC389", "Topics", 3, 3, []],
         ["CMSC474", "Computational Game Theory", 3, 3, []],
+        ...MANY_DEPTS.map(
+          (d): CourseSearchRow => [
+            `${d}100`,
+            `Special Topics in ${d}`,
+            3,
+            3,
+            [],
+          ],
+        ),
       ],
     }),
   );
@@ -132,46 +167,26 @@ async function seed() {
       ],
     }),
   );
-  const falls = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018].map(
-    (y) => ({
-      termId: `${y}08`,
-      source: "umdio",
-      instructors: ["Ada Brandt"],
-      sections: [{ code: "0101", instructors: ["Ada Brandt"] }],
+  await put(HISTORY_MANIFEST_KEY, aHistoryManifest(semestersOnRecord(2018)));
+  await put(
+    historyDeptKey("CMSC", H),
+    aHistoryDept({
+      courses: [
+        {
+          code: "CMSC474",
+          title: "Computational Game Theory",
+          offerings: everyFall(2018, 2026, { source: "umdio" }),
+        },
+      ],
     }),
   );
-  const recorded: string[] = [];
-  for (let y = 2027; y >= 2018; y--) recorded.push(`${y}08`, `${y}01`);
-  await put(HISTORY_MANIFEST_KEY, {
-    schemaVersion: 1,
-    generatedAt: FIXTURE_NOW,
-    terms: recorded
-      .filter((t) => t <= "202701")
-      .map((termId) => ({
-        termId,
-        hash: H,
-        courses: { terpsicle: 1, umdio: 0, planetterp: 0 },
-      })),
-    departments: [{ code: "CMSC", hash: H }],
-  });
-  await put(historyDeptKey("CMSC", H), {
-    schemaVersion: 1,
-    dept: "CMSC",
-    courses: [
-      { code: "CMSC474", title: "Computational Game Theory", offerings: falls },
-    ],
-  });
   await put(OFFERED_MANIFEST_KEY, {
     schemaVersion: 1,
     generatedAt: FIXTURE_NOW,
     hash: H,
     built: {},
   });
-  await put(offeredKey(H), {
-    schemaVersion: 1,
-    terms: ["202508", "202601", "202608"],
-    courses: [["CMSC474", "Computational Game Theory", 3, 3, "5"]],
-  });
+  await put(offeredKey(H), anOfferedFile());
   await put(PLANETTERP_MANIFEST_KEY, {
     ...aPlanetTerpManifest(),
     index: { hash: H },
@@ -344,6 +359,7 @@ describe("the tools", () => {
     expect(value.results.map((r: { code: string }) => r.code)).toEqual([
       "CMSC330",
       "CMSC351",
+      "CMSC389",
     ]);
     expect(value.results[1]).toMatchObject({
       sections: 2,
@@ -465,6 +481,40 @@ describe("the tools", () => {
     expect(
       (await tool("umd_check_schedule", { sections: ["CMSC351-0901"] })).error,
     ).toContain("no section CMSC351-0901");
+  });
+
+  it("reads at most 40 departments, and still answers from them", async () => {
+    const { value } = await tool("umd_search_courses", { query: "topics" });
+    expect(value.results.map((r: { code: string }) => r.code)).toEqual([
+      "CMSC389",
+    ]);
+    expect(value.note).toContain("more than 40 departments");
+  });
+
+  it("reads a section key however it's written", async () => {
+    for (const key of ["cmsc 351 0101", "CMSC351-0101", "CMSC351 101"]) {
+      const { value } = await tool("umd_check_schedule", { sections: [key] });
+      expect(value.week.M).toEqual(["10am–10:50am CMSC351 0101 · IRB 0324"]);
+    }
+    expect(
+      (await tool("umd_check_schedule", { sections: ["CMSC351"] })).error,
+    ).toContain("isn't a section");
+    expect(
+      (
+        await tool("umd_generate_schedules", {
+          courses: [{ code: "CMSC351", sections: ["CMSC330-0101"] }],
+        })
+      ).error,
+    ).toContain("another course");
+    expect(
+      (
+        await tool("umd_generate_schedules", {
+          courses: [{ code: "CMSC351" }],
+          min_credits: 12,
+          max_credits: 6,
+        })
+      ).error,
+    ).toContain("swap them");
   });
 
   it("generates schedules that fit, or says what to loosen", async () => {

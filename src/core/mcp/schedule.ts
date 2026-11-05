@@ -2,7 +2,6 @@ import { buildCatalogIndex, snapshotOf } from "../catalog/catalog-index";
 import { planProblems } from "../problems/problems";
 import {
   type Course,
-  type CourseCode,
   DAYS,
   type Day,
   type Message,
@@ -166,9 +165,4 @@ export function scheduleWeek(
     if (today.length > 0) week[day] = today.map((r) => r.text);
   }
   return { credits: { min, max }, week, untimed };
-}
-
-/** The courses `keys` name, by code, in the order first named. */
-export function coursesOf(keys: readonly SectionKey[]): CourseCode[] {
-  return [...new Set(keys.map((k) => k.split("-")[0] ?? k))];
 }

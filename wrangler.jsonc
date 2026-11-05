@@ -135,13 +135,15 @@
     "USER_DATA_KEY_ID": "k1"
   },
   "ai": { "binding": "AI" },
-  // The public MCP server's limit per address (docs/MCP.md): 120 calls a
-  // minute, counted per Cloudflare location. Previews have none.
+  // The public MCP server's limit per address (docs/MCP.md): 600 calls a
+  // minute, counted per Cloudflare location. Generous because hosted
+  // clients (Claude's connectors) call from a few shared addresses for all
+  // their users. Previews have none.
   "ratelimits": [
     {
       "name": "MCP_RATE_LIMIT",
       "namespace_id": "1001",
-      "simple": { "limit": 120, "period": 60 }
+      "simple": { "limit": 600, "period": 60 }
     }
   ],
   // Cloudflare Email Service; terpsicle.com is onboarded for sending.

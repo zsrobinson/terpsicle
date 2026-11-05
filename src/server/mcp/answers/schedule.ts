@@ -29,18 +29,35 @@ import {
 // Schedules: check one (the scheduler's Problems) or build some (its
 // generator, the same search Generate runs in the browser's worker).
 
-/** "cmsc351 0101", "CMSC351-0101" → "CMSC351-0101". */
-function readSectionKey(input: string): SectionKey {
-  const [course = "", section = ""] = input
-    .trim()
-    .toUpperCase()
-    .split(/[\s-]+/);
+/** "cmsc351 0101", "CMSC 351-0101", "CMSC351-0101" → "CMSC351-0101". */
+export function readSectionKey(input: string): SectionKey {
+  const text = input.trim().toUpperCase();
+  // The section is the last group of letters and digits; the course is the rest.
+  const match = /^(.*?)[\s-]*([A-Z0-9]{3,4})$/.exec(text);
+  const course = (match?.[1] ?? "").replace(/[^A-Z0-9]/g, "");
+  const section = match?.[2] ?? "";
+  if (!match || course.length < 7)
+    throw new ToolInputError(
+      `"${input}" isn't a section. Write the course and its section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
+    );
   const key = `${course}-${section.padStart(4, "0")}`;
   if (!parseSectionKey(key))
     throw new ToolInputError(
-      `"${input}" isn't a section. Write the course and section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
+      `"${input}" isn't a section. Write the course and its section, like CMSC351-0101; umd_get_sections lists a course's sections.`,
     );
   return key;
+}
+
+/** A section code for `course`: "0101", "101" or a key of that same course. */
+function readSectionOf(course: CourseCode, input: string): string {
+  const text = input.trim().toUpperCase();
+  if (/^[A-Z0-9]{3,4}$/.test(text)) return text.padStart(4, "0");
+  const key = readSectionKey(text);
+  if (!key.startsWith(`${course}-`))
+    throw new ToolInputError(
+      `"${input}" is a section of another course; list it under that course's code.`,
+    );
+  return key.slice(course.length + 1);
 }
 
 async function termCourses(
@@ -157,10 +174,8 @@ export async function generateSchedules(
     if (codes.includes(code))
       throw new ToolInputError(`${code} is listed twice.`);
     codes.push(code);
-    const sections = c.sections?.map(
-      (s) =>
-        readSectionKey(`${code}-${s.replace(/^.*-/, "")}`).split("-")[1] ?? s,
-    );
+    const sections = c.sections?.map((x) => readSectionOf(code, x));
+
     items.push({
       kind: "course",
       required: c.required ?? true,
@@ -186,6 +201,14 @@ export async function generateSchedules(
       );
   }
 
+  if (
+    input.min_credits !== undefined &&
+    input.max_credits !== undefined &&
+    input.min_credits > input.max_credits
+  )
+    throw new ToolInputError(
+      `min_credits (${input.min_credits}) is more than max_credits (${input.max_credits}); swap them or drop one.`,
+    );
   const rankBy = input.rank_by ?? "compact";
   const request: GenerateRequest = {
     termId: term.id,
